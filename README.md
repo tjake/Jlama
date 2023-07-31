@@ -31,7 +31,7 @@ As of now the best way to use this is to look at the [TestModels](...) Unit Test
 ```
 ## Caveats
 
-  * Models must be in safetensor format.  Most huggingface models are not in this format. 
+  * Models must be in safetensor format.  Most huggingface models are already in this format. 
     For larger models you will need to re-process them to use a 2G max chunk size (for now).
 
   
