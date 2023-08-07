@@ -10,6 +10,8 @@ public class Config {
     public final int numberOfLayers;
     public final float layerNormEps;
     public final int vocabularySize;
+    public final int bosToken;
+    public final int eosToken;
 
     public final FloatBufferTensor.BufferCache bufferCache;
 
@@ -19,7 +21,9 @@ public class Config {
                   int numberOfHeads,
                   int numberOfLayers,
                   float layerNormEps,
-                  int vocabularySize) {
+                  int vocabularySize,
+                  int bosToken,
+                  int eosToken) {
         this.contextLength = contextLength;
         this.embeddingLength = embeddingLength;
         this.hiddenLength = hiddenLength;
@@ -27,6 +31,8 @@ public class Config {
         this.numberOfLayers = numberOfLayers;
         this.layerNormEps = layerNormEps;
         this.vocabularySize = vocabularySize;
+        this.bosToken = bosToken;
+        this.eosToken = eosToken;
         this.bufferCache = new FloatBufferTensor.BufferCache(100 * 1024 * 1024);
     }
 }

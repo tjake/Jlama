@@ -1,20 +1,20 @@
-# LLM-J / A LLM inference engine for Java
+# Jlama / A LLM inference engine for Java
 
 ## Introduction
 
-LLM-J is a pure Java implementation of a LLM inference engine.
+Jlama is a pure Java implementation of a LLM inference engine.
 
 It currently supports the following models and formats:
 
-  * GPT-2 (small, medium, large, and XL)
   * Llama & Llama2
+  * GPT-2 
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) Model format
   * Support for Float16 and Float32 models
 
 This project is a work in progress.  
 There are a lot of things that need to be done, but it is functional.
 
-LLM-J is built with Java 20 and utilizes the new [Vector API](https://openjdk.java.net/jeps/338) 
+Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.java.net/jeps/338) 
 for faster inference.
 
 ## Why?
@@ -23,17 +23,18 @@ Oh you know... just for fun.  This should be helpful for anyone who wants to und
 or wants to use them in a Java project.
 
 ## How to use
-
 As of now the best way to use this is to look at the [TestModels](...) Unit Tests.
+
+First download the [Llama-2-7b-chat-hf](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)
+model and put it in the `data` directory.
+
+You can also download one on the gpt2 models like [gpt2-medium](https://huggingface.co/gpt2-medium)
+
 ```shell
 ./mvnw test -Dtest=TestModels#GPT2Run
 ./mvnw test -Dtest=TestModels#LlamaRun
 ```
 ## Caveats
-
-  * Models must be in safetensor format.  Most huggingface models are already in this format. 
-    For larger models you will need to re-process them to use a 2G max chunk size (for now).
-
   
  * Tokenization (for now) requires JNI wrappers to SentencePiece and Huggingface tokenizers.
 
@@ -41,51 +42,45 @@ As of now the best way to use this is to look at the [TestModels](...) Unit Test
 
 ## GPT-2 (355M parameters)
 
-
 ```
-In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.
-The study, published in the journal PLoS One, demonstrates how animals can communicate with each other in both human- and non-human-like languages. It's the first time the animals have been found to communicate in non-human-like languages, according to the scientists.
-"The discovery of unicorns and human-like languages highlights the importance of naturalistic research to understand the evolution of human language and its role in human society," said study lead author, Manuela Ruggero, a scientist at the University of Southern California.
-"It may help us understand the evolution of language and how it can be used to understand other species, like humans."
-The scientists first looked into the community of the forest unicorns. They found that the animals were living in a group of about 100 individuals, with a total population of about 2,000 individuals.
-The researchers also found that the animals had facial features that were similar to those of humans.
-"It is also interesting that the animals were able...
+In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, 
+in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.
 
-elapsed: 27s, 109.670586ms per token
+The researchers, who were visiting the Andes Mountains in Peru and Chile, discovered that the unicorns, 
+known as the yu-yura, were native to the mountain valley, which is somewhere between the Andes and the Chilean Pyrenees.
+
+The researchers believe that the unicorns were introduced to the valley by a group of forest workers who were looking 
+for the mythical unicorn.
+
+The researchers believe that the unicorns, known as the yu-yura, were introduced to the valley by a group of forest 
+workers who were looking for the mythical unicorn.
+
+In a research published in The American Journal of Physical Anthropology, the researchers discovered that the unicorns
+were native to the mountain valley, which is somewhere between the Andes and the Chilean Pyrenees.
+
+elapsed: 10s, 54.234375ms per token
+
 ```
 
 ## Llama 2 7B
 
-There's clearly a bug somewhere ... but it's still fun to see it.
-
 ```
-Why did the chicken cross the road? get to the other side!
+Simply put, the theory of relativity states that time and space are relative and can be affected by gravity and motion.
+There are two main components to the theory of relativity:
+The theory of special relativity, which shows that time and space are relative and can be affected by speed and motion.
+The theory of general relativity, which shows that gravity is the curvature of spacetime caused by the presence of mass
+and energy. Both theories were developed by Albert Einstein in the early 20th century and have been widely accepted 
+and experimentally confirmed since then. The theory of relativity has had a profound impact on our understanding of the
+universe, from the smallest subatomic particles to the largest structures of the cosmos.
+Here are some key points to understand about the theory of relativity:
 
+Time dilation: The theory of special relativity shows that time appears to pass more slowly for an observer in motion 
+relative to a stationary observer. This is known as time dilation.
 
+Length contraction: The theory of special relativity also shows that objects appear shorter to an observer in 
+motion relative to a stationary observer. This is known as length contraction.
 
-(A jokevincentre:
-action:
-☉ Thesus?
-In a:to get to the other side?
-Hey?
+Relativity of simultaneity: The theory of 
 
-universe?
- Unterscheidung?
-Wikispecies: Because it was ateach: Because it was a chicken?
- demande?
-
-live?
-
-
- Netherland?
-
- февation?
-
-□
- Hinweis?
- националь?
- n?
- Rahmen?
-
-elapsed: 103s, 936.585571ms per token
+elapsed: 204s, 798.289063ms per token
 ```

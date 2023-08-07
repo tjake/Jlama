@@ -42,4 +42,14 @@ public interface Tensor extends AutoCloseable {
     boolean hasArray();
 
     default void close() {}
+
+    default void debug(String id) {
+        if (false) {
+            double tmp = 0.0;
+            for (int i = 0; i < size(); i++) {
+                tmp += get(i);
+            }
+            System.out.println(String.format("%s = %.5f", id, tmp));
+        }
+    }
 }

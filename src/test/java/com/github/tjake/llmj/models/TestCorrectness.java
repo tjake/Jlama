@@ -1,17 +1,27 @@
 package com.github.tjake.llmj.models;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.llmj.math.VectorMath;
+import com.github.tjake.llmj.model.FloatBufferTensor;
+import com.github.tjake.llmj.model.RMSNorm;
+import com.github.tjake.llmj.model.Tensor;
 import com.github.tjake.llmj.model.llama.LlamaConfig;
 import com.github.tjake.llmj.model.llama.LlamaTokenizer;
 import com.github.tjake.llmj.safetensors.Config;
+import com.github.tjake.llmj.safetensors.SafeTensorIndex;
+import com.google.common.io.Resources;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
 
 public class TestCorrectness {
     private static final ObjectMapper om = new ObjectMapper()
@@ -82,5 +92,23 @@ public class TestCorrectness {
 
         for (int i = 0; i < 64; i++)
             Assert.assertEquals(expected[i], ropeFreqs[i + (64 * 64)][1], 0.0001);
+    }
+
+    @Test
+    public void testRope2() throws IOException {
+        List<List<Float>> real = om.readerFor(new TypeReference<ArrayList<ArrayList<Float>>>() {}).readValue(Resources.getResource("real.json"));
+        List<List<Float>> imag = om.readerFor(new TypeReference<ArrayList<ArrayList<Float>>>() {}).readValue(Resources.getResource("imag.json"));
+
+        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(128, 2048, 10000.0 );
+
+        Assert.assertEquals(imag.size(), real.size());
+        Assert.assertEquals(ropeFreqs.length, real.size() * 64);
+
+        for (int i = 0; i < real.size(); i++) {
+            for (int j = 0; j < 64; j++) {
+                Assert.assertEquals(real.get(i).get(j), ropeFreqs[i * 64 + j][0], 0.0001);
+                Assert.assertEquals(imag.get(i).get(j), ropeFreqs[i * 64 + j][1], 0.0001);
+            }
+        }
     }
 }

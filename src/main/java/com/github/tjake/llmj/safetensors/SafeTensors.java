@@ -14,40 +14,41 @@ public class SafeTensors {
     private static final ObjectMapper om = new ObjectMapper();
     private static final MapType metadataTypeReference = om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
 
-    public static Weights readBytes(ByteBuffer safeBuf)
-    {
-        //Preconditions.checkArgument(safeBuf.order() == ByteOrder.LITTLE_ENDIAN, "Buffer must be little endian");
-        ByteBuffer buf = safeBuf.duplicate();
-
+    public static Map<String, TensorInfo> readTensorInfoMap(ByteBuffer buf, Optional<Map<String, String>> saveMetadata) {
         long headerLength = buf.order() == ByteOrder.BIG_ENDIAN ? Long.reverseBytes(buf.getLong()) : buf.getLong();
         byte[] header = new byte[Ints.checkedCast(headerLength)];
         buf.get(header);
 
-        try
-        {
+        try {
             JsonNode rootNode = om.readTree(header);
             Iterator<Map.Entry<String, JsonNode>> fields = rootNode.fields();
             Map<String, TensorInfo> tensorInfoMap = new HashMap<>();
             Map<String, String> metadata = Collections.emptyMap();
 
-            while (fields.hasNext())
-            {
+            while (fields.hasNext()) {
                 Map.Entry<String, JsonNode> field = fields.next();
                 if (field.getKey().equalsIgnoreCase("__metadata__")) {
                     metadata = om.treeToValue(field.getValue(), metadataTypeReference);
-                }
-                else
-                {
+                } else {
                     TensorInfo tensorInfo = om.treeToValue(field.getValue(), TensorInfo.class);
                     tensorInfoMap.put(field.getKey(), tensorInfo);
                 }
             }
 
-            return new Weights(metadata, tensorInfoMap, buf.slice());
-        }
-        catch (IOException e)
-        {
+            final Map<String, String> finalMetadata = metadata;
+            saveMetadata.ifPresent(m -> m.putAll(finalMetadata));
+
+            return tensorInfoMap;
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static Weights readBytes(ByteBuffer safeBuf) {
+        safeBuf = safeBuf.duplicate();
+        Map<String, String> metadata = new HashMap<>();
+        Map<String, TensorInfo> tensorInfoMap = readTensorInfoMap(safeBuf, Optional.of(metadata));
+
+        return new Weights(metadata, tensorInfoMap, safeBuf.slice());
     }
 }

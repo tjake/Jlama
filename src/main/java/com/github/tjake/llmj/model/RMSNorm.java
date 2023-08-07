@@ -19,9 +19,9 @@ public class RMSNorm extends LayerNorm {
         }
         ss /= size;
         ss += c.layerNormEps;
-        ss = 1.0f / (float) Math.sqrt(ss);
+        ss = (float)(1.0 / StrictMath.sqrt(ss));
         // normalize and scale
-        FloatBufferTensor out = c.bufferCache.get(input.shape());
+        FloatBufferTensor out = c.bufferCache.get(size);
         for (int j = 0; j < size; j++) {
              out.set(weights.get(j) * (ss * input.get(j)), j);
         }

@@ -20,17 +20,13 @@ public class TransformerBlock {
 
     public Tensor forward(Tensor embedding, int position, Tensor kvBuffer) {
 
-        //emb += attn(ln_1(emb), kvbuf, i)
         Tensor lnemb = layerNorm1.forward(embedding);
         Tensor postAttention = attention.forward(lnemb, position, kvBuffer);
-
         //residual connection
         VectorMath.accumulate(postAttention, embedding);
 
-        //emb += proj(gelu(fc(ln_2(emb))))
         Tensor lnemb2 = layerNorm2.forward(postAttention);
         Tensor postMlp = mlpBlock.forward(lnemb2);
-
         //residual connection
         VectorMath.accumulate(postMlp, postAttention);
 

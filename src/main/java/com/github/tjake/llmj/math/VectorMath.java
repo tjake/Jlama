@@ -100,10 +100,35 @@ public class VectorMath {
         }
     }
 
+    public static void softMax(Tensor t) {
+        float[] x = t.getFloatArray();
+        int offset = t.getArrayOffset();
+        int size = t.size();
+
+        // find max value (for numerical stability)
+        float max_val = x[offset];
+        for (int i = offset + 1; i < size; i++) {
+            if (x[i] > max_val) {
+                max_val = x[i];
+            }
+        }
+        // exp and sum
+        float sum = 0.0f;
+        for (int i = offset; i < size; i++) {
+            x[i] = (float)StrictMath.exp(x[i] - max_val);
+            sum += x[i];
+        }
+        // normalize
+        for (int i = 0; i < size; i++) {
+            x[i] /= sum;
+        }
+    }
+
+
     // https://pytorch.org/docs/stable/generated/torch.polar.html
     public static float[] polar(float abs, float angle) {
-        float r = (float) Math.cos(angle) * abs;
-        float theta = (float) Math.sin(angle) * abs ;
+        float r = (float) StrictMath.cos(angle) * abs;
+        float theta = (float) StrictMath.sin(angle) * abs ;
         return new float[] {r, theta};
     }
 
@@ -124,7 +149,7 @@ public class VectorMath {
         float[] freqs = new float[dim / 2];
         float step = 0.0f;
         for (int i = 0; i < freqs.length; i++, step += 2.0)
-            freqs[i] = (float) (1.0 / Math.pow(theta, step / dim));
+            freqs[i] = (float) (1.0 / StrictMath.pow(theta, step / dim));
 
         float[] t = new float[end];
         for (int i = 0; i < end; i++)

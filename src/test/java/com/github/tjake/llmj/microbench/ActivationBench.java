@@ -14,13 +14,6 @@ public class ActivationBench {
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
-    public void silu2(Blackhole bh) {
-        bh.consume(ActivationFunction.eval(ActivationFunction.Type.SILU2, 2.0f));
-    }
-
-    @Benchmark
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @BenchmarkMode(Mode.Throughput)
     public void silu1(Blackhole bh) {
         bh.consume(ActivationFunction.eval(ActivationFunction.Type.SILU, 2.0f));
     }

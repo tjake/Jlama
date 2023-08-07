@@ -14,12 +14,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-public class GPT2Model {
-
-    public final Config c;
-
-    private final Tokenizer tokenizer;
-
+public class GPT2Model extends AbstractModel {
     public final Tensor wte;
     public final Tensor wpe;
 
@@ -28,8 +23,7 @@ public class GPT2Model {
     public final TransformerBlock[] transformerBlocks;
 
     public GPT2Model(Config c, Weights w, Tokenizer tokenizer) {
-        this.c = c;
-        this.tokenizer = tokenizer;
+        super(c, w, tokenizer);
 
         this.wte = w.load("wte.weight");
         this.wpe = w.load("wpe.weight");
@@ -61,6 +55,33 @@ public class GPT2Model {
         }
     }
 
+    @Override
+    protected Tensor inputTokenToEmbedding(int inputToken, int position) {
+        Tensor embedding = c.bufferCache.get(c.embeddingLength);
+
+        for (int i = 0; i < c.embeddingLength; i++) {
+            float v = wte.get(inputToken, i) + wpe.get(position, i);
+            embedding.set(v, i);
+        }
+
+        return embedding;
+    }
+
+    @Override
+    protected TransformerBlock[] getTransformerBlocks() {
+        return transformerBlocks;
+    }
+
+    @Override
+    protected LayerNorm getOutputLayerNorm() {
+        return layerNorm;
+    }
+
+    @Override
+    protected Tensor getOutputLogitsWeights() {
+        return wte;
+    }
+
     public Tensor forward(int token_id, int pos, Tensor kvbuf) {
 
         Tensor embedding = c.bufferCache.get(c.embeddingLength);
@@ -78,78 +99,4 @@ public class GPT2Model {
         }
         return embedding;
     }
-
-    int sample(Tensor output, float temperature, float uniformSample, Tensor logits) {
-        try(Tensor embedding = layerNorm.forward(output)) {
-            float max = Float.NEGATIVE_INFINITY;
-            int ntokens = logits.shape()[0];
-            for (int i = 0; i < ntokens; i++) {
-                float v = VectorMath.dotProduct(embedding, wte.slice(i), c.embeddingLength);
-                logits.set(v, i);
-                if (v > max)
-                    max = v;
-            }
-
-            float sum = 0;
-            for (int i = 0; i < ntokens; i++) {
-                float v = (float) Math.exp((logits.get(i) - max) / temperature);
-                sum += v;
-                logits.set(v, i);
-            }
-
-            float acc = 0;
-            for (int i = 0; i < ntokens; i++) {
-                float v = logits.get(i) / sum;
-                logits.set(v, i);
-                acc += v;
-                if (acc >= uniformSample)
-                    return i;
-            }
-
-            throw new RuntimeException("Sampling Error? " + uniformSample + " " + acc);
-        }
-    }
-
-    public void run(String prompt, float temperature, int ntokens, Consumer<String> onToken) {
-        boolean init = VectorMath.hasVectorAPI;
-        long[] encoded = tokenizer.encode(prompt);
-        Preconditions.checkArgument(encoded.length < c.contextLength);
-
-        Tensor kvmem = new FloatBufferTensor(c.numberOfLayers, c.contextLength, c.embeddingLength * 2); //k and v are concatenated
-
-        // forbid generation of <|endoftext|> by cutting it out of the logit buffer (it's the last token)
-        Tensor logits = new FloatBufferTensor(c.vocabularySize - 1);
-
-        int[] tokens = new int[c.contextLength];
-
-        // always start with <|endoftext|>
-        tokens[0] = 50256; // <|endoftext|>
-
-        for (int i = 0; i < encoded.length; i++)
-            tokens[i + 1] = Ints.checkedCast(encoded[i]);
-
-        int promptLength = encoded.length;
-        System.out.println(prompt);
-        long start = System.currentTimeMillis();
-        int tokensGenerated = 0;
-        for (int i = 0; i < ntokens - 1; i++) {
-            //System.out.println("Token = " + tokens[i]);
-            try(Tensor output = forward(tokens[i], i, kvmem)) {
-                tokensGenerated++;
-                if (i < promptLength)
-                    continue;
-
-                int sampled_token = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
-                tokens[i + 1] = sampled_token;
-                String p = tokenizer.decode(sampled_token);
-                onToken.accept(p);
-                //long end = System.currentTimeMillis();
-                //System.out.printf("elapsed: %ds, %fms per token\n", TimeUnit.MILLISECONDS.toSeconds(end - start), ((end - start) / (float) i));
-            }
-        }
-
-        long end = System.currentTimeMillis();
-        System.out.printf("\n\nelapsed: %ds, %fms per token\n", TimeUnit.MILLISECONDS.toSeconds(end - start), ((end - start) / (float) tokensGenerated));
-    }
-
 }

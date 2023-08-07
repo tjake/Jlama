@@ -24,7 +24,7 @@ public class MLPBlock {
         this(c, activationFunction, fullyConnectedBias, fullyConnectedWeights, projectionBias, projectionWeights, null);
     }
 
-    public MLPBlock(Config c, ActivationFunction.Type activationFunction, Tensor fullyConnectedBias, Tensor fullyConnectedWeights, Tensor projectionBias, Tensor projectionWeights, Tensor fc2)
+    public MLPBlock(Config c, ActivationFunction.Type activationFunction, Tensor fullyConnectedBias, Tensor fullyConnectedWeights, Tensor projectionBias, Tensor projectionWeights, Tensor upProjectionWeights)
     {
         this.c = c;
         this.activationFunction = activationFunction;
@@ -32,7 +32,7 @@ public class MLPBlock {
         this.fullyConnectedWeights = fullyConnectedWeights;
         this.projectionBias = projectionBias;
         this.projectionWeights = projectionWeights;
-        this.upProjectionWeights = fc2;
+        this.upProjectionWeights = upProjectionWeights;
     }
 
     // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
@@ -41,21 +41,25 @@ public class MLPBlock {
         int hiddenLength = c.hiddenLength;
         try(Tensor buf = c.bufferCache.get(hiddenLength)) {
             IntStream.range(0, hiddenLength).parallel().forEach( i -> {
-                float v = fullyConnectedBias.get(i) + VectorMath.dotProduct(lnemb, fullyConnectedWeights.slice(i), c.embeddingLength);
-                float a = ActivationFunction.eval(activationFunction, v);
+                float w1 = fullyConnectedBias.get(i) + VectorMath.dotProduct(lnemb, fullyConnectedWeights.slice(i), c.embeddingLength);
+                float w1a = ActivationFunction.eval(activationFunction, w1);
 
-                if (upProjectionWeights != null)
-                    a *= VectorMath.dotProduct(lnemb, upProjectionWeights.slice(i), c.embeddingLength);
+                if (upProjectionWeights != null) {
+                    float w3 = VectorMath.dotProduct(lnemb, upProjectionWeights.slice(i), c.embeddingLength);
+                    w1a *= w3;
+                }
 
-                buf.set(a, i);
+                buf.set(w1a, i);
             });
+
+
 
             //matmul the projection and sum into input
             Tensor result = c.bufferCache.get(c.embeddingLength);
-            for (int i = 0; i < c.embeddingLength; i++) {
+            IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
                 float v = projectionBias.get(i) + VectorMath.dotProduct(buf, projectionWeights.slice(i), hiddenLength);
                 result.set(v, i);
-            }
+            });
 
             return result;
         }
