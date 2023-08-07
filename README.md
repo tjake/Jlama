@@ -8,8 +8,8 @@ It currently supports the following models and formats:
 
   * Llama & Llama2
   * GPT-2 
-  * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) Model format
-  * Support for Float16 and Float32 models
+  * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model format
+  * Support for Float16, BFloat16 and Float32 models
 
 This project is a work in progress.  
 There are a lot of things that need to be done, but it is functional.
@@ -23,7 +23,7 @@ Oh you know... just for fun.  This should be helpful for anyone who wants to und
 or wants to use them in a Java project.
 
 ## How to use
-As of now the best way to use this is to look at the [TestModels](...) Unit Tests.
+As of now the best way to use this is to look at the [TestModels](https://github.com/tjake/Jlama/blob/main/src/test/java/com/github/tjake/jlama/models/TestModels.java) Unit Tests.
 
 First download the [Llama-2-7b-chat-hf](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)
 model and put it in the `data` directory.
