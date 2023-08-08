@@ -11,26 +11,32 @@ It currently supports the following models and formats:
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model format
   * Support for Float16, BFloat16 and Float32 models
 
-This project is a work in progress.  
-There are a lot of things that need to be done, but it is functional.
-
-Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.java.net/jeps/338) 
+Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
+
+This project is a work in progress.
 
 ## Why?
 
-Oh you know... just for fun.  This should be helpful for anyone who wants to understand how LLMs work, 
+Oh you know... just for fun.  
+Besides that, this should be helpful for anyone who wants to understand how LLMs work, 
 or wants to use them in a Java project.
+
+CPU based inference needs to be pushed to the limit to see if it can be a viable alternative to GPU based inference.
 
 ## How to use
 As of now the best way to use this is to look at the [TestModels](https://github.com/tjake/Jlama/blob/main/src/test/java/com/github/tjake/jlama/models/TestModels.java) Unit Tests.
 
-First download the [Llama-2-7b-chat-hf](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf)
-model and put it in the `data` directory.
-
-You can also download one on the gpt2 models like [gpt2-medium](https://huggingface.co/gpt2-medium)
+Use the `download_hf_models.sh` script in the data directory to download models from huggingface.
 
 ```shell
+cd data
+./download_hf_models.sh gpt2-medium
+./download_hf_models.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
+```
+Then run the tests with:
+```shell
+cd ..
 ./mvnw test -Dtest=TestModels#GPT2Run
 ./mvnw test -Dtest=TestModels#LlamaRun
 ```
@@ -67,11 +73,18 @@ elapsed: 10s, 54.234375ms per token
 ```
 Simply put, the theory of relativity states that time and space are relative and can be affected by gravity and motion.
 There are two main components to the theory of relativity:
+
 The theory of special relativity, which shows that time and space are relative and can be affected by speed and motion.
+
 The theory of general relativity, which shows that gravity is the curvature of spacetime caused by the presence of mass
-and energy. Both theories were developed by Albert Einstein in the early 20th century and have been widely accepted 
-and experimentally confirmed since then. The theory of relativity has had a profound impact on our understanding of the
+and energy. 
+
+Both theories were developed by Albert Einstein in the early 20th century and have been widely accepted 
+and experimentally confirmed since then. 
+
+The theory of relativity has had a profound impact on our understanding of the
 universe, from the smallest subatomic particles to the largest structures of the cosmos.
+
 Here are some key points to understand about the theory of relativity:
 
 Time dilation: The theory of special relativity shows that time appears to pass more slowly for an observer in motion 
@@ -84,3 +97,12 @@ Relativity of simultaneity: The theory of
 
 elapsed: 204s, 798.289063ms per token
 ```
+
+## Roadmap
+
+    * Support more models
+    * Add pure java tokenizers
+    * Support more data types (e.g. Int8)
+    * Add LoRA support
+    * GraalVM support
+    * Add distributed inference 
