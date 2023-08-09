@@ -31,8 +31,8 @@ Use the `download_hf_models.sh` script in the data directory to download models 
 
 ```shell
 cd data
-./download_hf_models.sh gpt2-medium
-./download_hf_models.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
+./download_hf_model.sh gpt2-medium
+./download_hf_model.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
 ```
 Then run the tests with:
 ```shell
