@@ -3,6 +3,7 @@ package com.github.tjake.jlama.models;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 public class TestCorrectness {
@@ -104,6 +106,16 @@ public class TestCorrectness {
                 Assert.assertEquals(real.get(i).get(j), ropeFreqs[i * 64 + j][0], 0.0001);
                 Assert.assertEquals(imag.get(i).get(j), ropeFreqs[i * 64 + j][1], 0.0001);
             }
+        }
+    }
+
+    @Test
+    public void testFloatTypes() {
+        for (int i = 0; i < 1000; i++) {
+            float f = ThreadLocalRandom.current().nextFloat(-1, 1);
+            Assert.assertEquals(f, FloatConversions.bFloat16ToFloat32(FloatConversions.float32ToBFloat16(f)), 0.01);
+            Assert.assertEquals(f, Float.float16ToFloat(Float.floatToFloat16(f)), 0.001);
+            Assert.assertEquals(f, FloatConversions.float16ToFloat32Alt(Float.floatToFloat16(f)), 0.001);
         }
     }
 }

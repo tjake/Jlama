@@ -58,7 +58,7 @@ public abstract class AbstractModel {
             AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
 
             //This is a mix of argmax and sampling with softmax
-            IntStream.range(0, c.vocabularySize).parallel().forEach(i -> {
+            VectorMath.pfor(0, c.vocabularySize, i -> {
                 float v = VectorMath.dotProduct(embedding, getOutputLogitsWeights().slice(i), c.embeddingLength);
                 logits.set(v, i);
                 maxv.getAndUpdate(x -> {

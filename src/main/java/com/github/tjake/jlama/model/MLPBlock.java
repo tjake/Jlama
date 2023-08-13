@@ -40,7 +40,7 @@ public class MLPBlock {
     public Tensor forward(Tensor lnemb) {
         int hiddenLength = c.hiddenLength;
         try(Tensor buf = c.bufferCache.get(hiddenLength)) {
-            IntStream.range(0, hiddenLength).parallel().forEach( i -> {
+            VectorMath.pfor(0, hiddenLength, i -> {
                 float w1 = fullyConnectedBias.get(i) + VectorMath.dotProduct(lnemb, fullyConnectedWeights.slice(i), c.embeddingLength);
                 float w1a = ActivationFunction.eval(activationFunction, w1);
 
@@ -52,11 +52,9 @@ public class MLPBlock {
                 buf.set(w1a, i);
             });
 
-
-
             //matmul the projection and sum into input
             Tensor result = c.bufferCache.get(c.embeddingLength);
-            IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
+            VectorMath.pfor(0, c.embeddingLength, i -> {
                 float v = projectionBias.get(i) + VectorMath.dotProduct(buf, projectionWeights.slice(i), hiddenLength);
                 result.set(v, i);
             });

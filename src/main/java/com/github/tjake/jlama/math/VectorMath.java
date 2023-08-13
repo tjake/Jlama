@@ -6,7 +6,13 @@ import jdk.incubator.vector.VectorOperators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.atomic.DoubleAdder;
+import java.util.function.IntConsumer;
+import java.util.stream.IntStream;
+
 public class VectorMath {
+
+    private static int blockSize = Integer.MAX_VALUE;
 
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
@@ -23,15 +29,29 @@ public class VectorMath {
         }
     }
 
-    public static void scale(float[] t, int toffset, int tlimit, float scalar)
-    {
+    public static void scale(float[] t, int toffset, int tlimit, float scalar) {
         for (int i = toffset; i < (toffset + tlimit); i++)
             t[i] *= scalar;
     }
 
-    public static float dotProduct(Tensor a, Tensor b, int limit)
-    {
-        return dotProduct(a, b, 0, 0, limit);
+    public static float dotProduct(Tensor a, Tensor b, int limit) {
+        if (limit < blockSize) {
+            return dotProduct(a, b, 0, 0, limit);
+        } else {
+            int i = 0;
+
+            IntStream.Builder builder = IntStream.builder();
+            for (; i < limit - blockSize; i += blockSize)
+                builder.accept(i);
+
+            final DoubleAdder s = new DoubleAdder();
+            builder.build().parallel().forEach(fi -> s.add(dotProduct(a, b, fi, fi, blockSize)));
+
+            if (i < limit)
+                s.add(dotProduct(a, b, i, i, limit - i));
+
+            return (float) s.sum();
+        }
     }
 
     // a[0..n] += b[0..n]
@@ -73,6 +93,10 @@ public class VectorMath {
         }
 
         return s;
+    }
+
+    public static void pfor(int start, int end, IntConsumer action) {
+        IntStream.range(start, end).parallel().forEach(action);
     }
 
     // Computes a constant times a vector plus a vector (single-precision).

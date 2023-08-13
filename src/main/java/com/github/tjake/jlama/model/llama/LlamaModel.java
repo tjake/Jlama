@@ -86,7 +86,7 @@ public class LlamaModel extends AbstractModel{
     protected Tensor inputTokenToEmbedding(int inputToken, int position) {
         Tensor embedding = c.bufferCache.get(c.embeddingLength);
 
-        IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
+        VectorMath.pfor(0, c.embeddingLength, i -> {
             float v = wte.get(inputToken, i);
             embedding.set(v, i);
         });

@@ -64,18 +64,18 @@ public class CausalSelfAttention {
             Tensor kv = kvMem.slice(position);
 
             // compute the query vector
-            IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
+            VectorMath.pfor(0, c.embeddingLength, i -> {
                 float v = queryAttnBias.get(i) + VectorMath.dotProduct(input, queryAttnWeights.slice(i), c.embeddingLength);
                 query.set(v, i);
             });
 
             // compute the key and value vectors
-            IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
+            VectorMath.pfor(0, c.embeddingLength, i -> {
                 float v = keyAttnBias.get(i) + VectorMath.dotProduct(input, keyAttnWeights.slice(i), c.embeddingLength);
                 kv.set(v, i);
             });
 
-            IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
+            VectorMath.pfor(0, c.embeddingLength, i -> {
                 float v = valueAttnBias.get(i) + VectorMath.dotProduct(input, valueAttnWeights.slice(i), c.embeddingLength);
                 kv.set(v, i + c.embeddingLength);
             });
@@ -124,9 +124,9 @@ public class CausalSelfAttention {
                 //POSITION > 0
                 //This is where the context length gets expensive! We need to run this query token by all prior tokens.
                 float[][] flashAttnHeads = new float[position][c.numberOfHeads];
-                IntStream.range(0, position).parallel().forEach(i -> {
+                VectorMath.pfor(0, position, i -> {
                     Tensor kk = kvMem.slice(i + 1);
-                    IntStream.range(0, c.numberOfHeads).parallel().forEach(h -> {
+                    VectorMath.pfor(0, c.numberOfHeads, h -> {
                         //KEY OFFSET
                         flashAttnHeads[i][h] = VectorMath.dotProduct(query, kk, h * headSize, h * headSize, headSize) * attentionScale;
                     });
@@ -162,7 +162,7 @@ public class CausalSelfAttention {
 
                 Tensor attn = new FloatBufferTensor(position + 1);
 
-                IntStream.range(0, c.numberOfHeads).forEach(h -> {
+                VectorMath.pfor(0, c.numberOfHeads, h -> {
                     int hOffset = h * headSize;
                     for (int t = 0; t <= position; t++) {
                         Tensor kk = kvMem.slice(t);
@@ -186,7 +186,7 @@ public class CausalSelfAttention {
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias
             Tensor result = c.bufferCache.get(c.embeddingLength);
-            IntStream.range(0, c.embeddingLength).parallel().forEach(i -> {
+            VectorMath.pfor(0, c.embeddingLength, i -> {
                 float v = outputProjectionBias.get(i) + VectorMath.dotProduct(value, outputProjectionWeights.slice(i), c.embeddingLength);
                 result.set(v, i);
             });

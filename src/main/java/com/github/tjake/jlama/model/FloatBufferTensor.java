@@ -29,9 +29,11 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FloatBufferTensor implements Tensor {
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final int[] shape;
+    private final FloatBufferTensor[] sliceCache;
     private final FloatBuffer b;
     private final int capacity;
     private volatile float[] cachedRoBuffer = null;
+
     private BufferCache originCache = null;
     private boolean isReadOnly;
 
@@ -44,16 +46,18 @@ public class FloatBufferTensor implements Tensor {
             c *= shape[i];
 
         this.capacity = c;
+        this.sliceCache = new FloatBufferTensor[shape[0]];
         this.b = FloatBuffer.allocate(capacity);
         this.isReadOnly = false;
     }
 
-    public FloatBufferTensor(FloatBuffer b, int[] shape, boolean readOnly)
+    public FloatBufferTensor(FloatBuffer b, int[] shape, boolean readOnly, boolean cacheSlices)
     {
         this.b = b;
         this.shape = shape;
         this.capacity = b.remaining();
         this.isReadOnly = readOnly;
+        this.sliceCache = cacheSlices ? new FloatBufferTensor[shape[0]] : null;
     }
 
     @Override
@@ -133,7 +137,7 @@ public class FloatBufferTensor implements Tensor {
         }
 
         for (int i = 0; i < numChunks; i++) {
-            chunks[i] = new FloatBufferTensor(b.slice(i * newCapacity, newCapacity), newShape, isReadOnly);
+            chunks[i] = new FloatBufferTensor(b.slice(i * newCapacity, newCapacity), newShape, isReadOnly, true);
         }
 
         return chunks;
@@ -174,6 +178,9 @@ public class FloatBufferTensor implements Tensor {
     public FloatBufferTensor slice(int... dims) {
         Preconditions.checkArgument(dims.length < shape.length, "Too many dimensions specified for tensor");
 
+        if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null)
+            return sliceCache[dims[0]];
+
         int[] slicedShape = Arrays.copyOfRange(shape, dims.length, shape.length);
 
         int totalOffset = 0;
@@ -190,7 +197,11 @@ public class FloatBufferTensor implements Tensor {
         for (int i = 0; i < slicedShape.length; i++)
             length *= slicedShape[i];
 
-        return new FloatBufferTensor(b.slice(totalOffset, length), slicedShape, isReadOnly);
+        FloatBufferTensor r =  new FloatBufferTensor(b.slice(totalOffset, length), slicedShape, isReadOnly, false);
+        if (dims.length == 1 && sliceCache != null)
+            sliceCache[dims[0]] = r;
+
+        return r;
     }
 
     public void set(float v, int ...dims) {
@@ -199,29 +210,6 @@ public class FloatBufferTensor implements Tensor {
         Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
         b.put(getOffset(dims), v);
     }
-
-   /* public FloatBufferTensor memosize(boolean slices) {
-        if (dims() == 1) {
-            getFloatArray(); // Force allocation of backing array
-
-            if (VectorMath.hasVectorAPI) {
-                int limit = FloatVector.SPECIES_PREFERRED.loopBound(capacity);
-                FloatVector[] tmp = new FloatVector[(limit / FloatVector.SPECIES_PREFERRED.length()) + 1];
-                for (int i = 0, a = 0; i < limit; i += FloatVector.SPECIES_PREFERRED.length(), a++) {
-                    tmp[a] = getVector(i);
-                }
-                memoizedVectors = tmp;
-            }
-        } else if (slices) {
-            FloatBufferTensor[] tmp = new FloatBufferTensor[shape[0]];
-            for (int i = 0; i < shape[0]; i++) {
-                tmp[i] = slice(i).memoize(slices);
-            }
-            memoizedSlices = tmp;
-        }
-
-        return this;
-    }*/
 
     @Override
     public float[] getFloatArray() {

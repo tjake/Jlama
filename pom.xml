@@ -96,6 +96,7 @@
             <target>20</target>
             <compilerArgs>
               <arg>--add-modules=jdk.incubator.vector</arg>
+              <arg>--add-modules jdk.incubator.concurrent</arg>
               <arg>--enable-preview</arg>
             </compilerArgs>
           </configuration>
@@ -107,6 +108,7 @@
             <forkCount>1</forkCount>
             <argLine>
               --add-modules=jdk.incubator.vector
+              --add-modules jdk.incubator.concurrent
               --enable-preview
             </argLine>
           </configuration>

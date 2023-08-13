@@ -23,6 +23,10 @@ import java.util.function.BiConsumer;
 
 public class TestModels {
 
+    static {
+       System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "12");
+    }
+
     private static final ObjectMapper om = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
             .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
