@@ -148,6 +148,65 @@ public class VectorMath {
         }
     }
 
+    public static void l1normalize(float[] x) {
+        float sum = 0.0f;
+        for (int i = 0; i < x.length; i++)
+            sum += Math.abs(x[i]);
+
+        for (int i = 0; i < x.length; i++)
+            x[i] /= sum;
+    }
+
+    public static void l2normalize(float[] x) {
+        float sum = 0.0f;
+        for (int i = 0; i < x.length; i++)
+            sum += x[i] * x[i];
+
+        double magnitude = Math.sqrt(sum);
+        for (int i = 0; i < x.length; i++)
+            x[i] /= magnitude;
+    }
+
+    public static float cosineSimilarity(float[] a, float[] b) {
+        float dotProduct = 0.0f;
+        float aMagnitude = 0.0f;
+        float bMagnitude = 0.0f;
+        for (int i = 0; i < a.length; i++) {
+            dotProduct += a[i] * b[i];
+            aMagnitude += a[i] * a[i];
+            bMagnitude += b[i] * b[i];
+        }
+
+        return (float)(dotProduct / (Math.sqrt(aMagnitude) * Math.sqrt(bMagnitude)));
+    }
+
+    public static void l1normalize(Tensor t) {
+        float[] x = t.getFloatArray();
+        int offset = t.getArrayOffset();
+        int size = t.size();
+
+        float sum = 0.0f;
+        for (int i = offset; i < size; i++)
+            sum += Math.abs(x[i]);
+
+        for (int i = offset; i < size; i++)
+            x[i] /= sum;
+    }
+
+
+    public static void l2normalize(Tensor t) {
+        float[] x = t.getFloatArray();
+        int offset = t.getArrayOffset();
+        int size = t.size();
+
+        float sum = 0.0f;
+        for (int i = offset; i < size; i++)
+            sum += x[i] * x[i];
+
+        double magnitude = Math.sqrt(sum);
+        for (int i = offset; i < size; i++)
+            x[i] /= magnitude;
+    }
 
     // https://pytorch.org/docs/stable/generated/torch.polar.html
     public static float[] polar(float abs, float angle) {

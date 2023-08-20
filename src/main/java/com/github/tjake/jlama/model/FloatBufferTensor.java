@@ -330,7 +330,8 @@ public class FloatBufferTensor implements Tensor {
         }
 
         private void release(FloatBufferTensor b) {
-            Arrays.fill(b.getFloatArray(), b.getArrayOffset(), b.getArrayOffset() + b.size(), 0);
+            Preconditions.checkArgument(b.hasArray());
+            Arrays.fill(b.b.array(), b.getArrayOffset(), b.getArrayOffset() + b.size(), 0);
             MpmcUnboundedXaddArrayQueue<FloatBufferTensor> availableQueue = availibleByShape.computeIfAbsent(new ShapeKey(b.shape), s -> new MpmcUnboundedXaddArrayQueue<>(128));
             availableQueue.offer(b);
         }

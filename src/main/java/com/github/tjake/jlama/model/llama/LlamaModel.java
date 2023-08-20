@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 public class LlamaModel extends AbstractModel{
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
@@ -59,8 +58,7 @@ public class LlamaModel extends AbstractModel{
                     noBias, weights.load(prefix + "down_proj.weight"), //w2
                     weights.load(prefix + "up_proj.weight"));          //w3
 
-            this.transformerBlocks[i] = new TransformerBlock(attention,
-                    new RMSNorm(c, noBias, weights.load(base + "input_layernorm.weight")),
+            this.transformerBlocks[i] = new TransformerBlock(new RMSNorm(c, noBias, weights.load(base + "input_layernorm.weight")), attention,
                     new RMSNorm(c, noBias, weights.load(base + "post_attention_layernorm.weight")),
                     mlp);
         }

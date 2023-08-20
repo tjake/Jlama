@@ -2,6 +2,10 @@ package com.github.tjake.jlama.models;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.model.bert.BertConfig;
+import com.github.tjake.jlama.model.bert.BertModel;
+import com.github.tjake.jlama.model.bert.BertTokenizer;
 import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.model.gpt2.GPT2Config;
 import com.github.tjake.jlama.model.gpt2.GPT2Model;
@@ -18,13 +22,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 public class TestModels {
 
     static {
-       System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "12");
+       //System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors()/2));
     }
 
     private static final ObjectMapper om = new ObjectMapper()
@@ -79,6 +84,52 @@ public class TestModels {
 
             String prompt = "Lily picked up a flower and gave it to";
             model.generate(prompt, 0.9f, 256, false, makeOutHandler());
+        }
+    }
+
+    @Test
+    public void BertRun() throws Exception {
+        String modelPrefix = "data/e5-small-v2";
+        try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
+            ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
+
+            Weights weights = SafeTensors.readBytes(bb);
+            Tokenizer tokenizer = new BertTokenizer(Paths.get(modelPrefix));
+            Config c = om.readValue(new File(modelPrefix + "/config.json"), BertConfig.class);
+            BertModel model = new BertModel(c, weights, tokenizer);
+
+            String base = "A man is eating food.";
+            String[] examples = new String[]{
+                    "A man is eating a piece of bread.",
+                    "The girl is carrying a baby.",
+                    "A man is riding a horse.",
+                    "A woman is playing violin.",
+                    "Two men pushed carts through the woods.",
+                    "A man is riding a white horse on an enclosed ground.",
+                    "A monkey is playing drums.",
+                    "Someone in a gorilla costume is playing a set of drums."
+            };
+
+            float[] be = model.embed(base);
+            logger.info("base is {}", base);
+            float maxc = 0.0f;
+            String bestMatch = "";
+            for (int i = 0; i < examples.length; i++) {
+                float vs = VectorMath.cosineSimilarity(be, model.embed(examples[i]));
+                logger.info("vs {} => {}", examples[i], vs);
+                if (vs > maxc) {
+                    maxc = vs;
+                    bestMatch = examples[i];
+                }
+            }
+
+            logger.info("Best match for: '{}' is '{}'", base, bestMatch);
+
+            long start = System.currentTimeMillis();
+            VectorMath.pfor(0, 1000, i -> model.embed(base));
+            long elapsed = System.currentTimeMillis() - start;
+            logger.info("took {} seconds, {}ms per emb", elapsed/1000f, elapsed/1000f);
+
         }
     }
 
