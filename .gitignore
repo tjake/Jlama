@@ -1,4 +1,4 @@
 .DS_Store
 .idea
 .mvn/wrapper/maven-wrapper.jar
-data/*
+models/*

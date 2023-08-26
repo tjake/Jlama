@@ -29,7 +29,7 @@ public class TestCorrectness {
 
     @Test
     public void TestLLamaTokenizer() throws IOException {
-        String modelPrefix = "data/llama2-7b-hf";
+        String modelPrefix = "models/llama2-7b-hf";
 
         LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
 
@@ -54,7 +54,7 @@ public class TestCorrectness {
 
     @Test
     public void TestRope() throws IOException {
-        String modelPrefix = "data/llama2-7b-chat-hf";
+        String modelPrefix = "models/llama2-7b-chat-hf";
         Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
 
         double[] expected = new double[]{8.4147e-01,  7.6172e-01,  6.8156e-01,  6.0469e-01,  5.3317e-01,

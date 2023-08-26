@@ -1,5 +1,7 @@
 # Jlama / A LLM inference engine for Java
 
+![jlama](docs/jlama.jpg)
+
 ## Introduction
 
 Jlama is a pure Java implementation of a LLM inference engine.
@@ -8,6 +10,7 @@ It currently supports the following models and formats:
 
   * Llama & Llama2
   * GPT-2 
+  * BERT
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model format
   * Support for Float16, BFloat16 and Float32 models
 
@@ -18,9 +21,7 @@ This project is a work in progress.
 
 ## Why?
 
-Oh you know... just for fun.  
-Besides that, this should be helpful for anyone who wants to understand how LLMs work, 
-or wants to use them in a Java project.
+Helpful for anyone who wants to understand how LLMs work, or wants to use LLMs in a Java project.
 
 CPU based inference needs to be pushed to the limit to see if it can be a viable alternative to GPU based inference.
 
@@ -33,12 +34,14 @@ Use the `download_hf_models.sh` script in the data directory to download models 
 cd data
 ./download_hf_model.sh gpt2-medium
 ./download_hf_model.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
+./download_hf_model.sh intfloat/e5-small-v2
 ```
 Then run the tests with:
 ```shell
 cd ..
 ./mvnw test -Dtest=TestModels#GPT2Run
 ./mvnw test -Dtest=TestModels#LlamaRun
+./mvnw test -Dtest=TestModels#BertRun
 ```
 ## Caveats
   

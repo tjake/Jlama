@@ -41,7 +41,7 @@ public class TestModels {
 
     @Test
     public void GPT2Run() throws IOException {
-        String modelPrefix = "data/gpt2-medium";
+        String modelPrefix = "models/gpt2-medium";
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
@@ -59,7 +59,7 @@ public class TestModels {
 
     @Test
     public void LlamaRun() throws Exception {
-        String modelPrefix = "data/Llama-2-7b-chat-hf";
+        String modelPrefix = "models/Llama-2-7b-chat-hf";
         try (SafeTensorIndex weights = SafeTensorIndex.loadWithWeights(Path.of(modelPrefix))) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
@@ -72,7 +72,7 @@ public class TestModels {
 
     @Test
     public void TinyLlamaRun() throws Exception {
-        String modelPrefix = "data/TinyLLama";
+        String modelPrefix = "models/TinyLLama";
 
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
@@ -89,7 +89,7 @@ public class TestModels {
 
     @Test
     public void BertRun() throws Exception {
-        String modelPrefix = "data/e5-small-v2";
+        String modelPrefix = "models/e5-small-v2";
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
