@@ -35,7 +35,7 @@ final class RuntimeHelper {
             (size, align) -> MemorySegment.allocateNative(size, align, SegmentScope.auto());
 
     static {
-        System.loadLibrary("vs");
+        System.loadLibrary("jlamav");
         SymbolLookup loaderLookup = SymbolLookup.loaderLookup();
         SYMBOL_LOOKUP = name -> loaderLookup.find(name).or(() -> LINKER.defaultLookup().find(name));
     }

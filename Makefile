@@ -20,11 +20,10 @@
 # LIB_DIR - where the static library will be built in
 # OBJ_DIR - where the obj files will be built in (defaults to LIB_DIR)
 # LIB_NAME - the name of the native library
+# LIB_EXT - the extension of the native library
 
 SRC_DIR = src/main/c
-LIB = $(LIB_DIR)/$(LIB_NAME).a
-
-#CFLAGS += $(JNI_INCLUDES) -I$(UTIL_SRC_DIR)
+LIB = $(LIB_DIR)/$(LIB_NAME).$(LIB_EXT)
 
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 
@@ -34,7 +33,7 @@ all: $(LIB)
 
 $(LIB): $(OBJS)
 	mkdir -p $(LIB_DIR)
-	$(AR) rcs $(LIB) $^
+	$(AR) -shared -o $(LIB) $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(OBJ_DIR)
