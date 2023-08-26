@@ -1,6 +1,6 @@
 package com.github.tjake.jlama.math;
 
-import com.github.tjake.jlama.model.Tensor;
+import com.github.tjake.jlama.model.AbstractTensor;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.VectorOperators;
 import org.slf4j.Logger;
@@ -34,7 +34,7 @@ public class VectorMath {
             t[i] *= scalar;
     }
 
-    public static float dotProduct(Tensor a, Tensor b, int limit) {
+    public static float dotProduct(AbstractTensor a, AbstractTensor b, int limit) {
         if (limit < blockSize) {
             return dotProduct(a, b, 0, 0, limit);
         } else {
@@ -55,9 +55,8 @@ public class VectorMath {
     }
 
     // a[0..n] += b[0..n]
-    public static void accumulate(Tensor a, Tensor b) {
+    public static void accumulate(AbstractTensor a, AbstractTensor b) {
         Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
-        Preconditions.checkArgument(a.hasArray());
 
         if (hasVectorAPI) {
             SimdVectorMath.accumulate(a, b);
@@ -73,9 +72,12 @@ public class VectorMath {
         for (int ao = aoffset, bo = boffset; ao < (aoffset + aArr.length) && bo < (boffset + bArr.length); ao++, bo++) {
             aArr[ao] += bArr[bo];
         }
+
+        //Maybe update the backing array
+        a.update(aArr, aoffset);
     }
 
-    public static float dotProduct(Tensor a, Tensor b, int aoffset, int boffset, int limit) {
+    public static float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(a.dims() == b.dims());
 
         if (hasVectorAPI)
@@ -101,7 +103,7 @@ public class VectorMath {
 
     // Computes a constant times a vector plus a vector (single-precision).
     // On return, the contents of vector Y are replaced with the result. The value computed is (alpha * X[i]) + Y[i].
-    public static void saxpy(float alpha, Tensor x, Tensor y, int xoffset, int yoffset, int limit) {
+    public static void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         Preconditions.checkArgument(x.dims() == y.dims());
         if (hasVectorAPI) {
             SimdVectorMath.saxpy(alpha, x, y, xoffset, yoffset, limit);
@@ -115,7 +117,7 @@ public class VectorMath {
     }
 
     // y = x + b*y variant
-    public static void sxpby(float beta, Tensor x, Tensor y, int xoffset, int yoffset, int limit) {
+    public static void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         Preconditions.checkArgument(x.dims() == y.dims());
 
         for (int xo = xoffset, yo = yoffset; xo < (xoffset + limit) && yo < (yoffset + limit) ; xo++, yo++) {
@@ -124,7 +126,7 @@ public class VectorMath {
         }
     }
 
-    public static void softMax(Tensor t) {
+    public static void softMax(AbstractTensor t) {
         float[] x = t.getFloatArray();
         int offset = t.getArrayOffset();
         int size = t.size();
@@ -180,7 +182,7 @@ public class VectorMath {
         return (float)(dotProduct / (Math.sqrt(aMagnitude) * Math.sqrt(bMagnitude)));
     }
 
-    public static void l1normalize(Tensor t) {
+    public static void l1normalize(AbstractTensor t) {
         float[] x = t.getFloatArray();
         int offset = t.getArrayOffset();
         int size = t.size();
@@ -194,7 +196,7 @@ public class VectorMath {
     }
 
 
-    public static void l2normalize(Tensor t) {
+    public static void l2normalize(AbstractTensor t) {
         float[] x = t.getFloatArray();
         int offset = t.getArrayOffset();
         int size = t.size();

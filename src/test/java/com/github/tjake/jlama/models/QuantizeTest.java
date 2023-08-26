@@ -1,11 +1,14 @@
 package com.github.tjake.jlama.models;
 
 import com.github.tjake.jlama.math.FloatConversions;
+import com.github.tjake.jlama.math.panama.VectorNativeSimd;
+import com.github.tjake.jlama.model.Float16BufferTensor;
 import com.github.tjake.jlama.model.FloatBufferTensor;
-import com.github.tjake.jlama.model.Tensor;
+import com.github.tjake.jlama.model.AbstractTensor;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.lang.foreign.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class QuantizeTest {
@@ -13,11 +16,10 @@ public class QuantizeTest {
     @Test
     public void testQuantizeF16Quantize() {
         short f1 = FloatConversions.float32ToBFloat16(0.1f);
-        short f2 = (short) (f1 + f1);
 
-        float f3 = FloatConversions.bFloat16ToFloat32(f2);
+        float f3 = FloatConversions.bFloat16ToFloat32(f1);
 
-        Assert.assertEquals( 0.2f, f3, 0.0f);
+        Assert.assertEquals( 0.1f, f3, 0.0f);
 
     }
 
@@ -52,12 +54,36 @@ public class QuantizeTest {
 
     }
 
-    Tensor createVector(int size) {
-        Tensor t = new FloatBufferTensor(size);
+    AbstractTensor createVector(int size) {
+        AbstractTensor t = new FloatBufferTensor(size);
         for (int i = 0; i < size; i++) {
             t.set(ThreadLocalRandom.current().nextFloat(), i);
         }
         return t;
+    }
+
+
+    @Test
+    public void testPanama() {
+
+        float[] a = new float[]{1.1f, 2.2f, 3.3f, 7.7f};
+        float[] b = new float[]{4.4f, 5.5f, 6.6f, 8.8f};
+
+        Float16BufferTensor a16 = new Float16BufferTensor(a.length);
+        Float16BufferTensor b16 = new Float16BufferTensor(b.length);
+
+        float sum = 0.0f;
+        for (int i = 0; i < a.length; i++) {
+            sum += a[i] * b[i];
+            a16.set(a[i], i);
+            b16.set(b[i], i);
+        }
+
+        VectorNativeSimd.debug(a16.getMemorySegment(), a.length);
+
+        float sum2 = VectorNativeSimd.dot_product(a16.getMemorySegment(), 0, b16.getMemorySegment(), 0, a.length);
+
+        Assert.assertEquals(sum, sum2, 0.1f);
     }
 
 }

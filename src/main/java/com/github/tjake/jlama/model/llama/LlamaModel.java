@@ -10,18 +10,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-public class LlamaModel extends AbstractModel{
+public class LlamaModel extends AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
 
-    private final Tensor wte;
+    private final AbstractTensor wte;
 
     private final LayerNorm outputLayerNorm;
 
-    private final Tensor noBias;
+    private final AbstractTensor noBias;
 
     private final TransformerBlock[] transformerBlocks;
 
-    private final Tensor classificationWeights;
+    private final AbstractTensor classificationWeights;
 
     public LlamaModel(Config config, WeightLoader weights, LlamaTokenizer tokenizer) {
         super(config, weights, tokenizer);
@@ -32,7 +32,7 @@ public class LlamaModel extends AbstractModel{
         this.noBias = new FloatBufferTensor(c.hiddenLength);
 
         this.wte = weights.load("model.embed_tokens.weight");
-        this.outputLayerNorm = new RMSNorm(c, noBias, weights.load("model.norm.weight"));
+        this.outputLayerNorm = new RMSNorm(this, noBias, weights.load("model.norm.weight"));
         this.classificationWeights = weights.load("lm_head.weight");
 
         this.transformerBlocks = new TransformerBlock[c.numberOfLayers];
@@ -42,7 +42,7 @@ public class LlamaModel extends AbstractModel{
         for (int i = 0; i < c.numberOfLayers; i++) {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
-            CausalSelfAttention attention = new CausalSelfAttention(c,
+            CausalSelfAttention attention = new CausalSelfAttention(this,
                     noBias, noBias, noBias,
                     weights.load(prefix + "q_proj.weight"),
                     weights.load(prefix + "k_proj.weight"),
@@ -53,13 +53,13 @@ public class LlamaModel extends AbstractModel{
 
             prefix = base + "mlp.";
 
-            MLPBlock mlp = new MLPBlock(c, ActivationFunction.Type.SILU,
+            MLPBlock mlp = new MLPBlock(this, ActivationFunction.Type.SILU,
                     noBias, weights.load(prefix + "gate_proj.weight"), //w1
                     noBias, weights.load(prefix + "down_proj.weight"), //w2
                     weights.load(prefix + "up_proj.weight"));          //w3
 
-            this.transformerBlocks[i] = new TransformerBlock(new RMSNorm(c, noBias, weights.load(base + "input_layernorm.weight")), attention,
-                    new RMSNorm(c, noBias, weights.load(base + "post_attention_layernorm.weight")),
+            this.transformerBlocks[i] = new TransformerBlock(new RMSNorm(this, noBias, weights.load(base + "input_layernorm.weight")), attention,
+                    new RMSNorm(this, noBias, weights.load(base + "post_attention_layernorm.weight")),
                     mlp);
         }
         logger.info("Model loaded!");
@@ -76,13 +76,13 @@ public class LlamaModel extends AbstractModel{
     }
 
     @Override
-    protected Tensor getOutputLogitsWeights() {
+    protected AbstractTensor getOutputLogitsWeights() {
         return classificationWeights;
     }
 
     @Override
-    protected Tensor inputTokenToEmbedding(int inputToken, int position) {
-        Tensor embedding = c.bufferCache.get(c.embeddingLength);
+    protected AbstractTensor inputTokenToEmbedding(int inputToken, int position) {
+        AbstractTensor embedding = makeTensor(c.embeddingLength);
 
         VectorMath.pfor(0, c.embeddingLength, i -> {
             float v = wte.get(inputToken, i);

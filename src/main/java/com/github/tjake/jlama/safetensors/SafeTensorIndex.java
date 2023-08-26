@@ -3,13 +3,15 @@ package com.github.tjake.jlama.safetensors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tjake.jlama.model.Tensor;
+import com.github.tjake.jlama.model.AbstractTensor;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -31,25 +33,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
     // Map from file name to RandomAccessFile
     private final Map<String, RandomAccessFile> fileMap = new HashMap<>();
-
-    public static SafeTensorIndex loadWithWeights2(Path modelRoot) throws IOException {
-        SafeTensorIndex index = om.readValue(Paths.get(modelRoot.toString(), "model.safetensors.index.json").toFile(), SafeTensorIndex.class);
-
-        for (Map.Entry<String, String> e : index.weightFileMap.entrySet()) {
-            if (!index.fileMap.containsKey(e.getValue())) {
-                RandomAccessFile raf = new RandomAccessFile(Paths.get(modelRoot.toString(), e.getValue()).toFile(), "r");
-                index.fileMap.put(e.getValue(), raf);
-                long s = raf.length();
-                long s2 = Integer.MAX_VALUE;
-                if (s > s2)
-                    throw new IllegalArgumentException("File too large: " + e.getValue());
-
-                index.weightMap.put(e.getValue(), SafeTensors.readBytes(raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, raf.length())));
-            }
-        }
-
-        return index;
-    }
 
     public static SafeTensorIndex loadWithWeights(Path modelRoot) throws IOException {
         SafeTensorIndex index = om.readValue(Paths.get(modelRoot.toString(), "model.safetensors.index.json").toFile(), SafeTensorIndex.class);
@@ -73,11 +56,11 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     long length = split.getKey().get(1);
                     List<String> tensors = split.getValue();
 
-                    ByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset));
+                    ByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset)).load();
                     Map<String, TensorInfo> mmapTensorInfoMap = tensorInfoMap.entrySet().stream()
                             .filter(x -> tensors.contains(x.getKey())).collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
 
-                    Weights mmapWeights = new Weights(metadata, mmapTensorInfoMap, buf.slice());
+                    Weights mmapWeights = new Weights(metadata, mmapTensorInfoMap, buf);
                     for (String tensor : tensors) {
                         index.weightMap.put(tensor, mmapWeights);
                     }
@@ -137,20 +120,19 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
         return splits;
     }
-    public Tensor load2(String name) {
-        String f = weightFileMap.get(name);
-        if (f == null)
-            throw new NoSuchElementException(name);
 
-        return weightMap.get(f).load(name);
-    }
-
-    public Tensor load(String name) {
+    public AbstractTensor load(String name) {
         Weights w = weightMap.get(name);
         if (w == null)
             throw new NoSuchElementException(name);
 
         return w.load(name);
+    }
+
+    @Override
+    public DType getModelDType() {
+        // FIXME: This assumes all weights have the same dtype
+        return weightMap.values().iterator().next().getModelDType();
     }
 
     @JsonCreator

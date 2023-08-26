@@ -22,14 +22,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 public class TestModels {
 
     static {
-       //System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors()/2));
+        System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
     }
 
     private static final ObjectMapper om = new ObjectMapper()
@@ -66,7 +66,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer);
 
             String prompt = "Simply put, the theory of relativity states that";
-            model.generate(prompt, 0.6f, 256, false, makeOutHandler());
+            model.generate(prompt, 0.6f, 128, false, makeOutHandler());
         }
     }
 
@@ -83,7 +83,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer);
 
             String prompt = "Lily picked up a flower and gave it to";
-            model.generate(prompt, 0.9f, 256, false, makeOutHandler());
+            model.generate(prompt, 0.9f, 128, false, makeOutHandler());
         }
     }
 

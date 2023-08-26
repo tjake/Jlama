@@ -35,15 +35,15 @@ public class TransformerBlock {
         this.postMlpNorm = Optional.of(postMlpNorm);
     }
 
-    public Tensor forward(Tensor embedding, int position, Tensor kvBuffer) {
+    public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer) {
 
-        Tensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding)).orElse(embedding);
-        Tensor postAttention = attention.forward(lnemb, position, kvBuffer);
+        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding)).orElse(embedding);
+        AbstractTensor postAttention = attention.forward(lnemb, position, kvBuffer);
         //residual connection
         VectorMath.accumulate(postAttention, embedding);
 
-        Tensor lnemb2 = postAttentionNorm.forward(postAttention);
-        Tensor postMlp = mlpBlock.forward(lnemb2);
+        AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention);
+        AbstractTensor postMlp = mlpBlock.forward(lnemb2);
         //residual connection
         VectorMath.accumulate(postMlp, postAttention);
 
@@ -54,8 +54,8 @@ public class TransformerBlock {
         lnemb2.close();
         postAttention.close();
 
-        Tensor output = postMlpNorm.map(ln -> {
-            Tensor lnout = ln.forward(postMlp);
+        AbstractTensor output = postMlpNorm.map(ln -> {
+            AbstractTensor lnout = ln.forward(postMlp);
             postMlp.close();
             return lnout;
         }).orElse(postMlp);

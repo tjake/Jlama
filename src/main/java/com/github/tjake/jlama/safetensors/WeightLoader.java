@@ -1,7 +1,9 @@
 package com.github.tjake.jlama.safetensors;
 
-import com.github.tjake.jlama.model.Tensor;
+import com.github.tjake.jlama.model.AbstractTensor;
 
 public interface WeightLoader {
-    Tensor load(String name);
+    AbstractTensor load(String name);
+
+    DType getModelDType();
 }

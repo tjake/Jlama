@@ -1,31 +1,52 @@
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.FloatConversions;
+import com.github.tjake.jlama.model.AbstractTensor;
+import com.github.tjake.jlama.model.Float16BufferTensor;
 import com.github.tjake.jlama.model.FloatBufferTensor;
 import com.google.common.primitives.Ints;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Objects;
+import java.nio.ShortBuffer;
+import java.util.*;
 
 public class Weights implements WeightLoader {
-
     private final Map<String, String> metadata;
     private final Map<String, TensorInfo> tensorInfoMap;
     private final ByteBuffer bytes;
+    private final DType dType;
 
     Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes)
     {
         this.metadata = metadata;
         this.tensorInfoMap = tensorInfoMap;
         this.bytes = bytes.duplicate();
+        this.dType = findDType();
+    }
+
+    private DType findDType() {
+        EnumMap<DType, Integer> counts = new EnumMap<>(DType.class);
+        for (TensorInfo info : tensorInfoMap.values()) {
+            counts.put(info.dType, counts.getOrDefault(info.dType, 0) + 1);
+        }
+
+        int max = 0;
+        DType maxType = null;
+        for (Map.Entry<DType, Integer> e : counts.entrySet()) {
+            if (e.getValue() > max) {
+                max = e.getValue();
+                maxType = e.getKey();
+            }
+        }
+
+        //FIXME don't really support B16 atm
+        return maxType == DType.BF16 ? DType.F32 : maxType;
     }
 
     @Override
-    public FloatBufferTensor load(String name) throws NoSuchElementException {
+    public AbstractTensor load(String name) throws NoSuchElementException {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null)
             throw new NoSuchElementException();
@@ -37,27 +58,30 @@ public class Weights implements WeightLoader {
                 .position(Ints.checkedCast(info.dataOffsets[0]))
                 .limit(Ints.checkedCast(info.dataOffsets[1]));
 
+        int len;
         FloatBuffer fb;
+        ShortBuffer sb;
         switch (info.dType) {
             case F32:
-                int len = b.remaining() / DType.F32.size();
-                fb = FloatBuffer.allocate(len);
-                for (int i = 0; i < len; i++) {
-                    float v = b.getFloat();
-                    fb.put(i, v);
-                }
-                //fb = b.asFloatBuffer().slice();
-                break;
+                fb = b.asFloatBuffer().slice();
+                return new FloatBufferTensor(fb, info.shape, true, true);
             case F16:
-                 len = b.remaining() / DType.F16.size();
-                fb = FloatBuffer.allocate(len);
-                for (int i = 0; i < len; i++) {
-                    short s = b.getShort();
-                    float v = Float.float16ToFloat(s);
-                    fb.put(i, v);
+                // If the majority of the weights are F32 then convert to F32
+                if (dType == DType.F32) {
+                    len = b.remaining() / DType.F16.size();
+                    fb = FloatBuffer.allocate(len);
+                    for (int i = 0; i < len; i++) {
+                        short s = b.getShort();
+                        float v = Float.float16ToFloat(s);
+                        fb.put(i, v);
+                    }
+                    return new FloatBufferTensor(fb, info.shape, true, false);
+                } else {
+                    sb = b.asShortBuffer().slice();
+                    return new Float16BufferTensor(sb, info.shape, true, true);
                 }
-                break;
             case BF16:
+                //For now always convert to F32
                 len = b.remaining() / DType.F16.size();
                 fb = FloatBuffer.allocate(len);
                 for (int i = 0; i < len; i++) {
@@ -65,12 +89,15 @@ public class Weights implements WeightLoader {
                     float v = FloatConversions.bFloat16ToFloat32(s);
                     fb.put(i, v);
                 }
-                break;
+                return new FloatBufferTensor(fb, info.shape, true, false);
             default:
                 throw new IllegalArgumentException("Unsupported Tensor type: " + info.dType.name() + " for " + name);
         }
+    }
 
-        return new FloatBufferTensor(fb, info.shape, true, true);
+    @Override
+    public DType getModelDType() {
+        return dType;
     }
 
     @Override

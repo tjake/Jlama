@@ -7,17 +7,13 @@ import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.Weights;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 
 import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 public class BertModel extends AbstractModel {
-    private final Tensor we;
-    private final Tensor wte;
-    private final Tensor wpe;
+    private final AbstractTensor we;
+    private final AbstractTensor wte;
+    private final AbstractTensor wpe;
 
     private final LayerNorm inputLayerNorm;
 
@@ -30,7 +26,7 @@ public class BertModel extends AbstractModel {
         this.wte = w.load("embeddings.token_type_embeddings.weight");
         this.wpe = w.load("embeddings.position_embeddings.weight");
 
-        this.inputLayerNorm = new LayerNorm(c, w.load("embeddings.LayerNorm.bias"), w.load("embeddings.LayerNorm.weight"));
+        this.inputLayerNorm = new LayerNorm(this, w.load("embeddings.LayerNorm.bias"), w.load("embeddings.LayerNorm.weight"));
 
         this.transformerBlocks = new TransformerBlock[c.numberOfLayers];
 
@@ -38,45 +34,45 @@ public class BertModel extends AbstractModel {
             String b = "encoder.layer." + i + ".";
             String prefix = b + "attention.";
 
-            Tensor keyBias = w.load(prefix + "self.key.bias");
-            Tensor keyWeight = w.load(prefix + "self.key.weight");
+            AbstractTensor keyBias = w.load(prefix + "self.key.bias");
+            AbstractTensor keyWeight = w.load(prefix + "self.key.weight");
 
-            Tensor queryBias = w.load(prefix + "self.query.bias");
-            Tensor queryWeight = w.load(prefix + "self.query.weight");
+            AbstractTensor queryBias = w.load(prefix + "self.query.bias");
+            AbstractTensor queryWeight = w.load(prefix + "self.query.weight");
 
-            Tensor valueBias = w.load(prefix + "self.value.bias");
-            Tensor valueWeight = w.load(prefix + "self.value.weight");
+            AbstractTensor valueBias = w.load(prefix + "self.value.bias");
+            AbstractTensor valueWeight = w.load(prefix + "self.value.weight");
 
-            Tensor outputBias = w.load(prefix + "output.dense.bias");
-            Tensor outputWeight = w.load(prefix + "output.dense.weight");
-            CausalSelfAttention attention = new CausalSelfAttention(c,
+            AbstractTensor outputBias = w.load(prefix + "output.dense.bias");
+            AbstractTensor outputWeight = w.load(prefix + "output.dense.weight");
+            CausalSelfAttention attention = new CausalSelfAttention(this,
                     keyBias, queryBias, valueBias,
                     keyWeight, queryWeight, valueWeight,
                     outputBias, outputWeight, Optional.empty());
 
             prefix = b;
-            MLPBlock mlpBlock = new MLPBlock(c, ActivationFunction.Type.GELU,
+            MLPBlock mlpBlock = new MLPBlock(this, ActivationFunction.Type.GELU,
                     w.load(prefix + "intermediate.dense.bias"), w.load(prefix + "intermediate.dense.weight"),
                     w.load(prefix + "output.dense.bias"), w.load( prefix + "output.dense.weight")
             );
 
-            LayerNorm postAttentionNorm = new LayerNorm(c, w.load(b + "attention.output.LayerNorm.bias"), w.load(b + "attention.output.LayerNorm.weight"));
-            LayerNorm postMlpNorm = new LayerNorm(c, w.load(b + "output.LayerNorm.bias"), w.load(b + "output.LayerNorm.weight"));
+            LayerNorm postAttentionNorm = new LayerNorm(this, w.load(b + "attention.output.LayerNorm.bias"), w.load(b + "attention.output.LayerNorm.weight"));
+            LayerNorm postMlpNorm = new LayerNorm(this, w.load(b + "output.LayerNorm.bias"), w.load(b + "output.LayerNorm.weight"));
 
             transformerBlocks[i] = new TransformerBlock(attention, postAttentionNorm, mlpBlock, postMlpNorm);
         }
     }
 
     @Override
-    protected Tensor inputTokenToEmbedding(int inputToken, int position) {
-        Tensor embedding = c.bufferCache.get(c.embeddingLength);
+    protected AbstractTensor inputTokenToEmbedding(int inputToken, int position) {
+        AbstractTensor embedding = makeTensor(c.embeddingLength);
 
         for (int i = 0; i < c.embeddingLength; i++) {
             float v = we.get(inputToken, i) + wte.get(0, i) + wpe.get(position, i);
             embedding.set(v, i);
         }
 
-        Tensor lnemb = this.inputLayerNorm.forward(embedding);
+        AbstractTensor lnemb = this.inputLayerNorm.forward(embedding);
         embedding.close();
         return lnemb;
     }
@@ -92,7 +88,7 @@ public class BertModel extends AbstractModel {
     }
 
     @Override
-    protected Tensor getOutputLogitsWeights() {
+    protected AbstractTensor getOutputLogitsWeights() {
         throw new IllegalStateException();
     }
 
@@ -100,7 +96,7 @@ public class BertModel extends AbstractModel {
         long[] encoded = tokenizer.encode(input);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
-        Tensor kvmem = c.bufferCache.get(c.numberOfLayers, encoded.length, c.embeddingLength * 2); //k and v are concatenated
+        AbstractTensor kvmem = makeTensor(c.numberOfLayers, encoded.length, c.embeddingLength * 2); //k and v are concatenated
 
         int promptLength = encoded.length;
         float avgp = 1.0f/promptLength;
@@ -109,7 +105,7 @@ public class BertModel extends AbstractModel {
 
         for (int i = 0; i < promptLength; i++) {
             int next = (int)encoded[i];
-            Tensor output = forward(next, i, kvmem);
+            AbstractTensor output = forward(next, i, kvmem);
 
             //Average Pooling
             for (int ii = 0; ii < c.embeddingLength; ii++)

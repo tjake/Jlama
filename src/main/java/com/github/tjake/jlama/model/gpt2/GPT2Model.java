@@ -9,12 +9,12 @@ import com.github.tjake.jlama.safetensors.Weights;
 import java.util.Optional;
 
 public class GPT2Model extends AbstractModel {
-    public final Tensor wte;
-    public final Tensor wpe;
+    private final AbstractTensor wte;
+    private final AbstractTensor wpe;
 
-    public final LayerNorm layerNorm;
+    private final LayerNorm layerNorm;
 
-    public final TransformerBlock[] transformerBlocks;
+    private final TransformerBlock[] transformerBlocks;
 
     public GPT2Model(Config c, Weights w, Tokenizer tokenizer) {
         super(c, w, tokenizer);
@@ -22,7 +22,7 @@ public class GPT2Model extends AbstractModel {
         this.wte = w.load("wte.weight");
         this.wpe = w.load("wpe.weight");
 
-        this.layerNorm = new LayerNorm(c, w.load("ln_f.bias"), w.load("ln_f.weight"));
+        this.layerNorm = new LayerNorm(this, w.load("ln_f.bias"), w.load("ln_f.weight"));
         this.transformerBlocks = new TransformerBlock[c.numberOfLayers];
 
         for (int i = 0; i < transformerBlocks.length; i++)
@@ -30,28 +30,28 @@ public class GPT2Model extends AbstractModel {
             String b = "h." + i + ".";
             String prefix = b + "attn.";
 
-            Tensor[] attnBias = w.load(prefix + "c_attn.bias").split(3, 0);
-            Tensor[] attnWeights = w.load(prefix + "c_attn.weight").transpose().split(3, 0);
-            CausalSelfAttention attention = new CausalSelfAttention(c, attnBias[0], attnBias[1], attnBias[2],
+            AbstractTensor[] attnBias = w.load(prefix + "c_attn.bias").split(3, 0);
+            AbstractTensor[] attnWeights = w.load(prefix + "c_attn.weight").transpose().split(3, 0);
+            CausalSelfAttention attention = new CausalSelfAttention(this, attnBias[0], attnBias[1], attnBias[2],
                     attnWeights[0], attnWeights[1], attnWeights[2],
                     w.load(prefix + "c_proj.bias"), w.load(prefix + "c_proj.weight").transpose(), Optional.empty());
 
             prefix = b + "mlp.";
-            MLPBlock mlpBlock = new MLPBlock(c, ActivationFunction.Type.GELU,
+            MLPBlock mlpBlock = new MLPBlock(this, ActivationFunction.Type.GELU,
                     w.load(prefix + "c_fc.bias"), w.load(prefix + "c_fc.weight").transpose(),
                     w.load(prefix + "c_proj.bias"), w.load( prefix + "c_proj.weight").transpose()
             );
 
-            LayerNorm layerNorm1 = new LayerNorm(c, w.load(b + "ln_1.bias"), w.load(b + "ln_1.weight"));
-            LayerNorm layerNorm2 = new LayerNorm(c, w.load(b + "ln_2.bias"), w.load(b + "ln_2.weight"));
+            LayerNorm layerNorm1 = new LayerNorm(this, w.load(b + "ln_1.bias"), w.load(b + "ln_1.weight"));
+            LayerNorm layerNorm2 = new LayerNorm(this, w.load(b + "ln_2.bias"), w.load(b + "ln_2.weight"));
 
             transformerBlocks[i] = new TransformerBlock(layerNorm1, attention, layerNorm2, mlpBlock);
         }
     }
 
     @Override
-    protected Tensor inputTokenToEmbedding(int inputToken, int position) {
-        Tensor embedding = c.bufferCache.get(c.embeddingLength);
+    protected AbstractTensor inputTokenToEmbedding(int inputToken, int position) {
+        AbstractTensor embedding = makeTensor(c.embeddingLength);
 
         for (int i = 0; i < c.embeddingLength; i++) {
             float v = wte.get(inputToken, i) + wpe.get(position, i);
@@ -72,13 +72,14 @@ public class GPT2Model extends AbstractModel {
     }
 
     @Override
-    protected Tensor getOutputLogitsWeights() {
+    protected AbstractTensor getOutputLogitsWeights() {
         return wte;
     }
 
-    public Tensor forward(int token_id, int pos, Tensor kvbuf) {
+    @Override
+    public AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
 
-        Tensor embedding = c.bufferCache.get(c.embeddingLength);
+        AbstractTensor embedding = makeTensor(c.embeddingLength);
 
         for (int i = 0; i < c.embeddingLength; i++) {
             float v = wte.get(token_id, i) + wpe.get(pos, i);
@@ -86,8 +87,8 @@ public class GPT2Model extends AbstractModel {
         }
 
         for (int i = 0; i < c.numberOfLayers; i++) {
-            Tensor kvlayer = kvbuf.slice(i);
-            Tensor ref = embedding; //reference so we can free
+            AbstractTensor kvlayer = kvbuf.slice(i);
+            AbstractTensor ref = embedding; //reference so we can free
             embedding = transformerBlocks[i].forward(embedding, pos, kvlayer);
             ref.close();
         }

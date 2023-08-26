@@ -1,6 +1,7 @@
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.model.FloatBufferTensor;
+import com.github.tjake.jlama.model.AbstractTensor;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.google.common.io.BaseEncoding;
@@ -43,7 +44,7 @@ public class TestParser {
         Weights v = SafeTensors.readBytes(ByteBuffer.wrap(serialized));
         logger.debug("model = {}", v);
 
-        FloatBufferTensor t = v.load("test");
+        AbstractTensor t = v.load("test");
         logger.debug("t = {}", t);
 
         Assert.assertEquals(2, t.dims());
@@ -52,14 +53,14 @@ public class TestParser {
         Assert.assertEquals(3.0, t.get(1,0), 0.0001);
         Assert.assertEquals(4.0, t.get(1,1), 0.0001);
 
-        FloatBufferTensor s1 = t.slice(0);
+        AbstractTensor s1 = t.slice(0);
         logger.debug("s1 = {}", s1);
 
         Assert.assertEquals(1, s1.dims());
         Assert.assertEquals(1.0, s1.get(0), 0.0001);
         Assert.assertEquals(2.0, s1.get(1), 0.0001);
 
-        FloatBufferTensor s2 = t.slice(1);
+        AbstractTensor s2 = t.slice(1);
         logger.debug("s2 = {}", s2);
 
         Assert.assertEquals(1, s2.dims());
@@ -73,7 +74,7 @@ public class TestParser {
             Assert.assertTrue(i++ < 4);
         } while (t.iterate(cursor));
 
-        FloatBufferTensor tt = t.transpose();
+        AbstractTensor tt = t.transpose();
         int[] tcursor = new int[tt.dims()];
         i = 0;
         do {
@@ -85,11 +86,11 @@ public class TestParser {
 
     @Test
     public void testOffsets() {
-        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{50000, 768}, true, false);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{50000, 768}, false, false);
         Assert.assertEquals(49000 * 768, b.getOffset(new int[]{49000, 0}));
 
 
-        b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{3, 7, 13}, true, false);
+        b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{3, 7, 13}, false, false);
 
         Assert.assertEquals(0, b.getOffset(new int[]{0, 0, 0}));
         Assert.assertEquals(7*13*1, b.getOffset(new int[]{1,0,0}));
@@ -100,7 +101,7 @@ public class TestParser {
     @Test
     public void testTranspose() {
         int DIM = 768;
-        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), new int[]{DIM, DIM}, true, false);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), new int[]{DIM, DIM}, false, false);
         int v = 0;
         for (int row = 0; row < DIM; row++) {
             for (int col = 0; col < DIM; col++) {
@@ -110,7 +111,7 @@ public class TestParser {
             }
         }
 
-        FloatBufferTensor bt = b.transpose();
+        AbstractTensor bt = b.transpose();
         v = 0;
         for (int row = 0; row < DIM; row++) {
             for (int col = 0; col < DIM; col++) {
@@ -122,18 +123,26 @@ public class TestParser {
 
     @Test
     public void testMMappedFile() throws IOException {
-        String file = "data/gpt2-small/model.safetensors";
+        String file = "data/gpt2/model.safetensors";
         try (RandomAccessFile sc = new RandomAccessFile(file, "r"))
         {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
             Weights v = SafeTensors.readBytes(bb);
 
-            FloatBufferTensor bias = v.load("h.8.attn.c_proj.bias");
+            AbstractTensor bias = v.load("h.8.attn.c_proj.bias");
             Assert.assertEquals(0.01406, bias.get(0), 0.00001);
+            Assert.assertEquals(0.01406, bias.getFloatArray()[0], 0.00001);
+            Assert.assertEquals(0.01406, bias.getFloatVector(0).toArray()[0], 0.00001);
 
-            FloatBufferTensor w = v.load("wte.weight");
-            Assert.assertEquals(0.00, w.get(50256, 0), 0.1);
+
+            AbstractTensor w = v.load("wte.weight");
+            AbstractTensor slice = w.slice(50256);
+            Assert.assertEquals(-0.027689, w.get(50256, 1), 0.00001f);
+
+            Assert.assertEquals(-0.027689, slice.get(1), 0.00001f);
+            Assert.assertEquals(-0.027689, slice.getFloatArray()[1], 0.00001f);
+            Assert.assertEquals(-0.027689, slice.getFloatVector(1).toArray()[0], 0.00001f);
         }
     }
 

@@ -4,12 +4,12 @@ import com.github.tjake.jlama.safetensors.Config;
 import com.google.common.base.Preconditions;
 
 public class RMSNorm extends LayerNorm {
-    public RMSNorm(Config c, Tensor bias, Tensor weights) {
-        super(c, bias, weights);
+    public RMSNorm(AbstractModel m, AbstractTensor bias, AbstractTensor weights) {
+        super(m, bias, weights);
     }
 
     @Override
-    public Tensor forward(Tensor input) {
+    public AbstractTensor forward(AbstractTensor input) {
         Preconditions.checkArgument(input.shape().length == 1);
         int size = input.shape()[0];
         float ss = 0.0f;
@@ -18,10 +18,10 @@ public class RMSNorm extends LayerNorm {
             ss += v * v;
         }
         ss /= size;
-        ss += c.layerNormEps;
+        ss += m.c.layerNormEps;
         ss = (float)(1.0 / StrictMath.sqrt(ss));
         // normalize and scale
-        FloatBufferTensor out = c.bufferCache.get(size);
+        AbstractTensor out = m.makeTensor(size);
         for (int j = 0; j < size; j++) {
              out.set(weights.get(j) * (ss * input.get(j)), j);
         }

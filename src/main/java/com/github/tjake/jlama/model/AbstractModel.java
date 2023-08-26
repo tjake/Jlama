@@ -2,6 +2,7 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.google.common.base.Preconditions;
@@ -14,45 +15,49 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import java.util.stream.IntStream;
 
 public abstract class AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
     protected final Config c;
     protected final WeightLoader weights;
     protected final Tokenizer tokenizer;
+    protected final DType modelDType;
 
     protected AbstractModel(Config c, WeightLoader w, Tokenizer t)
     {
         this.c = c;
         this.weights = w;
         this.tokenizer = t;
+        this.modelDType = w.getModelDType();
     }
 
-    protected abstract Tensor inputTokenToEmbedding(int inputToken, int position);
+    protected abstract AbstractTensor inputTokenToEmbedding(int inputToken, int position);
 
     protected abstract TransformerBlock[] getTransformerBlocks();
 
     protected abstract LayerNorm getOutputLayerNorm();
 
-    protected abstract Tensor getOutputLogitsWeights();
+    protected abstract AbstractTensor getOutputLogitsWeights();
 
+    protected AbstractTensor makeTensor(int ...shape) {
+        return c.tensorCache.get(modelDType, shape);
+    }
 
-    protected Tensor forward(int token_id, int pos, Tensor kvbuf) {
-        Tensor embedding = inputTokenToEmbedding(token_id, pos);
+    protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
+        AbstractTensor embedding = inputTokenToEmbedding(token_id, pos);
         TransformerBlock[] transformerBlocks = getTransformerBlocks();
 
         for (int i = 0; i < c.numberOfLayers; i++) {
-            Tensor kvlayer = kvbuf.slice(i);
-            Tensor ref = embedding; //reference so we can free
+            AbstractTensor kvlayer = kvbuf.slice(i);
+            AbstractTensor ref = embedding; //reference so we can free
             embedding = transformerBlocks[i].forward(embedding, pos, kvlayer);
             ref.close();
         }
         return embedding;
     }
 
-    protected int sample(Tensor output, float temperature, float uniformSample, Tensor logits) {
-        try(Tensor embedding = getOutputLayerNorm().forward(output)) {
+    protected int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
+        try(AbstractTensor embedding = getOutputLayerNorm().forward(output)) {
 
             AtomicDouble maxv = new AtomicDouble(Double.NEGATIVE_INFINITY);
             AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
@@ -100,8 +105,8 @@ public abstract class AbstractModel {
         if (ntokens > c.contextLength)
             ntokens = c.contextLength;
 
-        Tensor kvmem = new FloatBufferTensor(c.numberOfLayers, ntokens, c.embeddingLength * 2); //k and v are concatenated
-        Tensor logits = new FloatBufferTensor(c.vocabularySize);
+        AbstractTensor kvmem = makeTensor(c.numberOfLayers, ntokens, c.embeddingLength * 2); //k and v are concatenated
+        AbstractTensor logits = makeTensor(c.vocabularySize);
 
         int[] tokens = new int[c.contextLength];
 
@@ -120,7 +125,7 @@ public abstract class AbstractModel {
         int next = c.bosToken;
 
         for (int i = 0; i < ntokens; i++) {
-            Tensor output = forward(next, i, kvmem);
+            AbstractTensor output = forward(next, i, kvmem);
             tokensGenerated++;
             // Keep prompt tokens till they are gone
             if (i < promptLength) {
