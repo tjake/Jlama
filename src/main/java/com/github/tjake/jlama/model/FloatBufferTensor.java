@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
 import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -37,9 +38,9 @@ public class FloatBufferTensor extends AbstractTensor {
     public FloatBufferTensor(int ...shape) {
         super(DType.F32, shape, true);
         this.name = "tmp";
-        this.b = FloatBuffer.allocate(capacity);
+        this.b = ByteBuffer.allocateDirect(capacity * dType().size()).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
         this.mmapped = false;
-        this.segment = null;
+        this.segment =  MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());;
     }
 
     public FloatBufferTensor(FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
@@ -126,7 +127,7 @@ public class FloatBufferTensor extends AbstractTensor {
     @Override
     public FloatVector getFloatVector(int offset) {
         if (VectorMath.hasVectorAPI) {
-            if (!mmapped)
+            if (segment == null)
                 return FloatVector.fromArray(FloatVector.SPECIES_PREFERRED, getFloatArray(), getArrayOffset() + offset);
             else
                 return FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, segment, (long) offset * Float.BYTES, ByteOrder.LITTLE_ENDIAN);

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#ifdef __x86_64__
 #include <immintrin.h>
 
 float dot_product(const short* a, int aoffset, const short* b, int boffset, int length) {
@@ -113,8 +114,158 @@ void scale(float factor, const short* t, int toffset, int length) {
      }
 }
 
+#else
+#include <arm_neon.h>
+
+float dot_product(short *a, short *b, int n) {
+    float16x4_t va_f16, vb_f16;
+    float32x4_t va_f32, vb_f32, vproduct;
+    float32x4_t vsum = vdupq_n_f32(0.0f); // Initialize sum to 0.0f
+
+    for (int i = 0; i < n; i += 4) {
+        // Load 4 elements from each array and treat them as float16 values
+        va_f16 = vld1_f16((float16_t*)&a[i]);
+        vb_f16 = vld1_f16((float16_t*)&b[i]);
+
+        // Convert from float16 to float32
+        va_f32 = vcvt_f32_f16(va_f16);
+        vb_f32 = vcvt_f32_f16(vb_f16);
+
+        // Perform pairwise multiplication
+        vproduct = vmulq_f32(va_f32, vb_f32);
+
+        // Add the 4 products to the sum
+        vsum = vaddq_f32(vsum, vproduct);
+    }
+
+    // Sum all four float32 values to get the final dot product result
+    float result[4];
+    vst1q_f32(result, vsum);
+    return result[0] + result[1] + result[2] + result[3];
+}
+
+
+
+#endif
+
+
+
+int cpu_has_avx(void) {
+#if defined(__AVX__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_avx2(void) {
+#if defined(__AVX2__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_avx512(void) {
+#if defined(__AVX512F__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_avx512_vbmi(void) {
+#if defined(__AVX512VBMI__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_avx512_vnni(void) {
+#if defined(__AVX512VNNI__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_fma(void) {
+#if defined(__FMA__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_neon(void) {
+#if defined(__ARM_NEON)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_arm_fma(void) {
+#if defined(__ARM_FEATURE_FMA)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_f16c(void) {
+#if defined(__F16C__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_fp16_va(void) {
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_wasm_simd(void) {
+#if defined(__wasm_simd128__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+
+int cpu_has_sse3(void) {
+#if defined(__SSE3__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_ssse3(void) {
+#if defined(__SSSE3__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int cpu_has_vsx(void) {
+#if defined(__POWER9_VECTOR__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 void debug(const short* a, int length) {
     for (int i = 0; i < length; i++) {
         printf("%d %d\n", i, a[i]);
     }
 }
+

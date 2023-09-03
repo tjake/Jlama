@@ -2,13 +2,16 @@ package com.github.tjake.jlama.math;
 
 import com.github.tjake.jlama.math.panama.VectorNativeSimd;
 import com.github.tjake.jlama.model.AbstractTensor;
+import com.github.tjake.jlama.model.ByteBufferTensor;
 import com.google.common.base.Preconditions;
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorOperators;
-import jdk.incubator.vector.VectorSpecies;
+import jdk.incubator.vector.*;
 
-class SimdVectorMath {
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+public class SimdVectorMath {
      static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
+
 
     public static float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(a.dType() == b.dType());
@@ -17,12 +20,54 @@ class SimdVectorMath {
         return switch (a.dType()) {
             case F32 -> dotProductF32(a, b, aoffset, boffset, limit);
             case F16 -> dotProductF16(a, b, aoffset, boffset, limit);
+            case I8 -> dotProductI8((ByteBufferTensor) a, (ByteBufferTensor) b, aoffset, boffset, limit);
             default -> throw new UnsupportedOperationException();
         };
     }
 
     private static float dotProductF16(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
         return VectorNativeSimd.dot_product(a.getMemorySegment(), aoffset, b.getMemorySegment(), boffset, limit);
+    }
+
+    static final VectorMask<Byte> MASK = ByteVector.SPECIES_256.indexInRange(0, 8);
+    static final VectorShuffle<Byte> SHUFFLE = VectorShuffle.fromValues(ByteVector.SPECIES_256,
+            0, 31, 31, 31,
+            1, 31, 31, 31,
+            2, 31, 31, 31,
+            3, 31, 31, 31,
+            4, 31, 31, 31,
+            5, 31, 31, 31,
+            6, 31, 31, 31,
+            7, 31, 31, 31);
+    private static float dotProductI8(ByteBufferTensor a, ByteBufferTensor b, int aoffset, int boffset, int limit) {
+        Preconditions.checkArgument(
+                aoffset % ByteBufferTensor.BLOCK_SIZE == 0 &&
+                        boffset % ByteBufferTensor.BLOCK_SIZE == 0 &&
+                        limit % ByteBufferTensor.BLOCK_SIZE == 0
+        );
+
+
+        int alim = aoffset + limit;
+        int blim = boffset + limit;
+        int slen = ByteVector.SPECIES_64.length();
+
+        float f1 = 0.0f;
+
+        //IntVector af = IntVector.zero(IntVector.SPECIES_256);
+        //IntVector bf = IntVector.zero(IntVector.SPECIES_256);
+
+        for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
+            //FloatVector n = FloatVector.broadcast(FloatVector.SPECIES_256, a.getFactorForIndex(aoffset) * b.getFactorForIndex(boffset));
+
+            var af = ByteVector.fromMemorySegment(ByteVector.SPECIES_256, a.getMemorySegment(), aoffset, ByteOrder.LITTLE_ENDIAN, MASK).convert(VectorOperators.ZERO_EXTEND_B2I, 0);
+            var bf = ByteVector.fromMemorySegment(ByteVector.SPECIES_256, b.getMemorySegment(), boffset, ByteOrder.LITTLE_ENDIAN, MASK).convert(VectorOperators.ZERO_EXTEND_B2I, 0);
+
+            long s1 = af.mul(bf).reduceLanesToLong(VectorOperators.ADD);
+
+            f1 += s1 * a.getFactorForIndex(aoffset) * b.getFactorForIndex(boffset);
+        }
+
+        return f1;
     }
 
     private static float dotProductF32(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {

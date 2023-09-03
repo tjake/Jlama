@@ -1,10 +1,13 @@
 package com.github.tjake.jlama.models;
 
 import com.github.tjake.jlama.math.FloatConversions;
+import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.math.panama.VectorNativeSimd;
+import com.github.tjake.jlama.model.ByteBufferTensor;
 import com.github.tjake.jlama.model.Float16BufferTensor;
 import com.github.tjake.jlama.model.FloatBufferTensor;
 import com.github.tjake.jlama.model.AbstractTensor;
+import com.google.common.base.Preconditions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -16,11 +19,9 @@ public class QuantizeTest {
     @Test
     public void testQuantizeF16Quantize() {
         short f1 = FloatConversions.float32ToBFloat16(0.1f);
-
         float f3 = FloatConversions.bFloat16ToFloat32(f1);
 
         Assert.assertEquals( 0.1f, f3, 0.0f);
-
     }
 
     @Test
@@ -84,6 +85,84 @@ public class QuantizeTest {
         float sum2 = VectorNativeSimd.dot_product(a16.getMemorySegment(), 0, b16.getMemorySegment(), 0, a.length);
 
         Assert.assertEquals(sum, sum2, 0.1f);
+    }
+
+    @Test
+    public void testQ8DotProd() {
+        FloatBufferTensor f1 = new FloatBufferTensor(128);
+        FloatBufferTensor f2 = new FloatBufferTensor(128);
+        for (int i = 0; i < 128; i++) {
+            f1.set(ThreadLocalRandom.current().nextFloat(), i);
+            f2.set(ThreadLocalRandom.current().nextFloat(), i);
+        }
+
+        ByteBufferTensor b1 = new ByteBufferTensor(f1);
+        ByteBufferTensor b2 = new ByteBufferTensor(f2);
+
+        for (int i = 0; i < 128; i++) {
+            Assert.assertEquals(f1.get(i), b1.get(i), 0.01f);
+            Assert.assertEquals(f2.get(i), b2.get(i), 0.01f);
+        }
+
+        float dot32 = VectorMath.dotProduct(f1, f2, 128);
+        float dot8  = VectorMath.dotProduct(b1, b2, 128);
+
+        Assert.assertEquals(dot32, dot8, 1f);
+    }
+
+    @Test
+    public void testQ8() {
+        int len = 1024;
+        FloatBufferTensor t = new FloatBufferTensor(len);
+        for (int i = 0; i < len; i++) {
+            t.set(ThreadLocalRandom.current().nextFloat(), i);
+        }
+        byte[] qv = new byte[len];
+        float[] qf = new float[len / blockSize];
+
+        quantizeQ8(t, qv, qf);
+
+        float[] rt = dequantizeQ8(qv, qf);
+
+        for (int i = 0; i < len; i++) {
+            Assert.assertEquals(t.get(i), rt[i], 0.01f);
+        }
+    }
+    static int blockSize = 32;
+
+    void quantizeQ8(AbstractTensor t, byte[] destV, float[] destF) {
+        Preconditions.checkArgument(t.size() % blockSize == 0);
+
+        int numBlocksV = t.size() / blockSize;
+
+        for (int i = 0; i < numBlocksV; i++) {
+            float max = -1;
+            for (int j = 0; j < blockSize; j++) {
+                float v = t.get(i * blockSize + j);
+                float absv = v > 0 ? v : -v;
+                if (absv > max) max = absv;
+            }
+
+            float d = max / Byte.MAX_VALUE;
+            float id = d != 0.0f ? 1.0f / d : d;
+            destF[i] = d;
+
+            for (int j = 0; j < blockSize; j++) {
+                float f0 = t.get(i * blockSize + j) * id; //scale
+                destV[i * blockSize + j] = (byte) f0;
+            }
+        }
+    }
+
+    float[] dequantizeQ8(byte[] destV, float[] destF) {
+        float[] res = new float[destV.length];
+        for (int i = 0; i < destF.length; i++) {
+            for (int j = 0; j < blockSize; j++) {
+                float f0 = destV[i * blockSize + j] * destF[i];  //un-scale
+                res[i * blockSize + j] = f0;
+            }
+        }
+        return res;
     }
 
 }

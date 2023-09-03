@@ -1,5 +1,7 @@
 package com.github.tjake.jlama.math;
 
+import java.util.Arrays;
+
 public class FloatConversions {
 
     static short bFloat16NaN = 0x7f81;
