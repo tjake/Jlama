@@ -4,6 +4,7 @@ import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,9 +32,9 @@ public class LlamaModel extends AbstractModel {
         //LLama doesn't use bias, will optimize this away later
         this.noBias = new FloatBufferTensor(c.hiddenLength);
 
-        this.wte = weights.load("model.embed_tokens.weight");
-        this.outputLayerNorm = new RMSNorm(this, noBias, weights.load("model.norm.weight"));
-        this.classificationWeights = weights.load("lm_head.weight");
+        this.wte = weights.load("model.embed_tokens.weight").quantize(DType.F32); //Don't quantize this, it's used for the embedding layer
+        this.outputLayerNorm = new RMSNorm(this, noBias, weights.load("model.norm.weight").quantize(DType.I8));
+        this.classificationWeights = weights.load("lm_head.weight").quantize(DType.F32); //Don't quantize this, it's the output layer
 
         this.transformerBlocks = new TransformerBlock[c.numberOfLayers];
 
@@ -44,22 +45,22 @@ public class LlamaModel extends AbstractModel {
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(this,
                     noBias, noBias, noBias,
-                    weights.load(prefix + "q_proj.weight"),
-                    weights.load(prefix + "k_proj.weight"),
-                    weights.load(prefix + "v_proj.weight"),
+                    weights.load(prefix + "q_proj.weight").quantize(DType.I8),
+                    weights.load(prefix + "k_proj.weight").quantize(DType.I8),
+                    weights.load(prefix + "v_proj.weight").quantize(DType.I8),
                     noBias,
-                    weights.load(prefix + "o_proj.weight"),
+                    weights.load(prefix + "o_proj.weight").quantize(DType.I8),
                     Optional.of(ropeFreqs));
 
             prefix = base + "mlp.";
 
             MLPBlock mlp = new MLPBlock(this, ActivationFunction.Type.SILU,
-                    noBias, weights.load(prefix + "gate_proj.weight"), //w1
-                    noBias, weights.load(prefix + "down_proj.weight"), //w2
-                    weights.load(prefix + "up_proj.weight"));          //w3
+                    noBias, weights.load(prefix + "gate_proj.weight").quantize(DType.I8), //w1
+                    noBias, weights.load(prefix + "down_proj.weight").quantize(DType.I8), //w2
+                    weights.load(prefix + "up_proj.weight").quantize(DType.I8));          //w3
 
-            this.transformerBlocks[i] = new TransformerBlock(new RMSNorm(this, noBias, weights.load(base + "input_layernorm.weight")), attention,
-                    new RMSNorm(this, noBias, weights.load(base + "post_attention_layernorm.weight")),
+            this.transformerBlocks[i] = new TransformerBlock(new RMSNorm(this, noBias, weights.load(base + "input_layernorm.weight").quantize(DType.I8)), attention,
+                    new RMSNorm(this, noBias, weights.load(base + "post_attention_layernorm.weight").quantize(DType.I8)),
                     mlp);
         }
         logger.info("Model loaded!");

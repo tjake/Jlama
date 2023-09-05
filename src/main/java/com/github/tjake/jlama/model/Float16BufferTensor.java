@@ -1,7 +1,5 @@
 package com.github.tjake.jlama.model;
 
-import com.github.tjake.jlama.math.FloatConversions;
-import com.github.tjake.jlama.math.panama.VectorNativeSimd;
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.FloatVector;
@@ -125,7 +123,7 @@ public class Float16BufferTensor extends AbstractTensor {
     @Override
     public void scale(float factor, int offset, int length) {
         Preconditions.checkArgument(length % 8 == 0);
-        VectorNativeSimd.scale(factor, getMemorySegment(), offset, length);
+        throw new UnsupportedOperationException();
     }
 
     @Override

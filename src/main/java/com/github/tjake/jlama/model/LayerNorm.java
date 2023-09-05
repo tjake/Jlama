@@ -1,6 +1,5 @@
 package com.github.tjake.jlama.model;
 
-import com.github.tjake.jlama.safetensors.Config;
 import com.google.common.base.Preconditions;
 
 public class LayerNorm {
