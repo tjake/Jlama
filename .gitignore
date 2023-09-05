@@ -2,3 +2,5 @@
 .idea
 .mvn/wrapper/maven-wrapper.jar
 models/*
+target/
+data/
