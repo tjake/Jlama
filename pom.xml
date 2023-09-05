@@ -9,25 +9,12 @@
   <version>1.0-SNAPSHOT</version>
 
   <name>Jlama</name>
-  <url>https://github.com/tjake/jlama</url>
-  <packaging>jar</packaging>
+  <!-- FIXME change it to the project's website -->
+  <url>http://www.example.com</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <osmaven.version>1.7.1</osmaven.version>
-    <!-- keep in sync with PlatformDependent#ALLOWED_LINUX_OS_CLASSIFIERS -->
-    <os.detection.classifierWithLikes>fedora,suse,arch</os.detection.classifierWithLikes>
-    <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
-    <exe.make>make</exe.make>
-    <exe.compiler>gcc</exe.compiler>
-    <exe.archiver>ld</exe.archiver>
-    <nativeLibName>libjlamav</nativeLibName>
-    <nativeIncludeDir>${project.basedir}/src/main/c</nativeIncludeDir>
-    <nativeJarWorkdir>${project.build.directory}/native-jar-work</nativeJarWorkdir>
-    <nativeObjsOnlyDir>${project.build.directory}/native-objs-only</nativeObjsOnlyDir>
-    <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
-    <defaultJarFile>${project.build.directory}/${project.build.finalName}.jar</defaultJarFile>
-    <nativeJarFile>${project.build.directory}/${project.build.finalName}-${jni.classifier}.jar</nativeJarFile>
+    <mainClass>com.github.tjake.jlama.Jlama</mainClass>
   </properties>
 
   <dependencies>
@@ -61,6 +48,7 @@
       <version>4.0.1</version>
     </dependency>
 
+
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
@@ -89,13 +77,6 @@
   </dependencies>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${osmaven.version}</version>
-      </extension>
-    </extensions>
     <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
@@ -116,11 +97,54 @@
             <target>20</target>
             <compilerArgs>
               <arg>--add-modules=jdk.incubator.vector</arg>
-              <arg>--add-exports</arg>
-              <arg>java.base/sun.nio.ch=ALL-UNNAMED</arg>
+              <arg>--add-modules=jdk.incubator.concurrent</arg>
               <arg>--enable-preview</arg>
             </compilerArgs>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>3.0.0</version>
+          <executions>
+            <execution>
+              <id>java</id>
+              <goals>
+                <goal>java</goal>
+              </goals>
+              <configuration>
+                <mainClass>${mainClass}</mainClass>
+              </configuration>
+            </execution>
+            <execution>
+              <id>java-agent</id>
+              <goals>
+                <goal>exec</goal>
+              </goals>
+              <configuration>
+                <executable>/opt/graalvm-20.0.0/bin/java</executable>
+                <workingDirectory>${project.build.directory}</workingDirectory>
+                <arguments>
+                  <arguments>--add-modules=jdk.incubator.vector</arguments>
+                  <argument>-agentlib:native-image-agent=config-output-dir=target/native/agent-output</argument>
+                  <argument>-classpath</argument>
+                  <classpath/>
+                  <argument>${mainClass}</argument>
+                </arguments>
+                <workingDirectory>${project.basedir}</workingDirectory>
+              </configuration>
+            </execution>
+            <execution>
+              <id>native</id>
+              <goals>
+                <goal>exec</goal>
+              </goals>
+              <configuration>
+                <executable>${project.build.directory}/jlama</executable>
+                <workingDirectory>${project.build.directory}</workingDirectory>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
@@ -129,16 +153,22 @@
             <forkCount>1</forkCount>
             <argLine>
               --add-modules=jdk.incubator.vector
-              --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+              --add-modules=jdk.incubator.concurrent
               --enable-preview
-              --enable-native-access=ALL-UNNAMED
             </argLine>
-
           </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.0.2</version>
+	    <configuration>
+                <archive>
+                    <manifest>
+                        <addClasspath>true</addClasspath>
+                        <mainClass>${mainClass}</mainClass>
+                    </manifest>
+                </archive>
+            </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
@@ -158,19 +188,87 @@
           <version>3.0.0</version>
         </plugin>
         <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.10</version>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-assembly-plugin</artifactId>
           <executions>
             <execution>
-              <id>parse-version</id>
+              <phase>package</phase>
               <goals>
-                <goal>parse-version</goal>
+                <goal>single</goal>
               </goals>
             </execution>
           </executions>
+          <configuration>
+            <archive>
+              <manifest>
+                <addClasspath>true</addClasspath>
+                <mainClass>${mainClass}</mainClass>
+              </manifest>
+            </archive>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.graalvm.nativeimage</groupId>
+          <artifactId>native-image-maven-plugin</artifactId>
+<!--          <version>22.3.0</version>-->
+              <version>20.0.2</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>native-image</goal>
+              </goals>
+              <phase>package</phase>
+            </execution>
+          </executions>
+          <configuration>
+            <mainClass>${mainClass}}</mainClass>
+            <buildArgs>
+              -H:ReflectionConfigurationFiles=target/native/agent-output/reflect-config.json
+            </buildArgs>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
   </build>
+  <profiles>
+    <profile>
+      <id>native</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>0.9.13</version>
+            <extensions>true</extensions>
+            <executions>
+              <execution>
+                <id>build-native</id>
+                <goals>
+                  <goal>build</goal>
+                </goals>
+                <phase>package</phase>
+              </execution>
+              <execution>
+                <id>test-native</id>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <phase>test</phase>
+              </execution>
+            </executions>
+            <configuration>
+              <fallback>false</fallback>
+              <agent>
+                <enabled>true</enabled>
+              </agent>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
