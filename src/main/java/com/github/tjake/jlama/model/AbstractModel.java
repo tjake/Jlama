@@ -40,7 +40,7 @@ public abstract class AbstractModel {
     protected abstract AbstractTensor getOutputLogitsWeights();
 
     protected AbstractTensor makeTensor(int ...shape) {
-        return c.tensorCache.get(modelDType, shape);
+        return c.tensorCache.get(DType.F32, shape);
     }
 
     protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {

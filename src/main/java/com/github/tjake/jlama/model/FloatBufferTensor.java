@@ -3,13 +3,13 @@ package com.github.tjake.jlama.model;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Floats;
 import jdk.incubator.vector.FloatVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
 import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -34,12 +34,22 @@ public class FloatBufferTensor extends AbstractTensor {
     private final boolean mmapped;
     private final MemorySegment segment;
 
+    public FloatBufferTensor(AbstractTensor ft) {
+        this(ft.shape);
+        Preconditions.checkArgument(ft.dType != DType.I32, "This should never happen, likely a bug");
+
+        int[] cursor = new int[ft.shape.length];
+        do {
+            set(ft.get(cursor), cursor);
+        } while (ft.iterate(cursor));
+    }
+
     public FloatBufferTensor(int ...shape) {
         super(DType.F32, shape, true);
         this.name = "tmp";
-        this.b = FloatBuffer.allocate(capacity);
+        this.b = ByteBuffer.allocateDirect(capacity * dType().size()).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
         this.mmapped = false;
-        this.segment = null;
+        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());;
     }
 
     public FloatBufferTensor(FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
@@ -51,7 +61,7 @@ public class FloatBufferTensor extends AbstractTensor {
         this.name = name;
         this.b = b;
         this.mmapped = mmapped;
-        this.segment = mmapped ? MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * Floats.BYTES) : null;
+        this.segment = b.isDirect() ? MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size()) : null;
     }
 
     @Override
@@ -113,7 +123,11 @@ public class FloatBufferTensor extends AbstractTensor {
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
         Preconditions.checkArgument(this.dType == src.dType, "Different types");
         Preconditions.checkArgument(!b.isReadOnly());
-        System.arraycopy(src.getFloatArray(), src.getArrayOffset() + srcOffset, getFloatArray(), this.getArrayOffset() + destOffset, length);
+        if (this.hasMemorySegment() && src.hasMemorySegment())
+            segment.asSlice(getMemorySegmentOffset(destOffset), length * dType.size())
+                    .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));
+        else
+            System.arraycopy(src.getFloatArray(), src.getArrayOffset() + srcOffset, getFloatArray(), this.getArrayOffset() + destOffset, length);
     }
 
     @Override
@@ -122,14 +136,13 @@ public class FloatBufferTensor extends AbstractTensor {
         return offset * Float.BYTES;
     }
 
-
     @Override
     public FloatVector getFloatVector(int offset) {
         if (VectorMath.hasVectorAPI) {
-            if (!mmapped)
+            if (segment == null)
                 return FloatVector.fromArray(FloatVector.SPECIES_PREFERRED, getFloatArray(), getArrayOffset() + offset);
             else
-                return FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, segment, (long) offset * Float.BYTES, ByteOrder.LITTLE_ENDIAN);
+                return FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, segment, (long) offset * dType.size(), ByteOrder.LITTLE_ENDIAN);
         }
 
         throw new UnsupportedOperationException("No vector API available");
@@ -144,17 +157,18 @@ public class FloatBufferTensor extends AbstractTensor {
 
     @Override
     public void clear() {
-        Preconditions.checkArgument(b.hasArray());
-        Arrays.fill(b.array(), getArrayOffset(), getArrayOffset() + size(), 0);
+        if (b.hasArray()) {
+            Arrays.fill(b.array(), getArrayOffset(), getArrayOffset() + size(), 0);
+        } else {
+            segment.fill((byte) 0);
+        }
     }
 
     @Override
     public void scale(float factor, int offset, int length) {
-        float[] t = getFloatArray();
-        int toffset = offset + getArrayOffset();
-        int tlimit = toffset + length;
-        for (int i = toffset; i < tlimit; i++)
-            t[i] *= factor;
+        int limit = offset + length;
+        for (int i = offset; i < limit; i++)
+            this.set(this.get(i) * factor, i);
     }
 
     @Override
@@ -163,7 +177,7 @@ public class FloatBufferTensor extends AbstractTensor {
         b.duplicate().get(sample);
         return "FloatBufferTensor{" +
                 "name='" + name + '\'' +
-                "shape=" + Arrays.toString(shape) +
+                " shape=" + Arrays.toString(shape) +
                 ", b=" + Arrays.toString(sample) +
                 "...}";
     }

@@ -1,6 +1,5 @@
 package com.github.tjake.jlama.model;
 
-import com.github.tjake.jlama.math.panama.VectorNativeSimd;
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.FloatVector;
@@ -13,7 +12,6 @@ import java.nio.ShortBuffer;
 import java.util.Arrays;
 
 public class Float16BufferTensor extends AbstractTensor {
-    private static final int SIMD_SIZE = (16 - 1);
 
     private final ShortBuffer b;
 
@@ -27,7 +25,7 @@ public class Float16BufferTensor extends AbstractTensor {
         this.name = "tmp";
         this.b = ByteBuffer.allocateDirect(capacity * Short.BYTES).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
         this.mmapped = false;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * Short.BYTES);
+        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
     }
 
     public Float16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
@@ -125,7 +123,7 @@ public class Float16BufferTensor extends AbstractTensor {
     @Override
     public void scale(float factor, int offset, int length) {
         Preconditions.checkArgument(length % 8 == 0);
-        VectorNativeSimd.scale(factor, getMemorySegment(), offset, length);
+        throw new UnsupportedOperationException();
     }
 
     @Override

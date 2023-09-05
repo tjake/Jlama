@@ -69,13 +69,13 @@ public class Weights implements WeightLoader {
                 // If the majority of the weights are F32 then convert to F32
                 if (dType == DType.F32) {
                     len = b.remaining() / DType.F16.size();
-                    fb = FloatBuffer.allocate(len);
-                    for (int i = 0; i < len; i++) {
+                    ByteBuffer bb = ByteBuffer.allocateDirect(len * DType.F32.size()).order(ByteOrder.LITTLE_ENDIAN);
+                    for (int i = 0; i < len * DType.F32.size(); i += DType.F32.size()) {
                         short s = b.getShort();
                         float v = Float.float16ToFloat(s);
-                        fb.put(i, v);
+                        bb.putFloat(i, v);
                     }
-                    return new FloatBufferTensor(fb, info.shape, true, false);
+                    return new FloatBufferTensor(bb.asFloatBuffer(), info.shape, true, false);
                 } else {
                     sb = b.asShortBuffer().slice();
                     return new Float16BufferTensor(sb, info.shape, true, true);

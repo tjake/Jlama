@@ -5,7 +5,6 @@ import com.google.common.base.Preconditions;
 import jdk.incubator.vector.FloatVector;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.FloatBuffer;
 import java.util.Arrays;
 
 /** A Tensor is a multi-dimensional array of data.
@@ -220,6 +219,18 @@ public abstract class AbstractTensor implements AutoCloseable {
     }
 
     public abstract void scale(float factor, int offset, int length);
+
+    public AbstractTensor quantize(DType dType) {
+
+        if (this.dims() != 2)
+            return this;
+
+        return switch (dType) {
+            case I8 -> new Q8ByteBufferTensor(this);
+            case F32 -> new FloatBufferTensor(this);
+            default -> this;
+        };
+    }
 
     public void debug(String id) {
         if (false) {

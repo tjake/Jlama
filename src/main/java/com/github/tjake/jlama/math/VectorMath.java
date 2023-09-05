@@ -12,8 +12,6 @@ import java.util.stream.IntStream;
 
 public class VectorMath {
 
-    private static int blockSize = Integer.MAX_VALUE;
-
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
     public static boolean hasVectorAPI = hasVectorAPI();
@@ -29,29 +27,8 @@ public class VectorMath {
         }
     }
 
-    public static void scale(float[] t, int toffset, int tlimit, float scalar) {
-        for (int i = toffset; i < (toffset + tlimit); i++)
-            t[i] *= scalar;
-    }
-
     public static float dotProduct(AbstractTensor a, AbstractTensor b, int limit) {
-        if (limit < blockSize) {
-            return dotProduct(a, b, 0, 0, limit);
-        } else {
-            int i = 0;
-
-            IntStream.Builder builder = IntStream.builder();
-            for (; i < limit - blockSize; i += blockSize)
-                builder.accept(i);
-
-            final DoubleAdder s = new DoubleAdder();
-            builder.build().parallel().forEach(fi -> s.add(dotProduct(a, b, fi, fi, blockSize)));
-
-            if (i < limit)
-                s.add(dotProduct(a, b, i, i, limit - i));
-
-            return (float) s.sum();
-        }
+        return dotProduct(a, b, 0, 0, limit);
     }
 
     // a[0..n] += b[0..n]

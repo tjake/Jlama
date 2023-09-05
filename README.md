@@ -1,6 +1,8 @@
 # Jlama / A LLM inference engine for Java
 
-![jlama](docs/jlama.jpg)
+<p align="center">
+  <img src="docs/jlama.jpg" width="300" height="300" alt="Cute Llama">
+</p>
 
 ## Introduction
 
@@ -8,11 +10,12 @@ Jlama is a pure Java implementation of a LLM inference engine.
 
 It currently supports the following models and formats:
 
-  * Llama & Llama2
+  * Llama & Llama2 & CodeLlama
   * GPT-2 
   * BERT
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model format
   * Support for Float16, BFloat16 and Float32 models
+  * Q8_K quantization
 
 Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
@@ -39,6 +42,7 @@ cd data
 Then run the tests with:
 ```shell
 cd ..
+./mvnw package -DskipTests
 ./mvnw test -Dtest=TestModels#GPT2Run
 ./mvnw test -Dtest=TestModels#LlamaRun
 ./mvnw test -Dtest=TestModels#BertRun
@@ -105,7 +109,7 @@ elapsed: 204s, 798.289063ms per token
 
     * Support more models
     * Add pure java tokenizers
-    * Support more data types (e.g. Int8)
+    * ~~Support Quantization (e.g. k-quantization)~~
     * Add LoRA support
     * GraalVM support
     * Add distributed inference 
