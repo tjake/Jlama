@@ -15,21 +15,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class Q8ByteBufferTensor extends AbstractTensor {
-    private static final Logger logger = LoggerFactory.getLogger(Q8ByteBufferTensor.class);;
-    public static final int BLOCK_SIZE = 256;
+public class Q4ByteBufferTensor extends AbstractTensor {
+    private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);;
+    public static final int BLOCK_SIZE = 32;
+    public static final int HALF_BLOCK = (BLOCK_SIZE / 2);
     private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
 
     final ByteBuffer b;
-    final FloatBufferTensor blockF;
+    final FloatBufferTensor blockF; //Deltas
     private final String name;
-
     private final boolean mmapped;
     private final MemorySegment segment;
 
-    public Q8ByteBufferTensor(AbstractTensor ft) {
+    public Q4ByteBufferTensor(AbstractTensor ft) {
         this(ft.shape);
-        Preconditions.checkArgument(ft.dType != DType.I8, "This should never happen, likely a bug");
+        Preconditions.checkArgument(ft.dType != DType.Q4, "This should never happen, likely a bug");
         Preconditions.checkArgument(ft.size() % BLOCK_SIZE == 0, "I8 buffer must be a multiple of BLOCK_SIZE");
 
         List<int[]> startBlockCursors = new ArrayList<>();
@@ -51,26 +51,60 @@ public class Q8ByteBufferTensor extends AbstractTensor {
     void processBlock(AbstractTensor ft, int[] blockStartCursor) {
         int[] cursor = Arrays.copyOf(blockStartCursor, blockStartCursor.length);
         float max = Float.MIN_VALUE;
+        float amax = Float.MIN_VALUE;
 
         //Accumulate the max value for this block
         for (int i = 0; i < BLOCK_SIZE; i++) {
             float v = ft.get(cursor);
             float absv = v < 0 ? -v : v;
-            if (absv > max) max = absv;
+            if (absv > amax) {
+                max = v;
+                amax = absv;
+            }
             ft.iterate(cursor);
         }
 
         // Process the block and save it
-        float iscale = -128f / max;
-        float scale = iscale != 0.0f ? 1.0f / iscale : 0.0f;
+        float scale = max  / -8f;
+        float iscale = scale != 0.0f ? 1.0f / scale : 0.0f;
         this.blockF.set(scale, makeBlockShape(blockStartCursor));
         int i = ft.getOffset(blockStartCursor);
-        for (int j = 0;  j < BLOCK_SIZE; j++, i++) {
+
+
+        int ibyte = i/2;
+        for (int j = 0;  j < BLOCK_SIZE / 2; j++, i++, ibyte++) {
             float f0 = ft.get(blockStartCursor) * iscale;
-            this.b.put(i, (byte) Math.min(127, Math.round(f0)));
+
+            //Since the iterator doesn't work for Q4, we need to manually increment the cursor
+            // to get the next value since the byte is packed with [0,15] position.
+            // we do this because on the simd side we need to load 2 values at a time
+            // and want to keep the order of the values in the byte the same as the original layout
+            blockStartCursor[blockStartCursor.length - 1] += HALF_BLOCK;
+            float f1 = ft.get(blockStartCursor) * iscale;
+
+            //Reset the cursor back to previous position
+            blockStartCursor[blockStartCursor.length - 1] -= HALF_BLOCK;
             ft.iterate(blockStartCursor);
+
+            byte fb0 = (byte)Math.min(15, (byte)(f0 + 8.5f));
+            byte fb1 = (byte)Math.min(15, (byte)(f1 + 8.5f));
+
+            this.b.put(ibyte, (byte) ((fb0) | ((fb1) << 4)));
+
+            /*
+            //DEBUG
+            byte b0 = this.b.get(ibyte);
+            int x0 = (b0 & 0x0F) - 8;
+            int x1 = (b0 >> 4 & 0x0F) - 8;
+
+            float f11 = x0 * scale;
+            float f2 = x1 * scale;
+            logger.info("i:{} ibyte:{} f1={} | i:{} f2={} | c={}",i,ibyte, x0, i+HALF_BLOCK, x1, b0);
+            */
+
         }
     }
+
 
     private static int[] makeBlockShape(int[] shape) {
         int[] blockShape = new int[shape.length];
@@ -84,18 +118,19 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         return blockShape;
     }
 
-    protected Q8ByteBufferTensor(int[] shape) {
-        super(DType.I8, shape, true);
+
+    protected Q4ByteBufferTensor(int[] shape) {
+        super(DType.Q4, shape, true);
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
-        this.b = ByteBuffer.allocateDirect(this.size()).order(ByteOrder.LITTLE_ENDIAN);
+        this.b = ByteBuffer.allocateDirect(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         this.mmapped = false;
         this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
     }
 
-    private Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices, boolean mmapped) {
-        super(DType.I8, shape, cacheSlices);
+    public Q4ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices, boolean mmapped) {
+        super(DType.Q4, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
         this.b = b;
@@ -104,25 +139,37 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
     }
 
-
     @Override
     protected AbstractTensor make(int... shape) {
-        return new Q8ByteBufferTensor(shape);
+        return new Q4ByteBufferTensor(shape);
     }
 
     @Override
     protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
         FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make((int)(offset * I_BLOCK_SIZE), (int)(length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
-        return new Q8ByteBufferTensor(name, b.slice(offset, length), newBlockF, shape, cacheSlices, mmapped);
+        return new Q4ByteBufferTensor(name, b.slice(offset/2, length/2), newBlockF, shape, cacheSlices, mmapped);
     }
+
 
     @Override
     public float get(int... dims) {
         Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified");
         Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
         int i = getOffset(dims);
-        float d = blockF.get(makeBlockShape(dims));
-        return b.get(i) * d;
+        float scale = blockF.get(makeBlockShape(dims));
+
+        // Represents the offset in the q4 byte array
+        int ibyte = ((int)(i * I_BLOCK_SIZE)) * HALF_BLOCK + (i % BLOCK_SIZE);
+
+        int x;
+        if (i % BLOCK_SIZE < HALF_BLOCK) {
+            byte b0 = this.b.get(ibyte);
+            x = (b0 & 0x0F) - 8;
+        } else {
+            byte b0 = this.b.get(ibyte - HALF_BLOCK);
+            x = (b0 >> 4 & 0x0F) - 8;
+        }
+        return x * scale;
     }
 
     public final float getFactorForIndex(int i) {
@@ -134,18 +181,7 @@ public class Q8ByteBufferTensor extends AbstractTensor {
 
     @Override
     public void set(float v, int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified for tensor");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
-        Preconditions.checkArgument(!b.isReadOnly() && !mmapped, "Can't modify a read only buffer");
-        int i = getOffset(dims);
-        float d = blockF.get(makeBlockShape(dims));
-        float max = d * Byte.MAX_VALUE;
-        if (v <= max) {
-            float id = d != 0.0f ? 1.0f / d : d;
-            b.put(i, (byte)(v * id));
-        } else {
-            throw new UnsupportedOperationException();
-        }
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -170,7 +206,7 @@ public class Q8ByteBufferTensor extends AbstractTensor {
 
     @Override
     public int getMemorySegmentOffset(int offset) {
-        return offset;
+        return offset/2;
     }
 
     @Override
@@ -184,7 +220,6 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
         segment.asSlice(getMemorySegmentOffset(destOffset), length)
                 .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
-
     }
 
     @Override
@@ -205,9 +240,9 @@ public class Q8ByteBufferTensor extends AbstractTensor {
 
     @Override
     public String toString() {
-        byte[] sample = new byte[Math.min(10, b.remaining())];
+        byte[] sample = new byte[Math.min(BLOCK_SIZE, b.remaining())];
         b.duplicate().get(sample);
-        return "ByteBufferTensor{" +
+        return "Q5BufferTensor{" +
                 "name='" + name + '\'' +
                 "shape=" + Arrays.toString(shape) +
                 ", b=" + Arrays.toString(sample) +

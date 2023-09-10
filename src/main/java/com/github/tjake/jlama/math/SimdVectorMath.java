@@ -1,8 +1,6 @@
 package com.github.tjake.jlama.math;
 
-import com.github.tjake.jlama.model.AbstractTensor;
-import com.github.tjake.jlama.model.Q8ByteBufferTensor;
-import com.github.tjake.jlama.model.FloatBufferTensor;
+import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.*;
@@ -10,7 +8,18 @@ import jdk.incubator.vector.*;
 import java.nio.ByteOrder;
 
 public class SimdVectorMath {
+    static final boolean hasAVX2 = FloatVector.SPECIES_PREFERRED == FloatVector.SPECIES_512;
     static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_PREFERRED;
+
+    static final VectorShuffle<Float> ZIP_EVEN = VectorShuffle.makeZip(FloatVector.SPECIES_256,0);
+    static final VectorShuffle<Float> ZIP_ODD = VectorShuffle.makeZip(FloatVector.SPECIES_256,1);
+
+    static final ByteVector Q4_BYTE_SUB = ByteVector.broadcast(ByteVector.SPECIES_64, 8);
+    static final ByteVector Q4_BYTE_MASK = ByteVector.broadcast(ByteVector.SPECIES_64, 0xF);
+
+    static final ByteVector Q4_BYTE_SHIFT = ByteVector.broadcast(ByteVector.SPECIES_64, 4);
+
+
 
     public static float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(limit % 8 == 0);
@@ -18,20 +27,16 @@ public class SimdVectorMath {
         return switch (a.dType()) {
             case F32 -> switch (b.dType()) {
                 case F32 -> dotProductF32(a, b, aoffset, boffset, limit);
-                case I8 -> dotProductF32I8((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                case I8 -> hasAVX2 ? dotProductF32I8_512((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit) : dotProductF32I8_256((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                //case Q5 -> dotProductF32Q5((FloatBufferTensor) a, (Q5ByteBufferTensor) b, aoffset, boffset, limit);
+                case Q4 -> dotProductF32Q4((FloatBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
                 default -> throw new UnsupportedOperationException(b.dType().name());
             };
-            case F16 -> throw new UnsupportedOperationException();
-            case I8 -> switch (b.dType()) {
-                case I8 -> dotProductI8((Q8ByteBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
-                case F32 -> dotProductF32I8((FloatBufferTensor) b, (Q8ByteBufferTensor) a, boffset, aoffset, limit);
-                default -> throw new UnsupportedOperationException();
-            };
+            case I8 -> dotProductI8((Q8ByteBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+
             default -> throw new UnsupportedOperationException();
         };
     }
-
-
 
     private static float dotProductI8(Q8ByteBufferTensor a, Q8ByteBufferTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(
@@ -57,10 +62,10 @@ public class SimdVectorMath {
         return acc.reduceLanes(VectorOperators.ADD);
     }
 
-    private static float dotProductF32I8(FloatBufferTensor a, Q8ByteBufferTensor b, int aoffset, int boffset, int limit) {
+    private static float dotProductF32I8_256(FloatBufferTensor a, Q8ByteBufferTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(a.dType() == DType.F32 && b.dType() == DType.I8);
         Preconditions.checkArgument(
-                        boffset % Q8ByteBufferTensor.BLOCK_SIZE == 0 &&
+                boffset % Q8ByteBufferTensor.BLOCK_SIZE == 0 &&
                         limit % Q8ByteBufferTensor.BLOCK_SIZE == 0
         );
 
@@ -88,6 +93,104 @@ public class SimdVectorMath {
             af = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + slen + slen + slen ), ByteOrder.LITTLE_ENDIAN);
             bf = ByteVector.fromMemorySegment(ByteVector.SPECIES_64, b.getMemorySegment(), boffset + slen + slen + slen, ByteOrder.LITTLE_ENDIAN).convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
             acc = acc.add(af.mul(bf.mul(scale)));
+        }
+
+        return acc.reduceLanes(VectorOperators.ADD);
+    }
+
+
+    private static float dotProductF32I8_512(FloatBufferTensor a, Q8ByteBufferTensor b, int aoffset, int boffset, int limit) {
+        Preconditions.checkArgument(a.dType() == DType.F32 && b.dType() == DType.I8);
+        Preconditions.checkArgument(
+                        boffset % Q8ByteBufferTensor.BLOCK_SIZE == 0 &&
+                        limit % Q8ByteBufferTensor.BLOCK_SIZE == 0
+        );
+
+        int alim = aoffset + limit;
+        int blim = boffset + limit;
+        int slen = ByteVector.SPECIES_128.length();
+
+        FloatVector acc = FloatVector.zero(FloatVector.SPECIES_512);
+
+        //Unroll 4x
+        for (; aoffset < alim && boffset < blim; aoffset += slen*4, boffset += slen*4) {
+            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(boffset));
+            var af = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset), ByteOrder.LITTLE_ENDIAN);
+            var bf = ByteVector.fromMemorySegment(ByteVector.SPECIES_128, b.getMemorySegment(), boffset, ByteOrder.LITTLE_ENDIAN).convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0);
+            acc = acc.add(af.mul(bf.mul(scale)));
+
+            af = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + slen), ByteOrder.LITTLE_ENDIAN);
+            bf = ByteVector.fromMemorySegment(ByteVector.SPECIES_128, b.getMemorySegment(), boffset + slen, ByteOrder.LITTLE_ENDIAN).convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0);
+            acc = acc.add(af.mul(bf.mul(scale)));
+
+            af = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + slen + slen), ByteOrder.LITTLE_ENDIAN);
+            bf = ByteVector.fromMemorySegment(ByteVector.SPECIES_128, b.getMemorySegment(), boffset + slen + slen, ByteOrder.LITTLE_ENDIAN).convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0);
+            acc = acc.add(af.mul(bf.mul(scale)));
+
+            af = FloatVector.fromMemorySegment(FloatVector.SPECIES_512, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + slen + slen + slen ), ByteOrder.LITTLE_ENDIAN);
+            bf = ByteVector.fromMemorySegment(ByteVector.SPECIES_128, b.getMemorySegment(), boffset + slen + slen + slen, ByteOrder.LITTLE_ENDIAN).convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0);
+            acc = acc.add(af.mul(bf.mul(scale)));
+        }
+
+        return acc.reduceLanes(VectorOperators.ADD);
+    }
+
+    private static float dotProductF32Q4(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
+        Preconditions.checkArgument(a.dType() == DType.F32 && b.dType() == DType.Q4);
+        Preconditions.checkArgument(
+                boffset % Q4ByteBufferTensor.BLOCK_SIZE == 0 &&
+                        limit % Q4ByteBufferTensor.BLOCK_SIZE == 0
+        );
+
+        int alim = aoffset + limit;
+        int blim = boffset + limit;
+        int slen = Q4ByteBufferTensor.BLOCK_SIZE;
+
+        FloatVector acc = FloatVector.zero(FloatVector.SPECIES_256);
+
+        //Unroll 4x
+        for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
+            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(boffset));
+            // BLOCK_SIZE Floats
+            var af0 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset), ByteOrder.LITTLE_ENDIAN);
+            var af1 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + 8), ByteOrder.LITTLE_ENDIAN);
+            var af2 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + 8 + 8), ByteOrder.LITTLE_ENDIAN);
+            var af3 = FloatVector.fromMemorySegment(FloatVector.SPECIES_256, a.getMemorySegment(), a.getMemorySegmentOffset(aoffset + 8 + 8 + 8), ByteOrder.LITTLE_ENDIAN);
+
+            //Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
+            var bf0 = ByteVector.fromMemorySegment(ByteVector.SPECIES_64, b.getMemorySegment(), b.getMemorySegmentOffset(boffset), ByteOrder.LITTLE_ENDIAN);
+            var bf16 = ByteVector.fromMemorySegment(ByteVector.SPECIES_64, b.getMemorySegment(), b.getMemorySegmentOffset(boffset + Q4ByteBufferTensor.HALF_BLOCK), ByteOrder.LITTLE_ENDIAN);
+
+            // Convert the first 4 bits into bytes
+            var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB)
+                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+
+
+            // Convert the second 4 bits into bytes
+            var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB)
+                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+
+            // Convert the first 4 bits into bytes
+            var low1 = bf16.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB)
+                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+
+
+            // Convert the second 4 bits into bytes
+            var high1 = bf16.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB)
+                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+
+
+            acc = acc.add(af0.mul(low0.mul(scale)));
+            acc = acc.add(af1.mul(low1.mul(scale)));
+            acc = acc.add(af2.mul(high0.mul(scale)));
+            acc = acc.add(af3.mul(high1.mul(scale)));
+
         }
 
         return acc.reduceLanes(VectorOperators.ADD);

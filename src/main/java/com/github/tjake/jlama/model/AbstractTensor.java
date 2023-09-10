@@ -226,6 +226,7 @@ public abstract class AbstractTensor implements AutoCloseable {
             return this;
 
         return switch (dType) {
+            case Q4 -> new Q4ByteBufferTensor(this);
             case I8 -> new Q8ByteBufferTensor(this);
             case F32 -> new FloatBufferTensor(this);
             default -> this;

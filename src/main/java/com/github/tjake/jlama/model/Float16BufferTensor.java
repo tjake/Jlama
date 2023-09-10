@@ -32,7 +32,7 @@ public class Float16BufferTensor extends AbstractTensor {
         this("none", b, shape, cacheSlices, mmapped);
     }
 
-    public Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
+    private Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
         super(DType.F16, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;

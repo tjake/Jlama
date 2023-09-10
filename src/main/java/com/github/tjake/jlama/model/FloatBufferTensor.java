@@ -56,7 +56,7 @@ public class FloatBufferTensor extends AbstractTensor {
         this("none", b, shape, cacheSlices, mmapped);
     }
 
-    public FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
+    private FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
         super(DType.F32, shape, cacheSlices);
         this.name = name;
         this.b = b;

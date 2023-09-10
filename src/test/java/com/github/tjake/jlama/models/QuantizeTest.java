@@ -2,12 +2,11 @@ package com.github.tjake.jlama.models;
 
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.math.VectorMath;
-import com.github.tjake.jlama.model.Q8ByteBufferTensor;
-import com.github.tjake.jlama.model.FloatBufferTensor;
-import com.github.tjake.jlama.model.AbstractTensor;
+import com.github.tjake.jlama.model.*;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class QuantizeTest {
@@ -104,5 +103,74 @@ public class QuantizeTest {
         float dot32 = VectorMath.dotProduct(f1, f2, 1024);
         float dot8  = VectorMath.dotProduct(b1, b2, 1024);
         Assert.assertEquals(dot32, dot8, 1f);
+    }
+
+    @Test
+    public void testQ5() {
+        Random r = new Random(1337);
+
+        FloatBufferTensor f1 = new FloatBufferTensor(1024);
+        FloatBufferTensor f2 = new FloatBufferTensor(1024);
+        for (int i = 0; i < 1024; i++) {
+            f1.set(r.nextFloat(), i);
+            f2.set(r.nextFloat(), i);
+        }
+
+        Q5ByteBufferTensor b1 = new Q5ByteBufferTensor(f1);
+        Q5ByteBufferTensor b2 = new Q5ByteBufferTensor(f2);
+
+        for (int i = 0; i < 1024; i++) {
+            Assert.assertEquals("i=" + i, f1.get(i), b1.get(i), 0.05f);
+            Assert.assertEquals("i=" + i, f2.get(i), b2.get(i), 0.05f);
+        }
+    }
+
+    @Test
+    public void testQ4() {
+        Random r = new Random(1337);
+        FloatBufferTensor f1 = new FloatBufferTensor(1024);
+        FloatBufferTensor f2 = new FloatBufferTensor(1024);
+        for (int i = 0; i < 1024; i++) {
+            f1.set(r.nextFloat(), i);
+            f2.set(r.nextFloat(), i);
+        }
+
+        Q4ByteBufferTensor b1 = new Q4ByteBufferTensor(f1);
+        Q4ByteBufferTensor b2 = new Q4ByteBufferTensor(f2);
+
+        for (int i = 0; i < 1024; i++) {
+            Assert.assertEquals("i=" + i, f1.get(i), b1.get(i), 0.5f);
+            Assert.assertEquals("i=" + i, f2.get(i), b2.get(i), 0.5f);
+        }
+    }
+
+
+    @Test
+    public void testQ4DotProd() {
+        Random r = new Random(1337);
+        FloatBufferTensor f1 = new FloatBufferTensor(1024);
+        FloatBufferTensor f2 = new FloatBufferTensor(1024);
+        for (int i = 0; i < 1024; i++) {
+            f1.set(r.nextFloat(), i);
+            f2.set(r.nextFloat(), i);
+        }
+
+        Q4ByteBufferTensor b2 = new Q4ByteBufferTensor(f2);
+        for (int i = 0; i < 1024; i++) {
+            Assert.assertEquals(f2.get(i), b2.get(i), 0.1f);
+        }
+
+        float dot32 = VectorMath.dotProduct(f1, f2, 1024);
+
+        float mdot4 = 0f;
+        for (int i = 0; i < 1024; i++) {
+            mdot4 += f1.get(i) * b2.get(i);
+        }
+        Assert.assertEquals(dot32, mdot4, 1f);
+
+        float dot4  = VectorMath.dotProduct(f1, b2, 1024);
+        Assert.assertEquals(dot32, dot4, 1f);
+
+        Assert.assertEquals(mdot4, dot4, .1f);
     }
 }

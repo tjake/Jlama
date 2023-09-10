@@ -14,12 +14,8 @@ import java.util.concurrent.TimeUnit;
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 1, time = 5)
 @Fork(warmups = 1, value = 1, jvmArgsAppend = {"--add-modules=jdk.incubator.vector", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
-"-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0", "-Djava.library.path=target/native-lib-only/"})
+"-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"})
 public class ActivationBench {
-    static {
-        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-    }
-
     static int size = 1<<20;
     static byte[] cacheKill = new byte[1 << 10]; //To Flush the L3 cache
     static FloatBufferTensor f1 = new FloatBufferTensor(size);
