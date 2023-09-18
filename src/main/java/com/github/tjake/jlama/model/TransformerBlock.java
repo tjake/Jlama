@@ -1,6 +1,9 @@
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperations;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
 import java.util.Optional;
 
@@ -40,12 +43,13 @@ public class TransformerBlock {
         AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding)).orElse(embedding);
         AbstractTensor postAttention = attention.forward(lnemb, position, kvBuffer);
         //residual connection
-        VectorMath.accumulate(postAttention, embedding);
+        TensorOperationsProvider.get().accumulate(postAttention, embedding);
 
         AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention);
         AbstractTensor postMlp = mlpBlock.forward(lnemb2);
+
         //residual connection
-        VectorMath.accumulate(postMlp, postAttention);
+        TensorOperationsProvider.get().accumulate(postMlp, postAttention);
 
         //Release any tmp buffers
         if (lnemb != embedding)

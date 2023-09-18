@@ -5,6 +5,9 @@ import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -22,6 +25,7 @@ public abstract class AbstractModel {
     protected final WeightLoader weights;
     protected final Tokenizer tokenizer;
     protected final DType modelDType;
+    protected final DType workingDType = DType.F32;
 
     protected AbstractModel(Config c, WeightLoader w, Tokenizer t)
     {
@@ -40,7 +44,7 @@ public abstract class AbstractModel {
     protected abstract AbstractTensor getOutputLogitsWeights();
 
     protected AbstractTensor makeTensor(int ...shape) {
-        return c.tensorCache.get(DType.F32, shape);
+        return c.tensorCache.get(workingDType, shape);
     }
 
     protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
@@ -64,7 +68,7 @@ public abstract class AbstractModel {
 
             //This is a mix of argmax and sampling with softmax
             VectorMath.pfor(0, c.vocabularySize, i -> {
-                float v = VectorMath.dotProduct(embedding, getOutputLogitsWeights().slice(i), c.embeddingLength);
+                float v = TensorOperationsProvider.get().dotProduct(embedding, getOutputLogitsWeights().slice(i), c.embeddingLength);
                 logits.set(v, i);
                 maxv.getAndUpdate(x -> {
                     if (v > x) {

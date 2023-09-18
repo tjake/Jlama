@@ -3,15 +3,13 @@ package com.github.tjake.jlama.safetensors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tjake.jlama.model.AbstractTensor;
+import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;

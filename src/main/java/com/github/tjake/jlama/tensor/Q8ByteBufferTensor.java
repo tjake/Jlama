@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
@@ -8,7 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -72,58 +75,6 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         }
     }
 
-    public Q8ByteBufferTensor(AbstractTensor ft, int d) {
-        this(ft.shape);
-        Preconditions.checkArgument(ft.dType != DType.I8, "This should never happen, likely a bug");
-        Preconditions.checkArgument(ft.size() % BLOCK_SIZE == 0, "I8 buffer must be a multiple of BLOCK_SIZE");
-
-        int[] cursor = new int[ft.shape.length];
-        int[] blockStartCursor = Arrays.copyOf(cursor, cursor.length);
-
-        int lastBlockOffset = 0;
-        float max = Float.MIN_VALUE;
-
-        do {
-            int i = ft.getOffset(cursor);
-            int blockOffset = (int)(i * I_BLOCK_SIZE);
-
-            // If we are in a new block, process the block and reset the max
-            if (blockOffset != lastBlockOffset) {
-                float iscale = -128f / max;
-                float scale = iscale != 0.0f ? 1.0f / iscale : 0.0f;
-                this.blockF.set(scale, makeBlockShape(blockStartCursor));
-
-                for (int j = i - BLOCK_SIZE; j < i; j++) {
-                    float f0 = ft.get(blockStartCursor) * iscale;
-                    this.b.put(j, (byte) Math.min(127, Math.round(f0)));
-                    ft.iterate(blockStartCursor);
-                }
-
-                // Reset the max for the next block
-                blockStartCursor = Arrays.copyOf(cursor, cursor.length);
-                lastBlockOffset = blockOffset;
-                max = Float.MIN_VALUE;
-            }
-
-            // Accumulate the max value for this block
-            float v = ft.get(cursor);
-            float absv = v > 0 ? v : -v;
-            if (absv > max) max = absv;
-
-        } while (ft.iterate(cursor));
-
-        // Process the last block
-        float iscale = -128f/max;
-        float scale = iscale != 0.0f ? 1.0f / iscale : 0.0f;
-        this.blockF.set(scale, makeBlockShape(blockStartCursor));
-
-        for (int j = ft.size() - BLOCK_SIZE; j < ft.size(); j++) {
-            float f0 = ft.get(blockStartCursor) * iscale;
-            this.b.put(j, (byte) Math.min(127, Math.round(f0)));
-            ft.iterate(blockStartCursor);
-        }
-    }
-
     private static int[] makeBlockShape(int[] shape) {
         int[] blockShape = new int[shape.length];
         for (int i = 0; i < shape.length; i++) {
@@ -139,21 +90,21 @@ public class Q8ByteBufferTensor extends AbstractTensor {
     protected Q8ByteBufferTensor(int[] shape) {
         super(DType.I8, shape, true);
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
-        this.b = ByteBuffer.allocateDirect(this.size()).order(ByteOrder.LITTLE_ENDIAN);
+        this.segment =  Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_BYTE));
+        this.b = segment.asByteBuffer();
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         this.mmapped = false;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
     }
 
-    public Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices, boolean mmapped) {
+    private Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices, boolean mmapped) {
         super(DType.I8, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
         this.b = b;
         this.blockF = blockF;
         this.mmapped = mmapped;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
 
@@ -175,6 +126,10 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         int i = getOffset(dims);
         float d = blockF.get(makeBlockShape(dims));
         return b.get(i) * d;
+    }
+
+    public final FloatBufferTensor getBlockF() {
+        return blockF;
     }
 
     public final float getFactorForIndex(int i) {

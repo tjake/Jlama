@@ -1,6 +1,8 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
+
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.jctools.queues.MpmcUnboundedXaddArrayQueue;
 import org.slf4j.Logger;
@@ -17,6 +19,9 @@ import java.util.function.Function;
  * this TensorCache allows a limited number of different shaped buffers to be reused across threads
  */
 public class TensorCache {
+
+    public static final TensorCache instance =  new TensorCache(100 * 1024 * 1024);
+
     private static final Logger logger = LoggerFactory.getLogger(TensorCache.class);
     public static class ShapeKey {
         final int[] shape;
@@ -64,6 +69,7 @@ public class TensorCache {
         t = switch (dType){
             case F32 -> new FloatBufferTensor(shape);
             case F16 -> new Float16BufferTensor(shape);
+            case BF16 -> new BFloat16BufferTensor(shape);
             default -> throw new RuntimeException("Unsupported tensor type: " + dType);
         };
 

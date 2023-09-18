@@ -1,6 +1,7 @@
 package com.github.tjake.jlama.model;
 
-import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+
 import com.google.common.base.Preconditions;
 
 public class RMSNorm extends LayerNorm {

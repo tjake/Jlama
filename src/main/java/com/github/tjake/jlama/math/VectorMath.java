@@ -1,12 +1,9 @@
 package com.github.tjake.jlama.math;
 
-import com.github.tjake.jlama.model.AbstractTensor;
-import com.google.common.base.Preconditions;
-import jdk.incubator.vector.VectorOperators;
+import com.github.tjake.jlama.tensor.AbstractTensor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.DoubleAdder;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
 
@@ -14,94 +11,11 @@ public class VectorMath {
 
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
-    public static boolean hasVectorAPI = hasVectorAPI();
-
-    private static boolean hasVectorAPI() {
-        try {
-            VectorOperators.ADD.name();
-            logger.info("Java 20+ Vector API Available");
-            return true;
-        } catch (Throwable t) {
-            logger.warn("Java SIMD Vector API *not* available. Missing --add-modules=jdk.incubator.vector?");
-            return false;
-        }
-    }
-
-    public static float dotProduct(AbstractTensor a, AbstractTensor b, int limit) {
-        return dotProduct(a, b, 0, 0, limit);
-    }
-
-    // a[0..n] += b[0..n]
-    public static void accumulate(AbstractTensor a, AbstractTensor b) {
-        Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
-
-        if (hasVectorAPI) {
-            SimdVectorMath.accumulate(a, b);
-            return;
-        }
-
-        float[] aArr = a.getFloatArray();
-        int aoffset = a.getArrayOffset();
-
-        float[] bArr = b.getFloatArray();
-        int boffset = b.getArrayOffset();
-
-        for (int ao = aoffset, bo = boffset; ao < (aoffset + aArr.length) && bo < (boffset + bArr.length); ao++, bo++) {
-            aArr[ao] += bArr[bo];
-        }
-
-        //Maybe update the backing array
-        a.update(aArr, aoffset);
-    }
-
-    public static float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
-        Preconditions.checkArgument(a.dims() == b.dims());
-
-        if (hasVectorAPI)
-            return SimdVectorMath.dotProduct(a, b, aoffset, boffset, limit);
-
-        float[] aArr = a.getFloatArray();
-        aoffset += a.getArrayOffset();
-
-        float[] bArr = b.getFloatArray();
-        boffset += b.getArrayOffset();
-
-        float s = 0;
-        for (int ao = aoffset, bo = boffset; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
-            s += aArr[ao] * bArr[bo];
-        }
-
-        return s;
-    }
 
     public static void pfor(int start, int end, IntConsumer action) {
         IntStream.range(start, end).parallel().forEach(action);
     }
 
-    // Computes a constant times a vector plus a vector (single-precision).
-    // On return, the contents of vector Y are replaced with the result. The value computed is (alpha * X[i]) + Y[i].
-    public static void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.dims() == y.dims());
-        if (hasVectorAPI) {
-            SimdVectorMath.saxpy(alpha, x, y, xoffset, yoffset, limit);
-            return;
-        }
-
-        for (int xo = xoffset, yo = yoffset; xo < (xoffset + limit) && yo < (yoffset + limit) ; xo++, yo++) {
-            float v = (alpha * x.get(xo)) + y.get(yo);
-            y.set(v, yo);
-        }
-    }
-
-    // y = x + b*y variant
-    public static void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.dims() == y.dims());
-
-        for (int xo = xoffset, yo = yoffset; xo < (xoffset + limit) && yo < (yoffset + limit) ; xo++, yo++) {
-            float v = x.get(xo) + beta * y.get(yo);
-            y.set(v, yo);
-        }
-    }
 
     public static void softMax(AbstractTensor t) {
         float[] x = t.getFloatArray();

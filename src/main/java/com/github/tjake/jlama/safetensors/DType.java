@@ -26,7 +26,10 @@ public enum DType {
     // I64 represents a 64-bit signed integer type.
     I64(8),
     // U64 represents a 64-bit unsigned integer type.
-    U64(8);
+    U64(8),
+
+    Q4(1),
+    Q5(1);
 
     private final int size;
 

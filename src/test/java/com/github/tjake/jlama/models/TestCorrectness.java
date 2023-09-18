@@ -10,10 +10,12 @@ import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.github.tjake.jlama.safetensors.Config;
 import com.google.common.io.Resources;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,7 @@ public class TestCorrectness {
     @Test
     public void TestLLamaTokenizer() throws IOException {
         String modelPrefix = "models/llama2-7b-hf";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
 
@@ -54,9 +57,6 @@ public class TestCorrectness {
 
     @Test
     public void TestRope() throws IOException {
-        String modelPrefix = "models/llama2-7b-chat-hf";
-        Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-
         double[] expected = new double[]{8.4147e-01,  7.6172e-01,  6.8156e-01,  6.0469e-01,  5.3317e-01,
                 4.6795e-01,  4.0931e-01,  3.5711e-01,  3.1098e-01,  2.7043e-01,
                 2.3492e-01,  2.0391e-01,  1.7689e-01,  1.5338e-01,  1.3296e-01,
@@ -71,7 +71,7 @@ public class TestCorrectness {
                 3.6517e-04,  3.1623e-04,  2.7384e-04,  2.3714e-04,  2.0535e-04,
                 1.7783e-04,  1.5399e-04,  1.3335e-04,  1.1548e-04};
 
-        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(c.embeddingLength / c.numberOfHeads, c.contextLength * 2, 10000.0 );
+        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(128, 4096 * 2, 10000.0 );
 
         for (int i = 0; i < 64; i++)
             Assert.assertEquals(expected[i], ropeFreqs[i + 64][1], 0.0001);

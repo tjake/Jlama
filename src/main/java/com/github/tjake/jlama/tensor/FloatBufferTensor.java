@@ -1,15 +1,18 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
+
 import jdk.incubator.vector.FloatVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -25,7 +28,8 @@ import java.util.Arrays;
  *
  * The Tensor is thread safe for read operations, but not for write operations.
  */
-public class FloatBufferTensor extends AbstractTensor {
+public class FloatBufferTensor extends AbstractTensor
+{
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final FloatBuffer b;
 
@@ -47,21 +51,21 @@ public class FloatBufferTensor extends AbstractTensor {
     public FloatBufferTensor(int ...shape) {
         super(DType.F32, shape, true);
         this.name = "tmp";
-        this.b = ByteBuffer.allocateDirect(capacity * dType().size()).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
         this.mmapped = false;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());;
+        this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_FLOAT));
+        this.b = segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
     }
 
     public FloatBufferTensor(FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
         this("none", b, shape, cacheSlices, mmapped);
     }
 
-    public FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
+    private FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
         super(DType.F32, shape, cacheSlices);
         this.name = name;
         this.b = b;
         this.mmapped = mmapped;
-        this.segment = b.isDirect() ? MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size()) : null;
+        this.segment = b.isDirect() ? MemorySegment.ofBuffer(b) : null;
     }
 
     @Override
@@ -138,14 +142,10 @@ public class FloatBufferTensor extends AbstractTensor {
 
     @Override
     public FloatVector getFloatVector(int offset) {
-        if (VectorMath.hasVectorAPI) {
-            if (segment == null)
-                return FloatVector.fromArray(FloatVector.SPECIES_PREFERRED, getFloatArray(), getArrayOffset() + offset);
-            else
-                return FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, segment, (long) offset * dType.size(), ByteOrder.LITTLE_ENDIAN);
-        }
-
-        throw new UnsupportedOperationException("No vector API available");
+        if (segment == null)
+            return FloatVector.fromArray(FloatVector.SPECIES_PREFERRED, getFloatArray(), getArrayOffset() + offset);
+        else
+            return FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, segment, (long) offset * dType.size(), ByteOrder.LITTLE_ENDIAN);
     }
 
 

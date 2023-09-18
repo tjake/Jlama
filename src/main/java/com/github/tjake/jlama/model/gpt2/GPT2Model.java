@@ -5,6 +5,7 @@ import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.Weights;
+import com.github.tjake.jlama.tensor.AbstractTensor;
 
 import java.util.Optional;
 
