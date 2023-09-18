@@ -103,6 +103,7 @@ float dot_product_f16_f16c_256(const short* a, int aoffset, const short* b, int 
 }
 
 float dot_product_f16_f16c_512(const short* a, int aoffset, const short* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -129,6 +130,9 @@ float dot_product_f16_f16c_512(const short* a, int aoffset, const short* b, int 
     }
 
     return dot;
+#else
+    return dot_product_f16_f16c_256(a, aoffset, b, boffset, length);
+#endif
 }
 
 float dot_product_f16_256(const short* a, int aoffset, const short* b, int boffset, int length) {
@@ -170,6 +174,7 @@ float dot_product_f16_256(const short* a, int aoffset, const short* b, int boffs
 }
 
 float dot_product_f16_512(const short* a, int aoffset, const short* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -205,6 +210,9 @@ float dot_product_f16_512(const short* a, int aoffset, const short* b, int boffs
     }
 
     return dot;
+#else
+    return dot_product_f16_256(a, aoffset, b, boffset, length);
+#endif
 }
 
 
@@ -239,6 +247,7 @@ void accumulate_f16_f16c_256(short* a, const short* b, int length) {
 }
 
 void accumulate_f16_f16c_512(short* a, const short* b, int length) {
+#if defined(__AVX512F__)
     int i = 0;
     for (; i < length; i += 16) {
         // Load and convert float16 data to float32 using F16C
@@ -254,6 +263,9 @@ void accumulate_f16_f16c_512(short* a, const short* b, int length) {
         // Store the result back into array 'a'
         _mm256_storeu_si256((__m256i*)(a + i), sum_f16);
     }
+#else
+    accumulate_f16_f16c_256(a, b, length);
+#endif
 }
 
 void accumulate_f16_256( short* a, const short* b, int length) {
@@ -285,6 +297,7 @@ void accumulate_f16_256( short* a, const short* b, int length) {
 }
 
 void accumulate_f16_512( short* a, const short* b, int length) {
+#if defined(__AVX512F__)
     int i = 0;
 
     float atmp[16];
@@ -310,6 +323,9 @@ void accumulate_f16_512( short* a, const short* b, int length) {
             a[i + j] = f32_to_fp16(atmp[j]);
         }
     }
+#else
+    accumulate_f16_256(a, b, length);
+#endif
 }
 
 void accumulate_f16(int flags, short* a, const short* b, int length) {
@@ -419,6 +435,7 @@ float dot_product_f16_q8_f16c_256(const short* a, int aoffset, const float *bf, 
 
 
 float dot_product_f16_q8_f16c_512(const short* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -460,6 +477,9 @@ float dot_product_f16_q8_f16c_512(const short* a, int aoffset, const float *bf, 
     }
 
     return dot;
+#else
+    return dot_product_f16_q8_f16c_256(a, aoffset, bf, b, boffset, length);
+#endif
 }
 
 float dot_product_f16_q8_256(const short* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
@@ -511,6 +531,7 @@ float dot_product_f16_q8_256(const short* a, int aoffset, const float *bf, const
 }
 
 float dot_product_f16_q8_512(const short* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -556,6 +577,9 @@ float dot_product_f16_q8_512(const short* a, int aoffset, const float *bf, const
     }
 
     return dot;
+#else
+    return dot_product_f16_q8_256(a, aoffset, bf, b, boffset, length);
+#endif
 }
 
 
@@ -622,6 +646,7 @@ float dot_product_f32_q8_256(const float* a, int aoffset, const float *bf, const
 
 
 float dot_product_f32_q8_512(const float* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -663,6 +688,9 @@ float dot_product_f32_q8_512(const float* a, int aoffset, const float *bf, const
     }
 
     return dot;
+#else
+    return dot_product_f32_q8_256(a, aoffset, bf, b, boffset, length);
+#endif
 }
 
 
@@ -705,6 +733,7 @@ float dot_product_f32_256(const float* a, int aoffset, const float* b, int boffs
 }
 
 float dot_product_f32_512(const float* a, int aoffset, const float* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -731,6 +760,9 @@ float dot_product_f32_512(const float* a, int aoffset, const float* b, int boffs
     }
 
     return dot;
+#else
+    return dot_product_f32_256(a, aoffset, b, boffset, length);
+#endif
 }
 
 float dot_product_f32(int flags, const float* a, int aoffset, const float* b, int boffset, int length) {
@@ -754,6 +786,7 @@ void accumulate_f32_256( float* a, const float* b, int length) {
 }
 
 void accumulate_f32_512( float* a, const float* b, int length) {
+#if defined(__AVX512F__)
     int i = 0;
 
     for (; i < length; i += 16) {
@@ -766,6 +799,9 @@ void accumulate_f32_512( float* a, const float* b, int length) {
         // Store back int a
         _mm512_storeu_ps(a+i, sum);
     }
+#else
+    accumulate_f32_256(a, b, length);
+#endif
 }
 
 void accumulate_f32(int flags, float* a, const float* b, int length) {
@@ -861,6 +897,7 @@ float dot_product_f32_q4_256(const float* a, int aoffset, const float *bf, const
 }
 
 float dot_product_f32_q4_512(const float* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
+#if defined(__AVX512F__)
     __m512 sum = _mm512_setzero_ps();
 
     int ao = aoffset;
@@ -926,6 +963,9 @@ float dot_product_f32_q4_512(const float* a, int aoffset, const float *bf, const
     }
 
     return dot;
+#else
+    return dot_product_f32_q4_256(a, aoffset, bf, b, boffset, length);
+#endif
 }
 
 float dot_product_f32_q4(int flags, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
