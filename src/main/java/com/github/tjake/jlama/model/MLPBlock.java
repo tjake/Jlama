@@ -2,7 +2,8 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
-import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
 public class MLPBlock {
     private final AbstractModel model;
@@ -38,11 +39,11 @@ public class MLPBlock {
         int hiddenLength = model.c.hiddenLength;
         try(AbstractTensor buf = model.makeTensor(hiddenLength)) {
             VectorMath.pfor(0, hiddenLength, i -> {
-                float w1 = fullyConnectedBias.get(i) + VectorMath.dotProduct(lnemb, fullyConnectedWeights.slice(i), model.c.embeddingLength);
+                float w1 = fullyConnectedBias.get(i) + TensorOperationsProvider.get().dotProduct(lnemb, fullyConnectedWeights.slice(i), model.c.embeddingLength);
                 float w1a = ActivationFunction.eval(activationFunction, w1);
 
                 if (upProjectionWeights != null) {
-                    float w3 = VectorMath.dotProduct(lnemb, upProjectionWeights.slice(i), model.c.embeddingLength);
+                    float w3 = TensorOperationsProvider.get().dotProduct(lnemb, upProjectionWeights.slice(i), model.c.embeddingLength);
                     w1a *= w3;
                 }
 
@@ -52,7 +53,7 @@ public class MLPBlock {
             //matmul the projection and sum into input
             AbstractTensor result = model.makeTensor(model.c.embeddingLength);
             VectorMath.pfor(0, model.c.embeddingLength, i -> {
-                float v = projectionBias.get(i) + VectorMath.dotProduct(buf, projectionWeights.slice(i), hiddenLength);
+                float v = projectionBias.get(i) + TensorOperationsProvider.get().dotProduct(buf, projectionWeights.slice(i), hiddenLength);
                 result.set(v, i);
             });
 

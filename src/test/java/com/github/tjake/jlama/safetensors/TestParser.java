@@ -1,11 +1,12 @@
 package com.github.tjake.jlama.safetensors;
 
-import com.github.tjake.jlama.model.FloatBufferTensor;
-import com.github.tjake.jlama.model.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.google.common.io.BaseEncoding;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
@@ -124,6 +126,7 @@ public class TestParser {
     @Test
     public void testMMappedFile() throws IOException {
         String file = "data/gpt2/model.safetensors";
+        Assume.assumeTrue(Files.exists(Paths.get(file)));
         try (RandomAccessFile sc = new RandomAccessFile(file, "r"))
         {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
@@ -144,23 +147,5 @@ public class TestParser {
             Assert.assertEquals(-0.027689, slice.getFloatArray()[1], 0.00001f);
             Assert.assertEquals(-0.027689, slice.getFloatVector(1).toArray()[0], 0.00001f);
         }
-    }
-
-    @Test
-    public void testGPTTokenizer() throws IOException {
-        Tokenizer tokenizer = new GPT2Tokenizer(Paths.get("data/gpt2-small/tokenizer.json"));
-
-        String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
-        logger.debug("tokens = {}", tokenizer.encode(prompt));
-        Assert.assertEquals(prompt, tokenizer.decode(tokenizer.encode(prompt)));
-    }
-
-    @Test
-    public void testLLamaTokenizer() throws IOException {
-        Tokenizer tokenizer = new LlamaTokenizer(Paths.get("data/llama2-7b-chat-hf"));
-
-        String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
-        logger.debug("tokens = {}", tokenizer.encode(prompt));
-        Assert.assertEquals(prompt, tokenizer.decode(tokenizer.encode(prompt)));
     }
 }

@@ -2,6 +2,10 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperations;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+
 import com.google.common.base.Preconditions;
 
 import java.util.Optional;
@@ -66,18 +70,18 @@ public class CausalSelfAttention {
 
             // compute the query vector
             VectorMath.pfor(0, c.embeddingLength, i -> {
-                float v = queryAttnBias.get(i) + VectorMath.dotProduct(input, queryAttnWeights.slice(i), c.embeddingLength);
+                float v = queryAttnBias.get(i) + TensorOperationsProvider.get().dotProduct(input, queryAttnWeights.slice(i), c.embeddingLength);
                 query.set(v, i);
             });
 
             // compute the key and value vectors
             VectorMath.pfor(0, c.embeddingLength, i -> {
-                float v = keyAttnBias.get(i) + VectorMath.dotProduct(input, keyAttnWeights.slice(i), c.embeddingLength);
+                float v = keyAttnBias.get(i) + TensorOperationsProvider.get().dotProduct(input, keyAttnWeights.slice(i), c.embeddingLength);
                 kv.set(v, i);
             });
 
             VectorMath.pfor(0, c.embeddingLength, i -> {
-                float v = valueAttnBias.get(i) + VectorMath.dotProduct(input, valueAttnWeights.slice(i), c.embeddingLength);
+                float v = valueAttnBias.get(i) + TensorOperationsProvider.get().dotProduct(input, valueAttnWeights.slice(i), c.embeddingLength);
                 kv.set(v, i + c.embeddingLength);
             });
 
@@ -117,7 +121,7 @@ public class CausalSelfAttention {
 
                 //POSITION ZERO
                 for (int i = 0; i < c.numberOfHeads; i++) {
-                    float a = VectorMath.dotProduct(query, k0, i * headSize, i * headSize, headSize) * attentionScale;
+                    float a = TensorOperationsProvider.get().dotProduct(query, k0, i * headSize, i * headSize, headSize) * attentionScale;
                     flashAttn_m.set(a, i);
                     flashAttn_l.set(1, i);
                 }
@@ -129,7 +133,7 @@ public class CausalSelfAttention {
                     AbstractTensor kk = kvMem.slice(i + 1);
                     VectorMath.pfor(0, c.numberOfHeads, h -> {
                         //KEY OFFSET
-                        flashAttnHeads[i][h] = VectorMath.dotProduct(query, kk, h * headSize, h * headSize, headSize) * attentionScale;
+                        flashAttnHeads[i][h] = TensorOperationsProvider.get().dotProduct(query, kk, h * headSize, h * headSize, headSize) * attentionScale;
                     });
                 });
 
@@ -141,13 +145,13 @@ public class CausalSelfAttention {
                         if (a > flashAttn_m.get(h)) {
                             //VALUE OFFSET (since cache is k + v)
                             float e = (float) Math.exp(flashAttn_m.get(h) - a);
-                            VectorMath.sxpby(e, kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
+                            TensorOperationsProvider.get().sxpby(e, kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
                             flashAttn_l.set(1 + e * flashAttn_l.get(h), h);
                             flashAttn_m.set(a, h);
                         } else {
                             //VALUE OFFSET (since cache is k + v)
                             float e = (float) Math.exp(a - flashAttn_m.get(h));
-                            VectorMath.saxpy(e, kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
+                            TensorOperationsProvider.get().saxpy(e, kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
                             flashAttn_l.set(flashAttn_l.get(h) + e, h);
                         }
                     }
@@ -161,34 +165,37 @@ public class CausalSelfAttention {
                 }
             } else {
 
-                AbstractTensor attn = m.makeTensor(position + 1);
+                try (AbstractTensor attn = m.makeTensor(position + 1)) {
 
-                VectorMath.pfor(0, c.numberOfHeads, h -> {
-                    int hOffset = h * headSize;
-                    for (int t = 0; t <= position; t++) {
-                        AbstractTensor kk = kvMem.slice(t);
+                    VectorMath.pfor(0, c.numberOfHeads, h -> {
+                        int hOffset = h * headSize;
+                        for (int t = 0; t <= position; t++)
+                        {
+                            AbstractTensor kk = kvMem.slice(t);
 
-                        float score = VectorMath.dotProduct(query, kk, hOffset, hOffset, headSize);
-                        score *= attentionScale;
+                            float score = TensorOperationsProvider.get().dotProduct(query, kk, hOffset, hOffset, headSize);
+                            score *= attentionScale;
 
-                        attn.set(score, t);
-                    }
+                            attn.set(score, t);
+                        }
 
-                    // softmax the scores to get attention weights, from 0..pos inclusively
-                    VectorMath.softMax(attn);
+                        // softmax the scores to get attention weights, from 0..pos inclusively
+                        VectorMath.softMax(attn);
 
-                    for (int t = 0; t <= position; t++) {
-                        AbstractTensor kk = kvMem.slice(t);
-                        VectorMath.saxpy(attn.get(t), kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
-                    }
-                });
+                        for (int t = 0; t <= position; t++)
+                        {
+                            AbstractTensor kk = kvMem.slice(t);
+                            TensorOperationsProvider.get().saxpy(attn.get(t), kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
+                        }
+                    });
+                }
             }
 
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias
             AbstractTensor result = m.makeTensor(c.embeddingLength);
             VectorMath.pfor(0, c.embeddingLength, i -> {
-                float v = outputProjectionBias.get(i) + VectorMath.dotProduct(value, outputProjectionWeights.slice(i), c.embeddingLength);
+                float v = outputProjectionBias.get(i) + TensorOperationsProvider.get().dotProduct(value, outputProjectionWeights.slice(i), c.embeddingLength);
                 result.set(v, i);
             });
 

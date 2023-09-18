@@ -13,6 +13,8 @@ import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
+
+import org.junit.Assume;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +45,7 @@ public class TestModels {
     @Test
     public void GPT2Run() throws IOException {
         String modelPrefix = "models/gpt2-medium";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
@@ -60,6 +64,7 @@ public class TestModels {
     @Test
     public void LlamaRun() throws Exception {
         String modelPrefix = "models/Llama-2-7b-chat-hf";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (SafeTensorIndex weights = SafeTensorIndex.loadWithWeights(Path.of(modelPrefix))) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
@@ -73,6 +78,7 @@ public class TestModels {
     @Test
     public void TinyLlamaRun() throws Exception {
         String modelPrefix = "models/TinyLLama";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
@@ -90,6 +96,8 @@ public class TestModels {
     @Test
     public void BertRun() throws Exception {
         String modelPrefix = "models/e5-small-v2";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 

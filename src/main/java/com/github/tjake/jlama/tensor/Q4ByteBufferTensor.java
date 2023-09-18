@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
@@ -126,7 +126,7 @@ public class Q4ByteBufferTensor extends AbstractTensor {
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         this.mmapped = false;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     public Q4ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices, boolean mmapped) {
@@ -136,7 +136,7 @@ public class Q4ByteBufferTensor extends AbstractTensor {
         this.b = b;
         this.blockF = blockF;
         this.mmapped = mmapped;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     @Override
@@ -149,7 +149,6 @@ public class Q4ByteBufferTensor extends AbstractTensor {
         FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make((int)(offset * I_BLOCK_SIZE), (int)(length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
         return new Q4ByteBufferTensor(name, b.slice(offset/2, length/2), newBlockF, shape, cacheSlices, mmapped);
     }
-
 
     @Override
     public float get(int... dims) {
@@ -177,6 +176,10 @@ public class Q4ByteBufferTensor extends AbstractTensor {
         if (ix >= blockF.size())
             throw new RuntimeException();
         return blockF.get(ix);
+    }
+
+    public final FloatBufferTensor getBlockF() {
+        return blockF;
     }
 
     @Override

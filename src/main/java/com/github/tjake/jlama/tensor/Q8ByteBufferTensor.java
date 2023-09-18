@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
@@ -8,7 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -87,11 +90,11 @@ public class Q8ByteBufferTensor extends AbstractTensor {
     protected Q8ByteBufferTensor(int[] shape) {
         super(DType.I8, shape, true);
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
-        this.b = ByteBuffer.allocateDirect(this.size()).order(ByteOrder.LITTLE_ENDIAN);
+        this.segment =  Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_BYTE));
+        this.b = segment.asByteBuffer();
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         this.mmapped = false;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
     }
 
     private Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices, boolean mmapped) {
@@ -101,7 +104,7 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         this.b = b;
         this.blockF = blockF;
         this.mmapped = mmapped;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
 
@@ -123,6 +126,10 @@ public class Q8ByteBufferTensor extends AbstractTensor {
         int i = getOffset(dims);
         float d = blockF.get(makeBlockShape(dims));
         return b.get(i) * d;
+    }
+
+    public final FloatBufferTensor getBlockF() {
+        return blockF;
     }
 
     public final float getFactorForIndex(int i) {

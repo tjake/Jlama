@@ -6,6 +6,9 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,16 +30,16 @@ public class LlamaModel extends AbstractModel {
     public LlamaModel(Config config, WeightLoader weights, LlamaTokenizer tokenizer) {
         super(config, weights, tokenizer);
 
-        logger.info("Loading model...");
-
         DType qType = DType.Q4;
 
-        //LLama doesn't use bias, will optimize this away later
-        this.noBias = new FloatBufferTensor(c.hiddenLength);
+        logger.info("Loading model with {} quantization...", qType);
 
-        this.wte = weights.load("model.embed_tokens.weight").quantize(DType.F32); //Don't quantize this, it's used for the embedding layer
+        //LLama doesn't use bias, will optimize this away later
+        this.noBias = makeTensor(c.hiddenLength);
+
+        this.wte = weights.load("model.embed_tokens.weight").quantize(workingDType); //Don't quantize this, it's used for the embedding layer
         this.outputLayerNorm = new RMSNorm(this, noBias, weights.load("model.norm.weight").quantize(qType));
-        this.classificationWeights = weights.load("lm_head.weight").quantize(DType.F32); //Don't quantize this, it's the output layer
+        this.classificationWeights = weights.load("lm_head.weight").quantize(workingDType); //Don't quantize this, it's the output layer
 
         this.transformerBlocks = new TransformerBlock[c.numberOfLayers];
 
@@ -61,7 +64,8 @@ public class LlamaModel extends AbstractModel {
                     noBias, weights.load(prefix + "down_proj.weight").quantize(qType), //w2
                     weights.load(prefix + "up_proj.weight").quantize(qType));          //w3
 
-            this.transformerBlocks[i] = new TransformerBlock(new RMSNorm(this, noBias, weights.load(base + "input_layernorm.weight").quantize(qType)), attention,
+            this.transformerBlocks[i] = new TransformerBlock(
+                    new RMSNorm(this, noBias, weights.load(base + "input_layernorm.weight").quantize(qType)), attention,
                     new RMSNorm(this, noBias, weights.load(base + "post_attention_layernorm.weight").quantize(qType)),
                     mlp);
         }

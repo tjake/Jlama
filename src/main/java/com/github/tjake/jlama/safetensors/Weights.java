@@ -1,9 +1,9 @@
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.FloatConversions;
-import com.github.tjake.jlama.model.AbstractTensor;
-import com.github.tjake.jlama.model.Float16BufferTensor;
-import com.github.tjake.jlama.model.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.Float16BufferTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.google.common.primitives.Ints;
 
 import java.nio.ByteBuffer;

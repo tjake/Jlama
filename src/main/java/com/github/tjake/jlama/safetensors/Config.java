@@ -1,6 +1,6 @@
 package com.github.tjake.jlama.safetensors;
 
-import com.github.tjake.jlama.model.TensorCache;
+import com.github.tjake.jlama.tensor.TensorCache;
 
 public class Config {
     public final int contextLength;

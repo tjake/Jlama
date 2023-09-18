@@ -1,9 +1,10 @@
 package com.github.tjake.jlama.microbench;
 
-import com.github.tjake.jlama.math.SimdVectorMath;
-import com.github.tjake.jlama.model.Q8ByteBufferTensor;
-import com.github.tjake.jlama.model.Float16BufferTensor;
-import com.github.tjake.jlama.model.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+import com.github.tjake.jlama.tensor.Float16BufferTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
+import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(warmups = 1, value = 1, jvmArgsAppend = {"--add-modules=jdk.incubator.vector", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
 "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"})
 public class ActivationBench {
+    private static final TensorOperations ops = new PanamaTensorOperations();
     static int size = 1<<20;
     static byte[] cacheKill = new byte[1 << 10]; //To Flush the L3 cache
     static FloatBufferTensor f1 = new FloatBufferTensor(size);
@@ -47,7 +49,7 @@ public class ActivationBench {
     @BenchmarkMode(Mode.Throughput)
     public void f32(Blackhole bh) {
         flushCache(bh);
-        bh.consume(SimdVectorMath.dotProduct(f1, f2, 0, 0, size));
+        bh.consume(ops.dotProduct(f1, f2, 0, 0, size));
     }
 
     @Benchmark
@@ -55,7 +57,7 @@ public class ActivationBench {
     @BenchmarkMode(Mode.Throughput)
     public void f16(Blackhole bh) {
         flushCache(bh);
-        bh.consume(SimdVectorMath.dotProduct(f161, f162, 0, 0, size));
+        bh.consume(ops.dotProduct(f161, f162, 0, 0, size));
     }
 
     @Benchmark
@@ -63,7 +65,7 @@ public class ActivationBench {
     @BenchmarkMode(Mode.Throughput)
     public void i8(Blackhole bh) {
         flushCache(bh);
-        bh.consume(SimdVectorMath.dotProduct(b1, b2, 0, 0, size));
+        bh.consume(ops.dotProduct(b1, b2, 0, 0, size));
     }
 
     @Benchmark
@@ -71,7 +73,7 @@ public class ActivationBench {
     @BenchmarkMode(Mode.Throughput)
     public void f32i8(Blackhole bh) {
         flushCache(bh);
-        bh.consume(SimdVectorMath.dotProduct(f1, b2, 0, 0, size));
+        bh.consume(ops.dotProduct(f1, b2, 0, 0, size));
     }
 
     public static void main(String[] args) throws Exception {

@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
@@ -229,8 +229,13 @@ public abstract class AbstractTensor implements AutoCloseable {
             case Q4 -> new Q4ByteBufferTensor(this);
             case I8 -> new Q8ByteBufferTensor(this);
             case F32 -> new FloatBufferTensor(this);
+            case BF16 -> new BFloat16BufferTensor(this);
             default -> this;
         };
+    }
+
+    public AbstractTensor dequantize() {
+        return new FloatBufferTensor(this);
     }
 
     public void debug(String id) {

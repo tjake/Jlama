@@ -2,6 +2,8 @@ package com.github.tjake.jlama.model;
 
 import com.google.common.base.Preconditions;
 
+import com.github.tjake.jlama.tensor.AbstractTensor;
+
 public class LayerNorm {
 
     protected final AbstractModel m;

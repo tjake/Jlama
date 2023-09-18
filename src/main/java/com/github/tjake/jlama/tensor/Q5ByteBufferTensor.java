@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.model;
+package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
@@ -13,7 +13,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.List;
 
 public class Q5ByteBufferTensor extends AbstractTensor {
@@ -116,7 +115,7 @@ public class Q5ByteBufferTensor extends AbstractTensor {
         this.b5 = new int[Arrays.stream(makeBlockShape(shape)).sum()];
         this.name = "tmp";
         this.mmapped = false;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
+        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position());
     }
 
     public Q5ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, int[] shape, boolean cacheSlices, boolean mmapped) {
@@ -127,7 +126,7 @@ public class Q5ByteBufferTensor extends AbstractTensor {
         this.blockF = blockF;
         this.b5 = b5;
         this.mmapped = mmapped;
-        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position(), (long) size() * dType().size());
+        this.segment = MemorySegment.ofAddress(((DirectBuffer)b).address() + b.position());
     }
 
     @Override
