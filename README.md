@@ -15,7 +15,7 @@ It currently supports the following models and formats:
   * BERT
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model format
   * Support for Float16, BFloat16 and Float32 models
-  * Q8_K quantization
+  * Q8, Q4, Q5 quantizations
 
 Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
