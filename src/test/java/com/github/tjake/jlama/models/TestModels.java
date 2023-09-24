@@ -71,7 +71,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer);
 
             String prompt = "Simply put, the theory of relativity states that";
-            model.generate(prompt, 0.2f, 128, false, makeOutHandler());
+            model.generate(prompt, 0.2f, 256, false, makeOutHandler());
         }
     }
 

@@ -161,7 +161,7 @@ public class CausalSelfAttention {
                 // scale y by 1/l
                 for (int h = 0; h < c.numberOfHeads; h++) {
                     float scale = 1.0f / flashAttn_l.get(h);
-                    value.scale(scale, (h * headSize), headSize);
+                    TensorOperationsProvider.get().scale(scale, value, (h * headSize), headSize);
                 }
             } else {
 

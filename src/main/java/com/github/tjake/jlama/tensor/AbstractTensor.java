@@ -3,6 +3,8 @@ package com.github.tjake.jlama.tensor;
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.Vector;
+import jdk.incubator.vector.VectorSpecies;
 
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
@@ -16,7 +18,7 @@ import java.util.Arrays;
  * This class is abstract because there are multiple implementations
  * for different types of data.
  **/
-public abstract class AbstractTensor implements AutoCloseable {
+public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> implements AutoCloseable {
     protected final int[] shape;
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
@@ -190,10 +192,12 @@ public abstract class AbstractTensor implements AutoCloseable {
         return dType;
     }
 
-    public abstract float[] getFloatArray();
-    public abstract int getArrayOffset();
+    public abstract A getArray();
+    public abstract int getArrayOffset(int offset);
 
-    public abstract FloatVector getFloatVector(int offset);
+    public abstract V getVector(VectorSpecies<T> species, int offset);
+
+    public abstract void intoTensor(V vector, int offset);
 
     public abstract MemorySegment getMemorySegment();
 
@@ -202,9 +206,6 @@ public abstract class AbstractTensor implements AutoCloseable {
     public abstract boolean hasMemorySegment();
 
     public abstract void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length);
-
-    /** Bulk update the tensor with the given data.*/
-    public abstract void update(float[] data, int... offset);
 
     /** Zero out the tensor */
     public abstract void clear();
@@ -218,8 +219,6 @@ public abstract class AbstractTensor implements AutoCloseable {
         this.originCache = cache;
     }
 
-    public abstract void scale(float factor, int offset, int length);
-
     public AbstractTensor quantize(DType dType) {
 
         if (this.dims() != 2)
@@ -232,10 +231,6 @@ public abstract class AbstractTensor implements AutoCloseable {
             case BF16 -> new BFloat16BufferTensor(this);
             default -> this;
         };
-    }
-
-    public AbstractTensor dequantize() {
-        return new FloatBufferTensor(this);
     }
 
     public void debug(String id) {

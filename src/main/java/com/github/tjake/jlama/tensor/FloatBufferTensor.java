@@ -2,9 +2,12 @@ package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 
 import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
@@ -28,14 +31,12 @@ import java.util.Arrays;
  *
  * The Tensor is thread safe for read operations, but not for write operations.
  */
-public class FloatBufferTensor extends AbstractTensor
+public class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[]>
 {
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final FloatBuffer b;
 
     private final String name;
-
-    private final boolean mmapped;
     private final MemorySegment segment;
 
     public FloatBufferTensor(AbstractTensor ft) {
@@ -51,21 +52,24 @@ public class FloatBufferTensor extends AbstractTensor
     public FloatBufferTensor(int ...shape) {
         super(DType.F32, shape, true);
         this.name = "tmp";
-        this.mmapped = false;
-        this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_FLOAT));
-        this.b = segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
+            this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_FLOAT));
+            this.b = segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+        } else {
+            this.b = FloatBuffer.allocate(capacity);
+            this.segment = MemorySegment.ofBuffer(b);
+        }
     }
 
-    public FloatBufferTensor(FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
-        this("none", b, shape, cacheSlices, mmapped);
+    public FloatBufferTensor(FloatBuffer b, int[] shape, boolean cacheSlices) {
+        this("none", b, shape, cacheSlices);
     }
 
-    private FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
+    private FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices) {
         super(DType.F32, shape, cacheSlices);
         this.name = name;
         this.b = b;
-        this.mmapped = mmapped;
-        this.segment = b.isDirect() ? MemorySegment.ofBuffer(b) : null;
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     @Override
@@ -75,7 +79,7 @@ public class FloatBufferTensor extends AbstractTensor
 
     @Override
     protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
-        return new FloatBufferTensor(name, b.slice(offset, length), shape, cacheSlices, mmapped);
+        return new FloatBufferTensor(name, b.slice(offset, length), shape, cacheSlices);
     }
 
     @Override
@@ -89,16 +93,16 @@ public class FloatBufferTensor extends AbstractTensor
     public void set(float v, int ...dims) {
         Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified for tensor");
         Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
-        Preconditions.checkArgument(!b.isReadOnly() && !mmapped, "Can't modify a read only buffer");
+        Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
         b.put(getOffset(dims), v);
     }
 
     @Override
-    public float[] getFloatArray() {
+    public float[] getArray() {
         if (shape.length > 1)
             throw new UnsupportedOperationException("dims must be 1");
 
-        if (!mmapped && b.hasArray())
+        if (b.hasArray())
             return b.array();
 
         float[] buf = new float[b.remaining()];
@@ -106,9 +110,9 @@ public class FloatBufferTensor extends AbstractTensor
         return buf;
     }
 
-    public int getArrayOffset()
+    public int getArrayOffset(int offset)
     {
-        return b.hasArray() ? b.arrayOffset() : 0;
+        return (b.hasArray() ? b.arrayOffset() : 0) + offset;
     }
 
 
@@ -127,11 +131,12 @@ public class FloatBufferTensor extends AbstractTensor
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
         Preconditions.checkArgument(this.dType == src.dType, "Different types");
         Preconditions.checkArgument(!b.isReadOnly());
-        if (this.hasMemorySegment() && src.hasMemorySegment())
+        if (this.hasMemorySegment() && src.hasMemorySegment()) {
             segment.asSlice(getMemorySegmentOffset(destOffset), length * dType.size())
                     .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));
-        else
-            System.arraycopy(src.getFloatArray(), src.getArrayOffset() + srcOffset, getFloatArray(), this.getArrayOffset() + destOffset, length);
+        } else {
+            System.arraycopy(src.getArray(), src.getArrayOffset(srcOffset), getArray(), this.getArrayOffset(destOffset), length);
+        }
     }
 
     @Override
@@ -141,34 +146,29 @@ public class FloatBufferTensor extends AbstractTensor
     }
 
     @Override
-    public FloatVector getFloatVector(int offset) {
-        if (segment == null)
-            return FloatVector.fromArray(FloatVector.SPECIES_PREFERRED, getFloatArray(), getArrayOffset() + offset);
+    public FloatVector getVector(VectorSpecies<Float> species, int offset) {
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+            return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
-            return FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, segment, (long) offset * dType.size(), ByteOrder.LITTLE_ENDIAN);
+            return FloatVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
-
-    /** Since getFloatArray() returns the actual backing array, we can just ignore this call */
     @Override
-    public void update(float[] data, int... offset) {
-        Preconditions.checkArgument(!b.isReadOnly() && b.hasArray() && !mmapped, "Can't modify a read only buffer");
+    public void intoTensor(FloatVector vector, int offset) {
+        Preconditions.checkArgument(!b.isReadOnly());
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+            vector.intoArray(getArray(), getArrayOffset(offset));
+        else
+            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void clear() {
         if (b.hasArray()) {
-            Arrays.fill(b.array(), getArrayOffset(), getArrayOffset() + size(), 0);
+            Arrays.fill(b.array(), getArrayOffset(0), getArrayOffset(size()), 0);
         } else {
             segment.fill((byte) 0);
         }
-    }
-
-    @Override
-    public void scale(float factor, int offset, int length) {
-        int limit = offset + length;
-        for (int i = offset; i < limit; i++)
-            this.set(this.get(i) * factor, i);
     }
 
     @Override

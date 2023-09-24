@@ -88,11 +88,11 @@ public class TestParser {
 
     @Test
     public void testOffsets() {
-        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{50000, 768}, false, false);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{50000, 768}, false);
         Assert.assertEquals(49000 * 768, b.getOffset(new int[]{49000, 0}));
 
 
-        b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{3, 7, 13}, false, false);
+        b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{3, 7, 13}, false);
 
         Assert.assertEquals(0, b.getOffset(new int[]{0, 0, 0}));
         Assert.assertEquals(7*13*1, b.getOffset(new int[]{1,0,0}));
@@ -103,7 +103,7 @@ public class TestParser {
     @Test
     public void testTranspose() {
         int DIM = 768;
-        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), new int[]{DIM, DIM}, false, false);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), new int[]{DIM, DIM}, false);
         int v = 0;
         for (int row = 0; row < DIM; row++) {
             for (int col = 0; col < DIM; col++) {
@@ -135,17 +135,12 @@ public class TestParser {
 
             AbstractTensor bias = v.load("h.8.attn.c_proj.bias");
             Assert.assertEquals(0.01406, bias.get(0), 0.00001);
-            Assert.assertEquals(0.01406, bias.getFloatArray()[0], 0.00001);
-            Assert.assertEquals(0.01406, bias.getFloatVector(0).toArray()[0], 0.00001);
-
 
             AbstractTensor w = v.load("wte.weight");
             AbstractTensor slice = w.slice(50256);
             Assert.assertEquals(-0.027689, w.get(50256, 1), 0.00001f);
 
             Assert.assertEquals(-0.027689, slice.get(1), 0.00001f);
-            Assert.assertEquals(-0.027689, slice.getFloatArray()[1], 0.00001f);
-            Assert.assertEquals(-0.027689, slice.getFloatVector(1).toArray()[0], 0.00001f);
         }
     }
 }

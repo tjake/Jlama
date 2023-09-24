@@ -5,6 +5,11 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 
 public class NaiveTensorOperations implements TensorOperations
 {
+    @Override
+    public boolean requiresOffHeapTensor() {
+        return false;
+    }
+
     // a[0..n] += b[0..n]
     @Override
     public void accumulate(AbstractTensor a, AbstractTensor b) {

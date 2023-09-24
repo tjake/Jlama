@@ -1,26 +1,22 @@
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
-import jdk.incubator.vector.FloatVector;
-import sun.nio.ch.DirectBuffer;
+import jdk.incubator.vector.ShortVector;
+import jdk.incubator.vector.VectorSpecies;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
 
-public class Float16BufferTensor extends AbstractTensor {
-
+public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, short[]> {
     private final ShortBuffer b;
-
     private final String name;
-
-    private final boolean mmapped;
     private final MemorySegment segment;
 
     public Float16BufferTensor(AbstractTensor ft) {
@@ -36,21 +32,24 @@ public class Float16BufferTensor extends AbstractTensor {
     public Float16BufferTensor(int ...shape) {
         super(DType.F16, shape, true);
         this.name = "tmp";
-        this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_SHORT));
-        this.mmapped = false;
-        this.b = this.segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
+            this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_SHORT));
+            this.b = this.segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+        } else {
+            this.b = ShortBuffer.allocate(capacity);
+            this.segment = MemorySegment.ofBuffer(b);
+        }
     }
 
-    public Float16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
-        this("none", b, shape, cacheSlices, mmapped);
+    public Float16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices) {
+        this("none", b, shape, cacheSlices);
     }
 
-    private Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
+    private Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices) {
         super(DType.F16, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
         this.b = b;
-        this.mmapped = mmapped;
         this.segment = MemorySegment.ofBuffer(b);
     }
 
@@ -61,7 +60,7 @@ public class Float16BufferTensor extends AbstractTensor {
 
     @Override
     protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
-        return new Float16BufferTensor(name, b.slice(offset, length), shape, cacheSlices, mmapped);
+        return new Float16BufferTensor(name, b.slice(offset, length), shape, cacheSlices);
     }
 
     @Override
@@ -75,22 +74,38 @@ public class Float16BufferTensor extends AbstractTensor {
     public void set(float v, int ...dims) {
         Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified for tensor");
         Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
-        Preconditions.checkArgument(!b.isReadOnly() && !mmapped, "Can't modify a read only buffer");
+        Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
         b.put(getOffset(dims), Float.floatToFloat16(v));
     }
 
     @Override
-    public float[] getFloatArray() {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    public int getArrayOffset() {
-        return b.arrayOffset();
+    public short[] getArray() {
+        if (b.hasArray())
+            return b.array();
+        else
+            throw new UnsupportedOperationException("Can't get array from direct buffer");
     }
 
     @Override
-    public FloatVector getFloatVector(int offset) {
-        throw new UnsupportedOperationException();
+    public int getArrayOffset(int offset) {
+        return b.arrayOffset() + offset;
+    }
+
+    @Override
+    public ShortVector getVector(VectorSpecies<Short> species, int offset) {
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+            return ShortVector.fromArray(species, getArray(), getArrayOffset(offset));
+        else
+            return ShortVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+    }
+
+    @Override
+    public void intoTensor(ShortVector vector, int offset) {
+        Preconditions.checkArgument(!b.isReadOnly());
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+            vector.intoArray(getArray(), getArrayOffset(offset));
+        else
+            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -100,7 +115,7 @@ public class Float16BufferTensor extends AbstractTensor {
 
     @Override
     public int getMemorySegmentOffset(int offset) {
-        return offset * Short.BYTES;
+        return offset * dType.size();
     }
 
     @Override
@@ -116,28 +131,10 @@ public class Float16BufferTensor extends AbstractTensor {
                 .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
     }
 
-    /** Since getFloatArray() returns the actual backing array, we can just ignore this call */
-    @Override
-    public void update(float[] data, int... offset) {
-        Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
-
-        int noff = getOffset(offset);
-        for (int i = 0; i < data.length; i++) {
-            b.put(noff + i, Float.floatToFloat16(data[i]));
-        }
-    }
-
     @Override
     public void clear() {
-        Preconditions.checkArgument(!mmapped, "Can't clear a read-only buffer");
+        Preconditions.checkArgument(!b.isReadOnly(), "Can't clear a read-only buffer");
         segment.fill((byte)0);
-    }
-
-    @Override
-    public void scale(float factor, int offset, int length) {
-        Preconditions.checkArgument(length % 8 == 0);
-        for (int i = offset; i < length; i++)
-            this.set(this.get(i) * factor, i);
     }
 
     @Override

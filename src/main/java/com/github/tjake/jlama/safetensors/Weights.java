@@ -64,7 +64,7 @@ public class Weights implements WeightLoader {
         switch (info.dType) {
             case F32:
                 fb = b.asFloatBuffer().slice();
-                return new FloatBufferTensor(fb, info.shape, true, true);
+                return new FloatBufferTensor(fb, info.shape, true);
             case F16:
                 // If the majority of the weights are F32 then convert to F32
                 if (dType == DType.F32) {
@@ -75,10 +75,10 @@ public class Weights implements WeightLoader {
                         float v = Float.float16ToFloat(s);
                         bb.putFloat(i, v);
                     }
-                    return new FloatBufferTensor(bb.asFloatBuffer(), info.shape, true, false);
+                    return new FloatBufferTensor(bb.asFloatBuffer(), info.shape, true);
                 } else {
                     sb = b.asShortBuffer().slice();
-                    return new Float16BufferTensor(sb, info.shape, true, true);
+                    return new Float16BufferTensor(sb, info.shape, true);
                 }
             case BF16:
                 //For now always convert to F32
@@ -89,7 +89,7 @@ public class Weights implements WeightLoader {
                     float v = FloatConversions.bFloat16ToFloat32(s);
                     fb.put(i, v);
                 }
-                return new FloatBufferTensor(fb, info.shape, true, false);
+                return new FloatBufferTensor(fb, info.shape, true);
             default:
                 throw new IllegalArgumentException("Unsupported Tensor type: " + info.dType.name() + " for " + name);
         }

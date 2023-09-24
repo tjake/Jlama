@@ -5,9 +5,9 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
 
-public class NativeTensorOperations implements TensorOperations{
+public class NativeTensorOperations implements TensorOperations {
 
-    private static String OS = System.getProperty("os.name").toLowerCase();
+    static String OS = System.getProperty("os.name").toLowerCase();
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
     public static final int HAS_AVX2 = NativeSimd.HAS_AVX2();
 
@@ -22,7 +22,7 @@ public class NativeTensorOperations implements TensorOperations{
         if (OS.contains("linux"))
             f |= HAS_F16C;
 
-        if (PanamaTensorOperations.hasAVX2)
+        if (PanamaTensorOperations.hasAVX512)
             f |= HAS_AVX2;
 
         this.flags = f;
@@ -30,6 +30,11 @@ public class NativeTensorOperations implements TensorOperations{
 
     public NativeTensorOperations(int flags) {
         this.flags = flags;
+    }
+
+    @Override
+    public boolean requiresOffHeapTensor() {
+        return true;
     }
 
     @Override

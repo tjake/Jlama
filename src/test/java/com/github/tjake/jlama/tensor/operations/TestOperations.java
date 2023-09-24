@@ -22,6 +22,8 @@ import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 
+import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
+
 public class TestOperations
 {
     private static final Random r = new Random();
@@ -41,15 +43,21 @@ public class TestOperations
         opTypes.add(new PanamaTensorOperations());
         opTypes.add(new NativeTensorOperations());
         opTypes.add(new NativeTensorOperations(0));
-        opTypes.add(new NativeTensorOperations(2));
-        opTypes.add(new NativeTensorOperations(2 | 4));
-        opTypes.add(new NativeTensorOperations(4));
 
+        if (TensorOperationsProvider.hasAVX512) {
+            opTypes.add(new NativeTensorOperations(HAS_AVX2));
+        }
+
+        if (OS.contains("linux") || OS.contains("win")) {
+            opTypes.add(new NativeTensorOperations(HAS_F16C));
+            if (TensorOperationsProvider.hasAVX512) {
+                opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
+            }
+        }
 
         aTypes.put(DType.F32, FloatBufferTensor::new);
         aTypes.put(DType.F16, Float16BufferTensor::new);
         aTypes.put(DType.BF16, BFloat16BufferTensor::new);
-
 
         bTypes.put(DType.F32, FloatBufferTensor::new);
         bTypes.put(DType.F16, Float16BufferTensor::new);

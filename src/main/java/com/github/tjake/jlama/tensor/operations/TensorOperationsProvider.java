@@ -12,17 +12,17 @@ public class TensorOperationsProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(TensorOperationsProvider.class);
     private static boolean hasVectorAPI = hasVectorAPI();
-    static final boolean hasAVX2 = FloatVector.SPECIES_PREFERRED == FloatVector.SPECIES_512;
+    static final boolean hasAVX512 = FloatVector.SPECIES_PREFERRED == FloatVector.SPECIES_512;
 
     private static boolean hasVectorAPI() {
         try {
             VectorOperators.ADD.name();
             logger.info("Java 20+ Vector API available");
-            if (hasAVX2)
-                logger.info("AVX2 operations available");
+            if (hasAVX512)
+                logger.info("AVX512 operations available");
             return true;
         } catch (Throwable t) {
-            logger.warn("Java SIMD Vector API *not* available. Missing --add-modules=jdk.incubator.vector?");
+            logger.warn("Java SIMD Vector API *not* available. Add --add-modules=jdk.incubator.vector to your JVM options");
             return false;
         }
     }

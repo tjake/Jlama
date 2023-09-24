@@ -6,6 +6,8 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 
 public interface TensorOperations
 {
+    boolean requiresOffHeapTensor();
+
     default float dotProduct(AbstractTensor a, AbstractTensor b, int limit) {
         return dotProduct(a, b, 0, 0, limit);
     }

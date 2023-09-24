@@ -18,8 +18,8 @@ public class VectorMath {
 
 
     public static void softMax(AbstractTensor t) {
-        float[] x = t.getFloatArray();
-        int offset = t.getArrayOffset();
+        float[] x = (float[])t.getArray();
+        int offset = t.getArrayOffset(0);
         int size = t.size();
 
         // find max value (for numerical stability)
@@ -74,8 +74,8 @@ public class VectorMath {
     }
 
     public static void l1normalize(AbstractTensor t) {
-        float[] x = t.getFloatArray();
-        int offset = t.getArrayOffset();
+        float[] x = (float[]) t.getArray();
+        int offset = t.getArrayOffset(0);
         int size = t.size();
 
         float sum = 0.0f;
@@ -88,8 +88,8 @@ public class VectorMath {
 
 
     public static void l2normalize(AbstractTensor t) {
-        float[] x = t.getFloatArray();
-        int offset = t.getArrayOffset();
+        float[] x = (float[]) t.getArray();
+        int offset = t.getArrayOffset(0);
         int size = t.size();
 
         float sum = 0.0f;
