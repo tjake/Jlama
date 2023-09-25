@@ -31,7 +31,7 @@ import java.util.Arrays;
  *
  * The Tensor is thread safe for read operations, but not for write operations.
  */
-public class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[]>
+public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[]>
 {
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final FloatBuffer b;
@@ -86,7 +86,7 @@ public class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[
     public float get(int... dims) {
         Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified");
         Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
-        return b.get(getOffset(dims));
+        return b.hasArray() ? b.array()[b.arrayOffset() + getOffset(dims)] : b.get(getOffset(dims));
     }
 
     @Override
@@ -99,15 +99,8 @@ public class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[
 
     @Override
     public float[] getArray() {
-        if (shape.length > 1)
-            throw new UnsupportedOperationException("dims must be 1");
-
-        if (b.hasArray())
-            return b.array();
-
-        float[] buf = new float[b.remaining()];
-        b.duplicate().get(buf);
-        return buf;
+        Preconditions.checkArgument(b.hasArray());
+        return b.array();
     }
 
     public int getArrayOffset(int offset)

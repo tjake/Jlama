@@ -47,7 +47,7 @@ public class TensorOperationsProvider
     private TensorOperations pickFastestImplementaion() {
         try {
             NativeSimd.accumulate_f16$MH();
-            return new NativeTensorOperations();
+            //return new NativeTensorOperations();
         } catch (Throwable t) {
             logger.info("Error loading native operations", t);
         }

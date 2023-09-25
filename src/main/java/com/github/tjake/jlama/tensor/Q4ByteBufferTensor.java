@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
+public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);;
     public static final int BLOCK_SIZE = 32;
     public static final int HALF_BLOCK = (BLOCK_SIZE / 2);

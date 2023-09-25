@@ -1,0 +1,6 @@
+[
+    {
+        match: ["*.*"],
+        inline: ["+com.github.tjake.jlama.tensor.operations.PanamaTensorOperations::dotProduct*" ]
+    }
+]
