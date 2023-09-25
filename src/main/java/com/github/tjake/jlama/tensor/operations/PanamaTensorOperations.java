@@ -92,7 +92,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf).mul(scale));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductF32I8_256(FloatBufferTensor a, Q8ByteBufferTensor b, int aoffset, int boffset, int limit) {
@@ -127,7 +127,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf.mul(scale)));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     public float dotProductF32I8_512(FloatBufferTensor a, Q8ByteBufferTensor b, int aoffset, int boffset, int limit) {
@@ -162,10 +162,11 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf.mul(scale)));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
-    private float dotProductF32Q4_256(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
+    private float dotProductF32Q4_256(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit)
+    {
         Preconditions.checkArgument(
                 boffset % Q4ByteBufferTensor.BLOCK_SIZE == 0 &&
                         limit % Q4ByteBufferTensor.BLOCK_SIZE == 0
@@ -177,49 +178,38 @@ final public class PanamaTensorOperations implements TensorOperations
 
         FloatVector acc = FloatVector.zero(FloatVector.SPECIES_256);
 
-        for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
+
+        for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen)
+        {
             FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(boffset));
-            // BLOCK_SIZE Floats
-            var af0 = a.getVector(FloatVector.SPECIES_256, aoffset);
-            var af1 = a.getVector(FloatVector.SPECIES_256, aoffset + 8);
-            var af2 = a.getVector(FloatVector.SPECIES_256, aoffset + 8 + 8);
-            var af3 = a.getVector(FloatVector.SPECIES_256, aoffset + 8 + 8 + 8);
+            for (int i = 0; i < 2; i++)
+            {
+                // BLOCK_SIZE Floats
+                var af0 = a.getVector(FloatVector.SPECIES_256, aoffset + (8 * i));
+                var af1 = a.getVector(FloatVector.SPECIES_256, aoffset + Q4ByteBufferTensor.HALF_BLOCK + (8*i));
 
-            //Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
-            var bf0 = b.getVector(ByteVector.SPECIES_64, boffset);
-            var bf16 = b.getVector(ByteVector.SPECIES_64, boffset + Q4ByteBufferTensor.HALF_BLOCK);
+                //Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
+                var bf0 = b.getVector(ByteVector.SPECIES_64, boffset + (8 * i));
 
-            // Convert the first 4 bits into bytes
-            var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
-                    .sub(Q4_BYTE_SUB)
-                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+                // Convert the first 4 bits into bytes
+                var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                        .sub(Q4_BYTE_SUB)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
 
-            // Convert the second 4 bits into bytes
-            var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
-                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
-                    .sub(Q4_BYTE_SUB)
-                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+                var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                        .sub(Q4_BYTE_SUB)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
 
-            // Convert the first 4 bits into bytes
-            var low1 = bf16.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
-                    .sub(Q4_BYTE_SUB)
-                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
-
-
-            // Convert the second 4 bits into bytes
-            var high1 = bf16.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
-                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
-                    .sub(Q4_BYTE_SUB)
-                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
-
-
-            acc = af0.fma(low0.mul(scale), acc);
-            acc = af1.fma(low1.mul(scale), acc);
-            acc = af2.fma(high0.mul(scale), acc);
-            acc = af3.fma(high1.mul(scale), acc);
+                acc = af0.fma(low0, acc);
+                acc = af1.fma(high0, acc);
+            }
         }
 
-        return reduce(acc);
+
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductF32Q4_512(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
@@ -244,31 +234,22 @@ final public class PanamaTensorOperations implements TensorOperations
             var bf0 = b.getVector(ByteVector.SPECIES_128, boffset);
 
             // Convert the first 4 bits into bytes
-            var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK);
+            var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB)
+                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                    .mul(scale);
+
             var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
-                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK);
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB)
+                    .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                    .mul(scale);
 
-            // Subtract 8 to center byte
-            low0 = low0.sub(Q4_BYTE_SUB);
-            high0 = high0.sub(Q4_BYTE_SUB);
-
-            // Convert bytes to floats
-            var low0f = low0.convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0);
-            var high0f = high0.convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0);
-
-            // Add scaling factor
-            low0f = low0f.mul(scale);
-            high0f = high0f.mul(scale);
-
-            acc = af0.fma(low0f, acc);
-            acc = af1.fma(high0f, acc);
+            acc = af0.fma(low0, acc);
+            acc = af1.fma(high0, acc);
         }
 
-        return reduce(acc);
-    }
-
-    float reduce(FloatVector f) {
-        return f.reduceLanes(VectorOperators.ADD);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductBF16Q4_512(BFloat16BufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
@@ -315,7 +296,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af1.mul(high0.mul(scale)));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductBF16Q4_256(BFloat16BufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
@@ -388,7 +369,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af3.mul(high1.mul(scale)));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
 
@@ -420,7 +401,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     public float dotProductBF16I8_512(BFloat16BufferTensor a, Q8ByteBufferTensor b, final int aoffset, final int boffset, int limit)
@@ -452,7 +433,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf.mul(scale)));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductBF16F32_512(BFloat16BufferTensor a, FloatBufferTensor b, int aoffset, int boffset, int limit) {
@@ -476,7 +457,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductBF16F32_256(BFloat16BufferTensor a, FloatBufferTensor b, int aoffset, int boffset, int limit) {
@@ -500,7 +481,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductBF16_256(BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit)
@@ -530,7 +511,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductBF16_512(BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit) {
@@ -558,7 +539,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = acc.add(af.mul(bf));
         }
 
-        return reduce(acc);
+        return acc.reduceLanes(VectorOperators.ADD);
     }
 
     private float dotProductF32(FloatBufferTensor a, FloatBufferTensor b, int aoffset, int boffset, int limit) {
@@ -587,7 +568,7 @@ final public class PanamaTensorOperations implements TensorOperations
             acc = va.fma(vb, acc);
         }
         // reduce
-        float res = reduce(acc);
+        float res = acc.reduceLanes(VectorOperators.ADD);
         // tail
         for (; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
             res += a.get(ao) * b.get(bo);

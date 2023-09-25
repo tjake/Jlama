@@ -70,7 +70,7 @@ public class TensorBench {
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void b16Tof32B(Parameters p, Blackhole bh) {
-        bh.consume(ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+        bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
 
     public static void main(String[] args) throws Exception {

@@ -5,20 +5,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
-import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorOperators;
 
 public class TensorOperationsProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(TensorOperationsProvider.class);
-    static final boolean hasAVX512 = FloatVector.SPECIES_PREFERRED == FloatVector.SPECIES_512;
     private static boolean hasVectorAPI = hasVectorAPI();
 
     private static boolean hasVectorAPI() {
         try {
             VectorOperators.ADD.name();
             logger.info("Java 20+ Vector API available");
-            if (hasAVX512)
+            if (PanamaTensorOperations.hasAVX512)
                 logger.info("AVX512 operations available");
             return true;
         } catch (Throwable t) {
