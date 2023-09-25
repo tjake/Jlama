@@ -11,8 +11,8 @@ import jdk.incubator.vector.VectorOperators;
 public class TensorOperationsProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(TensorOperationsProvider.class);
-    private static boolean hasVectorAPI = hasVectorAPI();
     static final boolean hasAVX512 = FloatVector.SPECIES_PREFERRED == FloatVector.SPECIES_512;
+    private static boolean hasVectorAPI = hasVectorAPI();
 
     private static boolean hasVectorAPI() {
         try {
@@ -47,7 +47,7 @@ public class TensorOperationsProvider
     private TensorOperations pickFastestImplementaion() {
         try {
             NativeSimd.accumulate_f16$MH();
-            //return new NativeTensorOperations();
+            return new NativeTensorOperations();
         } catch (Throwable t) {
             logger.info("Error loading native operations", t);
         }

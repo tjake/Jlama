@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(warmups = 1, value = 1, jvmArgsPrepend = {
         "--add-modules=jdk.incubator.vector",
         "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
-        "--enable-preview", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintInlining",
+        "--enable-preview", "-XX:+PreserveFramePointer", "-XX:+UnlockDiagnosticVMOptions", "-XX:CompilerDirectivesFile=inlinerules.json",
         "--enable-native-access=ALL-UNNAMED"})
 public class TensorBench {
     private static final TensorOperations ops = new PanamaTensorOperations();
