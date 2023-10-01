@@ -14,6 +14,11 @@ import com.google.common.util.concurrent.AtomicDouble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,6 +31,9 @@ public abstract class AbstractModel {
     protected final Tokenizer tokenizer;
     protected final DType modelDType;
     protected final DType workingDType = DType.F32;
+    private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
+    private static final ThreadLocal<AbstractTensor[]> tmpArray2 = new ThreadLocal<>();
+
 
     protected AbstractModel(Config c, WeightLoader w, Tokenizer t)
     {
@@ -33,6 +41,10 @@ public abstract class AbstractModel {
         this.weights = w;
         this.tokenizer = t;
         this.modelDType = w.getModelDType();
+    }
+
+    public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
+        return prompt;
     }
 
     protected abstract AbstractTensor inputTokenToEmbedding(int inputToken, int position);
@@ -58,6 +70,34 @@ public abstract class AbstractModel {
             ref.close();
         }
         return embedding;
+    }
+
+    private static final ExecutorService pool = Executors.newWorkStealingPool(8);
+
+    protected AbstractTensor[] batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
+        TransformerBlock[] transformerBlocks = getTransformerBlocks();
+        int batchSize = token_ids.length;
+
+        AbstractTensor[] embeddings = tmpArray.get();
+        if (embeddings == null || embeddings.length < batchSize) {
+            embeddings = new AbstractTensor[batchSize];
+            tmpArray.set(embeddings);
+        }
+        AbstractTensor[] emf = embeddings;
+        VectorMath.pfor(0, batchSize, i -> {
+            emf[i] = inputTokenToEmbedding(token_ids[i], startPos+i);
+        });
+
+        for (int i = 0; i < c.numberOfLayers; i++) {
+            AbstractTensor kvlayer = kvbuf.slice(i);
+            for (int j = 0; j < batchSize; j++) {
+                AbstractTensor ref = embeddings[j];
+                embeddings[j] = transformerBlocks[i].forward(ref, startPos + j, kvlayer);
+                ref.close();
+            }
+        }
+
+        return embeddings;
     }
 
     protected int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
@@ -112,41 +152,54 @@ public abstract class AbstractModel {
         AbstractTensor kvmem = makeTensor(c.numberOfLayers, ntokens, c.embeddingLength * 2); //k and v are concatenated
         AbstractTensor logits = makeTensor(c.vocabularySize);
 
-        int[] tokens = new int[c.contextLength];
+        int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
 
-        for (int i = 0; i < encoded.length; i++)
-            tokens[i] = Ints.checkedCast(encoded[i]);
+        promptTokens[0] = c.bosToken;
+        for (int i = 1; i < encoded.length; i++)
+            promptTokens[i] = Ints.checkedCast(encoded[i]);
 
         int promptLength = encoded.length;
 
         if (useEOS) {
-            tokens[encoded.length + 1] = c.eosToken; //Add EOS
+            promptTokens[promptTokens.length - 1] = c.eosToken; //Add EOS
             promptLength++;
         }
 
+        onTokenWithTimings.accept(prompt, 0f);
         long start = System.currentTimeMillis();
-        int tokensGenerated = 0;
-        int next = c.bosToken;
+        //Batch Process Prompt
+        AbstractTensor batch[] = batchForward(promptTokens, 0, kvmem);
 
-        for (int i = 0; i < ntokens; i++) {
+        long promptBatchTime = System.currentTimeMillis() - start;
+        logger.info("{} prompt tokens in {}ms {} tokens/sec", promptLength, promptBatchTime, Math.round((((double)promptBatchTime)/(double)promptLength)));
+
+        int tokensGenerated = 0;
+        AbstractTensor last = batch[batch.length - 1];
+
+        int next = sample(last, temperature, ThreadLocalRandom.current().nextFloat(), logits);
+        try {
+            String c = tokenizer.decode(next);
+            onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (0 + 1));
+        } catch (Exception e) {
+            logger.error("Failed to decode token {}", next, e);
+        }
+        start = System.currentTimeMillis();
+        for (int i = promptTokens.length - 1; i < ntokens; i++)
+        {
             AbstractTensor output = forward(next, i, kvmem);
             tokensGenerated++;
-            // Keep prompt tokens till they are gone
-            if (i < promptLength) {
-                next = tokens[i];
-            } else {
-                next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
+            next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
 
-                if (logger.isTraceEnabled())
-                    logger.trace("Sampled token {} with temperature {}", next, temperature);
+            if (logger.isTraceEnabled())
+                logger.trace("Sampled token {} with temperature {}", next, temperature);
 
-                //Model may tell us it's done
-                if (next == c.eosToken)
-                    break;
-            }
+            //Model may tell us it's done
+            if (next == c.eosToken)
+                break;
+
             try {
                 String c = tokenizer.decode(next);
-                onTokenWithTimings.accept(c, (System.currentTimeMillis() - start)/(float)(i+1));
+                onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (i + 1));
             } catch (Exception e) {
                 logger.error("Failed to decode token {}", next, e);
             }

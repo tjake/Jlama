@@ -62,6 +62,12 @@
     </dependency>
 
     <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>4.7.5</version>
+    </dependency>
+
+    <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <version>1.4.8</version>
@@ -210,7 +216,7 @@
                 <outputFile>${project.basedir}/target/jlama-cli.jar</outputFile>
                 <transformers>
                   <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                    <mainClass>com.github.tjake.jlama.cli.Cli</mainClass>
+                    <mainClass>com.github.tjake.jlama.cli.JlamaCli</mainClass>
                   </transformer>
                 </transformers>
                 <filters>
@@ -350,7 +356,7 @@
     <id>linux</id>
     <activation>
       <os>
-        <family>linux</family>
+        <family>skip</family>
       </os>
     </activation>
     <properties>

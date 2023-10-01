@@ -35,7 +35,6 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
 {
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final FloatBuffer b;
-
     private final String name;
     private final MemorySegment segment;
 

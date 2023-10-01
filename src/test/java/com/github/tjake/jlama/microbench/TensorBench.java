@@ -43,7 +43,6 @@ public class TensorBench {
             this.bf = new BFloat16BufferTensor(f);
             this.q8 = new Q8ByteBufferTensor(f2);
             this.q4 = new Q4ByteBufferTensor(f2);
-
         }
     }
 

@@ -23,7 +23,6 @@ public class MachineSpec {
         Type tmp = Type.NONE;
         try {
             int preferredBits = FloatVector.SPECIES_PREFERRED.vectorBitSize();
-            logger.info("Vectorization preferred bit size {}", preferredBits);
             if (preferredBits == 512)
                 tmp = Type.AVX_512;
 

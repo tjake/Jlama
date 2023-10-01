@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -19,6 +20,9 @@ import java.util.*;
 public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(SafeTensorIndex.class);
     private static final ObjectMapper om = new ObjectMapper();
+
+    public static final String SINGLE_MODEL_NAME = "model.safetensors";
+    public static final String MODEL_INDEX_JSON = "model.safetensors.index.json";
 
     private final Map<String, Object> metadata;
 
@@ -33,8 +37,22 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     private final Map<String, RandomAccessFile> fileMap = new HashMap<>();
 
     public static SafeTensorIndex loadWithWeights(Path modelRoot) throws IOException {
-        SafeTensorIndex index = om.readValue(Paths.get(modelRoot.toString(), "model.safetensors.index.json").toFile(), SafeTensorIndex.class);
+        File indexFile = Paths.get(modelRoot.toString(), MODEL_INDEX_JSON).toFile();
 
+        SafeTensorIndex index = om.readValue(indexFile, SafeTensorIndex.class);
+        loadWeights(index, modelRoot);
+
+        return index;
+    }
+
+    public static SafeTensorIndex loadSingleFile(Path modelRoot, String modelFile) throws IOException {
+        SafeTensorIndex index = new SafeTensorIndex(Collections.emptyMap(), Map.of("model-file", modelFile));
+        loadWeights(index, modelRoot);
+
+        return index;
+    }
+
+    static void loadWeights(SafeTensorIndex index, Path modelRoot) throws IOException {
         for (Map.Entry<String, String> e : index.weightFileMap.entrySet()) {
             // Only load the file if it's not already loaded
             if (!index.fileMap.containsKey(e.getValue())) {
@@ -45,7 +63,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                 ByteBuffer header = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, Math.min(1 << 20, raf.length()));
 
                 Map<String, String> metadata = new HashMap<>();
-                Map<String, TensorInfo> tensorInfoMap = SafeTensors.readTensorInfoMap(header, Optional.of(metadata));
+                Map<String, TensorInfo> tensorInfoMap = SafeTensorSupport.readTensorInfoMap(header, Optional.of(metadata));
                 int endOfHeaderPosition = header.position();
 
                 Map<List<Long>, List<String>> splits = index.computeMmapSplits(tensorInfoMap, raf.length());
@@ -66,7 +84,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
             }
         }
 
-        return index;
     }
 
     /**

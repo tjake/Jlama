@@ -44,7 +44,7 @@ public class TestOperations
     public static void init() {
         opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations());
-        /*opTypes.add(new NativeTensorOperations());
+        opTypes.add(new NativeTensorOperations());
         opTypes.add(new NativeTensorOperations(0));
 
         if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
@@ -54,7 +54,7 @@ public class TestOperations
             opTypes.add(new NativeTensorOperations(HAS_F16C));
             if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
                 opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
-        }*/
+        }
 
         aTypes.put(DType.F32, FloatBufferTensor::new);
         aTypes.put(DType.F16, Float16BufferTensor::new);

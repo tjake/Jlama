@@ -8,8 +8,12 @@ import org.slf4j.LoggerFactory;
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
 import jdk.incubator.vector.VectorOperators;
 
-public class TensorOperationsProvider
-{
+public class TensorOperationsProvider {
+    static {
+        System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(TensorOperationsProvider.class);
 
     private static final String lock = "lock";
@@ -32,8 +36,8 @@ public class TensorOperationsProvider
 
     private TensorOperations pickFastestImplementaion() {
         try {
-           // NativeSimd.accumulate_f16$MH();
-            //return new NativeTensorOperations();
+            NativeSimd.accumulate_f16$MH();
+            return new NativeTensorOperations();
         } catch (Throwable t) {
             logger.info("Error loading native operations", t);
         }

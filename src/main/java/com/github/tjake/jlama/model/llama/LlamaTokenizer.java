@@ -56,6 +56,7 @@ public class LlamaTokenizer implements Tokenizer {
     private String postNormalize(String sentence) {
         sentence = sentence.replaceAll("</?s>", "");
         sentence = sentence.replaceAll(SPIECE_UNDERLINE, " ");
+        sentence = sentence.replaceAll("<unk>", "\n");
         return sentence;
     }
 }

@@ -5,6 +5,7 @@ import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
@@ -27,7 +28,7 @@ public class LlamaModel extends AbstractModel {
 
     private final AbstractTensor classificationWeights;
 
-    public LlamaModel(Config config, WeightLoader weights, LlamaTokenizer tokenizer) {
+    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer) {
         super(config, weights, tokenizer);
 
         DType qType = DType.Q4;
@@ -70,6 +71,22 @@ public class LlamaModel extends AbstractModel {
                     mlp);
         }
         logger.info("Model loaded!");
+    }
+
+    @Override
+    public String wrapPrompt(String prompt, Optional<String> systemPrompt)
+    {
+        StringBuilder b = new StringBuilder();
+        b.append("[INST] ");
+        if (systemPrompt.isPresent()) {
+            b.append("<<SYS>> \n")
+                    .append(systemPrompt.get())
+                    .append("\n<</SYS>> \n\n");
+        }
+        b.append(prompt)
+                .append(" [/INST]");
+
+        return b.toString();
     }
 
     @Override

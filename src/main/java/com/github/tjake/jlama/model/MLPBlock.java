@@ -17,6 +17,7 @@ public class MLPBlock {
 
     private final ActivationFunction.Type activationFunction;
 
+
     public MLPBlock(AbstractModel model, ActivationFunction.Type activationFunction, AbstractTensor fullyConnectedBias, AbstractTensor fullyConnectedWeights, AbstractTensor projectionBias, AbstractTensor projectionWeights)
     {
         this(model, activationFunction, fullyConnectedBias, fullyConnectedWeights, projectionBias, projectionWeights, null);

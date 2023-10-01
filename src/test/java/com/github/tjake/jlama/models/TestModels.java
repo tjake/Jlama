@@ -49,7 +49,7 @@ public class TestModels {
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
-            Weights v = SafeTensors.readBytes(bb);
+            Weights v = SafeTensorSupport.readWeights(bb);
             Tokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), GPT2Config.class);
             GPT2Model gpt2 = new GPT2Model(c, v, tokenizer);
@@ -83,7 +83,7 @@ public class TestModels {
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
-            Weights weights = SafeTensors.readBytes(bb);
+            Weights weights = SafeTensorSupport.readWeights(bb);
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer);
@@ -101,7 +101,7 @@ public class TestModels {
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
-            Weights weights = SafeTensors.readBytes(bb);
+            Weights weights = SafeTensorSupport.readWeights(bb);
             Tokenizer tokenizer = new BertTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), BertConfig.class);
             BertModel model = new BertModel(c, weights, tokenizer);

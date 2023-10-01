@@ -3,14 +3,19 @@ package com.github.tjake.jlama.safetensors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
+import com.github.tjake.jlama.model.ModelSupport.ModelType;
+
 import com.google.common.primitives.Ints;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
-public class SafeTensors {
+public class SafeTensorSupport {
     private static final ObjectMapper om = new ObjectMapper();
     private static final MapType metadataTypeReference = om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
 
@@ -44,11 +49,30 @@ public class SafeTensors {
         }
     }
 
-    public static Weights readBytes(ByteBuffer safeBuf) {
+    public static Weights readWeights(ByteBuffer safeBuf) {
         safeBuf = safeBuf.duplicate();
         Map<String, String> metadata = new HashMap<>();
         Map<String, TensorInfo> tensorInfoMap = readTensorInfoMap(safeBuf, Optional.of(metadata));
 
         return new Weights(metadata, tensorInfoMap, safeBuf.slice());
     }
+
+    public static ModelType detectModel(File configFile) throws IOException {
+        JsonNode rootNode = om.readTree(configFile);
+        if (!rootNode.has("model_type"))
+            throw new IllegalArgumentException("Config missing model_type field.");
+
+        return ModelType.valueOf(rootNode.get("model_type").textValue().toUpperCase());
+    }
+
+    public static WeightLoader loadWeights(File baseDir) throws IOException {
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON)))
+            return SafeTensorIndex.loadWithWeights(baseDir.toPath());
+
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME)))
+            return SafeTensorIndex.loadSingleFile(baseDir.toPath(), SafeTensorIndex.SINGLE_MODEL_NAME);
+
+        throw new IllegalArgumentException("No safetensors model found in: " + baseDir);
+    }
+
 }

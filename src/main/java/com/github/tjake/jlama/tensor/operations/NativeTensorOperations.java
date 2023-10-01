@@ -9,7 +9,6 @@ import com.github.tjake.jlama.util.RuntimeSupport;
 
 public class NativeTensorOperations implements TensorOperations {
 
-    static String OS = System.getProperty("os.name").toLowerCase();
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
     public static final int HAS_AVX2 = NativeSimd.HAS_AVX2();
 

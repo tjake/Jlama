@@ -2,8 +2,7 @@ package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
-import com.github.tjake.jlama.model.llama.LlamaTokenizer;
+
 import com.google.common.io.BaseEncoding;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -43,7 +42,7 @@ public class TestParser {
         System.arraycopy(header,0, serialized, preamble.length, header.length);
         System.arraycopy(data, 0, serialized, preamble.length + header.length, data.length);
 
-        Weights v = SafeTensors.readBytes(ByteBuffer.wrap(serialized));
+        Weights v = SafeTensorSupport.readWeights(ByteBuffer.wrap(serialized));
         logger.debug("model = {}", v);
 
         AbstractTensor t = v.load("test");
@@ -131,7 +130,7 @@ public class TestParser {
         {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
-            Weights v = SafeTensors.readBytes(bb);
+            Weights v = SafeTensorSupport.readWeights(bb);
 
             AbstractTensor bias = v.load("h.8.attn.c_proj.bias");
             Assert.assertEquals(0.01406, bias.get(0), 0.00001);
