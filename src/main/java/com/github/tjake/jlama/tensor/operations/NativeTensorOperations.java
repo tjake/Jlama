@@ -4,6 +4,8 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
+import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.RuntimeSupport;
 
 public class NativeTensorOperations implements TensorOperations {
 
@@ -19,10 +21,10 @@ public class NativeTensorOperations implements TensorOperations {
     public NativeTensorOperations() {
         int f = 0;
 
-        if (OS.contains("linux"))
+        if (RuntimeSupport.isLinux())
             f |= HAS_F16C;
 
-        if (PanamaTensorOperations.hasAVX512)
+        if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
             f |= HAS_AVX2;
 
         this.flags = f;

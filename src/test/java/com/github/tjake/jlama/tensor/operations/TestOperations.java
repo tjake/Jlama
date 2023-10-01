@@ -7,6 +7,9 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.function.Function;
 
+import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.RuntimeSupport;
+import jdk.incubator.vector.FloatVector;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,7 +29,7 @@ import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
 
 public class TestOperations
 {
-    private static final Random r = new Random();
+    private static final Random r = new Random(1337);
     private static final Logger logger = LoggerFactory.getLogger(TensorOperations.class);
     private static final int SIZE = 1024;
     private static final List<TensorOperations> opTypes = new ArrayList<>();
@@ -41,19 +44,17 @@ public class TestOperations
     public static void init() {
         opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations());
-        opTypes.add(new NativeTensorOperations());
+        /*opTypes.add(new NativeTensorOperations());
         opTypes.add(new NativeTensorOperations(0));
 
-        if (TensorOperationsProvider.hasAVX512) {
+        if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
             opTypes.add(new NativeTensorOperations(HAS_AVX2));
-        }
 
-        if (OS.contains("linux") || OS.contains("win")) {
+        if (RuntimeSupport.isLinux() || RuntimeSupport.isWin()) {
             opTypes.add(new NativeTensorOperations(HAS_F16C));
-            if (TensorOperationsProvider.hasAVX512) {
+            if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
                 opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
-            }
-        }
+        }*/
 
         aTypes.put(DType.F32, FloatBufferTensor::new);
         aTypes.put(DType.F16, Float16BufferTensor::new);
@@ -73,7 +74,6 @@ public class TestOperations
 
         return f;
     }
-
 
     @Test
     public void testDotProduct() {

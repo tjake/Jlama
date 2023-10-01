@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.tensor.operations;
 
+import com.github.tjake.jlama.util.MachineSpec;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.safetensors.DType;
@@ -8,21 +9,15 @@ import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
-import jdk.incubator.vector.ByteVector;
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.IntVector;
-import jdk.incubator.vector.ShortVector;
-import jdk.incubator.vector.VectorOperators;
+import jdk.incubator.vector.*;
 
 final public class PanamaTensorOperations implements TensorOperations
 {
-    public static final boolean hasAVX512 = FloatVector.SPECIES_PREFERRED == FloatVector.SPECIES_512;
-
     static final ByteVector Q4_BYTE_SUB;
     static final ByteVector Q4_BYTE_MASK;
     static final ByteVector Q4_BYTE_SHIFT;
     static {
-        if (hasAVX512) {
+        if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) {
             Q4_BYTE_SUB = ByteVector.broadcast(ByteVector.SPECIES_128, 8);
             Q4_BYTE_MASK = ByteVector.broadcast(ByteVector.SPECIES_128, 0xF);
             Q4_BYTE_SHIFT = ByteVector.broadcast(ByteVector.SPECIES_128, 4);
@@ -35,7 +30,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
     public static final IntVector BF16_BYTE_SHIFT;
     static {
-        if (hasAVX512) {
+        if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) {
             BF16_BYTE_SHIFT = IntVector.broadcast(IntVector.SPECIES_512, 16);
         } else {
             BF16_BYTE_SHIFT = IntVector.broadcast(IntVector.SPECIES_256, 16);
@@ -54,17 +49,42 @@ final public class PanamaTensorOperations implements TensorOperations
         return switch (a.dType()) {
             case F32 -> switch (b.dType()) {
                 case F32 -> dotProductF32((FloatBufferTensor) a, (FloatBufferTensor) b, aoffset, boffset, limit);
-                case I8 -> hasAVX512 ? dotProductF32I8_512((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit) : dotProductF32I8_256((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                case I8 -> switch (MachineSpec.VECTOR_TYPE) {
+                    case AVX_512 -> dotProductF32I8_512((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                    case AVX_256 -> dotProductF32I8_256((FloatBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
                 //case Q5 -> dotProductF32Q5((FloatBufferTensor) a, (Q5ByteBufferTensor) b, aoffset, boffset, limit);
-                case Q4 -> hasAVX512 ? dotProductF32Q4_512((FloatBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit) : dotProductF32Q4_256((FloatBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
+                case Q4 -> switch (MachineSpec.VECTOR_TYPE) {
+                    case AVX_512 -> dotProductF32Q4_512((FloatBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
+                    case AVX_256 -> dotProductF32Q4_256((FloatBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
+                    case ARM_128 -> dotProductF32Q4_arm((FloatBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
                 default -> throw new UnsupportedOperationException(b.dType().name());
             };
             case I8 -> dotProductI8((Q8ByteBufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
             case BF16 -> switch (b.dType()) {
-                case F32 -> hasAVX512 ? dotProductBF16F32_512((BFloat16BufferTensor) a, (FloatBufferTensor) b, aoffset, boffset, limit) : dotProductBF16F32_256((BFloat16BufferTensor) a, (FloatBufferTensor) b, aoffset, boffset, limit);
-                case I8 -> hasAVX512 ? dotProductBF16I8_512((BFloat16BufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit) : dotProductBF16I8_256((BFloat16BufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
-                case Q4 -> hasAVX512 ? dotProductBF16Q4_512((BFloat16BufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit) : dotProductBF16Q4_256((BFloat16BufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
-                case BF16 -> hasAVX512 ? dotProductBF16_512((BFloat16BufferTensor)a, (BFloat16BufferTensor)b, aoffset, boffset, limit) : dotProductBF16_256((BFloat16BufferTensor)a, (BFloat16BufferTensor)b, aoffset, boffset, limit);
+                case F32 -> switch (MachineSpec.VECTOR_TYPE) {
+                    case AVX_512 -> dotProductBF16F32_512((BFloat16BufferTensor) a, (FloatBufferTensor) b, aoffset, boffset, limit);
+                    case AVX_256 -> dotProductBF16F32_256((BFloat16BufferTensor) a, (FloatBufferTensor) b, aoffset, boffset, limit);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
+                case I8 -> switch (MachineSpec.VECTOR_TYPE) {
+                    case AVX_512 -> dotProductBF16I8_512((BFloat16BufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                    case AVX_256 -> dotProductBF16I8_256((BFloat16BufferTensor) a, (Q8ByteBufferTensor) b, aoffset, boffset, limit);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
+                case Q4 -> switch (MachineSpec.VECTOR_TYPE) {
+                    case AVX_512 -> dotProductBF16Q4_512((BFloat16BufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
+                    case AVX_256 -> dotProductBF16Q4_256((BFloat16BufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
+                case BF16 -> switch (MachineSpec.VECTOR_TYPE) {
+                    case AVX_512 -> dotProductBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, aoffset, boffset, limit);
+                    case AVX_256 -> dotProductBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, aoffset, boffset, limit);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
                 default -> throw new UnsupportedOperationException(b.dType().name());
             };
             default -> throw new UnsupportedOperationException();
@@ -165,6 +185,71 @@ final public class PanamaTensorOperations implements TensorOperations
         return acc.reduceLanes(VectorOperators.ADD);
     }
 
+    private float dotProductF32Q4_arm(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
+        Preconditions.checkArgument(
+                boffset % Q4ByteBufferTensor.BLOCK_SIZE == 0 &&
+                        limit % Q4ByteBufferTensor.BLOCK_SIZE == 0
+        );
+
+        int alim = aoffset + limit;
+        int blim = boffset + limit;
+        int slen = Q4ByteBufferTensor.BLOCK_SIZE;
+
+        FloatVector acc = FloatVector.zero(FloatVector.SPECIES_128);
+
+        for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
+            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_128, b.getFactorForIndex(boffset));
+
+            // BLOCK_SIZE Floats
+            var af0 = a.getVector(FloatVector.SPECIES_128, aoffset);
+            var af1 = a.getVector(FloatVector.SPECIES_128, aoffset + 4);
+            var af2 = a.getVector(FloatVector.SPECIES_128, aoffset + 8);
+            var af3 = a.getVector(FloatVector.SPECIES_128, aoffset + 12);
+
+            var af4 = a.getVector(FloatVector.SPECIES_128, aoffset + Q4ByteBufferTensor.HALF_BLOCK);
+            var af5 = a.getVector(FloatVector.SPECIES_128, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 4);
+            var af6 = a.getVector(FloatVector.SPECIES_128, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8);
+            var af7 = a.getVector(FloatVector.SPECIES_128, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 12);
+
+            //Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
+            var bf0 = b.getVector(ByteVector.SPECIES_64, boffset);
+            var bf1 = b.getVector(ByteVector.SPECIES_64, boffset + 16);
+
+            // Convert the first 4 bits into bytes
+            var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK).sub(Q4_BYTE_SUB);
+            var high = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB);
+
+            var low0 = low.castShape(FloatVector.SPECIES_128, 0).mul(scale);
+            var low1 = low.castShape(FloatVector.SPECIES_128, 1).mul(scale);
+            var high0 = high.castShape(FloatVector.SPECIES_128, 0).mul(scale);
+            var high1 = high.castShape(FloatVector.SPECIES_128, 1).mul(scale);
+
+            var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK).sub(Q4_BYTE_SUB);
+            var nhigh = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                    .sub(Q4_BYTE_SUB);
+
+            var low2 = nlow.castShape(FloatVector.SPECIES_128, 0).mul(scale);
+            var low3 = nlow.castShape(FloatVector.SPECIES_128, 1).mul(scale);
+            var high2 = nhigh.castShape(FloatVector.SPECIES_128, 0).mul(scale);
+            var high3 = nhigh.castShape(FloatVector.SPECIES_128, 1).mul(scale);
+
+            acc = acc.add(af0.mul(low0));
+            acc = acc.add(af1.mul(low1));
+            acc = acc.add(af2.mul(low2));
+            acc = acc.add(af3.mul(low3));
+
+            acc = acc.add(af4.mul(high0));
+            acc = acc.add(af5.mul(high1));
+            acc = acc.add(af6.mul(high2));
+            acc = acc.add(af7.mul(high3));
+        }
+
+        return acc.reduceLanes(VectorOperators.ADD);
+    }
+
     private float dotProductF32Q4_256(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit)
     {
         Preconditions.checkArgument(
@@ -207,7 +292,6 @@ final public class PanamaTensorOperations implements TensorOperations
                 acc = af1.fma(high0, acc);
             }
         }
-
 
         return acc.reduceLanes(VectorOperators.ADD);
     }
@@ -583,12 +667,16 @@ final public class PanamaTensorOperations implements TensorOperations
 
         switch (a.dType()) {
             case F32: accumulateF32((FloatBufferTensor)a, (FloatBufferTensor)b); break;
-            case BF16:
-                if (hasAVX512)
+            case BF16: switch (MachineSpec.VECTOR_TYPE) {
+                case AVX_512:
                     accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b);
-                else
+                    break;
+                case AVX_256:
                     accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b);
-                break;
+                    break;
+                default:
+                    throw new UnsupportedOperationException();
+            }
             default: throw new UnsupportedOperationException();
         }
     }
@@ -678,12 +766,16 @@ final public class PanamaTensorOperations implements TensorOperations
     {
         switch (a.dType()) {
             case F32: scaleF32(factor, (FloatBufferTensor) a, offset, length); break;
-            case BF16:
-                if (hasAVX512)
+            case BF16: switch (MachineSpec.VECTOR_TYPE) {
+                case AVX_512:
                     scaleBF16_512(factor, (BFloat16BufferTensor) a, offset, length);
-                else
+                    break;
+                case AVX_256:
                     scaleBF16_256(factor, (BFloat16BufferTensor) a, offset, length);
-                break;
+                    break;
+                default:
+                    throw new UnsupportedOperationException();
+            }
             default: throw new UnsupportedOperationException();
         }
     }
@@ -762,12 +854,16 @@ final public class PanamaTensorOperations implements TensorOperations
 
         switch (x.dType()) {
             case F32: saxpyF32(alpha, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit); break;
-            case BF16:
-                if (hasAVX512)
+            case BF16: switch (MachineSpec.VECTOR_TYPE) {
+                case AVX_512:
                     saxpyBF16_512(alpha, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
-                else
+                    break;
+                case AVX_256:
                     saxpyBF16_256(alpha, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
-                break;
+                    break;
+                default:
+                    throw new UnsupportedOperationException();
+            }
             default: throw new UnsupportedOperationException();
         }
     }
@@ -866,12 +962,15 @@ final public class PanamaTensorOperations implements TensorOperations
 
         switch (x.dType()) {
             case F32: sxpbyF32(beta, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit); break;
-            case BF16:
-                if (hasAVX512)
-                    sxpbyBF16_512(beta, (BFloat16BufferTensor)x, (BFloat16BufferTensor)y, xoffset, yoffset, limit);
-                else
-                    sxpbyBF16_256(beta, (BFloat16BufferTensor)x, (BFloat16BufferTensor)y, xoffset, yoffset, limit);
-                break;
+            case BF16: switch (MachineSpec.VECTOR_TYPE) {
+                case AVX_512:
+                    sxpbyBF16_512(beta, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
+                    break;
+                case AVX_256:
+                    sxpbyBF16_256(beta, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
+                    break;
+                default: throw new UnsupportedOperationException();
+            }
             default: throw new UnsupportedOperationException();
         }
     }
