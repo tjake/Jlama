@@ -168,7 +168,8 @@ public abstract class AbstractModel {
             promptLength++;
         }
 
-        onTokenWithTimings.accept(prompt, 0f);
+        String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
+        onTokenWithTimings.accept(cleanPrompt, 0f);
         long start = System.currentTimeMillis();
         //Batch Process Prompt
         AbstractTensor batch[] = batchForward(promptTokens, 0, kvmem);
