@@ -23,6 +23,12 @@
       <artifactId>jlama-core</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.github.tjake</groupId>
+      <artifactId>jlama-native</artifactId>
+      <version>${project.version}</version>
+      <classifier>${jni.classifier}</classifier>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

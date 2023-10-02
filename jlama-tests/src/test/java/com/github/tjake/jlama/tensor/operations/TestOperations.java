@@ -47,7 +47,7 @@ public class TestOperations
         opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations());
 
-        if (globalOps instanceof NaiveTensorOperations) {
+        if (globalOps instanceof NativeTensorOperations) {
             opTypes.add(new NativeTensorOperations());
             opTypes.add(new NativeTensorOperations(0));
 

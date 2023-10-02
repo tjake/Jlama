@@ -33,7 +33,7 @@ public class LlamaModel extends AbstractModel {
 
         DType qType = DType.Q4;
 
-        logger.info("Loading model with {} quantization...", qType);
+        logger.info("Quantizing model with {} - Please hold...", qType);
 
         //LLama doesn't use bias, will optimize this away later
         this.noBias = makeTensor(c.hiddenLength);

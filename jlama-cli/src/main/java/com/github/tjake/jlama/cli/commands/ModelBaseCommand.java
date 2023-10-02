@@ -11,7 +11,6 @@ import java.util.function.BiConsumer;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tjake.jlama.cli.JlamaCli;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.safetensors.Config;
@@ -21,7 +20,7 @@ import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import picocli.CommandLine.*;
 
-public class ModelBaseCommand extends JlamaCli {
+public class ModelBaseCommand extends BaseCommand {
 
     private static final ObjectMapper om = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)

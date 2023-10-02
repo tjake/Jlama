@@ -34,7 +34,6 @@ public abstract class AbstractModel {
     private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
     private static final ThreadLocal<AbstractTensor[]> tmpArray2 = new ThreadLocal<>();
 
-
     protected AbstractModel(Config c, WeightLoader w, Tokenizer t)
     {
         this.c = c;
@@ -143,6 +142,10 @@ public abstract class AbstractModel {
     }
 
     public void generate(String prompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
+        generate(prompt, null, temperature, ntokens, useEOS, onTokenWithTimings);
+    }
+
+    public void generate(String prompt, String cleanPrompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
@@ -171,7 +174,7 @@ public abstract class AbstractModel {
         AbstractTensor batch[] = batchForward(promptTokens, 0, kvmem);
 
         long promptBatchTime = System.currentTimeMillis() - start;
-        logger.info("{} prompt tokens in {}ms {} tokens/sec", promptLength, promptBatchTime, Math.round((((double)promptBatchTime)/(double)promptLength)));
+        logger.debug("{} prompt tokens in {}ms {} tokens/sec", promptLength, promptBatchTime, Math.round((((double)promptBatchTime)/(double)promptLength)));
 
         int tokensGenerated = 0;
         AbstractTensor last = batch[batch.length - 1];

@@ -29,23 +29,21 @@ Helpful for anyone who wants to understand how LLMs work, or wants to use LLMs i
 CPU based inference needs to be pushed to the limit to see if it can be a viable alternative to GPU based inference.
 
 ## How to use
-As of now the best way to use this is to look at the [TestModels](https://github.com/tjake/Jlama/blob/main/src/test/java/com/github/tjake/jlama/models/TestModels.java) Unit Tests.
+Jlama includes a cli tool to run models via the `run-cli.sh` command. 
+Before you do that first download one or more models from huggingface.
 
-Use the `download_hf_models.sh` script in the data directory to download models from huggingface.
+Use the `download-hf-models.sh` script in the data directory to download models from huggingface.
 
 ```shell
-cd data
-./download_hf_model.sh gpt2-medium
-./download_hf_model.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
-./download_hf_model.sh intfloat/e5-small-v2
+./download-hf-model.sh gpt2-medium
+./download-hf-model.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
+./download-hf-model.sh intfloat/e5-small-v2
 ```
-Then run the tests with:
+
+Then run the cli:
 ```shell
-cd ..
-./mvnw package -DskipTests
-./mvnw test -Dtest=TestModels#GPT2Run
-./mvnw test -Dtest=TestModels#LlamaRun
-./mvnw test -Dtest=TestModels#BertRun
+./run-cli.sh complete -p "The best part of waking up is " -t 0.7 models/Llama-2-7b-chat-hf
+./run-cli.sh chat -p "Tell me a joke about cats." models/Llama-2-7b-chat-hf
 ```
 ## Caveats
   

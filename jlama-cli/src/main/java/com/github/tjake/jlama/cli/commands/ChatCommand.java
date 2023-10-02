@@ -14,6 +14,6 @@ public class ChatCommand extends ModelBaseCommand {
     public void run() {
         AbstractModel m = loadModel(model);
 
-        m.generate(m.wrapPrompt(prompt, Optional.of(systemPrompt)), temperature, tokens, true, makeOutHandler());
+        m.generate(m.wrapPrompt(prompt, Optional.of(systemPrompt)), prompt, temperature, tokens, true, makeOutHandler());
     }
 }

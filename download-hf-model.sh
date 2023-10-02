@@ -50,6 +50,8 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
+cd models
+
 MODEL="$1"
 HTTP_HEADER=
 if [ ! -z $HF_ACCESS_TOKEN ]; then
@@ -108,4 +110,4 @@ done
 echo "Downloading ${MODEL_DIR}/tokenizer.model (if exists)"
 eval curl -fL --progress-bar $HTTP_HEADER "https://huggingface.co/${MODEL}/resolve/main/tokenizer.model" -o "${MODEL_DIR}/tokenizer.model"
 
-echo "Done!"
+echo "Done! Model in ./models/$MODEL_DIR"

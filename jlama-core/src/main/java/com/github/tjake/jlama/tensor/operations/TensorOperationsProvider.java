@@ -1,8 +1,8 @@
 package com.github.tjake.jlama.tensor.operations;
 
-
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.RuntimeSupport;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,12 +36,14 @@ public class TensorOperationsProvider {
 
         TensorOperations pick = null;
 
-        try {
-            Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
-            pick = nativeClazz.getConstructor().newInstance();
-            //This should break of no shared lib found
-        } catch (Throwable t) {
-            logger.info("Error loading native operations", t);
+        if (RuntimeSupport.isLinux()) {
+            try {
+                Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
+                pick = nativeClazz.getConstructor().newInstance();
+                //This should break of no shared lib found
+            } catch (Throwable t) {
+                logger.warn("Error loading native operations", t);
+            }
         }
 
         if (pick == null)

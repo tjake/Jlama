@@ -13,14 +13,18 @@ import com.github.tjake.jlama.cli.commands.ServeCommand;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.ModelSupport.ModelType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
-@Command(name="jlama", helpCommand = true)
+@Command(name="jlama")
 public class JlamaCli implements Runnable {
 
-    @Parameters(index = "0", description = "The model location")
-    protected File model;
+    static {
+        System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+        TensorOperationsProvider.get();
+    }
 
     @Option(names = { "-h", "--help" }, usageHelp = true, hidden = true)
     boolean helpRequested = false;
@@ -36,8 +40,7 @@ public class JlamaCli implements Runnable {
     }
 
     @Override
-    public void run()
-    {
+    public void run() {
 
     }
 
