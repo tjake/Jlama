@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: ${{ matrix.jdk }}
-          distribution: temurin
+          distribution: adopt
           cache: maven
       - name: Compile, run tests, and package (JDK 20)
         run: mvn -B package
