@@ -20,7 +20,7 @@ JLAMA_RELATIVE_JAR="./jlama-cli/target/jlama-cli.jar"
 LOGBACK_CONFIG="./conf/logback.xml"
 
 
-JLAMA_JVM_ARGS="--add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
+JLAMA_JVM_ARGS="-server -Xmx12g --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
 -XX:+PreserveFramePointer -XX:+UnlockDiagnosticVMOptions -XX:CompilerDirectivesFile=./inlinerules.json -XX:+AlignVector"
         
 # Check if PREINSTALLED_JAR environment variable is set
