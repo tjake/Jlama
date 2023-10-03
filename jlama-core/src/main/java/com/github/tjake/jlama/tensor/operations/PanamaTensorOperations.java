@@ -272,14 +272,17 @@ final public class PanamaTensorOperations implements TensorOperations
         for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen)
         {
             FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(boffset));
-            for (int i = 0; i < 2; i++)
             {
                 // BLOCK_SIZE Floats
-                var af0 = a.getVector(FloatVector.SPECIES_256, aoffset + (8 * i));
-                var af1 = a.getVector(FloatVector.SPECIES_256, aoffset + Q4ByteBufferTensor.HALF_BLOCK + (8*i));
+                var af0 = a.getVector(FloatVector.SPECIES_256, aoffset);
+                var af1 = a.getVector(FloatVector.SPECIES_256, aoffset + 8);
+
+                var af2 = a.getVector(FloatVector.SPECIES_256, aoffset + Q4ByteBufferTensor.HALF_BLOCK);
+                var af3 = a.getVector(FloatVector.SPECIES_256, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8);
 
                 //Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
-                var bf0 = b.getVector(ByteVector.SPECIES_64, boffset + (8 * i));
+                var bf0 = b.getVector(ByteVector.SPECIES_64, boffset);
+                var bf1 = b.getVector(ByteVector.SPECIES_64, boffset + 16);
 
                 // Convert the first 4 bits into bytes
                 var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
@@ -293,8 +296,23 @@ final public class PanamaTensorOperations implements TensorOperations
                         .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                         .mul(scale);
 
+                // Convert the first 4 bits into bytes
+                var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                        .sub(Q4_BYTE_SUB)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
+
+                var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT)
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK)
+                        .sub(Q4_BYTE_SUB)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
+
+
                 acc = af0.fma(low0, acc);
-                acc = af1.fma(high0, acc);
+                acc = af1.fma(low1, acc);
+                acc = af2.fma(high0, acc);
+                acc = af3.fma(high1, acc);
             }
         }
 
