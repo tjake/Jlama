@@ -39,7 +39,7 @@ public class TensorOperationsProvider {
         if (RuntimeSupport.isLinux()) {
             try {
                 Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
-                pick = nativeClazz.getConstructor().newInstance();
+               // pick = nativeClazz.getConstructor().newInstance();
                 //This should break of no shared lib found
             } catch (Throwable t) {
                 logger.warn("Error loading native operations", t);

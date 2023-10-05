@@ -30,7 +30,9 @@ public class TensorBench {
         final FloatBufferTensor f = new FloatBufferTensor(SIZE);
         final FloatBufferTensor f2 = new FloatBufferTensor(SIZE);
         final BFloat16BufferTensor bf;
-        final Q8ByteBufferTensor q8;
+        final Q8ByteBufferTensor q81;
+        final Q8ByteBufferTensor q82;
+
 
         final Q4ByteBufferTensor q4;
         public Parameters() {
@@ -41,7 +43,9 @@ public class TensorBench {
                 f2.set(ThreadLocalRandom.current().nextFloat(), i);
             }
             this.bf = new BFloat16BufferTensor(f);
-            this.q8 = new Q8ByteBufferTensor(f2);
+            this.q81 = new Q8ByteBufferTensor(f);
+            this.q82 = new Q8ByteBufferTensor(f2);
+
             this.q4 = new Q4ByteBufferTensor(f2);
         }
     }
@@ -65,12 +69,28 @@ public class TensorBench {
     }*/
 
 
-    @Benchmark
+   /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void b16Tof32B(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
+    }*/
+
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    public void q8dotq8(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.q81, p.q82, 0, 0, SIZE));
     }
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    public void f32dotq4(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
+    }
+
+
 
     public static void main(String[] args) throws Exception {
         org.openjdk.jmh.Main.main(new String[]{"-prof", "gc", "TensorBench"});

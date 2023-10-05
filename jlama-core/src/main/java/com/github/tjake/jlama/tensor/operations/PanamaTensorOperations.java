@@ -105,16 +105,26 @@ final public class PanamaTensorOperations implements TensorOperations
 
         int alim = aoffset + limit;
         int blim = boffset + limit;
-        int slen = ByteVector.SPECIES_64.length();
+        int slen = Q8ByteBufferTensor.BLOCK_SIZE;
 
-        FloatVector acc = FloatVector.zero(FloatVector.SPECIES_256);
+        FloatVector acc = FloatVector.zero(FloatVector.SPECIES_512);
+        FloatVector scale = FloatVector.zero(FloatVector.SPECIES_512);
+        ShortVector isum = ShortVector.zero(ShortVector.SPECIES_512);
 
         for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
-            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_256,a.getFactorForIndex(aoffset) * b.getFactorForIndex(boffset));
-            var af = a.getVector(ByteVector.SPECIES_64, aoffset).convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
-            var bf = b.getVector(ByteVector.SPECIES_64, boffset).convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0);
+            scale.broadcast(a.getFactorForIndex(aoffset) * b.getFactorForIndex(boffset));
+            isum.broadcast(0);
 
-            acc = acc.add(af.mul(bf).mul(scale));
+            var ab = a.getVector(ByteVector.SPECIES_256, aoffset);
+            var af1 = ab.convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
+
+            var bb = b.getVector(ByteVector.SPECIES_256, aoffset);
+            var bf1 = bb.convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
+
+            isum = isum.add(af1.mul(bf1));
+
+            acc = scale.fma(isum.convert(VectorOperators.S2F, 0), acc);
+            acc = scale.fma(isum.convert(VectorOperators.S2F, 1), acc);
         }
 
         return acc.reduceLanes(VectorOperators.ADD);
@@ -330,9 +340,9 @@ final public class PanamaTensorOperations implements TensorOperations
         int slen = Q4ByteBufferTensor.BLOCK_SIZE;
 
         FloatVector acc = FloatVector.zero(FloatVector.SPECIES_512);
-
+        FloatVector scale = FloatVector.zero(FloatVector.SPECIES_512);
         for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
-            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(boffset));
+            scale.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(boffset));
             // BLOCK_SIZE Floats
             var af0 = a.getVector(FloatVector.SPECIES_512, aoffset);
             var af1 = a.getVector(FloatVector.SPECIES_512, aoffset + Q4ByteBufferTensor.HALF_BLOCK);
@@ -700,6 +710,7 @@ final public class PanamaTensorOperations implements TensorOperations
                 default:
                     throw new UnsupportedOperationException();
             }
+            break;
             default: throw new UnsupportedOperationException();
         }
     }
@@ -799,6 +810,7 @@ final public class PanamaTensorOperations implements TensorOperations
                 default:
                     throw new UnsupportedOperationException();
             }
+            break;
             default: throw new UnsupportedOperationException();
         }
     }
@@ -887,6 +899,7 @@ final public class PanamaTensorOperations implements TensorOperations
                 default:
                     throw new UnsupportedOperationException();
             }
+            break;
             default: throw new UnsupportedOperationException();
         }
     }
@@ -994,6 +1007,7 @@ final public class PanamaTensorOperations implements TensorOperations
                     break;
                 default: throw new UnsupportedOperationException();
             }
+            break;
             default: throw new UnsupportedOperationException();
         }
     }

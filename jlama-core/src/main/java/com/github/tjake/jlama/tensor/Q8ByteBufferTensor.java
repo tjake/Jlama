@@ -23,7 +23,7 @@ import java.util.List;
 
 public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q8ByteBufferTensor.class);;
-    public static final int BLOCK_SIZE = 256;
+    public static final int BLOCK_SIZE = 32;
     private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
 
     final ByteBuffer b;
@@ -65,13 +65,13 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         }
 
         // Process the block and save it
-        float iscale = -128f / max;
+        float iscale = 127f / max;
         float scale = iscale != 0.0f ? 1.0f / iscale : 0.0f;
         this.blockF.set(scale, makeBlockShape(blockStartCursor));
         int i = ft.getOffset(blockStartCursor);
         for (int j = 0;  j < BLOCK_SIZE; j++, i++) {
             float f0 = ft.get(blockStartCursor) * iscale;
-            this.b.put(i, (byte) Math.min(127, Math.round(f0)));
+            this.b.put(i, (byte) Math.round(f0));
             ft.iterate(blockStartCursor);
         }
     }

@@ -71,8 +71,6 @@ public abstract class AbstractModel {
         return embedding;
     }
 
-    private static final ExecutorService pool = Executors.newWorkStealingPool(8);
-
     protected AbstractTensor[] batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
         TransformerBlock[] transformerBlocks = getTransformerBlocks();
         int batchSize = token_ids.length;

@@ -65,6 +65,7 @@ public class TestOperations
         aTypes.put(DType.F32, FloatBufferTensor::new);
         aTypes.put(DType.F16, Float16BufferTensor::new);
         aTypes.put(DType.BF16, BFloat16BufferTensor::new);
+        aTypes.put(DType.I8, Q8ByteBufferTensor::new);
 
         bTypes.put(DType.F32, FloatBufferTensor::new);
         bTypes.put(DType.F16, Float16BufferTensor::new);
