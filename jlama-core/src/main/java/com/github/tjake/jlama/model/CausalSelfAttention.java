@@ -158,7 +158,7 @@ public class CausalSelfAttention {
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias
             AbstractTensor result = m.makeTensor(c.embeddingLength);
-            try(AbstractTensor vq = TensorOperationsProvider.get().quantize(value, m.workingQType)) {
+            try(AbstractTensor vq = m.maybeQuantize(value)) {
                 VectorMath.pfor(0, c.embeddingLength, i -> {
                     float v = outputProjectionBias.get(i) + TensorOperationsProvider.get().dotProduct(vq, outputProjectionWeights.slice(i), c.embeddingLength);
                     result.set(v, i);
