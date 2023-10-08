@@ -24,7 +24,7 @@ import java.util.List;
 public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q8ByteBufferTensor.class);;
     public static final int BLOCK_SIZE = 32;
-    private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
+    public static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
 
     final ByteBuffer b;
     final FloatBufferTensor blockF;
@@ -88,7 +88,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         return blockShape;
     }
 
-    protected Q8ByteBufferTensor(int[] shape) {
+    public Q8ByteBufferTensor(int[] shape) {
         super(DType.I8, shape, true);
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));

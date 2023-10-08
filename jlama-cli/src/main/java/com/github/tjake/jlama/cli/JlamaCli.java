@@ -21,7 +21,6 @@ import picocli.CommandLine.*;
 public class JlamaCli implements Runnable {
 
     static {
-        System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
         TensorOperationsProvider.get();
     }

@@ -5,6 +5,7 @@ import com.github.tjake.jlama.tensor.Float16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
+import com.github.tjake.jlama.util.MachineSpec;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -17,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(warmups = 1, value = 1, jvmArgsAppend = {"--add-modules=jdk.incubator.vector", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
 "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"})
 public class ActivationBench {
-    private static final TensorOperations ops = new PanamaTensorOperations();
+    private static final TensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
     static int size = 1<<20;
     static byte[] cacheKill = new byte[1 << 10]; //To Flush the L3 cache
     static FloatBufferTensor f1 = new FloatBufferTensor(size);

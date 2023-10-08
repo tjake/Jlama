@@ -9,11 +9,14 @@ import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import org.checkerframework.common.value.qual.IntRange;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class LlamaModel extends AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
@@ -28,8 +31,8 @@ public class LlamaModel extends AbstractModel {
 
     private final AbstractTensor classificationWeights;
 
-    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer) {
-        super(config, weights, tokenizer);
+    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType) {
+        super(config, weights, tokenizer, workingDType, workingQType);
 
         DType qType = DType.Q4;
 
@@ -46,7 +49,7 @@ public class LlamaModel extends AbstractModel {
 
         float[][] ropeFreqs = VectorMath.precomputeFreqsCis(c.embeddingLength / c.numberOfHeads, c.contextLength, 10000.0 );
 
-        for (int i = 0; i < c.numberOfLayers; i++) {
+        IntStream.range(0, c.numberOfLayers).parallel().forEach(i -> {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(this,
@@ -65,11 +68,11 @@ public class LlamaModel extends AbstractModel {
                     noBias, weights.load(prefix + "down_proj.weight").quantize(qType), //w2
                     weights.load(prefix + "up_proj.weight").quantize(qType));          //w3
 
-            this.transformerBlocks[i] = new TransformerBlock(
+            this.transformerBlocks[i] = new TransformerBlock( this,
                     new RMSNorm(this, noBias, weights.load(base + "input_layernorm.weight").quantize(qType)), attention,
                     new RMSNorm(this, noBias, weights.load(base + "post_attention_layernorm.weight").quantize(qType)),
                     mlp);
-        }
+        });
         logger.info("Model loaded!");
     }
 
@@ -87,6 +90,15 @@ public class LlamaModel extends AbstractModel {
                 .append(" [/INST]");
 
         return b.toString();
+    }
+
+    @Override
+    protected AbstractTensor maybeQuantize(AbstractTensor t)
+    {
+        if (t.dType() == workingQType)
+            return super.maybeQuantize(t);
+
+        return TensorOperationsProvider.get().quantize(t, workingQType);
     }
 
     @Override

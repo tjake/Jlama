@@ -1,6 +1,8 @@
 package com.github.tjake.jlama.tensor.operations;
 
 import com.google.common.base.Preconditions;
+
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
 public class NaiveTensorOperations implements TensorOperations

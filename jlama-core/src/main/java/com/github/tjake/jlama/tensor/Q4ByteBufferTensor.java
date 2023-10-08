@@ -16,6 +16,8 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.stream.IntStream;
 
 public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);;
@@ -28,7 +30,8 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
     private final String name;
     private final MemorySegment segment;
 
-    public Q4ByteBufferTensor(AbstractTensor ft) {
+    public Q4ByteBufferTensor(AbstractTensor ft)
+    {
         this(ft.shape);
         Preconditions.checkArgument(ft.dType != DType.Q4, "This should never happen, likely a bug");
         Preconditions.checkArgument(ft.size() % BLOCK_SIZE == 0, "I8 buffer must be a multiple of BLOCK_SIZE");
@@ -43,10 +46,12 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         } while (ft.iterate(cursor));
 
         //Process each block in parallel
-        VectorMath.pfor(0, startBlockCursors.size(), (i) -> {
-            int[] blockStartCursor = startBlockCursors.get(i);
-            processBlock(ft, blockStartCursor);
-        });
+       // ForkJoinPool.commonPool().submit(() ->
+                IntStream.range(0, startBlockCursors.size()).parallel().forEach((i) -> {
+                    int[] blockStartCursor = startBlockCursors.get(i);
+                    processBlock(ft, blockStartCursor);
+                });
+        //);
     }
 
     void processBlock(AbstractTensor ft, int[] blockStartCursor) {
@@ -253,7 +258,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
     public String toString() {
         byte[] sample = new byte[Math.min(BLOCK_SIZE, b.remaining())];
         b.duplicate().get(sample);
-        return "Q5BufferTensor{" +
+        return "Q4BufferTensor{" +
                 "name='" + name + '\'' +
                 "shape=" + Arrays.toString(shape) +
                 ", b=" + Arrays.toString(sample) +

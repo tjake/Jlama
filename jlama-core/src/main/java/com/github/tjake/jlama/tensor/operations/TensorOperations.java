@@ -2,6 +2,7 @@ package com.github.tjake.jlama.tensor.operations;
 
 import com.google.common.base.Preconditions;
 
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
 public interface TensorOperations
@@ -44,4 +45,9 @@ public interface TensorOperations
      * For each position multiply value by the scale factor
      */
     void scale(float factor, AbstractTensor x, int offset, int length);
+
+
+    default AbstractTensor quantize(AbstractTensor t, DType qtype) {
+        return t;
+    }
 }

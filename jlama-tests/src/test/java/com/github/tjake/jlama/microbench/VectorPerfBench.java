@@ -3,6 +3,7 @@ package com.github.tjake.jlama.microbench;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
+import com.github.tjake.jlama.util.MachineSpec;
 import jdk.incubator.vector.*;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit;
         "--enable-preview"})
 public class VectorPerfBench
 {
-    private static final PanamaTensorOperations ops = new PanamaTensorOperations();
+    private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
     private static final int SIZE = 8192;
     private static final IntVector BF16_BYTE_SHIFT_512 = IntVector.broadcast(IntVector.SPECIES_512, 16);

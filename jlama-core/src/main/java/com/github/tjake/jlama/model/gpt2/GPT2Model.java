@@ -3,6 +3,7 @@ package com.github.tjake.jlama.model.gpt2;
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.Weights;
 import com.github.tjake.jlama.tensor.AbstractTensor;
@@ -17,8 +18,8 @@ public class GPT2Model extends AbstractModel {
 
     private final TransformerBlock[] transformerBlocks;
 
-    public GPT2Model(Config c, Weights w, Tokenizer tokenizer) {
-        super(c, w, tokenizer);
+    public GPT2Model(Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType) {
+        super(c, w, tokenizer, workingDType, workingQType);
 
         this.wte = w.load("wte.weight");
         this.wpe = w.load("wpe.weight");
@@ -46,7 +47,7 @@ public class GPT2Model extends AbstractModel {
             LayerNorm layerNorm1 = new LayerNorm(this, w.load(b + "ln_1.bias"), w.load(b + "ln_1.weight"));
             LayerNorm layerNorm2 = new LayerNorm(this, w.load(b + "ln_2.bias"), w.load(b + "ln_2.weight"));
 
-            transformerBlocks[i] = new TransformerBlock(layerNorm1, attention, layerNorm2, mlpBlock);
+            transformerBlocks[i] = new TransformerBlock(this, layerNorm1, attention, layerNorm2, mlpBlock);
         }
     }
 

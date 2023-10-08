@@ -7,6 +7,7 @@ import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
+import com.github.tjake.jlama.util.MachineSpec;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -18,11 +19,11 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 3, time = 5)
 @Fork(warmups = 1, value = 1, jvmArgsPrepend = {
         "--add-modules=jdk.incubator.vector",
-        "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
-        "--enable-preview", "-XX:+PreserveFramePointer", "-XX:+UnlockDiagnosticVMOptions", "-XX:CompilerDirectivesFile=inlinerules.json",
-        "--enable-native-access=ALL-UNNAMED"})
+        "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED", "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0",
+        "--enable-preview", "-XX:+UnlockDiagnosticVMOptions", "-XX:CompilerDirectivesFile=inlinerules.json",
+        "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector"})
 public class TensorBench {
-    private static final TensorOperations ops = new PanamaTensorOperations();
+    private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
     private static final int SIZE = 8192;
     @State(Scope.Benchmark)
     public static class Parameters {
@@ -50,46 +51,40 @@ public class TensorBench {
         }
     }
 
-    /*@Benchmark
+    @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
-    public void allocateTensorDirectly(Parameters params, Blackhole bh) {
-        try(FloatBufferTensor b = new FloatBufferTensor(1024, 1024)) {
-            bh.consume(b);
-        }
+    public void a_aq8dotq4(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.q81, p.q4, 0, 0, SIZE));
     }
 
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
-    public void allocateTensorCached(Parameters params, Blackhole bh) {
-        try(AbstractTensor b = params.cache.get(DType.F32, 1024, 1024)) {
-            bh.consume(b);
-        }
-    }*/
-
-
-   /* @Benchmark
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @BenchmarkMode(Mode.Throughput)
-    public void b16Tof32B(Parameters p, Blackhole bh) {
-        bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
-    }*/
-
-
-    @Benchmark
-    @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    @BenchmarkMode(Mode.Throughput)
-    public void q8dotq8(Parameters p, Blackhole bh) {
+    public void a_q8dotq8(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.q81, p.q82, 0, 0, SIZE));
     }
+
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
-    public void f32dotq4(Parameters p, Blackhole bh) {
+    public void b_f32dotq4(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
 
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    public void a_f32dotq8(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.f, p.q82, 0, 0, SIZE));
+    }
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    public void f32dotf32(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+    }
 
 
     public static void main(String[] args) throws Exception {

@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 
 public class TensorOperationsProvider {
     static {
-        System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "" + Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
     }
 
@@ -39,7 +38,7 @@ public class TensorOperationsProvider {
         if (RuntimeSupport.isLinux()) {
             try {
                 Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
-               // pick = nativeClazz.getConstructor().newInstance();
+                //pick = nativeClazz.getConstructor().newInstance();
                 //This should break of no shared lib found
             } catch (Throwable t) {
                 logger.warn("Error loading native operations", t);
@@ -47,7 +46,7 @@ public class TensorOperationsProvider {
         }
 
         if (pick == null)
-            pick = MachineSpec.VECTOR_TYPE == MachineSpec.Type.NONE ? new NaiveTensorOperations() : new PanamaTensorOperations();
+            pick = MachineSpec.VECTOR_TYPE == MachineSpec.Type.NONE ? new NaiveTensorOperations() : new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
         logger.info("Using {}", pick.name());
         return pick;

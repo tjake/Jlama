@@ -18,6 +18,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import picocli.CommandLine.*;
 
 public class ModelBaseCommand extends BaseCommand {
@@ -42,6 +43,16 @@ public class ModelBaseCommand extends BaseCommand {
 
     @Option(names={"-q", "--quantization"}, description = "Model quantization type")
     protected DType modelQuantization;
+
+    @Option(names={"-wm", "--working-dtype"}, description = "Working memory data type")
+    protected DType workingMemoryType = DType.F32;
+
+    @Option(names={"-wq", "--working-qtype"}, description = "Working memory quantization data type")
+    protected DType workingQuantizationType = DType.I8;
+
+    @Option(names={"-tc", "--threads"}, description = "Number of threads to use")
+    protected int threadCount = Runtime.getRuntime().availableProcessors() / 2;
+
 
     protected AbstractModel loadModel(File model) {
 
@@ -72,14 +83,16 @@ public class ModelBaseCommand extends BaseCommand {
         }
 
         try {
+            PhysicalCoreExecutor.overrideThreadCount(threadCount);
+
             ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
 
             Config c = om.readValue(configFile, modelType.configClass);
             Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
             WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
 
-            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class)
-                    .newInstance(c, wl, t);
+            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class, DType.class, DType.class)
+                    .newInstance(c, wl, t, workingMemoryType, workingQuantizationType);
 
         } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException |
                IllegalAccessException e) {

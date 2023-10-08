@@ -39,13 +39,15 @@ public class TestOperations
     private static final Map<DType, Function<AbstractTensor, AbstractTensor>> bTypes = new TreeMap<>();
 
     private static final NaiveTensorOperations controlOps = new NaiveTensorOperations();
+    private static final PanamaTensorOperations vectorOps = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
     private static final TensorOperations globalOps = TensorOperationsProvider.get();
 
     @BeforeClass
     public static void init() {
         logger.info("Globally using {}", globalOps.name());
         opTypes.add(new NaiveTensorOperations());
-        opTypes.add(new PanamaTensorOperations());
+        opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_512));
+        opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_256));
 
         if (globalOps instanceof NativeTensorOperations) {
             opTypes.add(new NativeTensorOperations());
@@ -74,7 +76,7 @@ public class TestOperations
         bTypes.put(DType.Q4, Q4ByteBufferTensor::new);
     }
 
-    static AbstractTensor makeTensor(int size) {
+    static FloatBufferTensor makeTensor(int size) {
         FloatBufferTensor f = new FloatBufferTensor(size);
         for (int i = 0; i < size; i++)
             f.set(r.nextFloat(), i);
@@ -236,5 +238,17 @@ public class TestOperations
             }
             Assert.assertTrue(supported > 0);
         }
+    }
+
+    @Test
+    public void testQ8Vectorized() {
+        FloatBufferTensor a = makeTensor(SIZE);
+
+        Q8ByteBufferTensor ref = new Q8ByteBufferTensor(a);
+        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a);
+        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a);
+
+        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
+        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);
     }
 }

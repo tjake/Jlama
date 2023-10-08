@@ -1,6 +1,8 @@
 package com.github.tjake.jlama.math;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +15,9 @@ public class VectorMath {
 
 
     public static void pfor(int start, int end, IntConsumer action) {
-        IntStream.range(start, end).parallel().forEach(action);
+        PhysicalCoreExecutor.instance.get().execute(() ->
+            IntStream.range(start, end).parallel().forEach(action)
+        );
     }
 
 

@@ -4,6 +4,7 @@ import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.Weights;
 import com.github.tjake.jlama.tensor.AbstractTensor;
@@ -21,8 +22,8 @@ public class BertModel extends AbstractModel {
 
     private final TransformerBlock[] transformerBlocks;
 
-    public BertModel(Config c, Weights w, Tokenizer tokenizer) {
-        super(c, w, tokenizer);
+    public BertModel(Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType) {
+        super(c, w, tokenizer, workingDType, workingQType);
 
         this.we =  w.load("embeddings.word_embeddings.weight");
         this.wte = w.load("embeddings.token_type_embeddings.weight");
@@ -61,7 +62,7 @@ public class BertModel extends AbstractModel {
             LayerNorm postAttentionNorm = new LayerNorm(this, w.load(b + "attention.output.LayerNorm.bias"), w.load(b + "attention.output.LayerNorm.weight"));
             LayerNorm postMlpNorm = new LayerNorm(this, w.load(b + "output.LayerNorm.bias"), w.load(b + "output.LayerNorm.weight"));
 
-            transformerBlocks[i] = new TransformerBlock(attention, postAttentionNorm, mlpBlock, postMlpNorm);
+            transformerBlocks[i] = new TransformerBlock(this, attention, postAttentionNorm, mlpBlock, postMlpNorm);
         }
     }
 

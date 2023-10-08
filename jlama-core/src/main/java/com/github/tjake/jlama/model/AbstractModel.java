@@ -6,6 +6,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
 import com.google.common.base.Preconditions;
@@ -30,16 +31,20 @@ public abstract class AbstractModel {
     protected final WeightLoader weights;
     protected final Tokenizer tokenizer;
     protected final DType modelDType;
-    protected final DType workingDType = DType.F32;
+    protected final DType workingDType;
+    protected final DType workingQType;
     private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
-    private static final ThreadLocal<AbstractTensor[]> tmpArray2 = new ThreadLocal<>();
 
-    protected AbstractModel(Config c, WeightLoader w, Tokenizer t)
+    protected AbstractModel(Config c, WeightLoader w, Tokenizer t, DType workingMemoryDType, DType workingMemoryQType)
     {
         this.c = c;
         this.weights = w;
         this.tokenizer = t;
         this.modelDType = w.getModelDType();
+        this.workingDType = workingMemoryDType;
+        this.workingQType = workingMemoryQType;
+
+        logger.info("Working memory type = {}, Quantized memory type = {}", workingMemoryDType, workingMemoryQType);
     }
 
     public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
@@ -56,6 +61,12 @@ public abstract class AbstractModel {
 
     protected AbstractTensor makeTensor(int ...shape) {
         return c.tensorCache.get(workingDType, shape);
+    }
+
+    protected AbstractTensor maybeQuantize(AbstractTensor t) {
+        AbstractTensor t2 = TensorCache.instance.get(t.dType(), t.shape());
+        t2.copyFrom(t, 0, 0, t.size());
+        return t2;
     }
 
     protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
@@ -167,7 +178,7 @@ public abstract class AbstractModel {
         }
 
         String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
-        onTokenWithTimings.accept(cleanPrompt, 0f);
+        onTokenWithTimings.accept(clientPrompt, 0f);
         long start = System.currentTimeMillis();
         //Batch Process Prompt
         AbstractTensor batch[] = batchForward(promptTokens, 0, kvmem);
