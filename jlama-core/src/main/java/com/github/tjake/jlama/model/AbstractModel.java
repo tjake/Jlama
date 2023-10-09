@@ -6,6 +6,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
@@ -42,9 +43,24 @@ public abstract class AbstractModel {
         this.tokenizer = t;
         this.modelDType = w.getModelDType();
         this.workingDType = workingMemoryDType;
-        this.workingQType = workingMemoryQType;
 
-        logger.info("Working memory type = {}, Quantized memory type = {}", workingMemoryDType, workingMemoryQType);
+        if (workingMemoryQType != workingMemoryDType) {
+            boolean supportsQType;
+            AbstractTensor tmp = makeTensor(Q8ByteBufferTensor.BLOCK_SIZE);
+            try (AbstractTensor tmp2 = TensorOperationsProvider.get().quantize(tmp, workingMemoryQType)) {
+                supportsQType = tmp2.dType() == workingMemoryQType;
+                if (!supportsQType) {
+                    logger.warn("Quantized memory type {} not supported, falling back to {}", workingMemoryQType, workingMemoryDType);
+                    this.workingQType = this.workingDType;
+                } else {
+                    this.workingQType = workingMemoryQType;
+                }
+            }
+        } else {
+            this.workingQType = workingMemoryQType;
+        }
+
+        logger.info("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
     }
 
     public String wrapPrompt(String prompt, Optional<String> systemPrompt) {

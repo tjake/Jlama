@@ -23,16 +23,7 @@ final class constants$0 {
         "dot_product_f16",
         constants$0.dot_product_f16$FUNC
     );
-    static final FunctionDescriptor accumulate_f16$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_INT$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_INT$LAYOUT
-    );
-    static final MethodHandle accumulate_f16$MH = RuntimeHelper.downcallHandle(
-        "accumulate_f16",
-        constants$0.accumulate_f16$FUNC
-    );
+
     static final FunctionDescriptor dot_product_f32$FUNC = FunctionDescriptor.of(Constants$root.C_FLOAT$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,
@@ -45,16 +36,7 @@ final class constants$0 {
         "dot_product_f32",
         constants$0.dot_product_f32$FUNC
     );
-    static final FunctionDescriptor accumulate_f32$FUNC = FunctionDescriptor.ofVoid(
-        Constants$root.C_INT$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_POINTER$LAYOUT,
-        Constants$root.C_INT$LAYOUT
-    );
-    static final MethodHandle accumulate_f32$MH = RuntimeHelper.downcallHandle(
-        "accumulate_f32",
-        constants$0.accumulate_f32$FUNC
-    );
+
     static final FunctionDescriptor dot_product_f16_q8$FUNC = FunctionDescriptor.of(Constants$root.C_FLOAT$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,

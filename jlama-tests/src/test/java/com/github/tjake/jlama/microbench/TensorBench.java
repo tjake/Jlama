@@ -7,6 +7,7 @@ import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.MachineSpec;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -24,16 +25,17 @@ import java.util.concurrent.TimeUnit;
         "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector"})
 public class TensorBench {
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
+
+    private static final TensorOperations nops = TensorOperationsProvider.get();
+
     private static final int SIZE = 8192;
     @State(Scope.Benchmark)
     public static class Parameters {
-        final TensorCache cache = new TensorCache(4096 * 4096);
         final FloatBufferTensor f = new FloatBufferTensor(SIZE);
         final FloatBufferTensor f2 = new FloatBufferTensor(SIZE);
         final BFloat16BufferTensor bf;
         final Q8ByteBufferTensor q81;
         final Q8ByteBufferTensor q82;
-
 
         final Q4ByteBufferTensor q4;
         public Parameters() {
@@ -69,7 +71,7 @@ public class TensorBench {
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void b_f32dotq4(Parameters p, Blackhole bh) {
-        bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
+        bh.consume(nops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
 
     @Benchmark

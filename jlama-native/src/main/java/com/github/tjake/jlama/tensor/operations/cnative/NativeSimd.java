@@ -73,22 +73,8 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
-    public static MethodHandle accumulate_f16$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.accumulate_f16$MH,"accumulate_f16");
-    }
-    /**
-     * {@snippet :
-     * void accumulate_f16(int flags, short* a, short* b, int length);
-     * }
-     */
-    public static void accumulate_f16(int flags, MemorySegment a, MemorySegment b, int length) {
-        var mh$ = accumulate_f16$MH();
-        try {
-            mh$.invokeExact(flags, a, b, length);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
+
+
     public static MethodHandle dot_product_f32$MH() {
         return RuntimeHelper.requireNonNull(constants$0.dot_product_f32$MH,"dot_product_f32");
     }
@@ -105,22 +91,7 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
-    public static MethodHandle accumulate_f32$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.accumulate_f32$MH,"accumulate_f32");
-    }
-    /**
-     * {@snippet :
-     * void accumulate_f32(int flags, float* a, float* b, int length);
-     * }
-     */
-    public static void accumulate_f32(int flags, MemorySegment a, MemorySegment b, int length) {
-        var mh$ = accumulate_f32$MH();
-        try {
-            mh$.invokeExact(flags, a, b, length);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
+
     public static MethodHandle dot_product_f16_q8$MH() {
         return RuntimeHelper.requireNonNull(constants$0.dot_product_f16_q8$MH,"dot_product_f16_q8");
     }

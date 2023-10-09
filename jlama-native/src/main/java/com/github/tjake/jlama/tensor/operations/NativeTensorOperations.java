@@ -11,7 +11,16 @@ public class NativeTensorOperations implements TensorOperations {
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
     public static final int HAS_AVX2 = NativeSimd.HAS_AVX2();
 
-    private static final NaiveTensorOperations delegate = new NaiveTensorOperations();
+    private static final TensorOperations delegate;
+    static {
+        TensorOperations tmp;
+        try {
+            tmp = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
+        } catch (Throwable t) {
+            tmp = new NaiveTensorOperations();
+        }
+        delegate = tmp;
+    }
 
     final int flags;
 
@@ -39,7 +48,7 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     private void checkLib() {
-        NativeSimd.accumulate_f16$MH();
+        NativeSimd.dot_product_f32$MH();
     }
 
     @Override
@@ -67,40 +76,22 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void accumulate(AbstractTensor a, AbstractTensor b)
-    {
-         switch (a.dType()) {
-             case F16:
-                 switch (b.dType()) {
-                     case F16: NativeSimd.accumulate_f16(flags, a.getMemorySegment(), b.getMemorySegment(), a.size()); break;
-                     default: throw new UnsupportedOperationException();
-                 }
-                 break;
-             case F32:
-                 switch (b.dType()) {
-                     case F32: NativeSimd.accumulate_f32(flags, a.getMemorySegment(), b.getMemorySegment(), a.size()); break;
-                     default: throw new UnsupportedOperationException();
-                 }
-                 break;
-             default: throw new UnsupportedOperationException();
-        }
+    public void accumulate(AbstractTensor a, AbstractTensor b) {
+         delegate.accumulate(a, b);
     }
 
     @Override
-    public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit)
-    {
+    public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         delegate.saxpy(alpha, x, y, xoffset, yoffset, limit);
     }
 
     @Override
-    public void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit)
-    {
+    public void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         delegate.sxpby(beta, x, y, xoffset, yoffset, limit);
     }
 
     @Override
-    public void scale(float factor, AbstractTensor x, int offset, int length)
-    {
+    public void scale(float factor, AbstractTensor x, int offset, int length) {
         delegate.scale(factor, x, offset, length);
     }
 }

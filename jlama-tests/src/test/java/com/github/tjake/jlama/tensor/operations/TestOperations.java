@@ -101,7 +101,7 @@ public class TestOperations
                         logger.debug("Running {} {} {}", opt, aType, bType);
                         float dp = t.dotProduct(aType.getValue().apply(a), bType.getValue().apply(b), SIZE);
                         supported++;
-                        Assert.assertEquals("OP " + opt + ", AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
+                        Assert.assertEquals("OP " + t.name() + ", AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
