@@ -1,14 +1,23 @@
 #!/bin/bash
 
+# Function to get Java executable path
+get_java_exec() {
+  if [[ -n "$JAVA_HOME" ]]; then
+    echo "$JAVA_HOME/bin/java"
+  else
+    echo "java"
+  fi
+}
+
 # Function to extract the major version of Java
 get_java_major_version() {
-  local version=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+  local version=$($1 -version 2>&1 | awk -F '"' '/version/ {print $2}')
   echo ${version%%.*}
 }
 
 # Verify Java version is JDK 21
-JAVA_MAJOR_VERSION=$(get_java_major_version)
-
+JAVA=$(get_java_exec)
+JAVA_MAJOR_VERSION=$(get_java_major_version $JAVA)
 if [[ "$JAVA_MAJOR_VERSION" != "21" ]]; then
   echo "Error: JDK 21 is required to run this application."
   exit 1
@@ -36,8 +45,8 @@ if [[ -z "$JLAMA_PREINSTALLED_JAR" ]]; then
     fi
   fi
   # Run the JAR in a relative directory
-  java $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA -Dlogback.configurationFile=$LOGBACK_CONFIG -jar $JLAMA_RELATIVE_JAR "$@"
+  $JAVA $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA -Dlogback.configurationFile=$LOGBACK_CONFIG -jar $JLAMA_RELATIVE_JAR "$@"
 else
   # If PREINSTALLED_JAR is set, run the JAR specified by the variable
-  java $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA -jar $JLAMA_PREINSTALLED_JAR "$@"
+  $JAVA $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA -jar $JLAMA_PREINSTALLED_JAR "$@"
 fi
