@@ -1,33 +1,16 @@
 package com.github.tjake.jlama.cli.commands;
 
 import java.io.File;
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.file.Path;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.model.ModelSupport;
-import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.safetensors.SafeTensorSupport;
-import com.github.tjake.jlama.safetensors.Tokenizer;
-import com.github.tjake.jlama.safetensors.WeightLoader;
-import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import picocli.CommandLine.*;
 
 public class ModelBaseCommand extends BaseCommand {
-
-    private static final ObjectMapper om = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
 
     @Option(names = {"-p", "--prompt"}, description = "Text to complete", required = true)
     protected String prompt;
@@ -55,49 +38,13 @@ public class ModelBaseCommand extends BaseCommand {
 
 
     protected AbstractModel loadModel(File model) {
-
-        if (!model.exists()) {
-            System.err.println("Model location does not exist: " + model);
-            System.exit(1);
-        }
-
-        File baseDir = model.isFile() ? model.getParentFile() : model;
-
-        //Find config
-        if (!baseDir.isDirectory()) {
-            System.err.println("Model directory does not exist: " + baseDir);
-            System.exit(1);
-        }
-
-        File configFile = null;
-        for (File f : Objects.requireNonNull(baseDir.listFiles())) {
-            if (f.getName().equals("config.json")) {
-                configFile = f;
-                break;
-            }
-        }
-
-        if (configFile == null) {
-            System.err.println("config.json in model directory does not exist: " + baseDir);
-            System.exit(1);
-        }
-
         try {
-            PhysicalCoreExecutor.overrideThreadCount(threadCount);
-
-            ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
-
-            Config c = om.readValue(configFile, modelType.configClass);
-            Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
-            WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
-
-            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class, DType.class, DType.class)
-                    .newInstance(c, wl, t, workingMemoryType, workingQuantizationType);
-
-        } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException |
-               IllegalAccessException e) {
-            throw new RuntimeException(e);
+            return AbstractModel.load(model, threadCount, workingMemoryType, workingQuantizationType);
+        } catch (FileNotFoundException e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
         }
+        throw new IllegalStateException("Should have exited");
     }
 
     protected BiConsumer<String, Float> makeOutHandler() {
