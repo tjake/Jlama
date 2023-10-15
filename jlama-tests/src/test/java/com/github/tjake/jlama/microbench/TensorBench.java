@@ -57,7 +57,7 @@ public class TensorBench {
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void a_aq8dotq4(Parameters p, Blackhole bh) {
-        bh.consume(ops.dotProduct(p.q81, p.q4, 0, 0, SIZE));
+        bh.consume(nops.dotProduct(p.q81, p.q4, 0, 0, SIZE));
     }
 
     @Benchmark

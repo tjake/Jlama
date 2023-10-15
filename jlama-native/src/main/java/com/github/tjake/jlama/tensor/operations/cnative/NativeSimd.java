@@ -9,14 +9,14 @@ import java.lang.foreign.*;
 import static java.lang.foreign.ValueLayout.*;
 public class NativeSimd  {
 
-    public static final OfByte C_CHAR = Constants$root.C_CHAR$LAYOUT;
-    public static final OfShort C_SHORT = Constants$root.C_SHORT$LAYOUT;
-    public static final OfInt C_INT = Constants$root.C_INT$LAYOUT;
-    public static final OfLong C_LONG = Constants$root.C_LONG_LONG$LAYOUT;
-    public static final OfLong C_LONG_LONG = Constants$root.C_LONG_LONG$LAYOUT;
-    public static final OfFloat C_FLOAT = Constants$root.C_FLOAT$LAYOUT;
-    public static final OfDouble C_DOUBLE = Constants$root.C_DOUBLE$LAYOUT;
-    public static final AddressLayout C_POINTER = Constants$root.C_POINTER$LAYOUT;
+    public static final OfByte C_CHAR = JAVA_BYTE;
+    public static final OfShort C_SHORT = JAVA_SHORT;
+    public static final OfInt C_INT = JAVA_INT;
+    public static final OfLong C_LONG = JAVA_LONG;
+    public static final OfLong C_LONG_LONG = JAVA_LONG;
+    public static final OfFloat C_FLOAT = JAVA_FLOAT;
+    public static final OfDouble C_DOUBLE = JAVA_DOUBLE;
+    public static final AddressLayout C_POINTER = RuntimeHelper.POINTER;
     /**
      * {@snippet :
      * #define HAS_F16C 2
@@ -43,11 +43,11 @@ public class NativeSimd  {
     }
     /**
      * {@snippet :
-     * #define Q8_BLOCK_SIZE 256
+     * #define Q8_BLOCK_SIZE 32
      * }
      */
     public static int Q8_BLOCK_SIZE() {
-        return (int)256L;
+        return (int)32L;
     }
     /**
      * {@snippet :
@@ -58,7 +58,7 @@ public class NativeSimd  {
         return (int)32L;
     }
     public static MethodHandle dot_product_f16$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.dot_product_f16$MH,"dot_product_f16");
+        return RuntimeHelper.requireNonNull(constants$0.const$1,"dot_product_f16");
     }
     /**
      * {@snippet :
@@ -73,27 +73,8 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
-
-
-    public static MethodHandle dot_product_f32$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.dot_product_f32$MH,"dot_product_f32");
-    }
-    /**
-     * {@snippet :
-     * float dot_product_f32(int flags, float* a, int aoffset, float* b, int boffset, int length);
-     * }
-     */
-    public static float dot_product_f32(int flags, MemorySegment a, int aoffset, MemorySegment b, int boffset, int length) {
-        var mh$ = dot_product_f32$MH();
-        try {
-            return (float)mh$.invokeExact(flags, a, aoffset, b, boffset, length);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-
     public static MethodHandle dot_product_f16_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.dot_product_f16_q8$MH,"dot_product_f16_q8");
+        return RuntimeHelper.requireNonNull(constants$0.const$3,"dot_product_f16_q8");
     }
     /**
      * {@snippet :
@@ -109,7 +90,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f16_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.dot_product_f16_q4$MH,"dot_product_f16_q4");
+        return RuntimeHelper.requireNonNull(constants$0.const$4,"dot_product_f16_q4");
     }
     /**
      * {@snippet :
@@ -124,8 +105,24 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
+    public static MethodHandle dot_product_f32$MH() {
+        return RuntimeHelper.requireNonNull(constants$0.const$5,"dot_product_f32");
+    }
+    /**
+     * {@snippet :
+     * float dot_product_f32(int flags, float* a, int aoffset, float* b, int boffset, int length);
+     * }
+     */
+    public static float dot_product_f32(int flags, MemorySegment a, int aoffset, MemorySegment b, int boffset, int length) {
+        var mh$ = dot_product_f32$MH();
+        try {
+            return (float)mh$.invokeExact(flags, a, aoffset, b, boffset, length);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
     public static MethodHandle dot_product_f32_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.dot_product_f32_q8$MH,"dot_product_f32_q8");
+        return RuntimeHelper.requireNonNull(constants$1.const$0,"dot_product_f32_q8");
     }
     /**
      * {@snippet :
@@ -141,7 +138,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f32_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.dot_product_f32_q4$MH,"dot_product_f32_q4");
+        return RuntimeHelper.requireNonNull(constants$1.const$1,"dot_product_f32_q4");
     }
     /**
      * {@snippet :
@@ -152,6 +149,38 @@ public class NativeSimd  {
         var mh$ = dot_product_f32_q4$MH();
         try {
             return (float)mh$.invokeExact(flags, a, aoffset, bf, b, boffset, length);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+    public static MethodHandle dot_product_q8$MH() {
+        return RuntimeHelper.requireNonNull(constants$1.const$3,"dot_product_q8");
+    }
+    /**
+     * {@snippet :
+     * float dot_product_q8(int flags, float* af, char* a, int aoffset, float* bf, char* b, int boffset, int length);
+     * }
+     */
+    public static float dot_product_q8(int flags, MemorySegment af, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length) {
+        var mh$ = dot_product_q8$MH();
+        try {
+            return (float)mh$.invokeExact(flags, af, a, aoffset, bf, b, boffset, length);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+    public static MethodHandle dot_product_q8_q4$MH() {
+        return RuntimeHelper.requireNonNull(constants$1.const$4,"dot_product_q8_q4");
+    }
+    /**
+     * {@snippet :
+     * float dot_product_q8_q4(int flags, float* af, char* a, int aoffset, float* bf, char* b, int boffset, int length);
+     * }
+     */
+    public static float dot_product_q8_q4(int flags, MemorySegment af, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length) {
+        var mh$ = dot_product_q8_q4$MH();
+        try {
+            return (float)mh$.invokeExact(flags, af, a, aoffset, bf, b, boffset, length);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }

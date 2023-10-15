@@ -179,14 +179,14 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         return x * scale;
     }
 
-    public final float getFactorForIndex(int i) {
+    public float getFactorForIndex(int i) {
         int ix = (int)(i * I_BLOCK_SIZE);
         if (ix >= blockF.size())
             throw new RuntimeException();
         return blockF.get(ix);
     }
 
-    public final FloatBufferTensor getBlockF() {
+    public FloatBufferTensor getBlockF() {
         return blockF;
     }
 

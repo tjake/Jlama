@@ -772,3 +772,102 @@ float dot_product_f32_q4(int flags, const float* a, int aoffset, const float *bf
            ? dot_product_f32_q4_512(a, aoffset, bf, b, boffset, length)
            : dot_product_f32_q4_256(a, aoffset, bf, b, boffset, length);
 }
+
+
+float dot_product_q8_q4_256(const float *af, const char* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
+    __m256 sum = _mm256_setzero_ps();
+
+    int ao = aoffset;
+    int bo = boffset;
+    int numBlocks = length / Q4_BLOCK_SIZE;
+
+    // Mask to keep the first 4 bits of each byte
+    __m128i mask_first_4bits = _mm_set1_epi8(0xF);
+    //Subtract 8 from each byte to get signed values
+    __m128i eight = _mm_set1_epi8(8);
+
+    __attribute__((aligned(16))) float scalef[8];
+
+    //First take the scaling factors of both tensors and multiply them in SIMD
+    for (int i = 0; i < numBlocks; i += 8) { //256bits == 8floats
+        // Load float32
+        __m256 ablock = _mm256_loadu_ps(af + (ao / Q4_BLOCK_SIZE));
+        __m256 bblock = _mm256_loadu_ps(bf + ((bo*2) / Q4_BLOCK_SIZE));
+        __m256 scaled = _mm256_mul_ps(ablock, bblock);
+        _mm256_store_ps(scalef, scaled);
+
+        // perform a block at a time
+        for(int j = 0; j < 8; j++, ao += 32, bo += 16) {
+            // broadcast the float32 version of 'factor' to all elements
+            __m256 scale_f32 = _mm256_set1_ps(scalef[j]);
+
+            // Load 8 bytes into a 128-bit integer register
+            __m128i int_vb0 = _mm_loadl_epi64((__m128i const*)(b + bo)); // Load lower 64 bits
+            __m128i int_vb1 = _mm_loadl_epi64((__m128i const*)(b + bo + 8)); // Load lower 64 bits
+
+            // Masked values
+            __m128i first_4bits0 = _mm_and_si128(int_vb0, mask_first_4bits);
+            __m128i first_4bits1 = _mm_and_si128(int_vb1, mask_first_4bits);
+
+            // Shift first 4 bits to rightmost positions
+            __m128i last_4bits0 = _mm_srli_epi16(int_vb0, 4);
+            __m128i last_4bits1 = _mm_srli_epi16(int_vb1, 4);
+
+            last_4bits0 = _mm_and_si128(last_4bits0, mask_first_4bits);
+            last_4bits1 = _mm_and_si128(last_4bits1, mask_first_4bits);
+
+            //Subtract 8 from each int
+            first_4bits0 = _mm_sub_epi8(first_4bits0, eight);
+            first_4bits1 = _mm_sub_epi8(first_4bits1, eight);
+            last_4bits0 = _mm_sub_epi8(last_4bits0, eight);
+            last_4bits1 = _mm_sub_epi8(last_4bits1, eight);
+
+            // Extend these bytes to 32-bit ints (low and high)
+            __m256i int_vb_ext_lo0 = _mm256_cvtepi8_epi32(first_4bits0);
+            __m256i int_vb_ext_lo1 = _mm256_cvtepi8_epi32(first_4bits1);
+            __m256i int_vb_ext_hi0 = _mm256_cvtepi8_epi32(last_4bits0);
+            __m256i int_vb_ext_hi1 = _mm256_cvtepi8_epi32(last_4bits1);
+
+            // Load 8 bytes into 4 128-bit integer registers
+            __m128i int_va0 = _mm_loadl_epi64((__m128i const*)(a + ao));
+            __m128i int_va1 = _mm_loadl_epi64((__m128i const*)(a + ao + 8));
+            __m128i int_va2 = _mm_loadl_epi64((__m128i const*)(a + ao + 16));
+            __m128i int_va3 = _mm_loadl_epi64((__m128i const*)(a + ao + 24));
+
+            //Extend to 32-bit ints
+            __m256i int_va0_ext = _mm256_cvtepi8_epi32(int_va0);
+            __m256i int_va1_ext = _mm256_cvtepi8_epi32(int_va1);
+            __m256i int_va2_ext = _mm256_cvtepi8_epi32(int_va2);
+            __m256i int_va3_ext = _mm256_cvtepi8_epi32(int_va3);
+
+            // Multiply the 32-bit integers
+            __m256i isum = _mm256_mullo_epi32(int_va0_ext, int_vb_ext_lo0);
+            isum = _mm256_add_epi32(_mm256_mullo_epi32(int_va1_ext, int_vb_ext_lo1), isum);
+            isum = _mm256_add_epi32(_mm256_mullo_epi32(int_va2_ext, int_vb_ext_hi0), isum);
+            isum = _mm256_add_epi32(_mm256_mullo_epi32(int_va3_ext, int_vb_ext_hi1), isum);
+
+            // Convert these 32-bit integers to floats
+            __m256 fsum = _mm256_cvtepi32_ps(isum);
+
+            // Multiply and accumulate
+            sum = _mm256_fmadd_ps(scale_f32, fsum, sum);
+        }
+    }
+
+    // Horizontal sum of the vector to get dot product
+    __attribute__((aligned(16))) float result[8];
+    _mm256_store_ps(result, sum);
+
+    float dot = 0.0;
+    for(int i = 0; i < 8; ++i) {
+        dot += result[i];
+    }
+
+    return dot;
+}
+
+float dot_product_q8_q4(int flags, const float* af, const char* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
+    return //((flags & HAS_AVX2) != 0)
+           //? dot_product_f32_q4_512(a, aoffset, bf, b, boffset, length)
+           dot_product_q8_q4_256(af, a, aoffset, bf, b, boffset, length);
+}

@@ -291,7 +291,7 @@ final public class PanamaTensorOperations implements TensorOperations
         return acc.reduceLanes(VectorOperators.ADD);
     }
 
-    private float QDotProductI8Q4_256(Q8ByteBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
+    public float QDotProductI8Q4_256(Q8ByteBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(
                 aoffset % Q8ByteBufferTensor.BLOCK_SIZE == 0 &&
                         boffset % Q8ByteBufferTensor.BLOCK_SIZE == 0 &&

@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.tensor.operations;
 
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
@@ -71,6 +72,11 @@ public class NativeTensorOperations implements TensorOperations {
                 case I8 -> NativeSimd.dot_product_f16_q8(flags, a.getMemorySegment(), aoffset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
                 default -> throw new UnsupportedOperationException();
             };
+            case I8 -> switch (b.dType()) {
+                case Q4 -> NativeSimd.dot_product_q8_q4(flags, ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), aoffset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
+                //case I8 -> NativeSimd.dot_product_q8(flags, ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), aoffset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
+                default -> throw new UnsupportedOperationException();
+            };
             default -> throw new UnsupportedOperationException();
         };
     }
@@ -93,5 +99,10 @@ public class NativeTensorOperations implements TensorOperations {
     @Override
     public void scale(float factor, AbstractTensor x, int offset, int length) {
         delegate.scale(factor, x, offset, length);
+    }
+
+    @Override
+    public AbstractTensor quantize(AbstractTensor t, DType qtype) {
+        return delegate.quantize(t, qtype);
     }
 }
