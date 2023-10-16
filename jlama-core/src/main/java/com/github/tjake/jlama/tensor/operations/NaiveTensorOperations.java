@@ -27,6 +27,16 @@ public class NaiveTensorOperations implements TensorOperations
         }
     }
 
+    // a[0..n] *= b[0..n]
+    @Override
+    public void maccumulate(AbstractTensor a, AbstractTensor b) {
+        Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
+
+        for (int i = 0; i < a.size(); ++i) {
+            a.set(a.get(i) * b.get(i), i);
+        }
+    }
+
     @Override
     public float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(a.dims() == b.dims());

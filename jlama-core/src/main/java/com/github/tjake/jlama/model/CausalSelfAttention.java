@@ -14,11 +14,11 @@ import java.util.Optional;
 public class CausalSelfAttention {
     private final AbstractModel m;
     private final Config c;
-    private final AbstractTensor queryAttnBias;
-    private final AbstractTensor keyAttnBias;
+    private final Optional<AbstractTensor> queryAttnBias;
+    private final Optional<AbstractTensor> keyAttnBias;
 
-    private final AbstractTensor valueAttnBias;
-    private final AbstractTensor outputProjectionBias;
+    private final Optional<AbstractTensor> valueAttnBias;
+    private final Optional<AbstractTensor> outputProjectionBias;
 
     private final AbstractTensor queryAttnWeights;
     private final AbstractTensor keyAttnWeights;
@@ -32,10 +32,22 @@ public class CausalSelfAttention {
     private final int headSize;
     private final float attentionScale;
 
+    public CausalSelfAttention(AbstractModel m, AbstractTensor queryAttnWeights, AbstractTensor keyAttnWeights, AbstractTensor valueAttnWeights,
+                               AbstractTensor outputProjectionWeights, Optional<float[][]> ropeFrequencies)
+    {
+        this(m, Optional.empty(), Optional.empty(), Optional.empty(), queryAttnWeights, keyAttnWeights, valueAttnWeights, Optional.empty(), outputProjectionWeights, ropeFrequencies);
+    }
 
     public CausalSelfAttention(AbstractModel m, AbstractTensor queryAttnBias, AbstractTensor keyAttnBias, AbstractTensor valueAttnBias,
                                AbstractTensor queryAttnWeights, AbstractTensor keyAttnWeights, AbstractTensor valueAttnWeights,
-                               AbstractTensor outputProjectionBias, AbstractTensor outputProjectionWeights, Optional<float[][]> ropeFrequencies)
+                               AbstractTensor outputProjectionBias, AbstractTensor outputProjectionWeights, Optional<float[][]> ropeFrequencies) {
+        this(m, Optional.of(queryAttnBias), Optional.of(keyAttnBias), Optional.of(valueAttnBias), queryAttnWeights, keyAttnWeights, valueAttnWeights, Optional.of(outputProjectionBias), outputProjectionWeights, ropeFrequencies);
+    }
+
+
+    public CausalSelfAttention(AbstractModel m, Optional<AbstractTensor> queryAttnBias, Optional<AbstractTensor> keyAttnBias, Optional<AbstractTensor> valueAttnBias,
+                               AbstractTensor queryAttnWeights, AbstractTensor keyAttnWeights, AbstractTensor valueAttnWeights,
+                               Optional<AbstractTensor> outputProjectionBias, AbstractTensor outputProjectionWeights, Optional<float[][]> ropeFrequencies)
     {
         this.m = m;
         this.c = m.c;
@@ -65,18 +77,22 @@ public class CausalSelfAttention {
         {
 
             //This is our memory of the key and value vectors for each position
-            AbstractTensor kv = kvMem.slice(position);
+            //This is our memory of the key and value vectors for each position
+            AbstractTensor kvp = kvMem.slice(position);
+
+            AbstractTensor key = kvp.slice(0);
+            AbstractTensor val = kvp.slice(1);
 
             // compute the query vector
-            VectorMath.pfor(0, c.embeddingLength, i -> {
-                float q = queryAttnBias.get(i) + TensorOperationsProvider.get().dotProduct(input, queryAttnWeights.slice(i), c.embeddingLength);
-                float k = keyAttnBias.get(i) + TensorOperationsProvider.get().dotProduct(input, keyAttnWeights.slice(i), c.embeddingLength);
-                float v = valueAttnBias.get(i) + TensorOperationsProvider.get().dotProduct(input, valueAttnWeights.slice(i), c.embeddingLength);
-
-                query.set(q, i);
-                kv.set(k, i);
-                kv.set(v, i + c.embeddingLength);
+            VectorMath.pchunk(c.embeddingLength, (chunkStart, chunkLength) -> {
+                TensorOperationsProvider.get().dotProductChunk(query, input, queryAttnWeights, c.embeddingLength, chunkStart, chunkLength);
+                TensorOperationsProvider.get().dotProductChunk(key, input, keyAttnWeights, c.embeddingLength, chunkStart, chunkLength);
+                TensorOperationsProvider.get().dotProductChunk(val, input, valueAttnWeights, c.embeddingLength, chunkStart, chunkLength);
             });
+
+            queryAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(query, bias));
+            keyAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(key, bias));
+            valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(value, bias));
 
             // apply RoPE if present (accounting for huggingface permutation)
             // https://github.com/huggingface/transformers/blob/d533465150532b0c5de167b574e59f64c68b1154/src/transformers/models/llama/convert_llama_weights_to_hf.py#L114
@@ -91,25 +107,25 @@ public class CausalSelfAttention {
                     for (int i = offset; i < (offset + headPiece); i++) {
                         float q0 = query.get(i);
                         float q1 = query.get(i + headPiece);  //hf permutation is 0,64,1,65 etc...
-                        float k0 = kv.get(i);
-                        float k1 = kv.get(i + headPiece);
+                        float k0 = key.get(i);
+                        float k1 = key.get(i + headPiece);
                         float[] f = rf[poffset + i];
                         float fcr = f[0];
                         float fci = f[1];
                         query.set(q0 * fcr - q1 * fci, i);
                         query.set(q0 * fci + q1 * fcr, i + headPiece);
-                        kv.set(k0 * fcr - k1 * fci, i);
-                        kv.set(k0 * fci + k1 * fcr, i + headPiece);
+                        key.set(k0 * fcr - k1 * fci, i);
+                        key.set(k0 * fci + k1 * fcr, i + headPiece);
                     }
                 }
             });
 
             // with all key-value entries populated, compute attention
             // the softmax is incrementally aggregated using the flash attention technique
-            AbstractTensor k0 = kvMem.slice(0);
+            AbstractTensor k0 = kvMem.slice(0).slice(1);
 
             // value is initially the first value for all heads
-            value.copyFrom(k0, c.embeddingLength, 0, c.embeddingLength);
+            value.copyFrom(k0, 0, 0, c.embeddingLength);
 
             //POSITION ZERO
             for (int i = 0; i < c.numberOfHeads; i++) {
@@ -122,28 +138,28 @@ public class CausalSelfAttention {
             //This is where the context length gets expensive! We need to run this query token by all prior tokens.
             float[][] flashAttnHeads = new float[position][c.numberOfHeads];
             VectorMath.pfor(0, position, i -> {
-                AbstractTensor kk = kvMem.slice(i + 1);
-                VectorMath.pfor(0, c.numberOfHeads, h -> {
+                AbstractTensor kk = kvMem.slice(i + 1).slice(0);
+                for(int h = 0; h < c.numberOfHeads; h++){
                     //KEY OFFSET
                     flashAttnHeads[i][h] = TensorOperationsProvider.get().dotProduct(query, kk, h * headSize, h * headSize, headSize) * attentionScale;
-                });
+                }
             });
 
             //Now aggregate results per head
             for (int i = 0; i < position; i++) {
-                AbstractTensor kk = kvMem.slice(i + 1);
+                AbstractTensor kk = kvMem.slice(i + 1).slice(1);
                 for (int h = 0; h < c.numberOfHeads; h++) {
                     float a = flashAttnHeads[i][h];
                     if (a > flashAttn_m.get(h)) {
                         //VALUE OFFSET (since cache is k + v)
                         float e = (float) Math.exp(flashAttn_m.get(h) - a);
-                        TensorOperationsProvider.get().sxpby(e, kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
+                        TensorOperationsProvider.get().sxpby(e, kk, value, (h * headSize), h * headSize, headSize);
                         flashAttn_l.set(1 + e * flashAttn_l.get(h), h);
                         flashAttn_m.set(a, h);
                     } else {
                         //VALUE OFFSET (since cache is k + v)
                         float e = (float) Math.exp(a - flashAttn_m.get(h));
-                        TensorOperationsProvider.get().saxpy(e, kk, value, c.embeddingLength + (h * headSize), h * headSize, headSize);
+                        TensorOperationsProvider.get().saxpy(e, kk, value, (h * headSize), h * headSize, headSize);
                         flashAttn_l.set(flashAttn_l.get(h) + e, h);
                     }
                 }
@@ -159,10 +175,11 @@ public class CausalSelfAttention {
             // input += c_proj_weight @ ybuf + c_proj_bias
             AbstractTensor result = m.makeTensor(c.embeddingLength);
             try(AbstractTensor vq = m.maybeQuantize(value)) {
-                VectorMath.pfor(0, c.embeddingLength, i -> {
-                    float v = outputProjectionBias.get(i) + TensorOperationsProvider.get().dotProduct(vq, outputProjectionWeights.slice(i), c.embeddingLength);
-                    result.set(v, i);
+                VectorMath.pchunk( c.embeddingLength, (chunkStart, chunkSize) -> {
+                    TensorOperationsProvider.get().dotProductChunk(result, vq, outputProjectionWeights, c.embeddingLength, chunkStart, chunkSize);
                 });
+
+                outputProjectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias));
             }
 
             return result;

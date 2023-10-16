@@ -6,6 +6,7 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
 import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import com.github.tjake.jlama.util.RuntimeSupport;
 
 public class NativeTensorOperations implements TensorOperations {
@@ -57,6 +58,10 @@ public class NativeTensorOperations implements TensorOperations {
         return true;
     }
 
+    public int parallelSplitSize() {
+        return PhysicalCoreExecutor.instance.get().getCoreCount();
+    }
+
     @Override
     public float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit)
     {
@@ -82,8 +87,34 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
+    public void dotProductChunk(AbstractTensor r, AbstractTensor a, AbstractTensor b, int limit, int chunkStart, int chunkSize) {
+        switch (a.dType()) {
+            case F32: switch (b.dType()) {
+                case F32: NativeSimd.dot_product_f32_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
+                case I8: NativeSimd.dot_product_f32_q8_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
+                case Q4: NativeSimd.dot_product_f32_q4_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
+                default: throw new UnsupportedOperationException();
+            }
+            break;
+            case I8: switch (b.dType()) {
+                case Q4: NativeSimd.dot_product_q8_q4_chunked(flags, r.getMemorySegment(), ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), 0, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize);
+                break;
+                default: throw new UnsupportedOperationException();
+            }
+            break;
+            default: throw new UnsupportedOperationException();
+        }
+    }
+
+
+    @Override
     public void accumulate(AbstractTensor a, AbstractTensor b) {
          delegate.accumulate(a, b);
+    }
+
+    @Override
+    public void maccumulate(AbstractTensor a, AbstractTensor b) {
+        delegate.maccumulate(a, b);
     }
 
     @Override

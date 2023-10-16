@@ -532,7 +532,12 @@ float dot_product_f32_q8_512(const float* a, int aoffset, const float *bf, const
 #endif
 }
 
-
+void dot_product_f32_q8_chunked(int flags, float *r, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
+        int bo = boffset + (c * length);
+        r[c] = dot_product_f32_q8(flags, a, aoffset, bf, b, bo, length);
+    }
+}
 
 float dot_product_f32_q8(int flags, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
     return ((flags & HAS_AVX2) != 0)
@@ -604,10 +609,24 @@ float dot_product_f32_512(const float* a, int aoffset, const float* b, int boffs
 #endif
 }
 
+void dot_product_f32_chunked(int flags, float *r, const float* a, int aoffset, const float* b, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
+        int bo = boffset + (c * length);
+        r[c] = dot_product_f32(flags, a, aoffset, b, bo, length);
+    }
+}
+
 float dot_product_f32(int flags, const float* a, int aoffset, const float* b, int boffset, int length) {
     return ((flags & HAS_AVX2) != 0)
            ? dot_product_f32_512(a, aoffset, b, boffset, length)
            : dot_product_f32_256(a, aoffset, b, boffset, length);
+}
+
+void dot_product_f32_q4_chunked(int flags, float *r, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
+        int bo = boffset + (c * (length/2)); // offset by chunk since q4 then divide by 2 since 4bits per element
+        r[c] = dot_product_f32_q4(flags, a, aoffset, bf, b, bo, length);
+    }
 }
 
 float dot_product_f32_q4_256(const float* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
@@ -870,4 +889,11 @@ float dot_product_q8_q4(int flags, const float* af, const char* a, int aoffset, 
     return //((flags & HAS_AVX2) != 0)
            //? dot_product_f32_q4_512(a, aoffset, bf, b, boffset, length)
            dot_product_q8_q4_256(af, a, aoffset, bf, b, boffset, length);
+}
+
+void dot_product_q8_q4_chunked(int flags, float *r, const float* af, const char *a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
+     for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
+        int bo = boffset + (c * (length/2));
+        r[c] = dot_product_q8_q4(flags, af, a, aoffset, bf, b, bo, length);
+     }
 }

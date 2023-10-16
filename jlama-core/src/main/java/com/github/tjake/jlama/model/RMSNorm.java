@@ -5,8 +5,8 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
 
 public class RMSNorm extends LayerNorm {
-    public RMSNorm(AbstractModel m, AbstractTensor bias, AbstractTensor weights) {
-        super(m, bias, weights);
+    public RMSNorm(AbstractModel m, AbstractTensor weights) {
+        super(m, null, weights);
     }
 
     @Override

@@ -962,6 +962,33 @@ final public class PanamaTensorOperations implements TensorOperations
     }
 
     @Override
+    public void maccumulate(AbstractTensor a, AbstractTensor b) {
+        Preconditions.checkArgument(a.dType() == b.dType());
+        Preconditions.checkArgument(a.size() % 8 == 0);
+
+        switch (a.dType()) {
+            case F32: maccumulateF32((FloatBufferTensor)a, (FloatBufferTensor)b); break;
+            default: throw new UnsupportedOperationException();
+        }
+    }
+
+    void maccumulateF32(FloatBufferTensor a, FloatBufferTensor b) {
+        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(a.size());
+        int i = 0;
+
+        for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
+            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i);
+            FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, i);
+            a.intoTensor(va.mul(vb), i);
+        }
+
+        // tail
+        for (; i < a.size(); i++) {
+            a.set(a.get(i) * b.get(i));
+        }
+    }
+
+    @Override
     public void accumulate(AbstractTensor a, AbstractTensor b) {
         Preconditions.checkArgument(a.dType() == b.dType());
         Preconditions.checkArgument(a.size() % 8 == 0);

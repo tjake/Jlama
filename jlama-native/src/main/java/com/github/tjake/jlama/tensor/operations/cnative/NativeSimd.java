@@ -121,8 +121,24 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
+    public static MethodHandle dot_product_f32_chunked$MH() {
+        return RuntimeHelper.requireNonNull(constants$1.const$1,"dot_product_f32_chunked");
+    }
+    /**
+     * {@snippet :
+     * void dot_product_f32_chunked(int flags, float* r, float* a, int aoffset, float* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * }
+     */
+    public static void dot_product_f32_chunked(int flags, MemorySegment r, MemorySegment a, int aoffset, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+        var mh$ = dot_product_f32_chunked$MH();
+        try {
+            mh$.invokeExact(flags, r, a, aoffset, b, boffset, length, bchunkstart, bchunksize);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
     public static MethodHandle dot_product_f32_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$0,"dot_product_f32_q8");
+        return RuntimeHelper.requireNonNull(constants$1.const$2,"dot_product_f32_q8");
     }
     /**
      * {@snippet :
@@ -137,8 +153,24 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
+    public static MethodHandle dot_product_f32_q8_chunked$MH() {
+        return RuntimeHelper.requireNonNull(constants$1.const$4,"dot_product_f32_q8_chunked");
+    }
+    /**
+     * {@snippet :
+     * void dot_product_f32_q8_chunked(int flags, float* r, float* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * }
+     */
+    public static void dot_product_f32_q8_chunked(int flags, MemorySegment r, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+        var mh$ = dot_product_f32_q8_chunked$MH();
+        try {
+            mh$.invokeExact(flags, r, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
     public static MethodHandle dot_product_f32_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$1,"dot_product_f32_q4");
+        return RuntimeHelper.requireNonNull(constants$1.const$5,"dot_product_f32_q4");
     }
     /**
      * {@snippet :
@@ -153,8 +185,24 @@ public class NativeSimd  {
             throw new AssertionError("should not reach here", ex$);
         }
     }
+    public static MethodHandle dot_product_f32_q4_chunked$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$0,"dot_product_f32_q4_chunked");
+    }
+    /**
+     * {@snippet :
+     * void dot_product_f32_q4_chunked(int flags, float* r, float* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * }
+     */
+    public static void dot_product_f32_q4_chunked(int flags, MemorySegment r, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+        var mh$ = dot_product_f32_q4_chunked$MH();
+        try {
+            mh$.invokeExact(flags, r, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
     public static MethodHandle dot_product_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$3,"dot_product_q8");
+        return RuntimeHelper.requireNonNull(constants$2.const$2,"dot_product_q8");
     }
     /**
      * {@snippet :
@@ -170,7 +218,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_q8_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$4,"dot_product_q8_q4");
+        return RuntimeHelper.requireNonNull(constants$2.const$3,"dot_product_q8_q4");
     }
     /**
      * {@snippet :
@@ -181,6 +229,22 @@ public class NativeSimd  {
         var mh$ = dot_product_q8_q4$MH();
         try {
             return (float)mh$.invokeExact(flags, af, a, aoffset, bf, b, boffset, length);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+    public static MethodHandle dot_product_q8_q4_chunked$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$5,"dot_product_q8_q4_chunked");
+    }
+    /**
+     * {@snippet :
+     * void dot_product_q8_q4_chunked(int flags, float* r, float* af, char* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * }
+     */
+    public static void dot_product_q8_q4_chunked(int flags, MemorySegment r, MemorySegment af, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+        var mh$ = dot_product_q8_q4_chunked$MH();
+        try {
+            mh$.invokeExact(flags, r, af, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }

@@ -17,11 +17,17 @@ float dot_product_f16_q4(int flags, const short* a, int aoffset, const float *bf
 
 //F32
 float dot_product_f32(int flags, const float* a, int aoffset, const float* b, int boffset, int length);
+void dot_product_f32_chunked(int flags, float *r, const float* a, int aoffset, const float* b, int boffset, int length, int bchunkstart, int bchunksize);
+
 float dot_product_f32_q8(int flags, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length);
-float dot_product_f32_q4(int flags, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length);
+void dot_product_f32_q8_chunked(int flags, float *r, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize);
+
+float dot_product_f32_q4(int flags, const float *a, int aoffset, const float *bf, const char* b, int boffset, int length);
+void dot_product_f32_q4_chunked(int flags, float *r, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize);
 
 //I8
 float dot_product_q8(int flags, const float *af, const char* a, int aoffset, const float *bf, const char* b, int boffset, int length);
 float dot_product_q8_q4(int flags, const float *af, const char* a, int aoffset, const float *bf, const char* b, int boffset, int length);
+void dot_product_q8_q4_chunked(int flags, float *r, const float* af, const char *a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize);
 
 #endif

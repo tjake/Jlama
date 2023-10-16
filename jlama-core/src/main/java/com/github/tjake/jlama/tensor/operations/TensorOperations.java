@@ -12,16 +12,33 @@ public interface TensorOperations
 
     boolean requiresOffHeapTensor();
 
+    default int parallelSplitSize() {
+        return 1;
+    }
+
     default float dotProduct(AbstractTensor a, AbstractTensor b, int limit) {
         return dotProduct(a, b, 0, 0, limit);
     }
 
     float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit);
 
+    default void dotProductChunk(AbstractTensor result, AbstractTensor a, AbstractTensor b, int limit, int chunkStart, int chunkSize) {
+        Preconditions.checkArgument(b.dims() == 2);
+        for (int i = chunkStart; i < chunkStart + chunkSize; i++) {
+            float d = dotProduct(a, b.slice(i), 0, 0, limit);
+            result.set(d, i);
+        }
+    }
+
     /**
-     * For each position in the tensor, add a to b.  Must be same size.
+     * For each position in the tensor, add b into a.  Must be same size.
      */
     void accumulate(AbstractTensor a, AbstractTensor b);
+
+    /**
+     * For each position in the tensor, multiply b into a.  Must be same size.
+     */
+    void maccumulate(AbstractTensor a, AbstractTensor b);
 
     /**
      * The value computed is (alpha * X[i]) + Y[i]
@@ -39,7 +56,7 @@ public interface TensorOperations
     void scale(float factor, AbstractTensor x, int offset, int length);
 
     /**
-     * Quantizes the model to the specified type (if supported)
+     * Quantizes the tensor to the specified type (if supported)
      */
     default AbstractTensor quantize(AbstractTensor t, DType qtype) {
         AbstractTensor t2 = TensorCache.instance.get(t.dType(), t.shape());

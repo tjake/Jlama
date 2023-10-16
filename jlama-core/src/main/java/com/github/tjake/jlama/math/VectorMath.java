@@ -1,6 +1,8 @@
 package com.github.tjake.jlama.math;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 
 import org.slf4j.Logger;
@@ -13,10 +15,27 @@ public class VectorMath {
 
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
-
     public static void pfor(int start, int end, IntConsumer action) {
         PhysicalCoreExecutor.instance.get().execute(() ->
             IntStream.range(start, end).parallel().forEach(action)
+        );
+    }
+
+    public static void pchunk(int length, BiIntConsumer action) {
+        int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
+        int chunkSize = length / splits;
+
+        //Non optimal case, just run in parallel
+        if (splits == 1 || splits % length != 0) {
+            splits = length;
+            chunkSize = 1;
+        }
+
+        int fsplits = splits;
+        int fchunkSize = chunkSize;
+
+        PhysicalCoreExecutor.instance.get().execute(() ->
+            IntStream.range(0, fsplits).parallel().forEach(i -> action.accept(i*fchunkSize, fchunkSize))
         );
     }
 

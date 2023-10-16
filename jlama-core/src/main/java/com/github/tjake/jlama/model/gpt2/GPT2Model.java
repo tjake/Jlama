@@ -2,10 +2,7 @@ package com.github.tjake.jlama.model.gpt2;
 
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.math.ActivationFunction;
-import com.github.tjake.jlama.safetensors.Config;
-import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.safetensors.Tokenizer;
-import com.github.tjake.jlama.safetensors.Weights;
+import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
 import java.util.Optional;
@@ -18,7 +15,7 @@ public class GPT2Model extends AbstractModel {
 
     private final TransformerBlock[] transformerBlocks;
 
-    public GPT2Model(Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType) {
+    public GPT2Model(Config c, WeightLoader w, Tokenizer tokenizer, DType workingDType, DType workingQType) {
         super(c, w, tokenizer, workingDType, workingQType);
 
         this.wte = w.load("wte.weight");
