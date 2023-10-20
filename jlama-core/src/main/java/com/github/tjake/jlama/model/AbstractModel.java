@@ -1,8 +1,11 @@
 package com.github.tjake.jlama.model;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.safetensors.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
@@ -10,13 +13,20 @@ import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.AtomicDouble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -28,6 +38,11 @@ import java.util.function.BiConsumer;
 
 public abstract class AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
+    private static final ObjectMapper om = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
     protected final Config c;
     protected final WeightLoader weights;
     protected final Tokenizer tokenizer;
@@ -61,6 +76,44 @@ public abstract class AbstractModel {
         }
 
         logger.info("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
+    }
+
+    public static AbstractModel load(File model, int threadCount, DType workingMemoryType, DType workingQuantizationType) throws FileNotFoundException {
+        if (!model.exists()) {
+            throw new FileNotFoundException("Model does not exist: " + model);
+        }
+
+        File baseDir = model.isFile() ? model.getParentFile() : model;
+        assert baseDir.isDirectory() : "Neither model location nor its parent is a directory!? " + model;
+
+        File configFile = null;
+        for (File f : Objects.requireNonNull(baseDir.listFiles())) {
+            if (f.getName().equals("config.json")) {
+                configFile = f;
+                break;
+            }
+        }
+
+        if (configFile == null) {
+            throw new FileNotFoundException("config.json does not exist in model directory " + baseDir);
+        }
+
+        try {
+            PhysicalCoreExecutor.overrideThreadCount(threadCount);
+
+            ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
+
+            Config c = om.readValue(configFile, modelType.configClass);
+            Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
+            WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
+
+            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class, DType.class, DType.class)
+                    .newInstance(c, wl, t, workingMemoryType, workingQuantizationType);
+
+        } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException |
+                 IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String wrapPrompt(String prompt, Optional<String> systemPrompt) {

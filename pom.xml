@@ -42,7 +42,6 @@
   <!-- Build property abstractions: versions, etc -->
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.install.skip>true</maven.install.skip>
     <revision>0.1.0-SNAPSHOT</revision>
 
     <osmaven.version>1.7.1</osmaven.version>
