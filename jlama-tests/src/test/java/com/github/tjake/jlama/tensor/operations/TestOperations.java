@@ -48,6 +48,7 @@ public class TestOperations
         opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_512));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_256));
+        opTypes.add(new PanamaTensorOperations(MachineSpec.Type.ARM_128));
 
         if (globalOps instanceof NativeTensorOperations) {
             opTypes.add(new NativeTensorOperations());
@@ -61,6 +62,11 @@ public class TestOperations
                 opTypes.add(new NativeTensorOperations(HAS_F16C));
                 if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
                     opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
+            }
+
+            if (RuntimeSupport.isArm()) {
+                opTypes.add(new NativeTensorOperations(MachineSpec.Type.ARM_128.ctag));
+
             }
         }
 
@@ -247,8 +253,10 @@ public class TestOperations
         Q8ByteBufferTensor ref = new Q8ByteBufferTensor(a);
         Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a);
         Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a);
+        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a);
 
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);
+        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv2), 0.0001);
     }
 }

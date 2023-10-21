@@ -6,6 +6,7 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -187,6 +188,15 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
             vector.intoArray(getArray(), getArrayOffset(offset));
         else
             vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+    }
+
+    @Override
+    public void intoTensor(ByteVector vector, int offset, VectorMask<Byte> msk) {
+        Preconditions.checkArgument(!b.isReadOnly());
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+            vector.intoArray(getArray(), getArrayOffset(offset), msk);
+        else
+            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN, msk);
     }
 
     @Override

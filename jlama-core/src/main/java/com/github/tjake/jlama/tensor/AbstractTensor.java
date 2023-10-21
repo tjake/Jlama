@@ -4,6 +4,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.Vector;
+import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
 
 import java.lang.foreign.MemorySegment;
@@ -197,6 +198,10 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     public abstract V getVector(VectorSpecies<T> species, int offset);
 
     public abstract void intoTensor(V vector, int offset);
+
+    public void intoTensor(V vector, int offset, VectorMask<T> mask) {
+        throw new UnsupportedOperationException();
+    }
 
     public abstract MemorySegment getMemorySegment();
 

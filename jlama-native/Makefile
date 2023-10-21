@@ -33,11 +33,11 @@ all: $(LIB)
 
 $(LIB): $(OBJS)
 	mkdir -p $(LIB_DIR)
-	$(AR) -shared -o $(LIB) $^
+	$(AR) $(LDFLAGS) -o $(LIB) $^
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(OBJ_DIR)
-	$(CC) -mavx2 -o $@ -c $< $(CFLAGS)
+	$(CC) -o $@ -c $< $(CFLAGS)
 
 clean:
 	rm -rf $(LIB_DIR) $(OBJ_DIR)

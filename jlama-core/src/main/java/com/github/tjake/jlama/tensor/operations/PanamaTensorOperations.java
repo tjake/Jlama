@@ -29,6 +29,10 @@ final public class PanamaTensorOperations implements TensorOperations
     static final IntVector BF16_BYTE_SHIFT_256 = IntVector.broadcast(IntVector.SPECIES_256, 16);
     static final FloatVector F32_ROUND_UP_256 = FloatVector.broadcast(FloatVector.SPECIES_256, 0.5f);
 
+    static final FloatVector F32_ROUND_UP_128 = FloatVector.broadcast(FloatVector.SPECIES_128, 0.5f);
+
+    static final VectorMask<Byte> BYTE_MASK_32 = VectorMask.fromValues(ByteVector.SPECIES_64, true, true, true, true, false, false, false, false);
+
     private final MachineSpec.Type vectorType;
     public PanamaTensorOperations(MachineSpec.Type vectorType) {
         this.vectorType = vectorType;
@@ -112,6 +116,7 @@ final public class PanamaTensorOperations implements TensorOperations
                 case I8 -> switch (vectorType) {
                     case AVX_512 -> quantizeQ8_512((FloatBufferTensor) t);
                     case AVX_256 -> quantizeQ8_256((FloatBufferTensor) t);
+                    case ARM_128 -> quantizeQ8_arm((FloatBufferTensor) t);
                     default -> throw new UnsupportedOperationException();
                 };
                 default -> throw new UnsupportedOperationException();
@@ -198,6 +203,82 @@ final public class PanamaTensorOperations implements TensorOperations
             qft.intoTensor(bvq1, i + 8);
             qft.intoTensor(bvq2, i + 16);
             qft.intoTensor(bvq3, i + 24);
+
+            qft.getBlockF().set(d, (int)(i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+        }
+
+        return qft;
+    }
+
+    public Q8ByteBufferTensor quantizeQ8_arm(FloatBufferTensor ft) {
+        Preconditions.checkArgument(ft.size() % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
+
+        //Up to caller to release
+        Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
+
+        for (int i = 0; i < ft.size(); i += Q8ByteBufferTensor.BLOCK_SIZE) {
+            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_128, i);
+            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_128, i + 4);
+            FloatVector fv2 = ft.getVector(FloatVector.SPECIES_128, i + 8);
+            FloatVector fv3 = ft.getVector(FloatVector.SPECIES_128, i + 12);
+            FloatVector fv4 = ft.getVector(FloatVector.SPECIES_128, i + 16);
+            FloatVector fv5 = ft.getVector(FloatVector.SPECIES_128, i + 20);
+            FloatVector fv6 = ft.getVector(FloatVector.SPECIES_128, i + 24);
+            FloatVector fv7 = ft.getVector(FloatVector.SPECIES_128, i + 28);
+
+            //Compute max abs
+            var maxAbs0 = fv0.abs();
+            var maxAbs1 = fv1.abs();
+            var maxAbs2 = fv2.abs();
+            var maxAbs3 = fv3.abs();
+            var maxAbs4 = fv4.abs();
+            var maxAbs5 = fv5.abs();
+            var maxAbs6 = fv6.abs();
+            var maxAbs7 = fv7.abs();
+
+            var m0 = maxAbs0.max(maxAbs1);
+            var m1 = maxAbs2.max(maxAbs3);
+            var m2 = maxAbs4.max(maxAbs5);
+            var m3 = maxAbs6.max(maxAbs7);
+
+            var m4 = m0.max(m1);
+            var m5 = m2.max(m3);
+
+            float maxScalar = m4.max(m5).reduceLanes(VectorOperators.MAX);
+
+            // Quantize these floats
+            float d = maxScalar / 127f;
+            float id = ( maxScalar != 0.0f ) ? 127.f / maxScalar : 0.0f;
+
+            var vid = FloatVector.broadcast(FloatVector.SPECIES_128, id);
+            var fvq0 = fv0.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq1 = fv1.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq2 = fv2.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq3 = fv3.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq4 = fv4.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq5 = fv5.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq6 = fv6.mul(vid).add(F32_ROUND_UP_128); //rounding
+            var fvq7 = fv7.mul(vid).add(F32_ROUND_UP_128); //rounding
+
+            //Squash to bytes (rounds internally)
+            var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq4 = fvq4.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq5 = fvq5.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq6 = fvq6.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+            var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+
+            qft.intoTensor(bvq0, i, BYTE_MASK_32);
+            qft.intoTensor(bvq1, i + 4, BYTE_MASK_32);
+            qft.intoTensor(bvq2, i + 8, BYTE_MASK_32);
+            qft.intoTensor(bvq3, i + 12, BYTE_MASK_32);
+            qft.intoTensor(bvq4, i + 16, BYTE_MASK_32);
+            qft.intoTensor(bvq5, i + 20, BYTE_MASK_32);
+            qft.intoTensor(bvq6, i + 24, BYTE_MASK_32);
+            qft.intoTensor(bvq7, i + 28, BYTE_MASK_32);
+
 
             qft.getBlockF().set(d, (int)(i * Q8ByteBufferTensor.I_BLOCK_SIZE));
         }

@@ -11,10 +11,15 @@ public class MachineSpec {
     public static final Type VECTOR_TYPE = new MachineSpec().type;
 
     public enum Type {
-        AVX_256,
-        AVX_512,
-        ARM_128,
-        NONE,
+        AVX_256(2),
+        AVX_512(4),
+        ARM_128(8),
+        NONE(0);
+
+        public final int ctag;
+        Type(int cflag) {
+            this.ctag = cflag;
+        }
     }
 
     private final Type type;
