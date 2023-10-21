@@ -20,10 +20,25 @@ final class constants$0 {
         JAVA_INT
     );
     static final MethodHandle const$1 = RuntimeHelper.downcallHandle(
-        "dot_product_f16",
+        "dot_product_f32",
         constants$0.const$0
     );
-    static final FunctionDescriptor const$2 = FunctionDescriptor.of(JAVA_FLOAT,
+    static final FunctionDescriptor const$2 = FunctionDescriptor.ofVoid(
+        JAVA_INT,
+        RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
+        JAVA_INT,
+        RuntimeHelper.POINTER,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT
+    );
+    static final MethodHandle const$3 = RuntimeHelper.downcallHandle(
+        "dot_product_f32_chunked",
+        constants$0.const$2
+    );
+    static final FunctionDescriptor const$4 = FunctionDescriptor.of(JAVA_FLOAT,
         JAVA_INT,
         RuntimeHelper.POINTER,
         JAVA_INT,
@@ -32,17 +47,9 @@ final class constants$0 {
         JAVA_INT,
         JAVA_INT
     );
-    static final MethodHandle const$3 = RuntimeHelper.downcallHandle(
-        "dot_product_f16_q8",
-        constants$0.const$2
-    );
-    static final MethodHandle const$4 = RuntimeHelper.downcallHandle(
-        "dot_product_f16_q4",
-        constants$0.const$2
-    );
     static final MethodHandle const$5 = RuntimeHelper.downcallHandle(
-        "dot_product_f32",
-        constants$0.const$0
+        "dot_product_f32_q8",
+        constants$0.const$4
     );
 }
 

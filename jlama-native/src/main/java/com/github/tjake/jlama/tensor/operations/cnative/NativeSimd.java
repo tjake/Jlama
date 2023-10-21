@@ -57,56 +57,8 @@ public class NativeSimd  {
     public static int Q4_BLOCK_SIZE() {
         return (int)32L;
     }
-    public static MethodHandle dot_product_f16$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.const$1,"dot_product_f16");
-    }
-    /**
-     * {@snippet :
-     * float dot_product_f16(int flags, short* a, int aoffset, short* b, int boffset, int length);
-     * }
-     */
-    public static float dot_product_f16(int flags, MemorySegment a, int aoffset, MemorySegment b, int boffset, int length) {
-        var mh$ = dot_product_f16$MH();
-        try {
-            return (float)mh$.invokeExact(flags, a, aoffset, b, boffset, length);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle dot_product_f16_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.const$3,"dot_product_f16_q8");
-    }
-    /**
-     * {@snippet :
-     * float dot_product_f16_q8(int flags, short* a, int aoffset, float* bf, char* b, int boffset, int length);
-     * }
-     */
-    public static float dot_product_f16_q8(int flags, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length) {
-        var mh$ = dot_product_f16_q8$MH();
-        try {
-            return (float)mh$.invokeExact(flags, a, aoffset, bf, b, boffset, length);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
-    public static MethodHandle dot_product_f16_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.const$4,"dot_product_f16_q4");
-    }
-    /**
-     * {@snippet :
-     * float dot_product_f16_q4(int flags, short* a, int aoffset, float* bf, char* b, int boffset, int length);
-     * }
-     */
-    public static float dot_product_f16_q4(int flags, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length) {
-        var mh$ = dot_product_f16_q4$MH();
-        try {
-            return (float)mh$.invokeExact(flags, a, aoffset, bf, b, boffset, length);
-        } catch (Throwable ex$) {
-            throw new AssertionError("should not reach here", ex$);
-        }
-    }
     public static MethodHandle dot_product_f32$MH() {
-        return RuntimeHelper.requireNonNull(constants$0.const$5,"dot_product_f32");
+        return RuntimeHelper.requireNonNull(constants$0.const$1,"dot_product_f32");
     }
     /**
      * {@snippet :
@@ -122,7 +74,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f32_chunked$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$1,"dot_product_f32_chunked");
+        return RuntimeHelper.requireNonNull(constants$0.const$3,"dot_product_f32_chunked");
     }
     /**
      * {@snippet :
@@ -138,7 +90,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f32_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$2,"dot_product_f32_q8");
+        return RuntimeHelper.requireNonNull(constants$0.const$5,"dot_product_f32_q8");
     }
     /**
      * {@snippet :
@@ -154,7 +106,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f32_q8_chunked$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$4,"dot_product_f32_q8_chunked");
+        return RuntimeHelper.requireNonNull(constants$1.const$1,"dot_product_f32_q8_chunked");
     }
     /**
      * {@snippet :
@@ -170,7 +122,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f32_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$1.const$5,"dot_product_f32_q4");
+        return RuntimeHelper.requireNonNull(constants$1.const$2,"dot_product_f32_q4");
     }
     /**
      * {@snippet :
@@ -186,7 +138,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_f32_q4_chunked$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.const$0,"dot_product_f32_q4_chunked");
+        return RuntimeHelper.requireNonNull(constants$1.const$3,"dot_product_f32_q4_chunked");
     }
     /**
      * {@snippet :
@@ -202,7 +154,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_q8$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.const$2,"dot_product_q8");
+        return RuntimeHelper.requireNonNull(constants$1.const$5,"dot_product_q8");
     }
     /**
      * {@snippet :
@@ -218,7 +170,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_q8_q4$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.const$3,"dot_product_q8_q4");
+        return RuntimeHelper.requireNonNull(constants$2.const$0,"dot_product_q8_q4");
     }
     /**
      * {@snippet :
@@ -234,7 +186,7 @@ public class NativeSimd  {
         }
     }
     public static MethodHandle dot_product_q8_q4_chunked$MH() {
-        return RuntimeHelper.requireNonNull(constants$2.const$5,"dot_product_q8_q4_chunked");
+        return RuntimeHelper.requireNonNull(constants$2.const$2,"dot_product_q8_q4_chunked");
     }
     /**
      * {@snippet :
