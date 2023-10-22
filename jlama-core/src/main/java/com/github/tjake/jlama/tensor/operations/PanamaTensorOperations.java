@@ -45,12 +45,12 @@ final public class PanamaTensorOperations implements TensorOperations
 
     @Override
     public boolean requiresOffHeapTensor() {
-        return false;
+        return true;
     }
 
     @Override
     public float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
-        Preconditions.checkArgument(limit % 32 == 0);
+        Preconditions.checkArgument(limit % 2 == 0, "Limit must be a multiple of 2, not" + limit);
 
         return switch (a.dType()) {
             case F32 -> switch (b.dType()) {
@@ -671,11 +671,6 @@ final public class PanamaTensorOperations implements TensorOperations
         return acc.reduceLanes(VectorOperators.ADD);
     }
 
-    private FloatVector helpF32Q4(FloatVector acc, float scalef, FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset) {
-
-        return acc;
-    }
-
     private float dotProductF32Q4_512(FloatBufferTensor a, Q4ByteBufferTensor b, int aoffset, int boffset, int limit) {
         Preconditions.checkArgument(
                 boffset % Q4ByteBufferTensor.BLOCK_SIZE == 0 &&
@@ -1062,10 +1057,10 @@ final public class PanamaTensorOperations implements TensorOperations
             FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, i);
             a.intoTensor(va.mul(vb), i);
         }
-
+ 
         // tail
         for (; i < a.size(); i++) {
-            a.set(a.get(i) * b.get(i));
+            a.set(a.get(i) * b.get(i), i);
         }
     }
 
@@ -1103,7 +1098,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
         // tail
         for (; i < a.size(); i++) {
-            a.set(a.get(i) + b.get(i));
+            a.set(a.get(i) + b.get(i), i);
         }
     }
 
@@ -1135,7 +1130,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
         // tail
         for (; i < a.size(); i++) {
-            a.set(a.get(i) + b.get(i));
+            a.set(a.get(i) + b.get(i), i);
         }
     }
 
@@ -1167,7 +1162,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
         // tail
         for (; i < a.size(); i++) {
-            a.set(a.get(i) + b.get(i));
+            a.set(a.get(i) + b.get(i), i);
         }
     }
 
@@ -1193,7 +1188,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
     public void scaleF32(float factor, FloatBufferTensor a, int offset, int length)
     {
-        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(offset + length);
+        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(length) + offset;
         int i = offset;
 
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, factor);
@@ -1210,7 +1205,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
     public void scaleBF16_512(float factor, BFloat16BufferTensor a, int offset, int length)
     {
-        int upperBound = FloatVector.SPECIES_512.loopBound(offset + length);
+        int upperBound = FloatVector.SPECIES_512.loopBound(length) + offset;
         int i = offset;
 
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_512, factor);
@@ -1235,7 +1230,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
     public void scaleBF16_256(float factor, BFloat16BufferTensor a, int offset, int length)
     {
-        int upperBound = FloatVector.SPECIES_256.loopBound(offset + length);
+        int upperBound = FloatVector.SPECIES_256.loopBound(length) + offset;
         int i = offset;
 
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_256, factor);
@@ -1261,7 +1256,7 @@ final public class PanamaTensorOperations implements TensorOperations
     @Override
     public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         Preconditions.checkArgument(x.dType() == y.dType());
-        Preconditions.checkArgument(limit % 8 == 0);
+        Preconditions.checkArgument(limit % 2 == 0);
 
         switch (x.dType()) {
             case F32: saxpyF32(alpha, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit); break;
@@ -1370,7 +1365,7 @@ final public class PanamaTensorOperations implements TensorOperations
     @Override
     public void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         Preconditions.checkArgument(x.dType() == y.dType());
-        Preconditions.checkArgument(limit % 8 == 0);
+        Preconditions.checkArgument(limit % 2 == 0);
 
         switch (x.dType()) {
             case F32: sxpbyF32(beta, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit); break;

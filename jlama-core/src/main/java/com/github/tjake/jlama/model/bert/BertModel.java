@@ -99,7 +99,7 @@ public class BertModel extends AbstractModel {
         long[] encoded = tokenizer.encode(input);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
-        AbstractTensor kvmem = makeTensor(c.numberOfLayers, encoded.length, c.embeddingLength * 2); //k and v are concatenated
+        AbstractTensor kvmem = makeTensor(c.numberOfLayers, encoded.length, 2, c.embeddingLength); // 2 for key and value
 
         int promptLength = encoded.length;
         float avgp = 1.0f/promptLength;

@@ -56,7 +56,7 @@ public class TestModels {
             String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, " +
                     "previously unexplored valley, in the Andes Mountains. " +
                     "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
-            gpt2.generate(prompt, 0.6f, 256, false, makeOutHandler());
+            gpt2.generate(prompt, 0.8f, 256, false, makeOutHandler());
         }
     }
 
@@ -67,8 +67,7 @@ public class TestModels {
         try (SafeTensorIndex weights = SafeTensorIndex.loadWithWeights(Path.of(modelPrefix))) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8);
-
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, DType.Q4);
             String prompt = "Simply put, the theory of relativity states that";
             model.generate(prompt, 0.7f, 256, false, makeOutHandler());
         }
@@ -85,10 +84,10 @@ public class TestModels {
             Weights weights = SafeTensorSupport.readWeights(bb);
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, DType.F32);
 
             String prompt = "Lily picked up a flower and gave it to";
-            model.generate(prompt, 0.9f, 128, false, makeOutHandler());
+            model.generate(prompt, 0.7f, 128, false, makeOutHandler());
         }
     }
 

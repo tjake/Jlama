@@ -62,8 +62,9 @@ public class MLPBlock {
                 buf.set(w1a, i);
             });
 
-            if (upProjectionWeights != null)
+            if (upProjectionWeights != null) {
                 TensorOperationsProvider.get().maccumulate(buf, buf2);
+            }
 
             //matmul the projection and sum into input
             AbstractTensor result = model.makeTensor(model.c.embeddingLength);

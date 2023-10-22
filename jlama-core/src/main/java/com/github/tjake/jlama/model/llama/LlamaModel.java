@@ -29,13 +29,14 @@ public class LlamaModel extends AbstractModel {
 
     private final AbstractTensor classificationWeights;
 
-    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType) {
-        super(config, weights, tokenizer, workingDType, workingQType);
+    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, DType modelQType) {
+        super(config, weights, tokenizer, workingDType, workingQType, Optional.ofNullable(modelQType));
 
-        DType qType = DType.Q4;
+        DType qType = modelQType != null ? modelQType : this.modelDType;
 
-        logger.info("Quantizing model with {} - Please hold...", qType);
-
+        if (modelQType != this.modelDType) {
+            logger.info("Quantizing model with {} - Please hold...", qType);
+        }
 
         this.wte = weights.load("model.embed_tokens.weight").quantize(workingDType); //Don't quantize this, it's used for the embedding layer
         this.outputLayerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType));

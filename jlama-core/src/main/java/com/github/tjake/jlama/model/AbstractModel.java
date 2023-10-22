@@ -34,15 +34,21 @@ public abstract class AbstractModel {
     protected final DType modelDType;
     protected final DType workingDType;
     protected final DType workingQType;
+    protected final Optional<DType> modelQType;
     private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
 
     protected AbstractModel(Config c, WeightLoader w, Tokenizer t, DType workingMemoryDType, DType workingMemoryQType)
+    {
+        this(c, w, t, workingMemoryDType, workingMemoryQType, Optional.empty());
+    }
+    protected AbstractModel(Config c, WeightLoader w, Tokenizer t, DType workingMemoryDType, DType workingMemoryQType, Optional<DType> modelQType)
     {
         this.c = c;
         this.weights = w;
         this.tokenizer = t;
         this.modelDType = w.getModelDType();
         this.workingDType = workingMemoryDType;
+        this.modelQType = modelQType;
 
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;

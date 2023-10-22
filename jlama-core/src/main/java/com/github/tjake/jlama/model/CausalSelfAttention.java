@@ -92,7 +92,7 @@ public class CausalSelfAttention {
 
             queryAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(query, bias));
             keyAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(key, bias));
-            valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(value, bias));
+            valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(val, bias));
 
             // apply RoPE if present (accounting for huggingface permutation)
             // https://github.com/huggingface/transformers/blob/d533465150532b0c5de167b574e59f64c68b1154/src/transformers/models/llama/convert_llama_weights_to_hf.py#L114
@@ -122,10 +122,11 @@ public class CausalSelfAttention {
 
             // with all key-value entries populated, compute attention
             // the softmax is incrementally aggregated using the flash attention technique
-            AbstractTensor k0 = kvMem.slice(0).slice(1);
+            AbstractTensor k0 = kvMem.slice(0).slice(0);
+            AbstractTensor v0 = kvMem.slice(0).slice(1);
 
             // value is initially the first value for all heads
-            value.copyFrom(k0, 0, 0, c.embeddingLength);
+            value.copyFrom(v0, 0, 0, c.embeddingLength);
 
             //POSITION ZERO
             for (int i = 0; i < c.numberOfHeads; i++) {
