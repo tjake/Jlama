@@ -70,14 +70,14 @@ public class NativeTensorOperations implements TensorOperations {
                 case F32 -> NativeSimd.dot_product_f32(flags, a.getMemorySegment(), aoffset, b.getMemorySegment(), boffset, limit);
                 case I8 -> NativeSimd.dot_product_f32_q8(flags, a.getMemorySegment(), aoffset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
                 case Q4 -> NativeSimd.dot_product_f32_q4(flags, a.getMemorySegment(), aoffset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
-                default -> throw new UnsupportedOperationException();
+                default -> throw new UnsupportedOperationException(b.dType().name());
             };
             case I8 -> switch (b.dType()) {
                 case Q4 -> NativeSimd.dot_product_q8_q4(flags, ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), aoffset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
                 //case I8 -> NativeSimd.dot_product_q8(flags, ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), aoffset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit);
-                default -> throw new UnsupportedOperationException();
+                default -> throw new UnsupportedOperationException(b.dType().name());
             };
-            default -> throw new UnsupportedOperationException();
+            default -> throw new UnsupportedOperationException(a.dType().name());
         };
     }
 
@@ -88,16 +88,16 @@ public class NativeTensorOperations implements TensorOperations {
                 case F32: NativeSimd.dot_product_f32_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
                 case I8: NativeSimd.dot_product_f32_q8_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
                 case Q4: NativeSimd.dot_product_f32_q4_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
-                default: throw new UnsupportedOperationException();
+                default: throw new UnsupportedOperationException(b.dType().name());
             }
             break;
             case I8: switch (b.dType()) {
                 case Q4: NativeSimd.dot_product_q8_q4_chunked(flags, r.getMemorySegment(), ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), 0, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize);
                 break;
-                default: throw new UnsupportedOperationException();
+                default: throw new UnsupportedOperationException(b.dType().name());
             }
             break;
-            default: throw new UnsupportedOperationException();
+            default: throw new UnsupportedOperationException(a.dType().name());
         }
     }
 

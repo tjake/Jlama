@@ -25,6 +25,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
@@ -51,7 +52,7 @@ public class TestModels {
             Weights v = SafeTensorSupport.readWeights(bb);
             Tokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), GPT2Config.class);
-            GPT2Model gpt2 = new GPT2Model(c, v, tokenizer, DType.F32, DType.F32);
+            GPT2Model gpt2 = new GPT2Model(c, v, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, " +
                     "previously unexplored valley, in the Andes Mountains. " +
@@ -67,7 +68,7 @@ public class TestModels {
         try (SafeTensorIndex weights = SafeTensorIndex.loadWithWeights(Path.of(modelPrefix))) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, DType.Q4);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.of(DType.Q4));
             String prompt = "Simply put, the theory of relativity states that";
             model.generate(prompt, 0.7f, 256, false, makeOutHandler());
         }
@@ -84,7 +85,7 @@ public class TestModels {
             Weights weights = SafeTensorSupport.readWeights(bb);
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, DType.F32);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             String prompt = "Lily picked up a flower and gave it to";
             model.generate(prompt, 0.7f, 128, false, makeOutHandler());
@@ -102,7 +103,7 @@ public class TestModels {
             Weights weights = SafeTensorSupport.readWeights(bb);
             Tokenizer tokenizer = new BertTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), BertConfig.class);
-            BertModel model = new BertModel(c, weights, tokenizer, DType.F32, DType.F32);
+            BertModel model = new BertModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             String base = "A man is eating food.";
             String[] examples = new String[]{

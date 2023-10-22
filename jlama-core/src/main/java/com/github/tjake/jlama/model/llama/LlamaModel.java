@@ -29,12 +29,12 @@ public class LlamaModel extends AbstractModel {
 
     private final AbstractTensor classificationWeights;
 
-    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, DType modelQType) {
-        super(config, weights, tokenizer, workingDType, workingQType, Optional.ofNullable(modelQType));
+    public LlamaModel(Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+        super(config, weights, tokenizer, workingDType, workingQType, modelQType);
 
-        DType qType = modelQType != null ? modelQType : this.modelDType;
+        DType qType = modelQType.orElse(this.modelDType);
 
-        if (modelQType != this.modelDType) {
+        if (qType != this.modelDType) {
             logger.info("Quantizing model with {} - Please hold...", qType);
         }
 

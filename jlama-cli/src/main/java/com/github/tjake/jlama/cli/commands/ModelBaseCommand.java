@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
@@ -91,8 +92,8 @@ public class ModelBaseCommand extends BaseCommand {
             Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
             WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
 
-            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class, DType.class, DType.class)
-                    .newInstance(c, wl, t, workingMemoryType, workingQuantizationType);
+            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class, DType.class, DType.class, Optional.class)
+                    .newInstance(c, wl, t, workingMemoryType, workingQuantizationType, Optional.ofNullable(modelQuantization));
 
         } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException |
                IllegalAccessException e) {

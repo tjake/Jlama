@@ -22,8 +22,8 @@ public class BertModel extends AbstractModel {
 
     private final TransformerBlock[] transformerBlocks;
 
-    public BertModel(Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType) {
-        super(c, w, tokenizer, workingDType, workingQType);
+    public BertModel(Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+        super(c, w, tokenizer, workingDType, workingQType, modelQType);
 
         this.we =  w.load("embeddings.word_embeddings.weight");
         this.wte = w.load("embeddings.token_type_embeddings.weight");

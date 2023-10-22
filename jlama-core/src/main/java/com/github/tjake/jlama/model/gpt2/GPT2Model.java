@@ -15,8 +15,8 @@ public class GPT2Model extends AbstractModel {
 
     private final TransformerBlock[] transformerBlocks;
 
-    public GPT2Model(Config c, WeightLoader w, Tokenizer tokenizer, DType workingDType, DType workingQType) {
-        super(c, w, tokenizer, workingDType, workingQType);
+    public GPT2Model(Config c, WeightLoader w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+        super(c, w, tokenizer, workingDType, workingQType, modelQType);
 
         this.wte = w.load("wte.weight");
         this.wpe = w.load("wpe.weight");

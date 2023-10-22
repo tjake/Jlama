@@ -42,7 +42,7 @@ public class Weights implements WeightLoader {
         }
 
         //FIXME don't really support B16 atm
-        return maxType == DType.BF16 ? DType.F32 : maxType;
+        return maxType == DType.BF16 || maxType == DType.F16 ? DType.F32 : maxType;
     }
 
     @Override
