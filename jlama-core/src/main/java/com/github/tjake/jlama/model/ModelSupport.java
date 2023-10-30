@@ -1,7 +1,5 @@
 package com.github.tjake.jlama.model;
 
-import java.io.File;
-
 import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
 import com.github.tjake.jlama.model.bert.BertTokenizer;
@@ -12,7 +10,7 @@ import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.github.tjake.jlama.safetensors.Config;
-import com.github.tjake.jlama.safetensors.Tokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 
 public class ModelSupport {
 

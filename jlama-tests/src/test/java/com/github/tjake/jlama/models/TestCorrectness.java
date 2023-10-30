@@ -5,15 +5,16 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.math.VectorMath;
-import com.github.tjake.jlama.model.llama.LlamaConfig;
+import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
-import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.WordPieceTokenizer;
+
 import com.google.common.io.Resources;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -30,16 +31,34 @@ public class TestCorrectness {
             .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
 
     @Test
+    public void testBPETokenizer() {
+        String modelPrefix = "models/Llama-2-7b-chat-hf";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+
+        String p =  "[INST] Tell me a joke. \uD83D\uDC31 [/INST] Answer ";
+
+        long[] actual = tokenizer.encode(p);
+        long[] expected = new long[]{518, 25580, 29962, 24948, 592, 263, 2958, 446, 29889, 29871, 243, 162, 147, 180, 518, 29914, 25580, 29962, 673, 29871};
+
+        Assert.assertArrayEquals(expected, actual);
+
+        System.out.println(tokenizer.decode(actual));
+
+    }
+
+    @Test
     public void TestLLamaTokenizer() throws IOException {
-        String modelPrefix = "models/llama2-7b-hf";
+        String modelPrefix = "models/Llama-2-7b-chat-hf";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
 
-        String p =  "[INST] Tell me a joke. [/INST] Answer ";
+        String p =  "[INST] Tell me a joke. \uD83D\uDC31 [/INST] Answer ";
 
         long[] actual = tokenizer.encode(p);
-        long[] expected = new long[]{518, 25580, 29962, 24948, 592, 263, 2958, 446, 29889, 518, 29914, 25580, 29962, 673, 29871};
+        long[] expected = new long[]{518, 25580, 29962, 24948, 592, 263, 2958, 446, 29889, 29871, 243, 162, 147, 180, 518, 29914, 25580, 29962, 673, 29871};
 
         Assert.assertArrayEquals(expected, actual);
 
@@ -50,8 +69,7 @@ public class TestCorrectness {
         Assert.assertEquals(" [", s);
 
         long[] token = tokenizer.encode(p + "\n");
-
-        expected = new long[]{518, 25580, 29962, 24948, 592, 263, 2958, 446, 29889, 518, 29914, 25580, 29962, 673, 29871, 13};
+        expected = new long[]{518, 25580, 29962, 24948, 592, 263, 2958, 446, 29889, 29871, 243, 162, 147, 180, 518, 29914, 25580, 29962, 673, 29871, 13};
         Assert.assertArrayEquals(expected, token);
     }
 
@@ -117,5 +135,47 @@ public class TestCorrectness {
             Assert.assertEquals(f, Float.float16ToFloat(Float.floatToFloat16(f)), 0.001);
             Assert.assertEquals(f, FloatConversions.float16ToFloat32Alt(Float.floatToFloat16(f)), 0.001);
         }
+    }
+
+    @Test
+    public void testGptTokenizer() throws IOException
+    {
+        String modelPrefix = "models/gpt2-medium";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
+
+        String p =  "[INST] Tell me a joke. \uD83D\uDC31 [/INST] Answer ";
+
+        long[] actual = tokenizer.encode(p);
+        long[] expected = new long[]{58, 38604, 60, 14026, 502, 257, 9707, 13, 12520, 238, 109, 46581, 38604, 60, 23998, 220};
+
+
+        String d = tokenizer.decode(actual);
+        System.out.println(d);
+
+        Assert.assertArrayEquals(expected, actual);
+        Assert.assertEquals(p, d);
+    }
+
+    @Test
+    public void testBertTokenizer() throws IOException {
+        String modelPrefix = "models/e5-small-v2";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new WordPieceTokenizer(Paths.get(modelPrefix));
+
+        String p =  "[INST] Tell me a joke. \uD83D\uDC31 [/INST] Answer ";
+
+        long[] actual = tokenizer.encode(p);
+        long[] expected = new long[]{101, 1031, 16021, 2102, 1033, 2425, 2033, 1037, 8257, 1012, 100, 1031, 1013, 16021, 2102, 1033, 3437, 102};
+
+
+        String decodeExpected = "[CLS] [ inst ] tell me a joke. [UNK] [ / inst ] answer [SEP]";
+
+        String decodeActual = tokenizer.decode(actual);
+        System.out.println(decodeActual);
+
+        Assert.assertArrayEquals(expected, actual);
     }
 }

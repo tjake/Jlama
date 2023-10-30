@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
-import com.github.tjake.jlama.safetensors.Tokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import picocli.CommandLine.*;
@@ -103,11 +104,12 @@ public class ModelBaseCommand extends BaseCommand {
 
     protected BiConsumer<String, Float> makeOutHandler() {
         PrintWriter out;
+        Charset utf8 = Charset.forName("UTF-8");
         BiConsumer<String, Float> outCallback;
         if (System.console() == null) {
             AtomicInteger i = new AtomicInteger(0);
             StringBuilder b = new StringBuilder();
-            out = new PrintWriter(System.out);
+            out = new PrintWriter(System.out, true, utf8);
             outCallback = (w,t) ->  {
                 b.append(w);
                 out.println(String.format("%d: %s [took %.2fms])", i.getAndIncrement(), b, t));

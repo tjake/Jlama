@@ -13,6 +13,7 @@ import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 
 import org.junit.Assume;
 import org.junit.Test;
@@ -136,7 +137,6 @@ public class TestModels {
             VectorMath.pfor(0, 1000, i -> model.embed(base));
             long elapsed = System.currentTimeMillis() - start;
             logger.info("took {} seconds, {}ms per emb", elapsed/1000f, elapsed/1000f);
-
         }
     }
 

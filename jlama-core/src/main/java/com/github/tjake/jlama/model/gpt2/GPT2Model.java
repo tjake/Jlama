@@ -3,6 +3,7 @@ package com.github.tjake.jlama.model.gpt2;
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.*;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
 import java.util.Optional;

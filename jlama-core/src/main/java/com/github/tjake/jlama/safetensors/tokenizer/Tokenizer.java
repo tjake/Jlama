@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.safetensors;
+package com.github.tjake.jlama.safetensors.tokenizer;
 
 import java.util.List;
 

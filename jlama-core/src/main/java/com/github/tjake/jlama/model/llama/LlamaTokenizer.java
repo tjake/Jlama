@@ -1,62 +1,58 @@
 package com.github.tjake.jlama.model.llama;
 
-import ai.djl.sentencepiece.SpTextEmbedding;
-import ai.djl.sentencepiece.SpTokenizer;
-import ai.djl.sentencepiece.SpVocabulary;
-import ai.djl.util.passthrough.PassthroughNDManager;
-import com.github.tjake.jlama.safetensors.Tokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
 
-import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.Optional;
 
-public class LlamaTokenizer implements Tokenizer {
-
+public class LlamaTokenizer extends BPETokenizer {
     static final String SPIECE_UNDERLINE = "▁";
 
-    private SpTokenizer tokenizer;
-    private SpTextEmbedding embedding;
-    private SpVocabulary vocab;
+    private final int byteFallbackEncodingOffset;
 
+    public LlamaTokenizer(Path modelRoot) {
+        super(modelRoot);
 
-    public LlamaTokenizer(Path modelRoot) throws IOException {
-        this.tokenizer = new SpTokenizer(modelRoot, "tokenizer.model");
-        this.embedding = SpTextEmbedding.from(tokenizer);
-        this.vocab = SpVocabulary.from(tokenizer);
+        this.byteFallbackEncodingOffset = 3;
     }
 
     @Override
-    public List<String> tokenize(String sentence) {
-        return tokenizer.tokenize(sentence);
+    protected long encodeCharacterAsToken(byte c) {
+        return Byte.toUnsignedLong(c) + byteFallbackEncodingOffset;
     }
 
     @Override
-    public long[] encode(String sentence) {
-        return embedding.preprocessTextToEmbed(List.of(preNormalize(sentence)));
-    }
-
-    @Override
-    public String decode(long[] ids) {
-        //Wow what a messed up api
-        return tokenizer.buildSentence(embedding.unembedText(PassthroughNDManager.INSTANCE.create(ids)));
-    }
-
-    public String decode(long id) {
+    protected Optional<Character> maybeDecodeTokenAsCharacter(long id) {
         //Handle ascii codes (shifted by 3 in vocab)
-        if (id >= 3 && id < 259)
-            return new String(new char[]{(char)(id-3)});
+        if (id >= byteFallbackEncodingOffset && id < 256 + byteFallbackEncodingOffset) {
+            char c = (char)(id - byteFallbackEncodingOffset);
+            return Optional.of(c);
+        }
 
-        return postNormalize(vocab.getToken(id));
+        return Optional.empty();
     }
 
-    private String preNormalize(String sentence) {
+    @Override
+    protected String preProcess(String sentence) {
+        if (!sentence.isEmpty() && !sentence.startsWith(" ")) {
+            sentence = " " + sentence;
+        }
         return sentence.replace(" ", SPIECE_UNDERLINE);
     }
 
-    private String postNormalize(String sentence) {
-        sentence = sentence.replaceAll("</?s>", "");
-        sentence = sentence.replaceAll(SPIECE_UNDERLINE, " ");
-        sentence = sentence.replaceAll("<unk>", "\n");
-        return sentence;
+    @Override
+    protected String postProcess(String sentence) {
+        return sentence.stripLeading();
+    }
+
+    @Override
+    protected String postProcessToken(String decoded) {
+        if (decoded == null)
+            decoded = model.unkToken;
+
+        decoded = decoded.replaceAll("</?s>", "");
+        decoded = decoded.replaceAll(SPIECE_UNDERLINE, " ");
+
+        return decoded;
     }
 }

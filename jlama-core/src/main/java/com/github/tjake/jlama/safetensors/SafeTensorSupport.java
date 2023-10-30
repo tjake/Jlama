@@ -1,10 +1,13 @@
 package com.github.tjake.jlama.safetensors;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.github.tjake.jlama.model.ModelSupport.ModelType;
+import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
 import java.io.File;
@@ -12,11 +15,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
 public class SafeTensorSupport {
-    private static final ObjectMapper om = new ObjectMapper();
+    private static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final MapType metadataTypeReference = om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
 
     public static Map<String, TensorInfo> readTensorInfoMap(ByteBuffer buf, Optional<Map<String, String>> saveMetadata) {
@@ -75,4 +79,14 @@ public class SafeTensorSupport {
         throw new IllegalArgumentException("No safetensors model found in: " + baseDir);
     }
 
+    public static TokenizerModel loadTokenizer(Path modelRoot) throws IOException {
+        File tokenizerJson = modelRoot.resolve("tokenizer.json").toFile();
+        Preconditions.checkArgument(tokenizerJson.exists(), "No tokenizer.jsom found in " + modelRoot);
+
+        JsonNode rootNode = om.readTree(tokenizerJson);
+        if (!rootNode.has("model"))
+            throw new IllegalArgumentException("Json missing 'model' key");
+
+        return om.treeToValue(rootNode.get("model"), TokenizerModel.class);
+    }
 }

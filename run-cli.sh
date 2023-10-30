@@ -20,7 +20,7 @@ JLAMA_RELATIVE_JAR="./jlama-cli/target/jlama-cli.jar"
 LOGBACK_CONFIG="./conf/logback.xml"
 
 
-JLAMA_JVM_ARGS="-server -Xmx12g -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0 --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
+JLAMA_JVM_ARGS="-server -Dstdout.encoding=UTF-8 -Xmx12g -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0 --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
  -XX:+UnlockDiagnosticVMOptions -XX:CompilerDirectivesFile=./inlinerules.json -XX:+AlignVector -XX:+UseStringDeduplication \
  -XX:+UseCompressedOops -XX:+UseCompressedClassPointers "
         

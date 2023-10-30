@@ -5,12 +5,10 @@ import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.safetensors.Tokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import org.checkerframework.common.value.qual.IntRange;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

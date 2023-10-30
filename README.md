@@ -8,14 +8,19 @@
 
 Jlama is a pure Java implementation of a LLM inference engine.
 
-It currently supports the following models and formats:
+It currently supports the following models:
+  * Llama & Llama2 Models
+  * GPT-2 Models
+  * BERT Models
+  * BPE Tokenizers
+  * WordPiece Tokenizers
 
-  * Llama & Llama2 & CodeLlama
-  * GPT-2 
-  * BERT
-  * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model format
-  * Support for Float16, BFloat16 and Float32 models
-  * Q8, Q4, Q5 quantizations
+Features:
+  * Flash Attention
+  * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model and tokenizer format
+  * Support for F32, F16, BF16 models
+  * Supports Q8, Q4, Q5 model quantization
+
 
 Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
@@ -24,9 +29,7 @@ This project is a work in progress.
 
 ## Why?
 
-Helpful for anyone who wants to understand how LLMs work, or wants to use LLMs in a Java project.
-
-CPU based inference needs to be pushed to the limit to see if it can be a viable alternative to GPU based inference.
+Add LLM Inference directly to your Java application.
 
 ## How to use
 Jlama includes a cli tool to run models via the `run-cli.sh` command. 
@@ -42,72 +45,58 @@ Use the `download-hf-models.sh` script in the data directory to download models 
 
 Then run the cli:
 ```shell
-./run-cli.sh complete -p "The best part of waking up is " -t 0.7 models/Llama-2-7b-chat-hf
-./run-cli.sh chat -p "Tell me a joke about cats." models/Llama-2-7b-chat-hf
+./run-cli.sh complete -p "The best part of waking up is " -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
+./run-cli.sh chat -p "Tell me a joke about cats." -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
 ```
-## Caveats
-  
- * Tokenization (for now) requires JNI wrappers to SentencePiece and Huggingface tokenizers.
-
 # Examples
 
 ## GPT-2 (355M parameters)
 
 ```
-In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, 
+IIn a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, 
 in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.
+a long and diverse and interesting story is told in this book. The author writes:
+...
+the stories of the unicornes seem to be based on the most vivid and vivid imagination; they are the stories of animals that are a kind of 'spirit animal' , a partly-human spiritual animal that speaks in perfect English , and that often keep their language under mysterious and inaccessible circumstances.
+...
+While the unicorn stories are mostly about animals, they tell us about animals from other animal species. The unicorn stories are remarkable because they tell us about animals that are not animals at all . They speak and sing in perfect English , and they are very much human beings.
+...
+This book is not about the unicorn. It is not about anything in particular . It is about a brief and distinct group of animal beings who have been called into existence in a particular remote and unexplored valley in the Andes Mountains. They speak perfect English , and they are very human beings.
+...
+The most surprising thing about the tales of the unicorn
 
-The researchers, who were visiting the Andes Mountains in Peru and Chile, discovered that the unicorns, 
-known as the yu-yura, were native to the mountain valley, which is somewhere between the Andes and the Chilean Pyrenees.
-
-The researchers believe that the unicorns were introduced to the valley by a group of forest workers who were looking 
-for the mythical unicorn.
-
-The researchers believe that the unicorns, known as the yu-yura, were introduced to the valley by a group of forest 
-workers who were looking for the mythical unicorn.
-
-In a research published in The American Journal of Physical Anthropology, the researchers discovered that the unicorns
-were native to the mountain valley, which is somewhere between the Andes and the Chilean Pyrenees.
-
-elapsed: 10s, 54.234375ms per token
-
+elapsed: 10s, 49.437500ms per token
 ```
 
 ## Llama 2 7B
 
 ```
-Simply put, the theory of relativity states that time and space are relative and can be affected by gravity and motion.
-There are two main components to the theory of relativity:
+Here is a poem about cats, incluing emojis: 
+This poem uses emojis to add an extra layer of meaning and fun to the text.
+Cat, cat, so soft and sweet,
+Purring, cuddling, can't be beat. 🐈💕
+Fur so soft, eyes so bright,
+Playful, curious, such a delight. 😺🔍
+Laps so warm, naps so long,
+Sleepy, happy, never wrong. 😴😍
+Pouncing, chasing, always fun,
+Kitty's joy, never done. 🐾🎉
+Whiskers twitch, ears so bright,
+Cat's magic, pure delight. 🔮💫
+With a mew and a purr,
+Cat's love, forever sure. 💕🐈
+So here's to cats, so dear,
+Purrfect, adorable, always near. 💕🐈
 
-The theory of special relativity, which shows that time and space are relative and can be affected by speed and motion.
+elapsed: 37s, 159.518982ms per token
 
-The theory of general relativity, which shows that gravity is the curvature of spacetime caused by the presence of mass
-and energy. 
-
-Both theories were developed by Albert Einstein in the early 20th century and have been widely accepted 
-and experimentally confirmed since then. 
-
-The theory of relativity has had a profound impact on our understanding of the
-universe, from the smallest subatomic particles to the largest structures of the cosmos.
-
-Here are some key points to understand about the theory of relativity:
-
-Time dilation: The theory of special relativity shows that time appears to pass more slowly for an observer in motion 
-relative to a stationary observer. This is known as time dilation.
-
-Length contraction: The theory of special relativity also shows that objects appear shorter to an observer in 
-motion relative to a stationary observer. This is known as length contraction.
-
-Relativity of simultaneity: The theory of 
-
-elapsed: 204s, 798.289063ms per token
 ```
 
 ## Roadmap
 
-    * Support more models
-    * Add pure java tokenizers
-    * ~~Support Quantization (e.g. k-quantization)~~
-    * Add LoRA support
-    * GraalVM support
-    * Add distributed inference 
+* Support more models
+* <s>Add pure java tokenizers</s>
+* <s>Support Quantization (e.g. k-quantization)</s>
+* Add LoRA support
+* GraalVM support
+* Add distributed inference 
