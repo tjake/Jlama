@@ -24,7 +24,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     public static final String SINGLE_MODEL_NAME = "model.safetensors";
     public static final String MODEL_INDEX_JSON = "model.safetensors.index.json";
 
-    private final Map<String, Object> metadata;
+    private final Map<String, String> metadata;
 
     // Map from weight name to file name (this is what's in the JSON file)
     private final Map<String, String> weightFileMap;
@@ -136,6 +136,33 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
         return splits;
     }
 
+    @JsonCreator
+    SafeTensorIndex(@JsonProperty("metadata") Map<String, String> metadata,
+                           @JsonProperty("weight_map") Map<String, String> weightFileMap) {
+        this.metadata = ImmutableMap.copyOf(metadata);
+        this.weightFileMap = ImmutableMap.copyOf(weightFileMap);
+    }
+
+    @Override
+    public Map<String, String> metadata() {
+        return metadata;
+    }
+
+    @Override
+    public Map<String, TensorInfo> tensorInfoMap() {
+        Map<String, TensorInfo> tensorInfoMap = new HashMap<>();
+        for (String name : weightMap.keySet()) {
+            Weights w = weightMap.get(name);
+            if (w == null)
+                throw new NoSuchElementException(name);
+
+            tensorInfoMap.put(name, w.tensorInfoMap().get(name));
+        }
+
+        return tensorInfoMap;
+    }
+
+    @Override
     public AbstractTensor load(String name) {
         Weights w = weightMap.get(name);
         if (w == null)
@@ -148,13 +175,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     public DType getModelDType() {
         // FIXME: This assumes all weights have the same dtype
         return weightMap.values().iterator().next().getModelDType();
-    }
-
-    @JsonCreator
-    SafeTensorIndex(@JsonProperty("metadata") Map<String, Object> metadata,
-                           @JsonProperty("weight_map") Map<String, String> weightFileMap) {
-        this.metadata = ImmutableMap.copyOf(metadata);
-        this.weightFileMap = ImmutableMap.copyOf(weightFileMap);
     }
 
     @Override

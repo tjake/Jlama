@@ -4,6 +4,8 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
+
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
@@ -116,12 +118,12 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.name = "tmp";
 
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = ByteBuffer.allocateDirect(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
-            this.segment = MemorySegment.ofBuffer(b);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
         } else {
             this.b = ByteBuffer.allocate(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
-            this.segment = MemorySegment.ofBuffer(b);
         }
+
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     public Q5ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, int[] shape, boolean cacheSlices) {
@@ -137,6 +139,10 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     protected AbstractTensor make(int... shape) {
         return new Q5ByteBufferTensor(shape);
+    }
+
+    public FloatBufferTensor getBlockF() {
+        return blockF;
     }
 
     @Override

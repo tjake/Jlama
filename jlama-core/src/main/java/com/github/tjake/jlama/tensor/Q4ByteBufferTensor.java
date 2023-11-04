@@ -4,6 +4,8 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
+
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
@@ -46,12 +48,10 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         } while (ft.iterate(cursor));
 
         //Process each block in parallel
-       // ForkJoinPool.commonPool().submit(() ->
-                IntStream.range(0, startBlockCursors.size()).parallel().forEach((i) -> {
-                    int[] blockStartCursor = startBlockCursors.get(i);
-                    processBlock(ft, blockStartCursor);
-                });
-        //);
+        IntStream.range(0, startBlockCursors.size()).parallel().forEach((i) -> {
+            int[] blockStartCursor = startBlockCursors.get(i);
+            processBlock(ft, blockStartCursor);
+        });
     }
 
     void processBlock(AbstractTensor ft, int[] blockStartCursor) {
@@ -131,20 +131,34 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = ByteBuffer.allocateDirect(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
-            this.segment = MemorySegment.ofBuffer(b);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(this.size() / 2, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
         } else {
             this.b = ByteBuffer.allocate(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
-            this.segment = MemorySegment.ofBuffer(b);
         }
+
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     public Q4ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices) {
         super(DType.Q4, shape, cacheSlices);
-        this.name = name;
-        this.b = b;
         this.blockF = blockF;
-        this.segment = MemorySegment.ofBuffer(b);
+        this.name = name;
+        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
+            if (b.isDirect()) {
+                this.b = b;
+            } else {
+                this.b = ByteBuffer.allocateDirect(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+                this.b.duplicate().put(b);
+            }
+        } else {
+            if (!b.isDirect()) {
+                this.b = b;
+            } else {
+                this.b = ByteBuffer.allocate(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+                this.b.duplicate().put(b);
+            }
+        }
+        this.segment = MemorySegment.ofBuffer(this.b);
     }
 
     @Override

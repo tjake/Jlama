@@ -6,16 +6,19 @@ import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.nio.ch.DirectBuffer;
 
+import java.io.DataOutput;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -31,8 +34,7 @@ import java.util.Arrays;
  *
  * The Tensor is thread safe for read operations, but not for write operations.
  */
-public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[]>
-{
+public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[]> {
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final FloatBuffer b;
     private final String name;
@@ -52,23 +54,37 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
         super(DType.F32, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_FLOAT));
-            this.b = segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
         } else {
             this.b = FloatBuffer.allocate(capacity);
-            this.segment = MemorySegment.ofBuffer(b);
         }
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     public FloatBufferTensor(FloatBuffer b, int[] shape, boolean cacheSlices) {
         this("none", b, shape, cacheSlices);
     }
 
-    private FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices) {
+    public FloatBufferTensor(String name, FloatBuffer b, int[] shape, boolean cacheSlices) {
         super(DType.F32, shape, cacheSlices);
         this.name = name;
-        this.b = b;
-        this.segment = MemorySegment.ofBuffer(b);
+        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
+            if (b.isDirect()) {
+                this.b = b;
+            } else {
+                this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
+                this.b.duplicate().put(b);
+            }
+        } else {
+            if (!b.isDirect()) {
+                this.b = b;
+            } else {
+                this.b = FloatBuffer.allocate(size());
+                this.b.duplicate().put(b);
+            }
+        }
+
+        this.segment = MemorySegment.ofBuffer(this.b);
     }
 
     @Override

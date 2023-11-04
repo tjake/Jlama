@@ -28,10 +28,10 @@ public class TensorOperationsProvider {
 
     private final TensorOperations provider;
     private TensorOperationsProvider() {
-        this.provider = pickFastestImplementaion();
+        this.provider = pickFastestImplementation();
     }
 
-    private TensorOperations pickFastestImplementaion() {
+    private TensorOperations pickFastestImplementation() {
 
         TensorOperations pick = null;
 

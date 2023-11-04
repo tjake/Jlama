@@ -4,6 +4,8 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
+
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorMask;
@@ -96,20 +98,34 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.name = "tmp";
 
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_BYTE));
-            this.b = segment.asByteBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
         } else {
-            this.b = ByteBuffer.allocate(capacity);
-            this.segment = MemorySegment.ofBuffer(b);
+            this.b = ByteBuffer.allocate(capacity).order(ByteOrder.LITTLE_ENDIAN);
         }
+
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
-    private Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices) {
+    public Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices) {
         super(DType.I8, shape, cacheSlices);
         this.name = name;
-        this.b = b;
         this.blockF = blockF;
-        this.segment = MemorySegment.ofBuffer(b);
+        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
+            if (b.isDirect()) {
+                this.b = b;
+            } else {
+                this.b = ByteBuffer.allocateDirect(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+                this.b.duplicate().put(b);
+            }
+        } else {
+            if (!b.isDirect()) {
+                this.b = b;
+            } else {
+                this.b = ByteBuffer.allocate(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+                this.b.duplicate().put(b);
+            }
+        }
+        this.segment = MemorySegment.ofBuffer(this.b);
     }
 
 

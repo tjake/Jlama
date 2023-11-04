@@ -4,6 +4,10 @@ import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Float16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 
 import java.nio.ByteBuffer;
@@ -16,20 +20,21 @@ public class Weights implements WeightLoader {
     private final Map<String, String> metadata;
     private final Map<String, TensorInfo> tensorInfoMap;
     private final ByteBuffer bytes;
-    private final DType dType;
+    private final DType majorityDType;
 
     Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes)
     {
-        this.metadata = metadata;
-        this.tensorInfoMap = tensorInfoMap;
+        this.metadata = ImmutableMap.copyOf(metadata);
+        this.tensorInfoMap = ImmutableMap.copyOf(tensorInfoMap);
         this.bytes = bytes.duplicate();
-        this.dType = findDType();
+        this.majorityDType = findDType();
     }
 
     private DType findDType() {
         EnumMap<DType, Integer> counts = new EnumMap<>(DType.class);
-        for (TensorInfo info : tensorInfoMap.values()) {
-            counts.put(info.dType, counts.getOrDefault(info.dType, 0) + 1);
+        for (Map.Entry<String, TensorInfo> e : tensorInfoMap.entrySet()) {
+            if (!e.getKey().endsWith(".qb"))
+                counts.put(e.getValue().dType, counts.getOrDefault(e.getValue().dType, 0) + 1);
         }
 
         int max = 0;
@@ -43,6 +48,16 @@ public class Weights implements WeightLoader {
 
         //FIXME don't really support B16 atm
         return maxType == DType.BF16 || maxType == DType.F16 ? DType.F32 : maxType;
+    }
+
+    @Override
+    public Map<String, String> metadata() {
+        return metadata;
+    }
+
+    @Override
+    public Map<String, TensorInfo> tensorInfoMap() {
+        return tensorInfoMap;
     }
 
     @Override
@@ -64,12 +79,12 @@ public class Weights implements WeightLoader {
         switch (info.dType) {
             case F32:
                 fb = b.asFloatBuffer().slice();
-                return new FloatBufferTensor(fb, info.shape, true);
+                return new FloatBufferTensor(name, fb, info.shape, true);
             case F16:
                 // If the majority of the weights are F32 then convert to F32
-                if (dType == DType.F32) {
+                if (majorityDType == DType.F32) {
                     len = b.remaining() / DType.F16.size();
-                    ByteBuffer bb = ByteBuffer.allocateDirect(len * DType.F32.size()).order(ByteOrder.LITTLE_ENDIAN);
+                    ByteBuffer bb = ByteBuffer.allocate(len * DType.F32.size()).order(ByteOrder.LITTLE_ENDIAN);
                     for (int i = 0; i < len * DType.F32.size(); i += DType.F32.size()) {
                         short s = b.getShort();
                         float v = Float.float16ToFloat(s);
@@ -78,7 +93,7 @@ public class Weights implements WeightLoader {
                     return new FloatBufferTensor(bb.asFloatBuffer(), info.shape, true);
                 } else {
                     sb = b.asShortBuffer().slice();
-                    return new Float16BufferTensor(sb, info.shape, true);
+                    return new Float16BufferTensor(name, sb, info.shape, true);
                 }
             case BF16:
                 //For now always convert to F32
@@ -89,7 +104,13 @@ public class Weights implements WeightLoader {
                     float v = FloatConversions.bFloat16ToFloat32(s);
                     fb.put(i, v);
                 }
-                return new FloatBufferTensor(fb, info.shape, true);
+                return new FloatBufferTensor(name, fb, info.shape, true);
+            case Q4:
+                FloatBufferTensor qb = (FloatBufferTensor) load(name + ".qb");
+                return new Q4ByteBufferTensor(name, b.slice(), qb, info.shape, true);
+            case I8:
+                FloatBufferTensor qb1 = (FloatBufferTensor) load(name + ".qb");
+                return new Q8ByteBufferTensor(name, b.slice(), qb1, info.shape, true);
             default:
                 throw new IllegalArgumentException("Unsupported Tensor type: " + info.dType.name() + " for " + name);
         }
@@ -97,7 +118,7 @@ public class Weights implements WeightLoader {
 
     @Override
     public DType getModelDType() {
-        return dType;
+        return majorityDType;
     }
 
     @Override
@@ -122,4 +143,8 @@ public class Weights implements WeightLoader {
         return Objects.hash(metadata, tensorInfoMap);
     }
 
+    @Override
+    public void close() throws Exception {
+
+    }
 }

@@ -28,7 +28,7 @@ float dot_product_f32_q8_256(const float* a, int aoffset, const float *bf, const
         __m256 vb_f32 = _mm256_set1_ps(*(bf + bf_idx));
 
         // Load float32
-        __m256 va = _mm256_load_ps(a + ao);
+        __m256 va = _mm256_loadu_ps(a + ao);
 
         // Load 8 bytes into a 128-bit integer register
         __m128i int_vb = _mm_loadu_si128((__m128i const*)(b + bo));
@@ -74,7 +74,7 @@ float dot_product_f32_q8_512(const float* a, int aoffset, const float *bf, const
         __m512 vb_f32 = _mm512_set1_ps(*(bf + bf_idx));
 
         // Load float32
-        __m512 va = _mm512_load_ps(a + ao);
+        __m512 va = _mm512_loadu_ps(a + ao);
 
         // Load 16 bytes into a 256-bit integer register
         __m128i int_vb = _mm_loadu_si128((__m128i const*)(b + bo));
@@ -129,8 +129,8 @@ float dot_product_f32_q8_128(const float* a, int aoffset, const float *bf, const
         __m128 vb_f32 = _mm_set1_ps(*(bf + bf_idx));
 
         // Load float32
-        __m128 va0 = _mm_load_ps(a + ao);
-        __m128 va1 = _mm_load_ps(a + ao + 4);
+        __m128 va0 = _mm_loadu_ps(a + ao);
+        __m128 va1 = _mm_loadu_ps(a + ao + 4);
 
         // Load 8 bytes into a 128-bit integer register
         __m128i int_vb0 = _mm_loadu_si32((__m128i const*)(b + bo));
@@ -309,10 +309,10 @@ float dot_product_f32_q4_256(const float* a, int aoffset, const float *bf, const
         __m256 vb_f32 = _mm256_set1_ps(*(bf + bf_idx));
 
         // Load float32
-        __m256 va0 = _mm256_load_ps(a + ao);
-        __m256 va1 = _mm256_load_ps(a + ao + 8);
-        __m256 va2 = _mm256_load_ps(a + ao + 8 + 8);
-        __m256 va3 = _mm256_load_ps(a + ao + 8 + 8 + 8);
+        __m256 va0 = _mm256_loadu_ps(a + ao);
+        __m256 va1 = _mm256_loadu_ps(a + ao + 8);
+        __m256 va2 = _mm256_loadu_ps(a + ao + 8 + 8);
+        __m256 va3 = _mm256_loadu_ps(a + ao + 8 + 8 + 8);
 
         // Load 8 bytes into a 128-bit integer register
         __m128i int_vb0 = _mm_loadl_epi64((__m128i const*)(b + bo)); // Load lower 64 bits
@@ -395,11 +395,11 @@ float dot_product_f32_q4_512(const float* a, int aoffset, const float *bf, const
         __m512 vb_f32 = _mm512_set1_ps(*(bf + bf_idx));
 
         // Load float32
-        __m512 va0 = _mm512_load_ps(a + ao);
-        __m512 va1 = _mm512_load_ps(a + ao + 16);
+        __m512 va0 = _mm512_loadu_ps(a + ao);
+        __m512 va1 = _mm512_loadu_ps(a + ao + 16);
 
         // Load 8 bytes into a 128-bit integer register
-        __m128i int_vb0 = _mm_load_si128((__m128i const*)(b + bo)); // Load 128 bits
+        __m128i int_vb0 = _mm_loadu_si128((__m128i const*)(b + bo)); // Load 128 bits
 
         // Mask to keep the first 4 bits of each byte
         __m128i mask_first_4bits = _mm_set1_epi8(0xF);
@@ -473,14 +473,14 @@ float dot_product_f32_q4_128(const float* a, int aoffset, const float *bf, const
         __m128 vb_f32 = _mm_set1_ps(*(bf + bf_idx));
 
         // Load float32
-        __m128 va0 = _mm_load_ps(a + ao);
-        __m128 va1 = _mm_load_ps(a + ao + 4);
-        __m128 va2 = _mm_load_ps(a + ao + 4 + 4);
-        __m128 va3 = _mm_load_ps(a + ao + 4 + 4 + 4);
-        __m128 va4 = _mm_load_ps(a + ao + 4 + 4 + 4 + 4);
-        __m128 va5 = _mm_load_ps(a + ao + 4 + 4 + 4 + 4 + 4);
-        __m128 va6 = _mm_load_ps(a + ao + 4 + 4 + 4 + 4 + 4 + 4);
-        __m128 va7 = _mm_load_ps(a + ao + 4 + 4 + 4 + 4 + 4 + 4 + 4);
+        __m128 va0 = _mm_loadu_ps(a + ao);
+        __m128 va1 = _mm_loadu_ps(a + ao + 4);
+        __m128 va2 = _mm_loadu_ps(a + ao + 4 + 4);
+        __m128 va3 = _mm_loadu_ps(a + ao + 4 + 4 + 4);
+        __m128 va4 = _mm_loadu_ps(a + ao + 4 + 4 + 4 + 4);
+        __m128 va5 = _mm_loadu_ps(a + ao + 4 + 4 + 4 + 4 + 4);
+        __m128 va6 = _mm_loadu_ps(a + ao + 4 + 4 + 4 + 4 + 4 + 4);
+        __m128 va7 = _mm_loadu_ps(a + ao + 4 + 4 + 4 + 4 + 4 + 4 + 4);
 
         // Load 8 bytes into a 128-bit integer register
         __m128i int_vb0 = _mm_loadu_si32((__m128i const*)(b + bo));
@@ -712,7 +712,7 @@ float dot_product_q8_q4_512(const float *af, const char* a, int aoffset, const f
             __m512 scale_f32 = _mm512_set1_ps(scalef[j]);
 
             // Load 8 bytes into a 128-bit integer register
-            __m128i int_vb0 = _mm_load_si128((__m128i const*)(b + bo)); // Load 128 bits
+            __m128i int_vb0 = _mm_loadu_si128((__m128i const*)(b + bo)); // Load 128 bits
 
             // Masked values
             __m128i first_4bits0 = _mm_and_si128(int_vb0, mask_first_4bits);
@@ -730,8 +730,8 @@ float dot_product_q8_q4_512(const float *af, const char* a, int aoffset, const f
             __m512i int_vb_ext_hi0 = _mm512_cvtepi8_epi32(last_4bits0);
 
             // Load 16 bytes into 2 128-bit integer registers
-            __m128i int_va0 = _mm_load_si128((__m128i const*)(a + ao));
-            __m128i int_va1 = _mm_load_si128((__m128i const*)(a + ao + 16));
+            __m128i int_va0 = _mm_loadu_si128((__m128i const*)(a + ao));
+            __m128i int_va1 = _mm_loadu_si128((__m128i const*)(a + ao + 16));
 
             //Extend to 32-bit ints
             __m512i int_va0_ext = _mm512_cvtepi8_epi32(int_va0);

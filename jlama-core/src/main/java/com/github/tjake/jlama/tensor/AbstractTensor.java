@@ -2,12 +2,20 @@ package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
+
+import com.github.tjake.jlama.safetensors.TensorInfo;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
 
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.util.Arrays;
 
 /** A Tensor is a multi-dimensional array of data.
@@ -225,7 +233,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public AbstractTensor quantize(DType dType) {
 
-        if (this.dims() != 2)
+        if (this.dims() != 2 || this.dType == dType)
             return this;
 
         return switch (dType) {
@@ -235,6 +243,20 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
             case BF16 -> new BFloat16BufferTensor(this);
             default -> this;
         };
+    }
+
+    public TensorInfo save(FileChannel out) throws IOException {
+        ByteBuffer bb = getMemorySegment().asByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
+
+        long startOffset = out.position();
+
+        out.write(bb);
+
+        long[] lshape = new long[shape.length];
+        for (int i = 0; i < shape.length; i++)
+            lshape[i] = shape[i];
+
+        return new TensorInfo(dType, lshape, new long[]{startOffset, out.position()});
     }
 
     public void debug(String id) {

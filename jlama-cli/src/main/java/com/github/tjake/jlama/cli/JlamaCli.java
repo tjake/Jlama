@@ -9,6 +9,7 @@ import java.util.function.BiConsumer;
 
 import com.github.tjake.jlama.cli.commands.ChatCommand;
 import com.github.tjake.jlama.cli.commands.CompleteCommand;
+import com.github.tjake.jlama.cli.commands.QuantizeCommand;
 import com.github.tjake.jlama.cli.commands.ServeCommand;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.ModelSupport.ModelType;
@@ -30,6 +31,7 @@ public class JlamaCli implements Runnable {
 
     public static void main(String[] args) {
         CommandLine cli = new CommandLine(new JlamaCli());
+        cli.addSubcommand("quantize", new QuantizeCommand());
         cli.addSubcommand("chat", new ChatCommand());
         cli.addSubcommand("complete", new CompleteCommand());
         cli.addSubcommand("serve", new ServeCommand());

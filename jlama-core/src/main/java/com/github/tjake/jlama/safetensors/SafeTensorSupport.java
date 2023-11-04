@@ -6,25 +6,37 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.github.tjake.jlama.model.ModelSupport.ModelType;
 import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
+import com.github.tjake.jlama.tensor.Q5ByteBufferTensor;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class SafeTensorSupport {
+    private static final Logger logger = LoggerFactory.getLogger(SafeTensorSupport.class);
     private static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final MapType metadataTypeReference = om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
 
     public static Map<String, TensorInfo> readTensorInfoMap(ByteBuffer buf, Optional<Map<String, String>> saveMetadata) {
-        long headerLength = buf.order() == ByteOrder.BIG_ENDIAN ? Long.reverseBytes(buf.getLong()) : buf.getLong();
+        buf = buf.order(ByteOrder.LITTLE_ENDIAN);
+        long headerLength = buf.getLong();
         byte[] header = new byte[Ints.checkedCast(headerLength)];
         buf.get(header);
 
@@ -76,7 +88,7 @@ public class SafeTensorSupport {
         if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME)))
             return SafeTensorIndex.loadSingleFile(baseDir.toPath(), SafeTensorIndex.SINGLE_MODEL_NAME);
 
-        throw new IllegalArgumentException("No safetensors model found in: " + baseDir);
+        throw new IllegalArgumentException("No safetensor model found in: " + baseDir);
     }
 
     public static TokenizerModel loadTokenizer(Path modelRoot) throws IOException {
@@ -88,5 +100,101 @@ public class SafeTensorSupport {
             throw new IllegalArgumentException("Json missing 'model' key");
 
         return om.treeToValue(rootNode.get("model"), TokenizerModel.class);
+    }
+
+    public static Path quantizeModel(Path modelRoot, DType modelQuantization, String[] skipLayerPrefixes, Optional<Path> outputRoot) throws IOException {
+        File tmp = File.createTempFile("safe", "tensor");
+        tmp.deleteOnExit();
+        WeightLoader wl = SafeTensorSupport.loadWeights(modelRoot.toFile());
+        Map<String, Object> writtenInfo = new HashMap<>();
+
+        try (RandomAccessFile raf = new RandomAccessFile(tmp, "rw")) {
+            Map<String, TensorInfo> tensors = wl.tensorInfoMap();
+
+            for (Map.Entry<String, TensorInfo> e : tensors.entrySet()) {
+                try (AbstractTensor tr = wl.load(e.getKey())) {
+
+                    boolean skipQ = false;
+                    if (skipLayerPrefixes != null) {
+                        for (String skipLayerPrefix : skipLayerPrefixes) {
+                            if (e.getKey().startsWith(skipLayerPrefix)) {
+                                skipQ = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    AbstractTensor t = skipQ ? tr : tr.quantize(modelQuantization);
+
+                    switch (t.dType()) {
+                        case F32:
+                        case BF16:
+                        case F16:
+                            writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
+                            break;
+                        case Q4:
+                            writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
+                            writtenInfo.put(e.getKey() + ".qb", ((Q4ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
+                            break;
+                        case Q5:
+                            writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
+                            writtenInfo.put(e.getKey() + ".qb", ((Q5ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
+                            //FIXME: Need to add b5 bits
+                            throw new UnsupportedOperationException("TODO");
+                            //break;
+                        case I8:
+                            writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
+                            writtenInfo.put(e.getKey() + ".qb", ((Q8ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
+                            break;
+                        default:
+                            throw new UnsupportedOperationException("" + t.dType() + " not implemented");
+                    }
+                }
+            }
+        }
+
+        //Now create the output file
+        String baseDirName = modelRoot.getName(modelRoot.getNameCount() - 1).toString();
+        Path parentPath = modelRoot.getParent();
+
+        Path qPath = outputRoot.orElseGet(() -> Paths.get(parentPath.toString(), baseDirName + "-jlama-" + modelQuantization.name()));
+        File qDir = qPath.toFile();
+        qDir.mkdirs();
+
+        //Copy config.json and tokenizer.json
+        Files.copy(modelRoot.resolve("config.json"), qPath.resolve("config.json"));
+        Files.copy(modelRoot.resolve("tokenizer.json"), qPath.resolve("tokenizer.json"));
+
+        try (RandomAccessFile raf = new RandomAccessFile(qPath.resolve("model.safetensors").toFile(), "rw")) {
+            FileChannel chan = raf.getChannel();
+
+            byte[] header = om.writeValueAsBytes(writtenInfo);
+            logger.debug("pos = {}", chan.position());
+            byte[] hsize = new byte[Long.BYTES];
+            ByteBuffer.wrap(hsize).order(ByteOrder.LITTLE_ENDIAN).putLong(header.length);
+            raf.write(hsize);
+            logger.debug("pos = {}", chan.position());
+            raf.write(header);
+            logger.debug("pos = {}", chan.position());
+
+            Files.copy(tmp.toPath(), new OutputStream() {
+                @Override
+                public void write(int b) throws IOException {
+                    raf.write(b);
+                }
+
+                @Override
+                public void write(byte[] b) throws IOException {
+                    raf.write(b);
+                }
+
+                @Override
+                public void write(byte[] b, int off, int len) throws IOException {
+                    raf.write(b, off, len);
+                }
+            });
+        }
+
+        return qPath;
     }
 }

@@ -45,7 +45,7 @@ final public class PanamaTensorOperations implements TensorOperations
 
     @Override
     public boolean requiresOffHeapTensor() {
-        return true;
+        return false;
     }
 
     @Override

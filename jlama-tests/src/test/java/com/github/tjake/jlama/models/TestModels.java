@@ -15,6 +15,7 @@ import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -26,6 +27,8 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -66,12 +69,49 @@ public class TestModels {
     public void LlamaRun() throws Exception {
         String modelPrefix = "models/Llama-2-7b-chat-hf";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (SafeTensorIndex weights = SafeTensorIndex.loadWithWeights(Path.of(modelPrefix))) {
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.of(DType.Q4));
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Simply put, the theory of relativity states that";
             model.generate(prompt, 0.7f, 256, false, makeOutHandler());
+        }
+    }
+
+
+    @Test
+    public void testQuantize() throws Exception {
+        String modelPrefix = "models/Llama-2-7b-chat-hf";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Path tmpOut = Files.createTempDirectory("jltest");
+        try
+        {
+            Path out = SafeTensorSupport.quantizeModel(Paths.get(modelPrefix), DType.Q4, new String[]{
+                    "model.embed_tokens.weight", "lm_head.weight",
+            }, Optional.of(tmpOut));
+
+            Assert.assertEquals(tmpOut, out);
+
+            WeightLoader weights = SafeTensorSupport.loadWeights(tmpOut.toFile());
+            LlamaTokenizer tokenizer = new LlamaTokenizer(tmpOut);
+            Config c = om.readValue(new File(tmpOut + "/config.json"), LlamaConfig.class);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
+
+            String prompt = "Lily picked up a flower and gave it to";
+            model.generate(prompt, 0.7f, 128, false, makeOutHandler());
+        }
+        finally
+        {
+            Arrays.stream(Objects.requireNonNull(tmpOut.toFile().listFiles())).forEach(f -> {
+                try {
+                    Files.delete(f.toPath());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            Files.deleteIfExists(tmpOut);
         }
     }
 

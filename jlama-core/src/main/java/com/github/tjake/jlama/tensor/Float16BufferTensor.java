@@ -3,6 +3,8 @@ package com.github.tjake.jlama.tensor;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
+
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
@@ -33,19 +35,18 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
         super(DType.F16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_SHORT));
-            this.b = this.segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
         } else {
             this.b = ShortBuffer.allocate(capacity);
-            this.segment = MemorySegment.ofBuffer(b);
         }
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     public Float16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices) {
         this("none", b, shape, cacheSlices);
     }
 
-    private Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices) {
+    public Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices) {
         super(DType.F16, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;

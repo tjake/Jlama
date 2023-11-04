@@ -13,6 +13,7 @@ import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
@@ -37,12 +38,11 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         super(DType.BF16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.segment = Arena.global().allocate(MemoryLayout.sequenceLayout(capacity, ValueLayout.JAVA_SHORT));
-            this.b = this.segment.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
         } else {
             this.b = ShortBuffer.allocate(capacity);
-            this.segment = MemorySegment.ofBuffer(b);
         }
+        this.segment = MemorySegment.ofBuffer(b);
     }
 
     public BFloat16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
