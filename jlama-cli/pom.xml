@@ -12,12 +12,32 @@
   <artifactId>jlama-cli</artifactId>
   <name>Jlama Cli</name>
 
+  <properties>
+    <resteasy.version>3.15.6.Final</resteasy.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
       <version>4.7.5</version>
     </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jaxrs</artifactId>
+      <version>${resteasy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jackson2-provider</artifactId>
+      <version>${resteasy.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-undertow</artifactId>
+      <version>${resteasy.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>com.github.tjake</groupId>
       <artifactId>jlama-core</artifactId>

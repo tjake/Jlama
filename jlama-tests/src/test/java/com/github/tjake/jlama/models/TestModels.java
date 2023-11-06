@@ -89,7 +89,7 @@ public class TestModels {
         {
             Path out = SafeTensorSupport.quantizeModel(Paths.get(modelPrefix), DType.Q4, new String[]{
                     "model.embed_tokens.weight", "lm_head.weight",
-            }, Optional.of(tmpOut));
+            }, null, Optional.of(tmpOut));
 
             Assert.assertEquals(tmpOut, out);
 

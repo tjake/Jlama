@@ -13,7 +13,7 @@ import picocli.CommandLine;
 
 @CommandLine.Command(name = "quantize", description = "Quantize the specified model")
 
-public class QuantizeCommand extends BaseCommand {
+public class QuantizeCommand extends SimpleBaseCommand {
 
     @CommandLine.Parameters(index = "1", arity = "0..1", description = "The output location")
     protected Path output;
@@ -23,6 +23,9 @@ public class QuantizeCommand extends BaseCommand {
 
     @CommandLine.Option(names = {"-s", "--skip-layer"}, description = "Layer name prefix to not quantize")
     protected String[] skipLayerPrefixes;
+
+    @CommandLine.Option(names = {"-d", "--drop-layer"}, description = "Layer name prefix to drop")
+    protected String[] dropLayerPrefixes;
 
     @Override
     public void run() {
@@ -40,7 +43,7 @@ public class QuantizeCommand extends BaseCommand {
         }
 
         try {
-            Path out = SafeTensorSupport.quantizeModel(baseDir.toPath(), modelQuantization, skipLayerPrefixes, Optional.ofNullable(output));
+            Path out = SafeTensorSupport.quantizeModel(baseDir.toPath(), modelQuantization, skipLayerPrefixes, dropLayerPrefixes, Optional.ofNullable(output));
 
             System.out.println("Quantized model written to: " + out);
         } catch (IOException e) {

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Chat with Jlama</title>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+    <link href="resources/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
+    <script src="resources/bootstrap.bundle.min.js"
+        integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm"
+        crossorigin="anonymous"></script>
+    <script src="resources/marked.min.js"
+        integrity="sha384-dZulhREgb+hCgQMhZ2VG0l37VQj5pJBq2w0h7Jn3tdMn36aXNepF1+FMLBB4O649"
+        crossorigin="anonymous"></script>
+    <script src="resources/purify.min.js" integrity="sha256-QigBQMy2be3IqJD2ezKJUJ5gycSmyYlRHj2VGBuITpU="
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="chat.css">
+</head>
+
+<body data-bs-theme="dark">
+    <div class="container">
+        <div class="row pt-3">
+            <div class="col-md-8 col-12">
+                <h1>Chat with Jlama</h1>
+            </div>
+            <div id="model-controls" class="col-md-4 col-12 text-md-end text-start mb-3">
+                <div class="d-flex flex-column align-items-md-end align-items-start">
+                    <div class="d-flex align-items-center">
+                        <label for="chat-select" class="form-label me-2" style="font-size: smaller;">History:</label>
+                        <select id="chat-select" class="form-select" style="width: auto;">
+                            <option value="" disabled selected>Select a chat</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="scroll-wrapper">
+            <div id="chat-container" class="card">
+                <div class="text-end">
+                    <button id="delete-chat" class="btn btn-danger" type="button">Delete Chat</button>
+                    <button id="save-chat" class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#nameModal">Save Chat</button>
+                </div>
+                <div class="card-body">
+                    <div id="chat-history"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container p-2 card" id="input-area">
+        <div class="input-group">
+            <textarea class="form-control" id="user-input" placeholder="Type your question here..."></textarea>
+            <button id="send-button" class="btn btn-primary">Send</button>
+        </div>
+    </div>
+
+<!-- Modal -->
+<div class="modal fade" id="nameModal" tabindex="-1" aria-labelledby="nameModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="nameModalLabel">Enter Your Name</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="form-control" id="userName" placeholder="Your Name">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="saveName">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="api.js"></script>
+  <script src="chat.js"></script>
+
+</body>
+
+</html>

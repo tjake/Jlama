@@ -102,7 +102,7 @@ public class SafeTensorSupport {
         return om.treeToValue(rootNode.get("model"), TokenizerModel.class);
     }
 
-    public static Path quantizeModel(Path modelRoot, DType modelQuantization, String[] skipLayerPrefixes, Optional<Path> outputRoot) throws IOException {
+    public static Path quantizeModel(Path modelRoot, DType modelQuantization, String[] skipLayerPrefixes, String[] dropLayerPrefixes, Optional<Path> outputRoot) throws IOException {
         File tmp = File.createTempFile("safe", "tensor");
         tmp.deleteOnExit();
         WeightLoader wl = SafeTensorSupport.loadWeights(modelRoot.toFile());
@@ -112,6 +112,19 @@ public class SafeTensorSupport {
             Map<String, TensorInfo> tensors = wl.tensorInfoMap();
 
             for (Map.Entry<String, TensorInfo> e : tensors.entrySet()) {
+                boolean drop = false;
+                if (dropLayerPrefixes != null) {
+                    for (String dropLayerPrefix : dropLayerPrefixes) {
+                        if (e.getKey().startsWith(dropLayerPrefix)) {
+                            logger.info("Dropping layer: " + e.getKey());
+                            drop = true;
+                        }
+                    }
+                }
+
+                if (drop)
+                    continue;
+
                 try (AbstractTensor tr = wl.load(e.getKey())) {
 
                     boolean skipQ = false;

@@ -25,12 +25,6 @@ import picocli.CommandLine.*;
 
 public class ModelBaseCommand extends BaseCommand {
 
-    private static final ObjectMapper om = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
-
     @Option(names = {"-p", "--prompt"}, description = "Text to complete", required = true)
     protected String prompt;
 
@@ -42,65 +36,6 @@ public class ModelBaseCommand extends BaseCommand {
 
     @Option(names={"-n", "--tokens"}, description = "Number of tokens to generate", defaultValue = "256")
     protected Integer tokens;
-
-    @Option(names={"-q", "--quantization"}, description = "Model quantization type")
-    protected DType modelQuantization;
-
-    @Option(names={"-wm", "--working-dtype"}, description = "Working memory data type")
-    protected DType workingMemoryType = DType.F32;
-
-    @Option(names={"-wq", "--working-qtype"}, description = "Working memory quantization data type")
-    protected DType workingQuantizationType = DType.I8;
-
-    @Option(names={"-tc", "--threads"}, description = "Number of threads to use")
-    protected int threadCount = Runtime.getRuntime().availableProcessors() / 2;
-
-
-    protected AbstractModel loadModel(File model) {
-
-        if (!model.exists()) {
-            System.err.println("Model location does not exist: " + model);
-            System.exit(1);
-        }
-
-        File baseDir = model.isFile() ? model.getParentFile() : model;
-
-        //Find config
-        if (!baseDir.isDirectory()) {
-            System.err.println("Model directory does not exist: " + baseDir);
-            System.exit(1);
-        }
-
-        File configFile = null;
-        for (File f : Objects.requireNonNull(baseDir.listFiles())) {
-            if (f.getName().equals("config.json")) {
-                configFile = f;
-                break;
-            }
-        }
-
-        if (configFile == null) {
-            System.err.println("config.json in model directory does not exist: " + baseDir);
-            System.exit(1);
-        }
-
-        try {
-            PhysicalCoreExecutor.overrideThreadCount(threadCount);
-
-            ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
-
-            Config c = om.readValue(configFile, modelType.configClass);
-            Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
-            WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
-
-            return modelType.modelClass.getConstructor(Config.class, WeightLoader.class, Tokenizer.class, DType.class, DType.class, Optional.class)
-                    .newInstance(c, wl, t, workingMemoryType, workingQuantizationType, Optional.ofNullable(modelQuantization));
-
-        } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException |
-               IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     protected BiConsumer<String, Float> makeOutHandler() {
         PrintWriter out;

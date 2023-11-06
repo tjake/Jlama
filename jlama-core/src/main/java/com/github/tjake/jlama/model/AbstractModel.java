@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 public abstract class AbstractModel {
@@ -125,7 +126,7 @@ public abstract class AbstractModel {
     protected int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
         try(AbstractTensor embedding = getOutputLayerNorm().forward(output)) {
 
-            AtomicDouble maxv = new AtomicDouble(Double.NEGATIVE_INFINITY);
+            AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
             AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
 
             //This is a mix of argmax and sampling with softmax
@@ -135,7 +136,7 @@ public abstract class AbstractModel {
                 maxv.getAndUpdate(x -> {
                     if (v > x) {
                         maxi.set(i);
-                        return v;
+                        return (double)v;
                     }
                     return x;
                 });
