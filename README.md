@@ -41,7 +41,7 @@ Jlama includes a simple UI if you just want to chat with an llm.
 open browser to http://localhost:8080/ui/index.html
 
 <p align="center">
-  <img src="docs/demo.png" width="300" height="300" alt="Demo chat">
+  <img src="docs/demo.png" alt="Demo chat">
 </p>
 
 ## How to use
