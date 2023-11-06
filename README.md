@@ -22,14 +22,27 @@ Features:
   * Supports Q8, Q4, Q5 model quantization
 
 
-Jlama is built with Java 20 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
+Jlama is built with Java 20+ and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
 
-This project is a work in progress.
-
-## Why?
+## What is it used for?
 
 Add LLM Inference directly to your Java application.
+
+## Demo
+
+Jlama includes a simple UI if you just want to chat with an llm.
+
+```
+./download-hf-model.sh tjake/llama2-7b-chat-hf-jlama-Q4
+./run-cli.sh serve models/llama2-7b-chat-hf-jlama-Q4
+
+```
+open browser to http://localhost:8080/ui/index.html
+
+<p align="center">
+  <img src="docs/demo.png" width="300" height="300" alt="Demo chat">
+</p>
 
 ## How to use
 Jlama includes a cli tool to run models via the `run-cli.sh` command. 
