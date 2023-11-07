@@ -1,9 +1,6 @@
 package com.github.tjake.jlama.tensor;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
@@ -14,10 +11,8 @@ import com.google.common.base.Preconditions;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
-import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
-import sun.nio.ch.DirectBuffer;
 
 public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, short[]> {
 

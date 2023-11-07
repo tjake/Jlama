@@ -1,8 +1,6 @@
 package com.github.tjake.jlama.tensor;
 
-import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 
@@ -11,14 +9,8 @@ import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.nio.ch.DirectBuffer;
 
-import java.io.DataOutput;
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
