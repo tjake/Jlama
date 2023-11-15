@@ -7,11 +7,9 @@ import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.ByteVector;
-import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.nio.ch.DirectBuffer;
 
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
