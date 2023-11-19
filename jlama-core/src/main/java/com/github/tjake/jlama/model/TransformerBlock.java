@@ -1,13 +1,9 @@
 package com.github.tjake.jlama.model;
 
-import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
-import java.util.Arrays;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 public class TransformerBlock {
     private final AbstractModel model;

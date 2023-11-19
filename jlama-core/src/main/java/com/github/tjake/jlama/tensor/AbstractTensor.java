@@ -75,8 +75,12 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     /** Set a value at the given coordinates */
     public abstract void set(float v, int ...dims);
 
-    /** Get a slice of the tensor along the given dimension */
     public AbstractTensor slice(int ...dims) {
+        return slice(false, dims);
+    }
+
+    /** Get a slice of the tensor along the given dimension */
+    public AbstractTensor slice(boolean cacheInnerSlice, int ...dims) {
         Preconditions.checkArgument(dims.length < shape.length, "Too many dimensions specified for tensor");
 
         if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null)
@@ -98,7 +102,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         for (int i = 0; i < slicedShape.length; i++)
             length *= slicedShape[i];
 
-        AbstractTensor r = this.make(totalOffset, length, slicedShape, false);
+        AbstractTensor r = this.make(totalOffset, length, slicedShape, cacheInnerSlice);
         if (dims.length == 1 && sliceCache != null)
             sliceCache[dims[0]] = r;
 

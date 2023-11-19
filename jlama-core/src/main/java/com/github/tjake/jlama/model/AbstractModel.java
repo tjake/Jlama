@@ -89,7 +89,7 @@ public abstract class AbstractModel {
         TransformerBlock[] transformerBlocks = getTransformerBlocks();
 
         for (int i = 0; i < c.numberOfLayers; i++) {
-            AbstractTensor kvlayer = kvbuf.slice(i);
+            AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; //reference so we can free
             embedding = transformerBlocks[i].forward(embedding, pos, kvlayer);
             ref.close();

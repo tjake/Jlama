@@ -9,6 +9,7 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
 import com.google.common.base.Preconditions;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 public class CausalSelfAttention {
@@ -31,6 +32,8 @@ public class CausalSelfAttention {
 
     private final int headSize;
     private final float attentionScale;
+
+    private final float[][] flashAttnHeads;
 
     public CausalSelfAttention(AbstractModel m, AbstractTensor queryAttnWeights, AbstractTensor keyAttnWeights, AbstractTensor valueAttnWeights,
                                AbstractTensor outputProjectionWeights, Optional<float[][]> ropeFrequencies)
@@ -65,6 +68,7 @@ public class CausalSelfAttention {
         this.attentionScale = (float) (1.0 / StrictMath.sqrt(headSize));
 
         this.ropeFrequencies = ropeFrequencies;
+        this.flashAttnHeads = new float[c.contextLength][c.numberOfHeads];
     }
 
     public AbstractTensor forward(AbstractTensor input, int position, AbstractTensor kvMem) {
@@ -77,8 +81,7 @@ public class CausalSelfAttention {
         {
 
             //This is our memory of the key and value vectors for each position
-            //This is our memory of the key and value vectors for each position
-            AbstractTensor kvp = kvMem.slice(position);
+            AbstractTensor kvp = kvMem.slice(true, position);
 
             AbstractTensor key = kvp.slice(0);
             AbstractTensor val = kvp.slice(1);
@@ -122,8 +125,8 @@ public class CausalSelfAttention {
 
             // with all key-value entries populated, compute attention
             // the softmax is incrementally aggregated using the flash attention technique
-            AbstractTensor k0 = kvMem.slice(0).slice(0);
-            AbstractTensor v0 = kvMem.slice(0).slice(1);
+            AbstractTensor k0 = kvMem.slice(true, 0).slice(0);
+            AbstractTensor v0 = kvMem.slice(true,0).slice(1);
 
             // value is initially the first value for all heads
             value.copyFrom(v0, 0, 0, c.embeddingLength);
@@ -137,30 +140,28 @@ public class CausalSelfAttention {
 
             //POSITION > 0
             //This is where the context length gets expensive! We need to run this query token by all prior tokens.
-            float[][] flashAttnHeads = new float[position][c.numberOfHeads];
             VectorMath.pfor(0, position, i -> {
-                AbstractTensor kk = kvMem.slice(i + 1).slice(0);
+                //KEY OFFSET
+                AbstractTensor kk = kvMem.slice(true, i + 1).slice(0);
                 for(int h = 0; h < c.numberOfHeads; h++){
-                    //KEY OFFSET
                     flashAttnHeads[i][h] = TensorOperationsProvider.get().dotProduct(query, kk, h * headSize, h * headSize, headSize) * attentionScale;
                 }
             });
 
             //Now aggregate results per head
             for (int i = 0; i < position; i++) {
-                AbstractTensor kk = kvMem.slice(i + 1).slice(1);
+                //VALUE OFFSET
+                AbstractTensor vv = kvMem.slice(true, i + 1).slice(1);
                 for (int h = 0; h < c.numberOfHeads; h++) {
                     float a = flashAttnHeads[i][h];
                     if (a > flashAttn_m.get(h)) {
-                        //VALUE OFFSET (since cache is k + v)
                         float e = (float) Math.exp(flashAttn_m.get(h) - a);
-                        TensorOperationsProvider.get().sxpby(e, kk, value, (h * headSize), h * headSize, headSize);
+                        TensorOperationsProvider.get().sxpby(e, vv, value, (h * headSize), h * headSize, headSize);
                         flashAttn_l.set(1 + e * flashAttn_l.get(h), h);
                         flashAttn_m.set(a, h);
                     } else {
-                        //VALUE OFFSET (since cache is k + v)
                         float e = (float) Math.exp(a - flashAttn_m.get(h));
-                        TensorOperationsProvider.get().saxpy(e, kk, value, (h * headSize), h * headSize, headSize);
+                        TensorOperationsProvider.get().saxpy(e, vv, value, (h * headSize), h * headSize, headSize);
                         flashAttn_l.set(flashAttn_l.get(h) + e, h);
                     }
                 }
