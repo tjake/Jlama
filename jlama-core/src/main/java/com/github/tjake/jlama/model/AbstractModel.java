@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -87,6 +88,21 @@ public abstract class AbstractModel {
     protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
         AbstractTensor embedding = inputTokenToEmbedding(token_id, pos);
         TransformerBlock[] transformerBlocks = getTransformerBlocks();
+
+        for (int i = 0; i < c.numberOfLayers; i++) {
+            AbstractTensor kvlayer = kvbuf.slice(true, i);
+            AbstractTensor ref = embedding; //reference so we can free
+            embedding = transformerBlocks[i].forward(embedding, pos, kvlayer);
+            ref.close();
+        }
+        return embedding;
+    }
+
+    protected AbstractTensor forwardDistributed(int token_id, int pos, UUID session) {
+        AbstractTensor embedding = inputTokenToEmbedding(token_id, pos);
+        TransformerBlock[] transformerBlocks = getTransformerBlocks();
+
+
 
         for (int i = 0; i < c.numberOfLayers; i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);

@@ -4,6 +4,7 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public class TransformerBlock {
     private final AbstractModel model;
@@ -39,6 +40,40 @@ public class TransformerBlock {
         this.mlpBlock = mlpBlock;
 
         this.postMlpNorm = Optional.of(postMlpNorm);
+    }
+
+    public AbstractTensor forwardDistributed(AbstractTensor embedding, int position, int chunkOffset, int chunkSize, UUID session) {
+
+            AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding, chunkOffset, chunkSize)).orElse(embedding);
+            AbstractTensor postAttention;
+            try(AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
+                postAttention = attention.forwardDistributed(qlnemb, position, kvBuffer, chunkStart, chunkSize);
+            }
+
+            //residual connection
+            TensorOperationsProvider.get().accumulate(postAttention, embedding);
+
+            AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention);
+            AbstractTensor postMlp;
+            try(AbstractTensor qlnemb2 = model.maybeQuantize(lnemb2)) {
+                postMlp = mlpBlock.forward(qlnemb2);
+            }
+
+            //residual connection
+            TensorOperationsProvider.get().accumulate(postMlp, postAttention);
+
+            //Release any tmp buffers
+            if (lnemb != embedding)
+                lnemb.close();
+
+            lnemb2.close();
+            postAttention.close();
+
+            return postMlpNorm.map(ln -> {
+                AbstractTensor lnout = ln.forward(postMlp);
+                postMlp.close();
+                return lnout;
+            }).orElse(postMlp);
     }
 
     public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer) {
