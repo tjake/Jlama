@@ -19,20 +19,20 @@ public class NaiveTensorOperations implements TensorOperations
 
     // a[0..n] += b[0..n]
     @Override
-    public void accumulate(AbstractTensor a, AbstractTensor b) {
+    public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
         Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
 
-        for (int i = 0; i < a.size(); ++i) {
+        for (int i = offset; i < offset + length; ++i) {
             a.set(a.get(i) + b.get(i), i);
         }
     }
 
     // a[0..n] *= b[0..n]
     @Override
-    public void maccumulate(AbstractTensor a, AbstractTensor b) {
+    public void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
         Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
 
-        for (int i = 0; i < a.size(); ++i) {
+        for (int i = offset; i < offset + length; ++i) {
             a.set(a.get(i) * b.get(i), i);
         }
     }

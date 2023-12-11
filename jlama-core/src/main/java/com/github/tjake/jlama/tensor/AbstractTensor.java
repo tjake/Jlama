@@ -4,14 +4,13 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.safetensors.TensorInfo;
-import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.DataOutput;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -28,45 +27,44 @@ import java.util.Arrays;
  * for different types of data.
  **/
 public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> implements AutoCloseable {
-    protected final int[] shape;
+    private static final Logger logger = LoggerFactory.getLogger(AbstractTensor.class);
+
+    protected final TensorShape shape;
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
-    protected final int capacity;
     private volatile TensorCache originCache = null;
 
-    protected AbstractTensor(DType dType, int[] shape, boolean cacheSlices) {
-        Preconditions.checkArgument(shape != null && shape.length > 0);
+    protected AbstractTensor(DType dType, TensorShape shape, boolean cacheSlices) {
+        Preconditions.checkArgument(shape != null && shape.dims() > 0);
         this.dType = dType;
         this.shape = shape;
-
-        int c = 1;
-        for (int i = 0; i < shape.length; i++)
-            c *= shape[i];
-
-        this.capacity = c;
-
-        this.sliceCache = cacheSlices ? new AbstractTensor[shape[0]] : null;
+        this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
     }
 
     /** Create a new tensor with the given shape of the same Tensor implementation */
-    protected abstract AbstractTensor make(int ...shape);
+    protected abstract AbstractTensor make(TensorShape shape);
 
     /** Create a new tensor with the given shape of the same Tensor implementation, including offsets to underlying heap */
-    protected abstract AbstractTensor make(int heapOffset, int heapLength, int[] shape, boolean cacheSlices);
+    protected abstract AbstractTensor make(int heapOffset, int heapLength, TensorShape shape, boolean cacheSlices);
+
+    /** Create a new tensor with the same shape and the same Tensor implementation */
+    public AbstractTensor copyShape() {
+        return TensorCache.instance.get(dType, shape);
+    }
 
     /** Number of dimensions */
     final public int dims() {
-        return shape.length;
+        return shape.dims();
     }
 
     /** Represents the dimensions of the tensor */
-    final public int[] shape() {
+    final public TensorShape shape() {
         return shape;
     }
 
     /** Total capacity of the tensor */
     final public int size() {
-        return capacity;
+        return shape.size();
     }
 
     /** Get a value at the given coordinates */
@@ -81,26 +79,26 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     /** Get a slice of the tensor along the given dimension */
     public AbstractTensor slice(boolean cacheInnerSlice, int ...dims) {
-        Preconditions.checkArgument(dims.length < shape.length, "Too many dimensions specified for tensor");
+        Preconditions.checkArgument(dims.length < shape.dims(), "Too many dimensions specified for tensor");
 
         if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null)
             return sliceCache[dims[0]];
 
-        int[] slicedShape = Arrays.copyOfRange(shape, dims.length, shape.length);
+        TensorShape slicedShape = shape.slice(dims.length);
 
         int totalOffset = 0;
         for (int d = 0; d <= dims.length - 1; d++) {
-            int offset = 1;
-            for (int i = shape.length - 1; i > d; i--) { // factor scaling of each dim shape
-                offset *= shape[i];
+            int offset = shape.sparseLength();
+            for (int i = shape.dims() - 2; i > d; i--) { // factor scaling of each dim shape
+                offset *= shape.dim(i);
             }
 
             totalOffset += dims[d] * offset;
         }
 
-        int length = 1;
-        for (int i = 0; i < slicedShape.length; i++)
-            length *= slicedShape[i];
+        int length = slicedShape.sparseLength();
+        for (int i = 0; i < slicedShape.dims() - 1; i++)
+            length *= slicedShape.dim(i);
 
         AbstractTensor r = this.make(totalOffset, length, slicedShape, cacheInnerSlice);
         if (dims.length == 1 && sliceCache != null)
@@ -109,24 +107,42 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         return r;
     }
 
+    /**
+     * Creates a sparse tensor that acts like a dense one but is missing the data outside
+     * the range of in last dimension.
+     */
+    public AbstractTensor<V, T, A> sparsify(int offset, int length) {
+        if (shape.isSparse())
+            return this;
+
+        //if(length == shape.last())
+        //    return this;
+
+        AbstractTensor<V,T,A> sparseT = this.make(shape.sparsify(offset, length));
+        int originalLength = shape.last();
+
+        int[] cursor = new int[shape.dims()];
+        do {
+            cursor[cursor.length - 1] = offset;
+            sparseT.copyFrom(this, getOffset(cursor), sparseT.getOffset(cursor), length);
+            cursor[cursor.length - 1] = originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
+        } while (iterate(cursor));
+
+        return sparseT;
+    }
+
     /** Split the tensor into numChunks along the given dimension */
     public AbstractTensor[] split(int numChunks, int dim) {
         AbstractTensor[] chunks = new AbstractTensor[numChunks];
-        int innerLength = this.shape[dim] / numChunks;
+        int innerLength = this.shape.dim(dim) / numChunks;
 
         if (Integer.bitCount(innerLength) != 1) {
             throw new IllegalStateException("Chunks must be power of 2");
         }
 
-        int[] newShape = Arrays.copyOf(this.shape, shape.length);
-        newShape[dim] = innerLength;
-        int newCapacity = 1;
-        for (int i = 0; i < newShape.length; i++) {
-            newCapacity *= newShape[i];
-        }
-
+        TensorShape newShape = shape.setDimValue(dim, innerLength);
         for (int i = 0; i < numChunks; i++) {
-            chunks[i] = this.make(i * newCapacity, newCapacity, newShape, true);
+            chunks[i] = this.make(i * newShape.size(), newShape.size(), newShape, true);
         }
 
         return chunks;
@@ -140,12 +156,11 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
      * @return false if cursor has hit its limit, otherwise true
      */
     final public boolean iterate(int[] cursor) {
-        int[] shape = shape();
-        Preconditions.checkArgument(cursor.length == shape.length);
+        Preconditions.checkArgument(cursor.length == shape.dims());
 
         for (int i = cursor.length - 1; i >= 0; i--) {
-            Preconditions.checkArgument(cursor[i] >= 0 && cursor[i] < shape[i]);
-            if (cursor[i] + 1 < shape[i]) {
+            Preconditions.checkArgument(cursor[i] >= 0 && cursor[i] < shape.dim(i));
+            if (cursor[i] + 1 < shape.dim(i)) {
                 cursor[i]++;
                 break;
             } else {
@@ -158,32 +173,32 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         return true;
     }
 
-    final public int getOffset(int[] dims) {
-        int[] shape = shape();
-        Preconditions.checkArgument(dims.length == shape.length, "Method requires all dimensions specified");
+    final public int getOffset(int... dims) {
+        Preconditions.checkArgument(dims.length == shape.dims(), "Method requires all dimensions specified");
         int totalOffset = 0;
 
         for (int d = 0; d < dims.length - 1; d++) { // Stop before last dimension
-            int offset = 1;
-            for (int i = shape.length - 1; i > d; i--) { // factor scaling of each dim shape
-                offset *= shape[i];
+            int offset = shape.sparseLength();
+            for (int i = shape.dims() - 2; i > d; i--) { // factor scaling of each dim shape
+                offset *= shape.dim(i);
             }
 
             totalOffset += dims[d] * offset;
         }
 
-        return totalOffset + dims[shape.length - 1];
+        return totalOffset + shape.sparseAdjustment(dims[dims.length - 1]);
     }
 
     /** Transpose the tensor across all dimensions*/
     final public AbstractTensor transpose() {
-        int[] shape = shape();
+        Preconditions.checkArgument(!shape.isSparse(), "Cannot transpose a sparse tensor");
+
+        //Reverse the dimensions
         int[] tshape = new int[dims()];
-
         for (int i = 0; i < tshape.length; i++)
-            tshape[i] = shape[shape.length - i - 1];
+            tshape[i] = shape.dim(shape.dims() - i - 1);
 
-        AbstractTensor tt = this.make(tshape);
+        AbstractTensor tt = this.make(TensorShape.of(tshape));
         int[] cursor = new int[dims()];
         int[] tcursor = new int[dims()];
         do {
@@ -219,8 +234,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public abstract int getMemorySegmentOffset(int offset);
 
-    public abstract boolean hasMemorySegment();
-
     public abstract void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length);
 
     /** Zero out the tensor */
@@ -240,6 +253,11 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         if (this.dims() != 2 || this.dType == dType)
             return this;
 
+        if (shape.isSparse()) {
+            logger.info("Quantizing sparse tensor is not supported");
+            return this;
+        }
+
         return switch (dType) {
             case Q4 -> new Q4ByteBufferTensor(this);
             case I8 -> new Q8ByteBufferTensor(this);
@@ -250,15 +268,15 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     public TensorInfo save(FileChannel out) throws IOException {
+        Preconditions.checkArgument(!shape.isSparse(), "Cannot save a sparse tensor");
         ByteBuffer bb = getMemorySegment().asByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
 
         long startOffset = out.position();
-
         out.write(bb);
 
-        long[] lshape = new long[shape.length];
-        for (int i = 0; i < shape.length; i++)
-            lshape[i] = shape[i];
+        long[] lshape = new long[shape.dims()];
+        for (int i = 0; i < shape.dims(); i++)
+            lshape[i] = shape.dim(i);
 
         return new TensorInfo(dType, lshape, new long[]{startOffset, out.position()});
     }

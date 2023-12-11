@@ -110,13 +110,15 @@ final public class PanamaTensorOperations implements TensorOperations
     }
 
     @Override
-    public AbstractTensor quantize(AbstractTensor t, DType qtype) {
+    public AbstractTensor quantize(AbstractTensor t, DType qtype, int offset, int length) {
+        Preconditions.checkArgument(t.dims() == 1);
+
         return switch (t.dType()) {
             case F32 -> switch (qtype) {
                 case I8 -> switch (vectorType) {
-                    case AVX_512 -> quantizeQ8_512((FloatBufferTensor) t);
-                    case AVX_256 -> quantizeQ8_256((FloatBufferTensor) t);
-                    case ARM_128 -> quantizeQ8_arm((FloatBufferTensor) t);
+                    case AVX_512 -> quantizeQ8_512((FloatBufferTensor) t, offset, length);
+                    case AVX_256 -> quantizeQ8_256((FloatBufferTensor) t, offset, length);
+                    case ARM_128 -> quantizeQ8_arm((FloatBufferTensor) t, offset, length);
                     default -> throw new UnsupportedOperationException();
                 };
                 default -> throw new UnsupportedOperationException();
@@ -125,13 +127,13 @@ final public class PanamaTensorOperations implements TensorOperations
         };
     }
 
-    public Q8ByteBufferTensor quantizeQ8_512(FloatBufferTensor ft) {
-        Preconditions.checkArgument(ft.size() % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
+    public Q8ByteBufferTensor quantizeQ8_512(FloatBufferTensor ft, int offset, int length) {
+        Preconditions.checkArgument(length % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
 
         //Up to caller to release
         Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
 
-        for (int i = 0; i < ft.size(); i += Q8ByteBufferTensor.BLOCK_SIZE) {
+        for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
             FloatVector fv0 = ft.getVector(FloatVector.SPECIES_512, i);
             FloatVector fv1 = ft.getVector(FloatVector.SPECIES_512, i + 16);
 
@@ -161,13 +163,13 @@ final public class PanamaTensorOperations implements TensorOperations
         return qft;
     }
 
-    public Q8ByteBufferTensor quantizeQ8_256(FloatBufferTensor ft) {
-        Preconditions.checkArgument(ft.size() % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
+    public Q8ByteBufferTensor quantizeQ8_256(FloatBufferTensor ft, int offset, int length) {
+        Preconditions.checkArgument(length % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
 
         //Up to caller to release
         Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
 
-        for (int i = 0; i < ft.size(); i += Q8ByteBufferTensor.BLOCK_SIZE) {
+        for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
             FloatVector fv0 = ft.getVector(FloatVector.SPECIES_256, i);
             FloatVector fv1 = ft.getVector(FloatVector.SPECIES_256, i + 8);
             FloatVector fv2 = ft.getVector(FloatVector.SPECIES_256, i + 16);
@@ -210,13 +212,13 @@ final public class PanamaTensorOperations implements TensorOperations
         return qft;
     }
 
-    public Q8ByteBufferTensor quantizeQ8_arm(FloatBufferTensor ft) {
-        Preconditions.checkArgument(ft.size() % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
+    public Q8ByteBufferTensor quantizeQ8_arm(FloatBufferTensor ft, int offset, int length) {
+        Preconditions.checkArgument(length % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
 
         //Up to caller to release
         Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
 
-        for (int i = 0; i < ft.size(); i += Q8ByteBufferTensor.BLOCK_SIZE) {
+        for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
             FloatVector fv0 = ft.getVector(FloatVector.SPECIES_128, i);
             FloatVector fv1 = ft.getVector(FloatVector.SPECIES_128, i + 4);
             FloatVector fv2 = ft.getVector(FloatVector.SPECIES_128, i + 8);
@@ -1038,19 +1040,19 @@ final public class PanamaTensorOperations implements TensorOperations
     }
 
     @Override
-    public void maccumulate(AbstractTensor a, AbstractTensor b) {
+    public void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int limit) {
         Preconditions.checkArgument(a.dType() == b.dType());
-        Preconditions.checkArgument(a.size() % 8 == 0);
+        Preconditions.checkArgument(limit % 8 == 0);
 
         switch (a.dType()) {
-            case F32: maccumulateF32((FloatBufferTensor)a, (FloatBufferTensor)b); break;
+            case F32: maccumulateF32((FloatBufferTensor)a, (FloatBufferTensor)b, offset, limit); break;
             default: throw new UnsupportedOperationException();
         }
     }
 
-    void maccumulateF32(FloatBufferTensor a, FloatBufferTensor b) {
-        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(a.size());
-        int i = 0;
+    void maccumulateF32(FloatBufferTensor a, FloatBufferTensor b, int offset, int limit) {
+        int upperBound = offset + FloatVector.SPECIES_PREFERRED.loopBound(limit);
+        int i = offset;
 
         for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
             FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i);
@@ -1059,24 +1061,24 @@ final public class PanamaTensorOperations implements TensorOperations
         }
  
         // tail
-        for (; i < a.size(); i++) {
+        for (; i < offset + limit; i++) {
             a.set(a.get(i) * b.get(i), i);
         }
     }
 
     @Override
-    public void accumulate(AbstractTensor a, AbstractTensor b) {
+    public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int limit) {
         Preconditions.checkArgument(a.dType() == b.dType());
-        Preconditions.checkArgument(a.size() % 8 == 0);
+        Preconditions.checkArgument(limit % 8 == 0);
 
         switch (a.dType()) {
-            case F32: accumulateF32((FloatBufferTensor)a, (FloatBufferTensor)b); break;
+            case F32: accumulateF32((FloatBufferTensor)a, (FloatBufferTensor)b, offset, limit); break;
             case BF16: switch (vectorType) {
                 case AVX_512:
-                    accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b);
+                    accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
                     break;
                 case AVX_256:
-                    accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b);
+                    accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
                     break;
                 default:
                     throw new UnsupportedOperationException();
@@ -1086,9 +1088,9 @@ final public class PanamaTensorOperations implements TensorOperations
         }
     }
 
-    void accumulateF32(FloatBufferTensor a, FloatBufferTensor b) {
-        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(a.size());
-        int i = 0;
+    void accumulateF32(FloatBufferTensor a, FloatBufferTensor b, int offset, int limit) {
+        int upperBound = offset + FloatVector.SPECIES_PREFERRED.loopBound(limit);
+        int i = offset;
 
         for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
             FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i);
@@ -1097,15 +1099,15 @@ final public class PanamaTensorOperations implements TensorOperations
         }
 
         // tail
-        for (; i < a.size(); i++) {
+        for (; i < offset + limit; i++) {
             a.set(a.get(i) + b.get(i), i);
         }
     }
 
-    void accumulateBF16_256(BFloat16BufferTensor a, BFloat16BufferTensor b) {
-        int upperBound = FloatVector.SPECIES_256.loopBound(a.size());
+    void accumulateBF16_256(BFloat16BufferTensor a, BFloat16BufferTensor b, int offset, int limit) {
+        int upperBound = offset + FloatVector.SPECIES_256.loopBound(limit);
 
-        int i = 0;
+        int i = offset;
         for (; i < upperBound; i += FloatVector.SPECIES_256.length()) {
 
             //Convert BF16 to F32
@@ -1129,15 +1131,15 @@ final public class PanamaTensorOperations implements TensorOperations
         }
 
         // tail
-        for (; i < a.size(); i++) {
+        for (; i < offset + limit; i++) {
             a.set(a.get(i) + b.get(i), i);
         }
     }
 
-    void accumulateBF16_512(BFloat16BufferTensor a, BFloat16BufferTensor b) {
-        int upperBound = FloatVector.SPECIES_512.loopBound(a.size());
+    void accumulateBF16_512(BFloat16BufferTensor a, BFloat16BufferTensor b, int offset, int limit) {
+        int upperBound = offset + FloatVector.SPECIES_512.loopBound(limit);
 
-        int i = 0;
+        int i = offset;
         for (; i < upperBound; i += FloatVector.SPECIES_512.length()) {
 
             //Convert BF16 to F32
@@ -1161,7 +1163,7 @@ final public class PanamaTensorOperations implements TensorOperations
         }
 
         // tail
-        for (; i < a.size(); i++) {
+        for (; i < offset + limit; i++) {
             a.set(a.get(i) + b.get(i), i);
         }
     }

@@ -46,15 +46,15 @@ public class MLPBlock {
         int hiddenLength = model.c.hiddenLength;
         try(AbstractTensor buf = model.makeTensor(hiddenLength); AbstractTensor buf2 = model.makeTensor(hiddenLength)) {
 
-            VectorMath.pchunk(model.c.hiddenLength, (chunkStart, chunkSize) -> {
-                TensorOperationsProvider.get().dotProductChunk(buf, lnemb, fullyConnectedWeights, model.c.embeddingLength, chunkStart, chunkSize);
+            VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
+                TensorOperationsProvider.get().dotProductChunk(buf, lnemb, fullyConnectedWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
 
                 if (upProjectionWeights != null) {
-                    TensorOperationsProvider.get().dotProductChunk(buf2, lnemb, upProjectionWeights, model.c.embeddingLength, chunkStart, chunkSize);
+                    TensorOperationsProvider.get().dotProductChunk(buf2, lnemb, upProjectionWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
                 }
             });
 
-            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias));
+            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, 0, hiddenLength));
 
             VectorMath.pfor(0, hiddenLength, i -> {
                 float w1 = buf.get(i);
@@ -63,15 +63,15 @@ public class MLPBlock {
             });
 
             if (upProjectionWeights != null) {
-                TensorOperationsProvider.get().maccumulate(buf, buf2);
+                TensorOperationsProvider.get().maccumulate(buf, buf2, 0, hiddenLength);
             }
 
             //matmul the projection and sum into input
             AbstractTensor result = model.makeTensor(model.c.embeddingLength);
-            VectorMath.pchunk(model.c.embeddingLength, (chunkStart, chunkSize) -> {
-                TensorOperationsProvider.get().dotProductChunk(result, buf, projectionWeights, hiddenLength, chunkStart, chunkSize);
+            VectorMath.pchunk(model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                TensorOperationsProvider.get().dotProductChunk(result, buf, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
             });
-            projectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias));
+            projectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()));
             return result;
         }
     }

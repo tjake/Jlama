@@ -7,6 +7,9 @@ import io.undertow.server.handlers.resource.ClassPathResourceManager;
 import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
 import picocli.CommandLine;
 
+import java.util.Optional;
+
+import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import static io.undertow.Handlers.resource;
 
 @CommandLine.Command(name = "serve", description = "Starts a rest api for interacting with this model")
@@ -21,13 +24,13 @@ public class ServeCommand extends BaseCommand {
     public void run()
     {
         try {
-            AbstractModel m = loadModel(model);
+            AbstractModel m = loadModel(model, workingMemoryType, workingQuantizationType, java.util.Optional.ofNullable(modelQuantization), Optional.ofNullable(threadCount));
 
             UndertowJaxrsServer ut = new UndertowJaxrsServer();
             ut.deploy(new JlamaRestApi(m), APPLICATION_PATH);
             ut.addResourcePrefixPath("/ui", resource(new ClassPathResourceManager(ServeCommand.class.getClassLoader())).setDirectoryListingEnabled(true).addWelcomeFiles("index.html"));
 
-            System.out.println("Chat UI: http://localhost:"+port+"/ui/index.html");
+            System.out.println("Chat UI: http://localhost:" + port + "/ui/index.html");
             ut.start(Undertow.builder().addHttpListener(port, "0.0.0.0"));
         } catch (Exception e) {
             e.printStackTrace();

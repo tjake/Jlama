@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.github.tjake.jlama.tensor.Q4ByteBufferTensor.makeBlockShape;
+
 public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q5ByteBufferTensor.class);
     public static final int BLOCK_SIZE = 32;
@@ -35,7 +37,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         Preconditions.checkArgument(ft.size() % BLOCK_SIZE == 0, "I8 buffer must be a multiple of BLOCK_SIZE");
 
         List<int[]> startBlockCursors = new ArrayList<>();
-        int[] cursor = new int[ft.shape.length];
+        int[] cursor = new int[ft.shape.dims()];
         int c = 0;
         do {
             if (c++ % BLOCK_SIZE == 0) {
@@ -94,29 +96,15 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.b5[getOffset(makeBlockShape(blockStartCursor))] = q;
     }
 
-
-    private static int[] makeBlockShape(int[] shape) {
-        int[] blockShape = new int[shape.length];
-        for (int i = 0; i < shape.length; i++) {
-            if (i == shape.length - 1)
-                blockShape[i] = shape[i] / BLOCK_SIZE;
-            else
-                blockShape[i] = shape[i];
-        }
-
-        return blockShape;
-    }
-
-
-    protected Q5ByteBufferTensor(int[] shape) {
+    protected Q5ByteBufferTensor(TensorShape shape) {
         super(DType.Q5, shape, true);
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
-        this.b5 = new int[Arrays.stream(makeBlockShape(shape)).sum()];
+        this.b5 = new int[makeBlockShape(shape).size()];
         this.name = "tmp";
 
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() / 2, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
         } else {
             this.b = ByteBuffer.allocate(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
         }
@@ -124,7 +112,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public Q5ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, int[] shape, boolean cacheSlices) {
+    public Q5ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, TensorShape shape, boolean cacheSlices) {
         super(DType.Q5, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
@@ -135,7 +123,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    protected AbstractTensor make(int... shape) {
+    protected AbstractTensor make(TensorShape shape) {
         return new Q5ByteBufferTensor(shape);
     }
 
@@ -144,15 +132,15 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
+    protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
         FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make((int)(offset * I_BLOCK_SIZE), (int)(length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
         return new Q5ByteBufferTensor(name, b.slice(offset, length), newBlockF, b5, shape, cacheSlices);
     }
 
     @Override
     public float get(int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         int i = getOffset(dims);
         float scale = blockF.get(makeBlockShape(dims));
         int q = b5[getOffset(makeBlockShape(dims))];
@@ -209,11 +197,6 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public boolean hasMemorySegment() {
-        return true;
-    }
-
-    @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
@@ -250,7 +233,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         b.duplicate().get(sample);
         return "Q5BufferTensor{" +
                 "name='" + name + '\'' +
-                "shape=" + Arrays.toString(shape) +
+                "shape=" + shape +
                 ", b=" + Arrays.toString(sample) +
                 "...}";
     }

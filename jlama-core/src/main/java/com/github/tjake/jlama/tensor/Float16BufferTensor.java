@@ -8,10 +8,7 @@ import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
@@ -25,28 +22,32 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
         this(ft.shape);
         Preconditions.checkArgument(ft.dType != DType.F16, "This should never happen, likely a bug");
 
-        int[] cursor = new int[ft.shape.length];
+        int[] cursor = new int[ft.shape.dims()];
         do {
             set(ft.get(cursor), cursor);
         } while (ft.iterate(cursor));
     }
 
-    public Float16BufferTensor(int ...shape) {
+    public Float16BufferTensor(int... shape) {
+        this(TensorShape.of(shape));
+    }
+
+    public Float16BufferTensor(TensorShape shape) {
         super(DType.F16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
         } else {
-            this.b = ShortBuffer.allocate(capacity);
+            this.b = ShortBuffer.allocate(size());
         }
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public Float16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices) {
+    public Float16BufferTensor(ShortBuffer b, TensorShape shape, boolean cacheSlices) {
         this("none", b, shape, cacheSlices);
     }
 
-    public Float16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices) {
+    public Float16BufferTensor(String name, ShortBuffer b, TensorShape shape, boolean cacheSlices) {
         super(DType.F16, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
@@ -55,26 +56,26 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
     }
 
     @Override
-    protected AbstractTensor make(int... shape) {
+    protected AbstractTensor make(TensorShape shape) {
         return new Float16BufferTensor(shape);
     }
 
     @Override
-    protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
+    protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
         return new Float16BufferTensor(name, b.slice(offset, length), shape, cacheSlices);
     }
 
     @Override
     public float get(int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         return Float.float16ToFloat(b.get(getOffset(dims)));
     }
 
     @Override
     public void set(float v, int ...dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified for tensor");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified for tensor");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
         b.put(getOffset(dims), Float.floatToFloat16(v));
     }
@@ -120,11 +121,6 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
     }
 
     @Override
-    public boolean hasMemorySegment() {
-        return true;
-    }
-
-    @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
@@ -144,7 +140,7 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
         b.duplicate().get(sample);
         return "Float16BufferTensor{" +
                 "name='" + name + '\'' +
-                "shape=" + Arrays.toString(shape) +
+                "shape=" + shape +
                 ", b=" + Arrays.toString(sample) +
                 "...}";
     }

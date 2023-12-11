@@ -5,6 +5,8 @@ import java.util.Optional;
 import com.github.tjake.jlama.model.AbstractModel;
 import picocli.CommandLine.*;
 
+import static com.github.tjake.jlama.model.ModelSupport.loadModel;
+
 @Command(name = "chat", description = "Interact with the specified model")
 public class ChatCommand extends ModelBaseCommand {
     @Option(names = {"-s", "--system-prompt"}, description = "Change the default system prompt for this model")
@@ -12,7 +14,7 @@ public class ChatCommand extends ModelBaseCommand {
 
     @Override
     public void run() {
-        AbstractModel m = loadModel(model);
+        AbstractModel m = loadModel(model, workingMemoryType, workingQuantizationType, Optional.ofNullable(modelQuantization), Optional.ofNullable(threadCount));
 
         m.generate(m.wrapPrompt(prompt, Optional.of(systemPrompt)), prompt, temperature, tokens, true, makeOutHandler());
     }

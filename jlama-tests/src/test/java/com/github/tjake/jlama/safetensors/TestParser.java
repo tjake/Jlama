@@ -3,6 +3,7 @@ package com.github.tjake.jlama.safetensors;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
+import com.github.tjake.jlama.tensor.TensorShape;
 import com.google.common.io.BaseEncoding;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -87,11 +88,11 @@ public class TestParser {
 
     @Test
     public void testOffsets() {
-        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{50000, 768}, false);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), TensorShape.of(50000, 768), false);
         Assert.assertEquals(49000 * 768, b.getOffset(new int[]{49000, 0}));
 
 
-        b = new FloatBufferTensor(FloatBuffer.allocate(10), new int[]{3, 7, 13}, false);
+        b = new FloatBufferTensor(FloatBuffer.allocate(10), TensorShape.of(3, 7, 13), false);
 
         Assert.assertEquals(0, b.getOffset(new int[]{0, 0, 0}));
         Assert.assertEquals(7*13*1, b.getOffset(new int[]{1,0,0}));
@@ -102,7 +103,7 @@ public class TestParser {
     @Test
     public void testTranspose() {
         int DIM = 768;
-        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), new int[]{DIM, DIM}, false);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), TensorShape.of(DIM, DIM), false);
         int v = 0;
         for (int row = 0; row < DIM; row++) {
             for (int col = 0; col < DIM; col++) {
@@ -118,6 +119,43 @@ public class TestParser {
             for (int col = 0; col < DIM; col++) {
                 v++;
                 Assert.assertEquals("col="+col+", row="+row, v - 1, bt.get(col, row), 1e-5f);
+            }
+        }
+    }
+
+
+    @Test
+    public void testSparsify() {
+        int DIM = 768;
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(DIM * DIM), TensorShape.of(DIM, DIM), false);
+        int v = 0;
+        for (int row = 0; row < DIM; row++) {
+            for (int col = 0; col < DIM; col++) {
+                v++;
+                b.set((row * DIM) + col, row, col);
+                Assert.assertEquals( v - 1, b.get(row, col), 1e-5f);
+            }
+        }
+
+        AbstractTensor bt = b.sparsify(100, 20);
+
+        Assert.assertEquals(DIM * DIM, b.size());
+        Assert.assertEquals(DIM * 20, bt.size());
+
+        v = 0;
+        for (int row = 0; row < DIM; row++) {
+            for (int col = 0; col < DIM; col++) {
+                v++;
+                if (col >= 100 && col < 120)
+                    Assert.assertEquals("col=" + col + ", row=" + row, v - 1, bt.get(row, col), 1e-5f);
+                else {
+                    try {
+                        bt.get(row, col);
+                        Assert.fail("Should have errored trying to access value outside of sparse range");
+                    } catch (Throwable t) {
+                        //pass
+                    }
+                }
             }
         }
     }

@@ -119,6 +119,20 @@ public class TestOperations
     }
 
     @Test
+    public void testSplitDotProduct() {
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = makeTensor(SIZE);
+
+        //This is what we compare others to
+        float control = controlOps.dotProduct(a, b, SIZE);
+
+        float p1 = controlOps.dotProduct(a, b, 0, 0, SIZE / 2);
+        float p2 = controlOps.dotProduct(a, b, SIZE / 2, SIZE / 2, SIZE / 2);
+
+        Assert.assertEquals(control, p1 + p2, control * .01f);
+    }
+
+    @Test
     public void testAccumulate() {
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
@@ -127,7 +141,7 @@ public class TestOperations
         AbstractTensor c = new FloatBufferTensor(a);
 
         //This is what we compare others to
-        controlOps.accumulate(a, b);
+        controlOps.accumulate(a, b, 0, SIZE);
         float control = controlOps.sum(a);
         for (TensorOperations t : opTypes) {
             int supported = 0;
@@ -137,7 +151,7 @@ public class TestOperations
                     AbstractTensor bhat = bType.getValue().apply(b);
 
                     try {
-                        t.accumulate(chat, bhat);
+                        t.accumulate(chat, bhat, 0, SIZE);
                         float dp = t.sum(chat);
                         supported++;
                         Assert.assertEquals("AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);

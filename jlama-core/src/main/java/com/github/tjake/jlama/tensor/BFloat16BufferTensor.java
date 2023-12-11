@@ -23,28 +23,32 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         this(ft.shape);
         Preconditions.checkArgument(ft.dType != DType.BF16, "This should never happen, likely a bug");
 
-        int[] cursor = new int[ft.shape.length];
+        int[] cursor = new int[ft.shape.dims()];
         do {
             set(ft.get(cursor), cursor);
         } while (ft.iterate(cursor));
     }
 
-    public BFloat16BufferTensor(int ...shape) {
+    public BFloat16BufferTensor(int... shape) {
+        this(TensorShape.of(shape));
+    }
+
+    public BFloat16BufferTensor(TensorShape shape) {
         super(DType.BF16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
         } else {
-            this.b = ShortBuffer.allocate(capacity);
+            this.b = ShortBuffer.allocate(size());
         }
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public BFloat16BufferTensor(ShortBuffer b, int[] shape, boolean cacheSlices, boolean mmapped) {
+    public BFloat16BufferTensor(ShortBuffer b, TensorShape shape, boolean cacheSlices, boolean mmapped) {
         this("none", b, shape, cacheSlices);
     }
 
-    private BFloat16BufferTensor(String name, ShortBuffer b, int[] shape, boolean cacheSlices) {
+    private BFloat16BufferTensor(String name, ShortBuffer b, TensorShape shape, boolean cacheSlices) {
         super(DType.BF16, shape, cacheSlices);
         this.name = name;
         this.b = b;
@@ -52,26 +56,26 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     }
 
     @Override
-    protected AbstractTensor make(int... shape) {
+    protected AbstractTensor make(TensorShape shape) {
         return new BFloat16BufferTensor(shape);
     }
 
     @Override
-    protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
+    protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
         return new BFloat16BufferTensor(name, b.slice(offset, length), shape, cacheSlices);
     }
 
     @Override
     public float get(int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.size(), "Too many dimensions specified");
+        Preconditions.checkArgument(dims.length == shape.size(), "Must specify all dimensions");
         return FloatConversions.bFloat16ToFloat32(b.get(getOffset(dims)));
     }
 
     @Override
     public void set(float v, int ...dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified for tensor");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified for tensor");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
         b.put(getOffset(dims), FloatConversions.float32ToBFloat16(v));
     }
@@ -117,11 +121,6 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     }
 
     @Override
-    public boolean hasMemorySegment() {
-        return true;
-    }
-
-    @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
@@ -141,7 +140,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         b.duplicate().get(sample);
         return "BFloat16BufferTensor{" +
                 "name='" + name + '\'' +
-                ", shape=" + Arrays.toString(shape) +
+                ", shape=" + shape +
                 ", b=" + Arrays.toString(sample) +
                 "...}";
     }

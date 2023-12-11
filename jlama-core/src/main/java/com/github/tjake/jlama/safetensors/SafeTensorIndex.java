@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,12 +164,16 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     }
 
     @Override
-    public AbstractTensor load(String name) {
+    public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) {
         Weights w = weightMap.get(name);
         if (w == null)
             throw new NoSuchElementException(name);
 
-        return w.load(name);
+        AbstractTensor t = w.load(name);
+        return offset.map(o -> {
+            logger.info("Sparsifying tensor {} with shape {}", name, o);
+            return t.sparsify(o.left, o.right);
+        }).orElse(t);
     }
 
     @Override

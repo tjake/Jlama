@@ -67,7 +67,7 @@ public class TestModels {
 
     @Test
     public void LlamaRun() throws Exception {
-        String modelPrefix = "models/Llama-2-7b-chat-hf-jlama-Q4";
+        String modelPrefix = "../models/Llama-2-7b-chat-hf-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));

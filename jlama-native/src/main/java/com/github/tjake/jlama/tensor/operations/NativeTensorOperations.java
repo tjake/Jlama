@@ -82,17 +82,17 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void dotProductChunk(AbstractTensor r, AbstractTensor a, AbstractTensor b, int limit, int chunkStart, int chunkSize) {
+    public void dotProductChunk(AbstractTensor r, AbstractTensor a, AbstractTensor b, int offset, int limit, int chunkStart, int chunkSize) {
         switch (a.dType()) {
             case F32: switch (b.dType()) {
-                case F32: NativeSimd.dot_product_f32_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
-                case I8: NativeSimd.dot_product_f32_q8_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
-                case Q4: NativeSimd.dot_product_f32_q4_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), 0, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize); break;
+                case F32: NativeSimd.dot_product_f32_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), offset, b.getMemorySegment(), offset, limit, chunkStart, chunkSize); break;
+                case I8: NativeSimd.dot_product_f32_q8_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), offset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), offset, limit, chunkStart, chunkSize); break;
+                case Q4: NativeSimd.dot_product_f32_q4_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), offset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), offset, limit, chunkStart, chunkSize); break;
                 default: throw new UnsupportedOperationException(b.dType().name());
             }
             break;
             case I8: switch (b.dType()) {
-                case Q4: NativeSimd.dot_product_q8_q4_chunked(flags, r.getMemorySegment(), ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), 0, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), 0, limit, chunkStart, chunkSize);
+                case Q4: NativeSimd.dot_product_q8_q4_chunked(flags, r.getMemorySegment(), ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), offset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), offset, limit, chunkStart, chunkSize);
                 break;
                 default: throw new UnsupportedOperationException(b.dType().name());
             }
@@ -103,13 +103,13 @@ public class NativeTensorOperations implements TensorOperations {
 
 
     @Override
-    public void accumulate(AbstractTensor a, AbstractTensor b) {
-         delegate.accumulate(a, b);
+    public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
+         delegate.accumulate(a, b, offset, length);
     }
 
     @Override
-    public void maccumulate(AbstractTensor a, AbstractTensor b) {
-        delegate.maccumulate(a, b);
+    public void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
+        delegate.maccumulate(a, b, offset, length);
     }
 
     @Override
@@ -128,7 +128,7 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public AbstractTensor quantize(AbstractTensor t, DType qtype) {
-        return delegate.quantize(t, qtype);
+    public AbstractTensor quantize(AbstractTensor t, DType qtype, int offset, int length) {
+        return delegate.quantize(t, qtype, offset, length);
     }
 }
