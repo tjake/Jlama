@@ -1,19 +1,14 @@
 package com.github.tjake.jlama.net;
 
+import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.model.llama.LlamaConfig;
-import com.github.tjake.jlama.model.llama.LlamaModel;
-import com.github.tjake.jlama.model.llama.LlamaTokenizer;
-import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.safetensors.SafeTensorSupport;
-import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
+
 import org.junit.Assume;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,10 +18,14 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
+import org.slf4j.LoggerFactory;
+
 public class DistributedServiceTest {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+        ch.qos.logback.classic.Logger rootLogger = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        rootLogger.setLevel(Level.toLevel("info"));
     }
 
     private static final ObjectMapper om = new ObjectMapper()
@@ -40,7 +39,7 @@ public class DistributedServiceTest {
         Path modelPath = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelPath));
 
-        Coordinator coordinator = new Coordinator(modelPath, 8888, 1);
+        Coordinator coordinator = new Coordinator(modelPath.toFile(), com.google.common.io.Files.createTempDir(), 8888, 1);
         new Thread(() -> {
             try {
                 coordinator.start();
@@ -59,7 +58,8 @@ public class DistributedServiceTest {
         Path modelRoot = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelRoot));
 
-        Coordinator coordinator = new Coordinator(modelRoot, 8888, 2);
+
+        Coordinator coordinator = new Coordinator(modelRoot.toFile(), null, 8888, 8);
         new Thread(() -> {
             try {
                 coordinator.start();
@@ -68,10 +68,16 @@ public class DistributedServiceTest {
             }
         }).start();
 
-        //startWorker(modelRoot);
-        //startWorker(modelRoot);
         startWorker(modelRoot);
         startWorker(modelRoot);
+        startWorker(modelRoot);
+        startWorker(modelRoot);
+
+        startWorker(modelRoot);
+        startWorker(modelRoot);
+        startWorker(modelRoot);
+        startWorker(modelRoot);
+
 
         coordinator.generate(UUID.randomUUID(), "Simply put, the theory of relativity states that", null, 0.7f, 256, false, makeOutHandler());
     }
@@ -80,7 +86,7 @@ public class DistributedServiceTest {
 
 
     private void startWorker(Path modelRoot) throws Exception {
-        Worker worker = new Worker(modelRoot, "localhost", 8888, DType.F32, DType.I8, Optional.empty());
+        Worker worker = new Worker(modelRoot.toFile(), "localhost", 8888, null, DType.F32, DType.I8, Optional.empty(), Optional.empty());
         new Thread(() -> {
             try {
                 worker.run();

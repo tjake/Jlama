@@ -1,6 +1,7 @@
 package com.github.tjake.jlama.cli.commands;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import picocli.CommandLine.*;
@@ -14,8 +15,8 @@ public class ChatCommand extends ModelBaseCommand {
 
     @Override
     public void run() {
-        AbstractModel m = loadModel(model, workingMemoryType, workingQuantizationType, Optional.ofNullable(modelQuantization), Optional.ofNullable(threadCount));
+        AbstractModel m = loadModel(model, workingDirectory, workingMemoryType, workingQuantizationType, Optional.ofNullable(modelQuantization), Optional.ofNullable(threadCount));
 
-        m.generate(m.wrapPrompt(prompt, Optional.of(systemPrompt)), prompt, temperature, tokens, true, makeOutHandler());
+        m.generate(UUID.randomUUID(), m.wrapPrompt(prompt, Optional.of(systemPrompt)), prompt, temperature, tokens, true, makeOutHandler());
     }
 }

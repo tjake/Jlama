@@ -115,19 +115,27 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         if (shape.isSparse())
             return this;
 
-        //if(length == shape.last())
-        //    return this;
+        if(length == shape.last())
+            return this;
 
         AbstractTensor<V,T,A> sparseT = this.make(shape.sparsify(offset, length));
         int originalLength = shape.last();
 
         int[] cursor = new int[shape.dims()];
-        do {
-            cursor[cursor.length - 1] = offset;
-            sparseT.copyFrom(this, getOffset(cursor), sparseT.getOffset(cursor), length);
-            cursor[cursor.length - 1] = originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
-        } while (iterate(cursor));
 
+        try
+        {
+            do
+            {
+                cursor[cursor.length - 1] = offset;
+                sparseT.copyFrom(this, getOffset(cursor), sparseT.getOffset(cursor), length);
+                cursor[cursor.length - 1] = originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
+            }
+            while (iterate(cursor));
+        }catch (Throwable t) {
+            logger.warn("Cursor = {}", Arrays.toString(cursor), t);
+            throw t;
+        }
         return sparseT;
     }
 

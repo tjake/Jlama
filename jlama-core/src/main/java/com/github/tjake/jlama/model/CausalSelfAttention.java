@@ -11,8 +11,12 @@ import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class CausalSelfAttention {
     private final AbstractModel m;
@@ -23,10 +27,10 @@ public class CausalSelfAttention {
     private final Optional<AbstractTensor> valueAttnBias;
     private final Optional<AbstractTensor> outputProjectionBias;
 
-    private final AbstractTensor queryAttnWeights;
-    private final AbstractTensor keyAttnWeights;
+    final AbstractTensor queryAttnWeights;
+    final AbstractTensor keyAttnWeights;
 
-    private final AbstractTensor valueAttnWeights;
+    final AbstractTensor valueAttnWeights;
 
     private final AbstractTensor outputProjectionWeights;
 
@@ -71,15 +75,16 @@ public class CausalSelfAttention {
         this.flashAttnHeads = new float[c.contextLength][c.numberOfHeads];
     }
 
-    public AbstractTensor forward(AbstractTensor input, int position, AbstractTensor kvMem, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+    public AbstractTensor forward(AbstractTensor input, int position, AbstractTensor kvMem, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         Preconditions.checkArgument(input.dims() == 1 && input.shape().first() == c.embeddingLength);
 
         try (AbstractTensor flashAttn_m = m.makeTensor(c.numberOfHeads);
              AbstractTensor flashAttn_l = m.makeTensor(c.numberOfHeads);
-             AbstractTensor query = m.makeTensor(c.embeddingLength);
-             AbstractTensor value = m.makeTensor(c.embeddingLength))
+             AbstractTensor query = m.makeFullTensor(c.embeddingLength);
+             AbstractTensor tmpKey = m.makeFullTensor(c.embeddingLength);
+             AbstractTensor tmpVal = m.makeFullTensor(c.embeddingLength);
+             AbstractTensor value = m.makeFullTensor(c.embeddingLength))
         {
-
             //This is our memory of the key and value vectors for each position
             AbstractTensor kvp = kvMem.slice(true, position);
 
@@ -87,15 +92,21 @@ public class CausalSelfAttention {
             AbstractTensor val = kvp.slice(1);
 
             // compute the query vector
-            VectorMath.pchunk(c.embeddingSegmentStart(), c.embeddingSegmentLength(), (chunkStart, chunkLength) -> {
+            VectorMath.pchunk(0, c.embeddingLength, (chunkStart, chunkLength) -> {
                 TensorOperationsProvider.get().dotProductChunk(query, input, queryAttnWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkLength);
-                TensorOperationsProvider.get().dotProductChunk(key, input, keyAttnWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkLength);
-                TensorOperationsProvider.get().dotProductChunk(val, input, valueAttnWeights, c.embeddingSegmentStart(),  c.embeddingSegmentLength(), chunkStart, chunkLength);
+                TensorOperationsProvider.get().dotProductChunk(tmpKey, input, keyAttnWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkLength);
+                TensorOperationsProvider.get().dotProductChunk(tmpVal, input, valueAttnWeights, c.embeddingSegmentStart(),  c.embeddingSegmentLength(), chunkStart, chunkLength);
             });
 
+            // For distributed sum of tensor
+            tensorReducer.ifPresent(func -> func.accept(List.of(query, tmpKey, tmpVal)));
+
             queryAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(query, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
-            keyAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(key, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
-            valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(val, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
+            keyAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(tmpKey, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
+            valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(tmpVal, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
+
+            key.copyFrom(tmpKey, tmpKey.getOffset(c.embeddingSegmentStart()), key.getOffset(c.embeddingSegmentStart()), c.embeddingSegmentLength());
+            val.copyFrom(tmpVal, tmpVal.getOffset(c.embeddingSegmentStart()), val.getOffset(c.embeddingSegmentStart()), c.embeddingSegmentLength());
 
             // apply RoPE if present (accounting for huggingface permutation)
             // https://github.com/huggingface/transformers/blob/d533465150532b0c5de167b574e59f64c68b1154/src/transformers/models/llama/convert_llama_weights_to_hf.py#L114
@@ -128,7 +139,7 @@ public class CausalSelfAttention {
             AbstractTensor k0 = kvMem.slice(true, 0).slice(0);
             AbstractTensor v0 = kvMem.slice(true,0).slice(1);
 
-            // value is initially the first value for all heads
+            // value is initially the position 0 value for all heads
             value.copyFrom(v0, v0.getOffset(c.embeddingSegmentStart()), value.getOffset(c.embeddingSegmentStart()), c.embeddingSegmentLength());
 
             //POSITION ZERO
@@ -175,11 +186,13 @@ public class CausalSelfAttention {
 
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias
-            AbstractTensor result = m.makeTensor(c.embeddingLength);
+            AbstractTensor result = m.makeFullTensor(c.embeddingLength);
             try(AbstractTensor vq = m.maybeQuantize(value)) {
-                VectorMath.pchunk(c.embeddingSegmentStart(), c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                VectorMath.pchunk(0, c.embeddingLength, (chunkStart, chunkSize) -> {
                     TensorOperationsProvider.get().dotProductChunk(result, vq, outputProjectionWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkSize);
                 });
+
+                tensorReducer.ifPresent(func -> func.accept(Collections.singletonList(result)));
 
                 outputProjectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
             }

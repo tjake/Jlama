@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.models;
+package com.github.tjake.jlama.model;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;

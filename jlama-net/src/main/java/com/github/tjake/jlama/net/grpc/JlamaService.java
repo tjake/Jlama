@@ -3,17 +3,24 @@ package com.github.tjake.jlama.net.grpc;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.net.*;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.stub.StreamObserver;
+import jdk.incubator.vector.FloatVector;
 import org.jctools.queues.MpmcArrayQueue;
 import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -25,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(JlamaService.class);
+    private static final Descriptors.FieldDescriptor tensorField = NormRequest.getDescriptor().findFieldByNumber(NormRequest.TENSOR_FIELD_NUMBER);
     private final AbstractModel model;
     private final int workerCount;
     private final ConcurrentMap<UUID, RegisterResponse> workers;
@@ -51,7 +59,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
     public void waitForReady() {
         while (true) {
-            if (workers.size() == workerCount) {
+            if (generatorGroup.generators.size() == workerCount) {
                 generatorGroup.waitForReady();
                 return;
             }
@@ -82,6 +90,12 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 responseObserver.onNext(workers.get(wid));
                 responseObserver.onCompleted();
             } else {
+
+                if (workers.size() == workerCount) {
+                    responseObserver.onError(new RuntimeException("Not accepting any more workers"));
+                    return;
+                }
+
                 int offset = workers.size() * headsPerWorker * headSize;
                 int length = headsPerWorker * headSize;
 
@@ -91,7 +105,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
                 responseObserver.onNext(r);
                 responseObserver.onCompleted();
-
             }
         }
     }
@@ -104,35 +117,77 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     public StreamObserver<GenerateRequest> generate(StreamObserver<GenerateResponse> responseObserver) {
         Generator generator = new Generator(responseObserver);
         generatorGroup.add(generator);
+        logger.info("Added worker {}", generatorGroup.generators.size());
         return generator;
     }
 
     @Override
     public void norm(NormRequest request, StreamObserver<NormResponse> responseObserver) {
-        String key = UUID.nameUUIDFromBytes(request.getUuid().toByteArray()) + ":" + request.getLayer();
+        String key = STR."\{UUID.nameUUIDFromBytes(request.getUuid().toByteArray())}:\{request.getLayer()}";
         MpmcArrayQueue<Pair<NormRequest, StreamObserver<NormResponse>>> norm = norms.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount+1));
         norm.add(Pair.create(request, responseObserver));
 
-        // If we have all the workers, then we can calculate the norm and send it back
+        // If we have all the workers, then we can calculate the result and send it back
         if (norm.size() == workerCount && norms.remove(key, norm)) {
             float sumSq = 0;
             float sum = 0;
+            MemorySegment[] tensors = null;
+            Integer length = null;
             for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm) {
                 sumSq += f.left.getSumSq();
                 sum += f.left.getSum();
+                if (f.left.getTensorCount() > 0) {
+                    if (tensors == null) {
+                        tensors = new MemorySegment[f.left.getTensorCount()];
+                        for (int i = 0; i < tensors.length; i++) {
+                            ByteBuffer bb = ByteBuffer.wrap(f.left.getTensor(i).toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
+                            tensors[i] = MemorySegment.ofBuffer(bb);
+                            if (length == null)
+                                length = bb.remaining() / Float.BYTES;
+                        }
+                    } else {
+                        for (int i = 0; i < tensors.length; i++) {
+                            MemorySegment ms = MemorySegment.ofBuffer(f.left.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN));
+                            //Sum float buffers
+                            accumulateF32(tensors[i], ms, length);
+                        }
+                    }
+                }
             }
 
-            NormResponse response = NormResponse.newBuilder()
+            NormResponse.Builder responseBuilder = NormResponse.newBuilder()
                     .setSumSq(sumSq)
-                    .setSum(sum)
-                    .build();
+                    .setSum(sum);
 
+            if (tensors != null) {
+                for (int i = 0; i < tensors.length; i++)
+                    responseBuilder = responseBuilder.addTensor(UnsafeByteOperations.unsafeWrap(tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
+            }
+
+            NormResponse response = responseBuilder.build();
             for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm) {
                 f.right.onNext(response);
                 f.right.onCompleted();
             }
 
             norm.clear();
+        }
+    }
+
+    void accumulateF32(MemorySegment a, MemorySegment b, int length) {
+        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(length);
+        int i = 0;
+
+        for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
+            int fi = i * Float.BYTES;
+            FloatVector va = FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, a, fi, ByteOrder.LITTLE_ENDIAN);
+            FloatVector vb = FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, b, fi, ByteOrder.LITTLE_ENDIAN);
+            va.add(vb).intoMemorySegment(a, fi, ByteOrder.LITTLE_ENDIAN);
+        }
+
+        // tail
+        for (; i < length; i++) {
+            a.set(ValueLayout.JAVA_FLOAT, i, a.get(ValueLayout.JAVA_FLOAT, i) + b.get(ValueLayout.JAVA_FLOAT, i));
         }
     }
 
@@ -154,6 +209,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         }
 
         public AbstractTensor generateNextOutput(UUID session, int tokenId, int position) {
+            Preconditions.checkArgument(generators.size() == workerCount, "Missing workers %d", workers.size());
             ByteString sid = ByteString.copyFrom(ByteBuffer.allocate(128).putLong(session.getMostSignificantBits()).putLong(session.getLeastSignificantBits()).flip());
             GenerateResponse gr = GenerateResponse.newBuilder().setSession(sid).setToken(tokenId).setPosition(position).build();
             for (Generator g : generators) {
@@ -161,7 +217,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 g.responseObserver.onNext(gr);
             }
 
-            AbstractTensor output = model.makeTensor(model.getConfig().embeddingLength);
+            AbstractTensor output = model.makeFullTensor(model.getConfig().embeddingLength);
 
             for (Generator g : generators) {
                 ByteString v = g.waitForOutput(session);
@@ -173,7 +229,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 }
             }
 
-            logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
+            //logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
 
             return output;
         }

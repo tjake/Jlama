@@ -13,7 +13,11 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Weights implements WeightLoader {
+    private static final Logger logger = LoggerFactory.getLogger(Weights.class);
     private final Map<String, String> metadata;
     private final Map<String, TensorInfo> tensorInfoMap;
     private final ByteBuffer bytes;

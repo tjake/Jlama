@@ -1,9 +1,13 @@
 package com.github.tjake.jlama.safetensors;
 
+import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
 import com.github.tjake.jlama.tensor.TensorShape;
+import com.github.tjake.jlama.util.Pair;
+
 import com.google.common.io.BaseEncoding;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -18,8 +22,10 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Optional;
 
 public class TestParser {
     private static Logger logger = LoggerFactory.getLogger(TestParser.class);

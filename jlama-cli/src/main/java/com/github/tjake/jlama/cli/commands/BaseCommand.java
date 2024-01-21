@@ -1,9 +1,15 @@
 package com.github.tjake.jlama.cli.commands;
 
+import java.io.File;
+
+import com.google.common.io.Files;
+
 import com.github.tjake.jlama.safetensors.DType;
 import picocli.CommandLine;
 
 public class BaseCommand extends SimpleBaseCommand {
+    @CommandLine.Option(names={"-d", "--working-directory"}, description = "Working directory for attention cache")
+    protected File workingDirectory = null;
 
     @CommandLine.Option(names={"-wm", "--working-dtype"}, description = "Working memory data type")
     protected DType workingMemoryType = DType.F32;

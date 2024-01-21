@@ -33,15 +33,11 @@ public class LlamaModel extends AbstractModel {
     @Override
     protected EmbedInput loadInputWeights() {
 
-        final AbstractTensor wte = weights.load("model.embed_tokens.weight", c.offset).quantize(workingDType); //Don't quantize this, it's used for the embedding layer
+        final AbstractTensor wte = weights.load("model.embed_tokens.weight", c.offset()).quantize(workingDType); //Don't quantize this, it's used for the embedding layer
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeTensor(c.embeddingLength);
             embedding.copyFrom(wte, wte.getOffset(inputToken, c.embeddingSegmentStart()), embedding.getOffset(c.embeddingSegmentStart()), c.embeddingSegmentLength());
-//            VectorMath.pfor(c.embeddingSegmentStart(), c.embeddingSegmentLength(), i -> {
-//                float v = wte.get(inputToken, i);
-//                embedding.set(v, i);
-//            });
 
             return embedding;
         };
@@ -62,23 +58,23 @@ public class LlamaModel extends AbstractModel {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(this,
-                    weights.load(prefix + "q_proj.weight", c.offset).quantize(qType),
-                    weights.load(prefix + "k_proj.weight", c.offset).quantize(qType),
-                    weights.load(prefix + "v_proj.weight", c.offset).quantize(qType),
-                    weights.load(prefix + "o_proj.weight", c.offset).quantize(qType),
+                    weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
+                    weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
+                    weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
+                    weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType),
                     Optional.of(ropeFreqs));
 
             prefix = base + "mlp.";
 
             MLPBlock mlp = new MLPBlock(this, ActivationFunction.Type.SILU,
-                    weights.load(prefix + "gate_proj.weight", c.offset).quantize(qType), //w1
+                    weights.load(prefix + "gate_proj.weight", c.offset()).quantize(qType), //w1
                     weights.load(prefix + "down_proj.weight").quantize(qType), //w2
-                    weights.load(prefix + "up_proj.weight", c.offset).quantize(qType));  //w3
+                    weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType));  //w3
 
             transformerBlocks[i] = new TransformerBlock( this,
-                    new RMSNorm(this, weights.load(base + "input_layernorm.weight", c.offset).quantize(qType)),
+                    new RMSNorm(this, weights.load(base + "input_layernorm.weight", c.offset()).quantize(qType)),
                     attention,
-                    new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight", c.offset).quantize(qType)),
+                    new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight", c.offset()).quantize(qType)),
                     mlp);
         });
 

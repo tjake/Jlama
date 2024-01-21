@@ -21,7 +21,7 @@ public class TensorShape {
 
     private final int[] tshape;
     private final int capacity;
-    Optional<Pair<Integer, Integer>> sparseRange;
+    private final Optional<Pair<Integer, Integer>> sparseRange;
     private final boolean isSparse;
     private final int sparseOffset;
     private final int sparseLength;

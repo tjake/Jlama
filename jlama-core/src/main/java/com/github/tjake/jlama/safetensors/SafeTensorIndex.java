@@ -171,7 +171,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
         AbstractTensor t = w.load(name);
         return offset.map(o -> {
-            logger.info("Sparsifying tensor {} with shape {}", name, o);
+            logger.debug("Sparsifying tensor {} with shape {}", name, o);
             return t.sparsify(o.left, o.right);
         }).orElse(t);
     }

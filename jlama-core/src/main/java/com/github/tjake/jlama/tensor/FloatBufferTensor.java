@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -141,7 +142,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int offset) {
         offset = getOffset(offset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor() && b.hasArray())
             return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return FloatVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
@@ -151,7 +152,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     public void intoTensor(FloatVector vector, int offset) {
         Preconditions.checkArgument(!b.isReadOnly());
         offset = getOffset(offset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+        if (!TensorOperationsProvider.get().requiresOffHeapTensor() && b.hasArray())
             vector.intoArray(getArray(), getArrayOffset(offset));
         else
             vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);

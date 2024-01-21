@@ -1,5 +1,8 @@
 package com.github.tjake.jlama.tensor.operations;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
@@ -10,6 +13,7 @@ import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import com.github.tjake.jlama.util.RuntimeSupport;
 
 public class NativeTensorOperations implements TensorOperations {
+    private static final Logger logger = LoggerFactory.getLogger(NativeTensorOperations.class);
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
     public static final int HAS_AVX2 = NativeSimd.HAS_AVX2();
 
@@ -65,6 +69,9 @@ public class NativeTensorOperations implements TensorOperations {
     @Override
     public float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit)
     {
+        aoffset = a.getOffset(aoffset);
+        boffset = b.getOffset(boffset);
+
         return switch (a.dType()) {
             case F32 -> switch (b.dType()) {
                 case F32 -> NativeSimd.dot_product_f32(flags, a.getMemorySegment(), aoffset, b.getMemorySegment(), boffset, limit);
@@ -83,16 +90,20 @@ public class NativeTensorOperations implements TensorOperations {
 
     @Override
     public void dotProductChunk(AbstractTensor r, AbstractTensor a, AbstractTensor b, int offset, int limit, int chunkStart, int chunkSize) {
+        int aoffset = a.getOffset(offset);
+        int boffset = b.getOffset(0, offset);
+        int roffset = r.getOffset(chunkStart);
+
         switch (a.dType()) {
             case F32: switch (b.dType()) {
-                case F32: NativeSimd.dot_product_f32_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), offset, b.getMemorySegment(), offset, limit, chunkStart, chunkSize); break;
-                case I8: NativeSimd.dot_product_f32_q8_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), offset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), offset, limit, chunkStart, chunkSize); break;
-                case Q4: NativeSimd.dot_product_f32_q4_chunked(flags, r.getMemorySegment(), a.getMemorySegment(), offset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), offset, limit, chunkStart, chunkSize); break;
+                case F32: NativeSimd.dot_product_f32_chunked(flags, r.getMemorySegment(), roffset, a.getMemorySegment(), aoffset, b.getMemorySegment(), boffset, limit, chunkStart, chunkSize); break;
+                case I8: NativeSimd.dot_product_f32_q8_chunked(flags, r.getMemorySegment(), roffset, a.getMemorySegment(), aoffset, ((Q8ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit, chunkStart, chunkSize); break;
+                case Q4: NativeSimd.dot_product_f32_q4_chunked(flags, r.getMemorySegment(), roffset, a.getMemorySegment(), aoffset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit, chunkStart, chunkSize); break;
                 default: throw new UnsupportedOperationException(b.dType().name());
             }
             break;
             case I8: switch (b.dType()) {
-                case Q4: NativeSimd.dot_product_q8_q4_chunked(flags, r.getMemorySegment(), ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), offset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), offset, limit, chunkStart, chunkSize);
+                case Q4: NativeSimd.dot_product_q8_q4_chunked(flags, r.getMemorySegment(), roffset, ((Q8ByteBufferTensor)a).getBlockF().getMemorySegment(), a.getMemorySegment(), aoffset, ((Q4ByteBufferTensor)b).getBlockF().getMemorySegment(), b.getMemorySegment(), boffset, limit, chunkStart, chunkSize);
                 break;
                 default: throw new UnsupportedOperationException(b.dType().name());
             }

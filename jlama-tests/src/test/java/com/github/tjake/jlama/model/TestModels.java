@@ -1,4 +1,4 @@
-package com.github.tjake.jlama.models;
+package com.github.tjake.jlama.model;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +14,11 @@ import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.Pair;
+import org.jctools.queues.MpmcArrayQueue;
+import org.jctools.queues.MpscArrayQueue;
 
 import org.junit.Assert;
 import org.junit.Assume;
@@ -30,8 +35,19 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import com.google.common.util.concurrent.AtomicDouble;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 public class TestModels {
 
@@ -61,7 +77,7 @@ public class TestModels {
             String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, " +
                     "previously unexplored valley, in the Andes Mountains. " +
                     "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
-            gpt2.generate(prompt, 0.8f, 256, false, makeOutHandler());
+            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
         }
     }
 
@@ -74,7 +90,7 @@ public class TestModels {
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Simply put, the theory of relativity states that";
-            model.generate(prompt, 0.7f, 256, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
         }
     }
 
@@ -99,7 +115,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
 
             String prompt = "Lily picked up a flower and gave it to";
-            model.generate(prompt, 0.7f, 128, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 128, false, makeOutHandler());
         }
         finally
         {
@@ -129,7 +145,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             String prompt = "Lily picked up a flower and gave it to";
-            model.generate(prompt, 0.7f, 128, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 128, false, makeOutHandler());
         }
     }
 
@@ -201,5 +217,141 @@ public class TestModels {
         }
 
         return outCallback;
+    }
+
+    @Test
+    public void testDistibuted() {
+        Path model = Paths.get("../models/tiny-random-llama-2");
+        Assume.assumeTrue(Files.exists(model));
+
+        AbstractModel mFull = ModelSupport.loadModel(model.toFile(), null, DType.F32, DType.F32, Optional.empty(), Optional.empty());
+
+        int len = mFull.getConfig().embeddingLength;
+        AbstractModel mFirstHalf = ModelSupport.loadModel(AbstractModel.InferenceType.FULL_GENERATION, model.toFile(), null, DType.F32, DType.F32, Optional.empty(), Optional.empty(),
+                Optional.of(Pair.create(0, len/2)));
+        AbstractModel mSecondHalf = ModelSupport.loadModel(AbstractModel.InferenceType.FULL_GENERATION, model.toFile(), null, DType.F32, DType.F32, Optional.empty(), Optional.empty(),
+                Optional.of(Pair.create(len/2, len/2)));
+
+        int embLen = mFull.c.embeddingLength;
+
+        // Main one
+        AbstractTensor kvmem0 = mFull.makeTensor(mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); //k and v are last 2 dims
+        AbstractTensor t0 = mFull.embedInput.inputTokenToEmbedding(mFull.c.bosToken, 0);
+        AbstractTensor f0 = mFull.transformerBlocks[0].preAttentionNorm.get().forward(t0);
+
+        AbstractTensor q0 = mFull.makeTensor(embLen);
+        VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
+            TensorOperationsProvider.get().dotProductChunk(q0, t0, mFull.transformerBlocks[0].attention.queryAttnWeights,0, embLen, chunkStart, chunkLength);
+        });
+
+        // Test a double dot
+        AbstractTensor qq0 = mFull.makeTensor(embLen);
+        VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
+            TensorOperationsProvider.get().dotProductChunk(qq0, q0, mFull.transformerBlocks[0].attention.queryAttnWeights,0, embLen, chunkStart, chunkLength);
+        });
+
+        AbstractTensor a0 = mFull.transformerBlocks[0].attention.forward(f0, 0, kvmem0.slice(0), Optional.empty());
+
+
+        // Two halves
+        AtomicDouble sum0 = new AtomicDouble(0);
+        CountDownLatch norm0Latch = new CountDownLatch(2);
+
+        BiFunction<Float, Float, Pair<Float, Float>> reducer = (a, b) -> {
+                sum0.addAndGet(a);
+                norm0Latch.countDown();
+                Uninterruptibles.awaitUninterruptibly(norm0Latch);
+
+                return Pair.create(sum0.floatValue(), 0f);
+        };
+
+        MpmcArrayQueue<AbstractTensor> sumt = new MpmcArrayQueue<>(2);
+        CountDownLatch tensor0Latch = new CountDownLatch(2);
+
+        BiFunction<AbstractTensor, AbstractTensor, Void> treducer = (a, b) -> {
+
+            sumt.offer(a);
+            tensor0Latch.countDown();
+            Uninterruptibles.awaitUninterruptibly(tensor0Latch);
+
+            AbstractTensor result = a.copyShape();
+            for (AbstractTensor t : sumt)
+                TensorOperationsProvider.get().accumulate(result, t, 0, result.size());
+
+            b.copyFrom(result, 0, 0, result.size());
+            return null;
+        };
+
+        AbstractTensor kvmem1 = mFirstHalf.makeTensor(mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); //k and v are last 2 dims
+        AbstractTensor t1 = mFirstHalf.embedInput.inputTokenToEmbedding(mFull.c.bosToken, 0);
+
+
+        AbstractTensor kvmem2 = mSecondHalf.makeTensor(mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); //k and v are last 2 dims
+        AbstractTensor t2 = mSecondHalf.embedInput.inputTokenToEmbedding(mFull.c.bosToken, 0);
+
+        CompletableFuture<AbstractTensor> f1c = CompletableFuture.supplyAsync(() -> mFirstHalf.transformerBlocks[0].preAttentionNorm.get().forward(t1, Optional.of(reducer)));
+        CompletableFuture<AbstractTensor> f2c = CompletableFuture.supplyAsync(() -> mSecondHalf.transformerBlocks[0].preAttentionNorm.get().forward(t2, Optional.of(reducer)));
+
+        CompletableFuture.allOf(f1c, f2c);
+        AbstractTensor f1 = f1c.join();
+        AbstractTensor f2 = f2c.join();
+
+
+        AbstractTensor q1 = mFull.makeTensor(embLen);
+        AbstractTensor qq1 = mFull.makeTensor(embLen);
+
+        int off0 = mFirstHalf.c.embeddingSegmentStart();
+        int len0 = mFirstHalf.c.embeddingSegmentLength();
+
+        VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
+            TensorOperationsProvider.get().dotProductChunk(q1, t1, mFirstHalf.transformerBlocks[0].attention.queryAttnWeights, off0, len0, chunkStart, chunkLength);
+        });
+
+        VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
+            TensorOperationsProvider.get().dotProductChunk(qq1, q1, mFirstHalf.transformerBlocks[0].attention.queryAttnWeights, off0, len0, chunkStart, chunkLength);
+        });
+
+
+        AbstractTensor q2 = mFull.makeTensor(embLen);
+        AbstractTensor qq2 = mFull.makeTensor(embLen);
+
+        int off1 = mSecondHalf.c.embeddingSegmentStart();
+        int len1 = mSecondHalf.c.embeddingSegmentLength();
+
+        VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
+            TensorOperationsProvider.get().dotProductChunk(q2, t2, mSecondHalf.transformerBlocks[0].attention.queryAttnWeights, off1, len1, chunkStart, chunkLength);
+        });
+        VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
+            TensorOperationsProvider.get().dotProductChunk(qq2, q2, mSecondHalf.transformerBlocks[0].attention.queryAttnWeights, off1, len1, chunkStart, chunkLength);
+        });
+
+
+        AbstractTensor a1 = mFirstHalf.transformerBlocks[0].attention.forward(f1, 0, kvmem1.slice(0), Optional.empty());
+        AbstractTensor a2 = mSecondHalf.transformerBlocks[0].attention.forward(f2, 0, kvmem2.slice(0), Optional.empty());
+
+        AbstractTensor tc = mFull.makeTensor(mFull.c.embeddingLength);
+        tc.copyFrom(t1, 0, 0, t1.size());
+        tc.copyFrom(t2, 0, t2.size(), t2.size());
+        Assert.assertTrue(tensorEquals(tc, t0));
+
+        AbstractTensor fc = mFull.makeTensor(mFull.c.embeddingLength);
+        fc.copyFrom(f1, 0, 0, f1.size());
+        fc.copyFrom(f2, 0, f2.size(), f2.size());
+        Assert.assertTrue(tensorEquals(fc, f0));
+
+        AbstractTensor qc = mFull.makeTensor(mFull.c.embeddingLength);
+        qc.copyFrom(q1, 0, 0, q1.size());
+        TensorOperationsProvider.get().accumulate(qc, q2, 0, qc.size());
+        Assert.assertTrue(tensorEquals(qc, q0));
+    }
+
+    static boolean tensorEquals(AbstractTensor a, AbstractTensor b) {
+        if (a.size() != b.size())
+            return false;
+
+        for (int i = 0; i < a.size(); i++)
+            Assert.assertEquals("Position " + i, a.get(i), b.get(i), 0.0000001f);
+
+        return true;
     }
 }

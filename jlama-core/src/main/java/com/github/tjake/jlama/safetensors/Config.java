@@ -3,7 +3,11 @@ package com.github.tjake.jlama.safetensors;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.util.Pair;
 
+import java.io.File;
 import java.util.Optional;
+
+import com.google.common.base.Preconditions;
+import com.google.common.io.Files;
 
 public class Config {
     public final int contextLength;
@@ -17,7 +21,15 @@ public class Config {
     public final int bosToken;
     public final int eosToken;
 
-    public volatile Optional<Pair<Integer, Integer>> offset;
+    private volatile Optional<Pair<Integer, Integer>> offset;
+    private volatile File workingDirectory;
+
+    //Suppliers to store values that chance when offset is adjusted
+    private volatile int embeddingSegmentStart;
+    private volatile int embeddingSegmentLength;
+    private volatile int embeddingSegmentEnd;
+    private volatile int headStart;
+    private volatile int headEnd;
 
     public final TensorCache tensorCache;
 
@@ -41,11 +53,35 @@ public class Config {
         this.eosToken = eosToken;
         this.tensorCache = TensorCache.instance;
         this.headSize = embeddingLength / numberOfHeads;
-        this.offset = Optional.empty();
+        setOffset(null);
     }
 
     public void setOffset(Pair<Integer, Integer> offset) {
         this.offset = Optional.ofNullable(offset);
+
+        this.embeddingSegmentStart = this.offset.map(Pair::left).orElse(0);
+        this.embeddingSegmentLength = this.offset.map(Pair::right).orElse(embeddingLength);
+        this.embeddingSegmentEnd = embeddingSegmentStart + embeddingSegmentLength;
+        this.headStart = embeddingSegmentStart / headSize;
+        this.headEnd = embeddingSegmentEnd / headSize;
+    }
+
+    public void setWorkingDirectory(File workingDirectory) {
+        if (workingDirectory == null) {
+            this.workingDirectory = Files.createTempDir();
+            this.workingDirectory.deleteOnExit();
+        } else {
+            Preconditions.checkArgument(workingDirectory.isDirectory());
+            this.workingDirectory = workingDirectory;
+        }
+    }
+
+    public Optional<File> workingDirectory() {
+        return Optional.ofNullable(this.workingDirectory);
+    }
+
+    public Optional<Pair<Integer, Integer>> offset() {
+        return offset;
     }
 
     public int layerStart() {
@@ -61,22 +97,18 @@ public class Config {
     }
 
     public int embeddingSegmentStart() {
-        return offset.map(Pair::left).orElse(0);
-    }
-
-    public int embeddingSegmentEnd() {
-        return embeddingSegmentStart() + embeddingSegmentLength();
+        return embeddingSegmentStart;
     }
 
     public int embeddingSegmentLength() {
-        return offset.map(Pair::right).orElse(embeddingLength);
+        return embeddingSegmentLength;
     }
 
     public int headStart() {
-        return embeddingSegmentStart() / headSize;
+        return headStart;
     }
 
     public int headEnd() {
-        return embeddingSegmentEnd() / headSize;
+        return headEnd;
     }
 }

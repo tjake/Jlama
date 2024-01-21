@@ -12,6 +12,7 @@ public class TensorOperationsProvider {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TensorOperationsProvider.class);
+    private static final boolean forcePanama = Boolean.getBoolean("jlama.force_panama_tensor_operations");
 
     private static final String lock = "lock";
     private static TensorOperationsProvider instance;
@@ -35,18 +36,20 @@ public class TensorOperationsProvider {
 
         TensorOperations pick = null;
 
-        try {
-            Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
-            pick = nativeClazz.getConstructor().newInstance();
-            //This should break of no shared lib found
-        } catch (Throwable t) {
-            logger.warn("Error loading native operations", t);
+        if (!forcePanama) {
+            try {
+                Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
+                pick = nativeClazz.getConstructor().newInstance();
+                //This should break of no shared lib found
+            } catch (Throwable t) {
+                logger.warn("Error loading native operations", t);
+            }
         }
 
         if (pick == null)
             pick = MachineSpec.VECTOR_TYPE == MachineSpec.Type.NONE ? new NaiveTensorOperations() : new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
-        logger.info("Using {}", pick.name());
+        logger.info("Using {} ({})", pick.name(), (pick.requiresOffHeapTensor() ? "OffHeap" : "OnHeap"));
         return pick;
     }
 }

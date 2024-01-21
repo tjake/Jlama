@@ -24,7 +24,7 @@ public class ServeCommand extends BaseCommand {
     public void run()
     {
         try {
-            AbstractModel m = loadModel(model, workingMemoryType, workingQuantizationType, java.util.Optional.ofNullable(modelQuantization), Optional.ofNullable(threadCount));
+            AbstractModel m = loadModel(model, workingDirectory, workingMemoryType, workingQuantizationType, java.util.Optional.ofNullable(modelQuantization), Optional.ofNullable(threadCount));
 
             UndertowJaxrsServer ut = new UndertowJaxrsServer();
             ut.deploy(new JlamaRestApi(m), APPLICATION_PATH);

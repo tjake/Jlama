@@ -265,9 +265,9 @@ public class TestOperations
         FloatBufferTensor a = makeTensor(SIZE);
 
         Q8ByteBufferTensor ref = new Q8ByteBufferTensor(a);
-        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a);
-        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a);
-        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a);
+        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a, 0, a.size());
+        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a, 0, a.size());
+        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a, 0, a.size());
 
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);

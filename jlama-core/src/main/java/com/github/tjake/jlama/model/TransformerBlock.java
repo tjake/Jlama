@@ -4,21 +4,21 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class TransformerBlock {
     private final AbstractModel model;
-    private final Optional<LayerNorm> preAttentionNorm;
-    private final CausalSelfAttention attention;
-    private final LayerNorm postAttentionNorm;
-
-    private final MLPBlock mlpBlock;
-
-    private final Optional<LayerNorm> postMlpNorm;
-    private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
-    private static final ThreadLocal<AbstractTensor[]> tmpArray2 = new ThreadLocal<>();
+    final Optional<LayerNorm> preAttentionNorm;
+    final CausalSelfAttention attention;
+    final LayerNorm postAttentionNorm;
+    final MLPBlock mlpBlock;
+    final Optional<LayerNorm> postMlpNorm;
 
     public TransformerBlock(AbstractModel model, LayerNorm preAttentionNorm, CausalSelfAttention attention, LayerNorm postAttentionNorm, MLPBlock mlpBlock)
     {
@@ -45,24 +45,24 @@ public class TransformerBlock {
     }
 
     public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer) {
-        return forward(embedding, position, kvBuffer, Optional.empty());
+        return forward(embedding, position, kvBuffer, Optional.empty(), Optional.empty());
     }
 
-    public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+    public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer, Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
 
-        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding, reducer)).orElse(embedding);
+        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
         AbstractTensor postAttention;
         try(AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
-            postAttention = attention.forward(qlnemb, position, kvBuffer, reducer);
+            postAttention = attention.forward(qlnemb, position, kvBuffer, tensorReducer);
         }
 
         //residual connection
         TensorOperationsProvider.get().accumulate(postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
 
-        AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention, reducer);
+        AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention, normReducer);
         AbstractTensor postMlp;
         try(AbstractTensor qlnemb2 = model.maybeQuantize(lnemb2)) {
-            postMlp = mlpBlock.forward(qlnemb2);
+            postMlp = mlpBlock.forward(qlnemb2, tensorReducer);
         }
 
         //residual connection
@@ -76,7 +76,7 @@ public class TransformerBlock {
         postAttention.close();
 
         return postMlpNorm.map(ln -> {
-            AbstractTensor lnout = ln.forward(postMlp, reducer);
+            AbstractTensor lnout = ln.forward(postMlp, normReducer);
             postMlp.close();
             return lnout;
         }).orElse(postMlp);

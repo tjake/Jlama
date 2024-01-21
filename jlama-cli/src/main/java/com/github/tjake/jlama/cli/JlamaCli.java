@@ -1,19 +1,11 @@
 package com.github.tjake.jlama.cli;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-
 import com.github.tjake.jlama.cli.commands.ChatCommand;
+import com.github.tjake.jlama.cli.commands.ClusterCoordinatorCommand;
+import com.github.tjake.jlama.cli.commands.ClusterWorkerCommand;
 import com.github.tjake.jlama.cli.commands.CompleteCommand;
 import com.github.tjake.jlama.cli.commands.QuantizeCommand;
 import com.github.tjake.jlama.cli.commands.ServeCommand;
-import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.model.ModelSupport.ModelType;
-import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
@@ -35,6 +27,8 @@ public class JlamaCli implements Runnable {
         cli.addSubcommand("chat", new ChatCommand());
         cli.addSubcommand("complete", new CompleteCommand());
         cli.addSubcommand("serve", new ServeCommand());
+        cli.addSubcommand("cluster-coordinator", new ClusterCoordinatorCommand());
+        cli.addSubcommand("cluster-worker", new ClusterWorkerCommand());
 
         String[] pargs = args.length == 0 ? new String[]{"-h"} : args;
         cli.parseWithHandler(new RunLast(), pargs);
@@ -44,6 +38,4 @@ public class JlamaCli implements Runnable {
     public void run() {
 
     }
-
-
 }

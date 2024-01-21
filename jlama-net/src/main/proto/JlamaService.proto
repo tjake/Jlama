@@ -8,11 +8,13 @@ message NormRequest {
   int32 layer = 3;
   float sumSq = 4;
   float sum = 5;
+  repeated bytes tensor = 6;
 }
 
 message NormResponse {
   float sumSq = 1;
   float sum = 2;
+  repeated bytes tensor = 3;
 }
 
 message GenerateRequest {

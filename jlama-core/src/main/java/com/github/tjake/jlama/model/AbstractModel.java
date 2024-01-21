@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.model;
 
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
@@ -18,16 +19,20 @@ import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
-public abstract class AbstractModel {
+public abstract class AbstractModel implements Generator
+{
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
 
     public enum InferenceType {
@@ -125,12 +130,20 @@ public abstract class AbstractModel {
 
     public AbstractTensor makeTensor(int ...shape) {
         TensorShape s;
-        if (c.offset.isPresent() && shape[shape.length - 1] == c.embeddingLength)
-            s = TensorShape.sparse(shape, c.offset.get());
+        if (c.offset().isPresent() && shape[shape.length - 1] == c.embeddingLength)
+            s = TensorShape.sparse(shape, c.offset().get());
         else
             s = TensorShape.of(shape);
 
         return c.tensorCache.get(workingDType, s);
+    }
+
+    public AbstractTensor makeFullTensor(int ...shape) {
+        return c.tensorCache.get(workingDType, TensorShape.of(shape));
+    }
+
+    public AbstractTensor makeFullTensor(TensorShape shape) {
+        return c.tensorCache.get(workingDType, shape);
     }
 
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
@@ -140,7 +153,7 @@ public abstract class AbstractModel {
     }
 
     protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
-        return forward(token_id, pos, kvbuf, Optional.empty());
+        return forward(token_id, pos, kvbuf, Optional.empty(), Optional.empty());
     }
 
     /**
@@ -153,13 +166,13 @@ public abstract class AbstractModel {
      * @param kvbuf
      * @return
      */
-    public AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+    public AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf, Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         AbstractTensor embedding = embedInput.inputTokenToEmbedding(token_id, pos);
 
         for (int i = c.layerStart(); i < c.layerEnd(); i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; //reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, pos, kvlayer, reducer);
+            embedding = transformerBlocks[i].forward(embedding, pos, kvlayer, normReducer, tensorReducer);
             ref.close();
         }
 
@@ -232,11 +245,7 @@ public abstract class AbstractModel {
         }
     }
 
-    public void generate(String prompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
-        generate(prompt, null, temperature, ntokens, useEOS, onTokenWithTimings);
-    }
-
-    public void generate(String prompt, String cleanPrompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
+    public void generate(UUID sessionId, String prompt, String cleanPrompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 

@@ -54,11 +54,11 @@ public class ModelSupport {
         }
     }
 
-    public static AbstractModel loadModel(File model, DType workingMemoryType, DType workingQuantizationType, Optional<DType> modelQuantization, Optional<Integer> threadCount) {
-        return loadModel(AbstractModel.InferenceType.FULL_GENERATION, model, workingMemoryType, workingQuantizationType, modelQuantization, threadCount, Optional.empty());
+    public static AbstractModel loadModel(File model, File workingDirectory, DType workingMemoryType, DType workingQuantizationType, Optional<DType> modelQuantization, Optional<Integer> threadCount) {
+        return loadModel(AbstractModel.InferenceType.FULL_GENERATION, model, workingDirectory, workingMemoryType, workingQuantizationType, modelQuantization, threadCount, Optional.empty());
     }
 
-    public static AbstractModel loadModel(AbstractModel.InferenceType inferenceType, File model, DType workingMemoryType, DType workingQuantizationType, Optional<DType> modelQuantization, Optional<Integer> threadCount, Optional<Pair<Integer, Integer>> offset) {
+    public static AbstractModel loadModel(AbstractModel.InferenceType inferenceType, File model, File workingDirectory, DType workingMemoryType, DType workingQuantizationType, Optional<DType> modelQuantization, Optional<Integer> threadCount, Optional<Pair<Integer, Integer>> offset) {
 
         if (!model.exists()) {
            throw new IllegalArgumentException("Model location does not exist: " + model);
@@ -89,6 +89,8 @@ public class ModelSupport {
             ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
             Config c = om.readValue(configFile, modelType.configClass);
             offset.ifPresent(c::setOffset);
+
+            c.setWorkingDirectory(workingDirectory);
 
             Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
             WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);

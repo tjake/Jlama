@@ -78,13 +78,13 @@ public class NativeSimd  {
     }
     /**
      * {@snippet :
-     * void dot_product_f32_chunked(int flags, float* r, float* a, int aoffset, float* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * void dot_product_f32_chunked(int flags, float* r, int roffset, float* a, int aoffset, float* b, int boffset, int length, int bchunkstart, int bchunksize);
      * }
      */
-    public static void dot_product_f32_chunked(int flags, MemorySegment r, MemorySegment a, int aoffset, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+    public static void dot_product_f32_chunked(int flags, MemorySegment r, int roffset, MemorySegment a, int aoffset, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
         var mh$ = dot_product_f32_chunked$MH();
         try {
-            mh$.invokeExact(flags, r, a, aoffset, b, boffset, length, bchunkstart, bchunksize);
+            mh$.invokeExact(flags, r, roffset, a, aoffset, b, boffset, length, bchunkstart, bchunksize);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
@@ -110,13 +110,13 @@ public class NativeSimd  {
     }
     /**
      * {@snippet :
-     * void dot_product_f32_q8_chunked(int flags, float* r, float* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * void dot_product_f32_q8_chunked(int flags, float* r, int roffset, float* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
      * }
      */
-    public static void dot_product_f32_q8_chunked(int flags, MemorySegment r, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+    public static void dot_product_f32_q8_chunked(int flags, MemorySegment r, int roffset, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
         var mh$ = dot_product_f32_q8_chunked$MH();
         try {
-            mh$.invokeExact(flags, r, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
+            mh$.invokeExact(flags, r, roffset, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
@@ -142,13 +142,13 @@ public class NativeSimd  {
     }
     /**
      * {@snippet :
-     * void dot_product_f32_q4_chunked(int flags, float* r, float* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * void dot_product_f32_q4_chunked(int flags, float* r, int roffset, float* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
      * }
      */
-    public static void dot_product_f32_q4_chunked(int flags, MemorySegment r, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+    public static void dot_product_f32_q4_chunked(int flags, MemorySegment r, int roffset, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
         var mh$ = dot_product_f32_q4_chunked$MH();
         try {
-            mh$.invokeExact(flags, r, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
+            mh$.invokeExact(flags, r, roffset, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
@@ -190,13 +190,13 @@ public class NativeSimd  {
     }
     /**
      * {@snippet :
-     * void dot_product_q8_q4_chunked(int flags, float* r, float* af, char* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
+     * void dot_product_q8_q4_chunked(int flags, float* r, int roffset, float* af, char* a, int aoffset, float* bf, char* b, int boffset, int length, int bchunkstart, int bchunksize);
      * }
      */
-    public static void dot_product_q8_q4_chunked(int flags, MemorySegment r, MemorySegment af, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
+    public static void dot_product_q8_q4_chunked(int flags, MemorySegment r, int roffset, MemorySegment af, MemorySegment a, int aoffset, MemorySegment bf, MemorySegment b, int boffset, int length, int bchunkstart, int bchunksize) {
         var mh$ = dot_product_q8_q4_chunked$MH();
         try {
-            mh$.invokeExact(flags, r, af, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
+            mh$.invokeExact(flags, r, roffset, af, a, aoffset, bf, b, boffset, length, bchunkstart, bchunksize);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }

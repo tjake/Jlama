@@ -5,7 +5,11 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class MLPBlock {
     private final AbstractModel model;
@@ -42,7 +46,7 @@ public class MLPBlock {
 
     // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
     // first calculate self.w1(x) and self.w3(x)
-    public AbstractTensor forward(AbstractTensor lnemb) {
+    public AbstractTensor forward(AbstractTensor lnemb, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         int hiddenLength = model.c.hiddenLength;
         try(AbstractTensor buf = model.makeTensor(hiddenLength); AbstractTensor buf2 = model.makeTensor(hiddenLength)) {
 
@@ -52,6 +56,14 @@ public class MLPBlock {
                 if (upProjectionWeights != null) {
                     TensorOperationsProvider.get().dotProductChunk(buf2, lnemb, upProjectionWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
                 }
+            });
+
+            tensorReducer.ifPresent(func -> {
+                List<AbstractTensor> ts = new ArrayList<>(2);
+                ts.add(buf);
+                if (upProjectionWeights != null) ts.add(buf2);
+
+                func.accept(ts);
             });
 
             fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, 0, hiddenLength));

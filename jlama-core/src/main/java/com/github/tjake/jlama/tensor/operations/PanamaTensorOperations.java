@@ -45,12 +45,12 @@ final public class PanamaTensorOperations implements TensorOperations
 
     @Override
     public boolean requiresOffHeapTensor() {
-        return false;
+        return true;
     }
 
     @Override
     public float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
-        Preconditions.checkArgument(limit % 2 == 0, "Limit must be a multiple of 2, not" + limit);
+        Preconditions.checkArgument(limit % 2 == 0, "Limit must be a multiple of 2");
 
         return switch (a.dType()) {
             case F32 -> switch (b.dType()) {
@@ -1013,21 +1013,9 @@ final public class PanamaTensorOperations implements TensorOperations
         int alim = aoffset + upperBound;
         int blim = boffset + upperBound;
         int slen = FloatVector.SPECIES_PREFERRED.length();
-        for (; ao < alim && bo < blim; ao += slen*4, bo += slen*4) {
+        for (; ao < alim && bo < blim; ao += slen, bo += slen) {
             FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, ao);
             FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, bo);
-            acc = va.fma(vb, acc);
-
-            va = a.getVector(FloatVector.SPECIES_PREFERRED, ao + slen);
-            vb = b.getVector(FloatVector.SPECIES_PREFERRED, bo + slen);
-            acc = va.fma(vb, acc);
-
-            va = a.getVector(FloatVector.SPECIES_PREFERRED, ao + slen + slen);
-            vb = b.getVector(FloatVector.SPECIES_PREFERRED, bo + slen + slen);
-            acc = va.fma(vb, acc);
-
-            va = a.getVector(FloatVector.SPECIES_PREFERRED, ao + slen + slen + slen);
-            vb = b.getVector(FloatVector.SPECIES_PREFERRED, bo + slen + slen + slen);
             acc = va.fma(vb, acc);
         }
         // reduce
