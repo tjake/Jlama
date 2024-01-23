@@ -122,56 +122,85 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     }
 
     @Override
-    public void norm(NormRequest request, StreamObserver<NormResponse> responseObserver) {
-        String key = STR."\{UUID.nameUUIDFromBytes(request.getUuid().toByteArray())}:\{request.getLayer()}";
-        MpmcArrayQueue<Pair<NormRequest, StreamObserver<NormResponse>>> norm = norms.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount+1));
-        norm.add(Pair.create(request, responseObserver));
+    public StreamObserver<NormRequest> norm(StreamObserver<NormResponse> responseObserver) {
 
-        // If we have all the workers, then we can calculate the result and send it back
-        if (norm.size() == workerCount && norms.remove(key, norm)) {
-            float sumSq = 0;
-            float sum = 0;
-            MemorySegment[] tensors = null;
-            Integer length = null;
-            for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm) {
-                sumSq += f.left.getSumSq();
-                sum += f.left.getSum();
-                if (f.left.getTensorCount() > 0) {
-                    if (tensors == null) {
-                        tensors = new MemorySegment[f.left.getTensorCount()];
-                        for (int i = 0; i < tensors.length; i++) {
-                            ByteBuffer bb = ByteBuffer.wrap(f.left.getTensor(i).toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
-                            tensors[i] = MemorySegment.ofBuffer(bb);
-                            if (length == null)
-                                length = bb.remaining() / Float.BYTES;
-                        }
-                    } else {
-                        for (int i = 0; i < tensors.length; i++) {
-                            MemorySegment ms = MemorySegment.ofBuffer(f.left.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN));
-                            //Sum float buffers
-                            accumulateF32(tensors[i], ms, length);
+        return new StreamObserver<NormRequest>() {
+            @Override
+            public void onNext(NormRequest request)
+            {
+                String key = STR."\{UUID.nameUUIDFromBytes(request.getUuid().toByteArray())}:\{request.getLayer()}";
+                MpmcArrayQueue<Pair<NormRequest, StreamObserver<NormResponse>>> norm = norms.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount + 1));
+                norm.add(Pair.create(request, responseObserver));
+
+                // If we have all the workers, then we can calculate the result and send it back
+                if (norm.size() == workerCount && norms.remove(key, norm))
+                {
+                    float sumSq = 0;
+                    float sum = 0;
+                    MemorySegment[] tensors = null;
+                    Integer length = null;
+                    for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm)
+                    {
+                        sumSq += f.left.getSumSq();
+                        sum += f.left.getSum();
+                        if (f.left.getTensorCount() > 0)
+                        {
+                            if (tensors == null)
+                            {
+                                tensors = new MemorySegment[f.left.getTensorCount()];
+                                for (int i = 0; i < tensors.length; i++)
+                                {
+                                    ByteBuffer bb = ByteBuffer.wrap(f.left.getTensor(i).toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
+                                    tensors[i] = MemorySegment.ofBuffer(bb);
+                                    if (length == null)
+                                        length = bb.remaining() / Float.BYTES;
+                                }
+                            }
+                            else
+                            {
+                                for (int i = 0; i < tensors.length; i++)
+                                {
+                                    MemorySegment ms = MemorySegment.ofBuffer(f.left.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN));
+                                    //Sum float buffers
+                                    accumulateF32(tensors[i], ms, length);
+                                }
+                            }
                         }
                     }
+
+                    NormResponse.Builder responseBuilder = NormResponse.newBuilder()
+                            .setSumSq(sumSq)
+                            .setSum(sum);
+
+                    if (tensors != null)
+                    {
+                        for (int i = 0; i < tensors.length; i++)
+                            responseBuilder = responseBuilder.addTensor(UnsafeByteOperations.unsafeWrap(tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
+                    }
+
+                    NormResponse response = responseBuilder.build();
+                    for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm)
+                    {
+                        f.right.onNext(response);
+                        //f.right.onCompleted();
+                    }
+
+                    norm.clear();
                 }
             }
 
-            NormResponse.Builder responseBuilder = NormResponse.newBuilder()
-                    .setSumSq(sumSq)
-                    .setSum(sum);
+            @Override
+            public void onError(Throwable throwable)
+            {
 
-            if (tensors != null) {
-                for (int i = 0; i < tensors.length; i++)
-                    responseBuilder = responseBuilder.addTensor(UnsafeByteOperations.unsafeWrap(tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
             }
 
-            NormResponse response = responseBuilder.build();
-            for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm) {
-                f.right.onNext(response);
-                f.right.onCompleted();
-            }
+            @Override
+            public void onCompleted()
+            {
 
-            norm.clear();
-        }
+            }
+        };
     }
 
     void accumulateF32(MemorySegment a, MemorySegment b, int length) {

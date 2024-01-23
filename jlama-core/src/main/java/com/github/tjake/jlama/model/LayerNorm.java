@@ -1,11 +1,9 @@
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.util.Pair;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.google.common.base.Supplier;
 
 import java.util.Optional;
 import java.util.function.BiFunction;

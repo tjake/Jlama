@@ -41,5 +41,5 @@ message RegisterResponse {
 service JlamaService {
   rpc register(RegisterRequest) returns (RegisterResponse);
   rpc generate(stream GenerateRequest) returns (stream GenerateResponse);
-  rpc norm(NormRequest) returns (NormResponse);
+  rpc norm(stream NormRequest) returns (stream NormResponse);
 }

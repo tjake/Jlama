@@ -10,10 +10,8 @@ import com.github.tjake.jlama.util.Pair;
 
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.Channel;
@@ -31,22 +29,21 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 public class Worker {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(Worker.class);
     private final UUID workerId;
-
     private final ByteString workerIdBytes;
     private final AbstractModel model;
     private final JlamaServiceGrpc.JlamaServiceStub client;
@@ -65,20 +62,75 @@ public class Worker {
         this.model = loadModel(AbstractModel.InferenceType.FORWARD_PASS, modelPrefix, workingDirectory, workingMemoryType, workingQuantizationType, modelQuantization, Optional.empty(), Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength())));
     }
 
+    class NormObserver implements StreamObserver<NormResponse> {
+
+        private final UUID session;
+        private final StreamObserver<NormRequest> requestStreamObserver;
+
+        private final AtomicReference<CompletableFuture<NormResponse>> activeRequestFuture;
+
+        NormObserver(UUID session) {
+            this.session = session;
+            this.requestStreamObserver = client.norm(this);
+            this.activeRequestFuture = new AtomicReference<>();
+        }
+
+        public CompletableFuture<NormResponse> request(NormRequest request) {
+            CompletableFuture<NormResponse> f = new CompletableFuture<>();
+            if (!activeRequestFuture.compareAndSet(null, f))
+                throw new IllegalStateException("active future still ourstanding for " + session);
+
+            requestStreamObserver.onNext(request);
+
+            return f;
+        }
+
+        @Override
+        public void onNext(NormResponse normResponse) {
+            CompletableFuture<NormResponse> f = activeRequestFuture.getAndSet(null);
+            if (f == null)
+                logger.error("Missing future for {}", session);
+            else
+                f.complete(normResponse);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            CompletableFuture<NormResponse> f = activeRequestFuture.getAndSet(null);
+            if (f == null)
+                logger.error("Missing future for {}", session);
+            else
+                f.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+            logger.info("NormResponseStream {} completed", session);
+            CompletableFuture<NormResponse> f = activeRequestFuture.getAndSet(null);
+
+            if (f != null)
+                f.completeExceptionally(new RuntimeException("Stream was completed for " + session));
+        }
+    }
+
+
     class GenerateObserver implements StreamObserver<GenerateResponse> {
         private final CountDownLatch finishedLatch;
         private final ConcurrentMap<UUID, Pair<RandomAccessFile, AbstractTensor>> kvBufferCache;
         private final ConcurrentMap<UUID, AtomicInteger> requestCount;
+        private final ConcurrentMap<UUID, NormObserver> normStreams;
+
         private volatile StreamObserver<GenerateRequest> outputStream;
 
         private GenerateObserver(CountDownLatch finishedLatch) {
             this.finishedLatch = finishedLatch;
             this.kvBufferCache = new ConcurrentHashMap<>();
             this.requestCount = new ConcurrentHashMap<>();
+            this.normStreams = new ConcurrentHashMap<>();
         }
 
         private AbstractTensor getKvBuffer(UUID session) {
-            return kvBufferCache.computeIfAbsent(session, s -> makeKvBuffer(s)).right;
+            return kvBufferCache.computeIfAbsent(session, this::makeKvBuffer).right;
         }
 
         private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session)
@@ -115,6 +167,10 @@ public class Worker {
             return requestCount.computeIfAbsent(session, s -> new AtomicInteger(0)).incrementAndGet();
         }
 
+        private NormObserver getNormResponseStream(UUID session) {
+            return normStreams.computeIfAbsent(session, s -> new NormObserver(session));
+        }
+
         private ByteString getTensorBytes(AbstractTensor tensor) {
             Preconditions.checkArgument(tensor.dims() == 1 && tensor.dType() == DType.F32);
             return TensorOperationsProvider.get().requiresOffHeapTensor() ?
@@ -134,14 +190,16 @@ public class Worker {
             AbstractTensor output = model.forward(token, position, getKvBuffer(session),
                     Optional.of((a, b) -> {
                         NormRequest nr = NormRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session)).setSumSq(a).setSum(b).build();
-                        NormResponse normResponse = blockingClient.norm(nr);
+
+                        NormResponse normResponse = getNormResponseStream(session).request(nr).join();
                         return Pair.create(normResponse.getSumSq(), normResponse.getSum());
                     }),
                     Optional.of(t -> {
                         NormRequest.Builder nrb = NormRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session));
                         for (int i = 0; i < t.size(); i++)
                             nrb = nrb.addTensor(getTensorBytes(t.get(i)));
-                        NormResponse normResponse = blockingClient.norm(nrb.build());
+
+                        NormResponse normResponse = getNormResponseStream(session).request(nrb.build()).join();
 
                         for (int i = 0; i < t.size(); i++)
                             t.get(i).getMemorySegment().copyFrom(MemorySegment.ofBuffer(normResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));

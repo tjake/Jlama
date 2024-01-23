@@ -14,7 +14,7 @@ import static io.undertow.Handlers.resource;
 
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers")
 public class ClusterCoordinatorCommand extends BaseCommand {
-    
+
     @CommandLine.Option(names = {"-w", "--worker-count"}, description = "signifies this instance is a coordinator", defaultValue = "1")
     int workerCount = 1;
 
