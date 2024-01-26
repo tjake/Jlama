@@ -39,17 +39,21 @@ final class constants$0 {
         "dot_product_f32_chunked",
         constants$0.const$2
     );
-    static final FunctionDescriptor const$4 = FunctionDescriptor.of(JAVA_FLOAT,
+    static final FunctionDescriptor const$4 = FunctionDescriptor.ofVoid(
+        JAVA_INT,
         JAVA_INT,
         RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,
+        JAVA_INT,
         RuntimeHelper.POINTER,
+        JAVA_INT,
+        JAVA_INT,
         JAVA_INT,
         JAVA_INT
     );
     static final MethodHandle const$5 = RuntimeHelper.downcallHandle(
-        "dot_product_f32_q8",
+        "dot_product_f32_batch_chunked",
         constants$0.const$4
     );
 }

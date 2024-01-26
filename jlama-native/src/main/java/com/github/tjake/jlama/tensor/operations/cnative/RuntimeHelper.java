@@ -38,7 +38,8 @@ final class RuntimeHelper {
     final static SegmentAllocator CONSTANT_ALLOCATOR =
             (size, align) -> Arena.ofAuto().allocate(size, align);
 
-    static {
+    static
+    {
         if (!JarSupport.maybeLoadLibrary()) {
             System.loadLibrary("jlama");
         }

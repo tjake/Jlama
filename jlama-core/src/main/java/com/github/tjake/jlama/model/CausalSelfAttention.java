@@ -40,6 +40,10 @@ public class CausalSelfAttention {
 
     private final float[][] flashAttnHeads;
 
+    private final AbstractTensor[] qkvResults;
+    private final AbstractTensor[] qkvWeights;
+
+
     public CausalSelfAttention(AbstractModel m, AbstractTensor queryAttnWeights, AbstractTensor keyAttnWeights, AbstractTensor valueAttnWeights,
                                AbstractTensor outputProjectionWeights, Optional<float[][]> ropeFrequencies)
     {
@@ -73,6 +77,9 @@ public class CausalSelfAttention {
 
         this.ropeFrequencies = ropeFrequencies;
         this.flashAttnHeads = new float[c.contextLength][c.numberOfHeads];
+
+        this.qkvResults = new AbstractTensor[3];
+        this.qkvWeights = new AbstractTensor[]{queryAttnWeights, keyAttnWeights, valueAttnWeights};
     }
 
     public AbstractTensor forward(AbstractTensor input, int position, AbstractTensor kvMem, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
@@ -91,11 +98,14 @@ public class CausalSelfAttention {
             AbstractTensor key = kvp.slice(0);
             AbstractTensor val = kvp.slice(1);
 
+
+            qkvResults[0] = query;
+            qkvResults[1] = tmpKey;
+            qkvResults[2] = tmpVal;
+
             // compute the query vector
             VectorMath.pchunk(0, c.embeddingLength, (chunkStart, chunkLength) -> {
-                TensorOperationsProvider.get().dotProductChunk(query, input, queryAttnWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkLength);
-                TensorOperationsProvider.get().dotProductChunk(tmpKey, input, keyAttnWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkLength);
-                TensorOperationsProvider.get().dotProductChunk(tmpVal, input, valueAttnWeights, c.embeddingSegmentStart(),  c.embeddingSegmentLength(), chunkStart, chunkLength);
+                TensorOperationsProvider.get().dotProductBatchChunk(qkvResults, input, qkvWeights, c.embeddingSegmentStart(), c.embeddingSegmentLength(), chunkStart, chunkLength);
             });
 
             // For distributed sum of tensor

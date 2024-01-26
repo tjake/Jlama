@@ -30,6 +30,13 @@ public interface TensorOperations
         }
     }
 
+    default void dotProductBatchChunk(AbstractTensor[] result, AbstractTensor a, AbstractTensor[] b, int offset, int limit, int chunkStart, int chunkSize) {
+        Preconditions.checkArgument(b[0].dims() == 2 && result.length == b.length);
+        for (int j = 0; j < result.length; j++) {
+            dotProductChunk(result[j], a, b[j], offset, limit, chunkStart, chunkSize);
+        }
+    }
+
     /**
      * For each position in the tensor, add b into a.  Must be same size.
      */

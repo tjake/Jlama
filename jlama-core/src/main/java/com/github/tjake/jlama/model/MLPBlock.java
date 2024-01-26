@@ -23,6 +23,8 @@ public class MLPBlock {
 
     private final ActivationFunction.Type activationFunction;
 
+    private final AbstractTensor[] batchResults;
+    private final AbstractTensor[] batchWeights;
 
     public MLPBlock(AbstractModel model, ActivationFunction.Type activationFunction, AbstractTensor fullyConnectedBias, AbstractTensor fullyConnectedWeights, AbstractTensor projectionBias, AbstractTensor projectionWeights)
     {
@@ -42,6 +44,8 @@ public class MLPBlock {
         this.projectionBias = projectionBias;
         this.projectionWeights = projectionWeights;
         this.upProjectionWeights = upProjectionWeights;
+        this.batchResults = new AbstractTensor[2];
+        this.batchWeights = new AbstractTensor[]{fullyConnectedWeights, upProjectionWeights};
     }
 
     // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
@@ -50,11 +54,14 @@ public class MLPBlock {
         int hiddenLength = model.c.hiddenLength;
         try(AbstractTensor buf = model.makeTensor(hiddenLength); AbstractTensor buf2 = model.makeTensor(hiddenLength)) {
 
-            VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
-                TensorOperationsProvider.get().dotProductChunk(buf, lnemb, fullyConnectedWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
+            batchResults[0] = buf;
+            batchResults[1] = buf2;
 
+            VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
                 if (upProjectionWeights != null) {
-                    TensorOperationsProvider.get().dotProductChunk(buf2, lnemb, upProjectionWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
+                    TensorOperationsProvider.get().dotProductBatchChunk(batchResults, lnemb, batchWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
+                } else {
+                    TensorOperationsProvider.get().dotProductChunk(buf, lnemb, fullyConnectedWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
                 }
             });
 
