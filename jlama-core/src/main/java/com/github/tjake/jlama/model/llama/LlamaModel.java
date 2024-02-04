@@ -52,8 +52,6 @@ public class LlamaModel extends AbstractModel {
 
         TransformerBlock[] transformerBlocks = new TransformerBlock[c.getNumberOfLayers()];
 
-        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(c.embeddingLength / c.numberOfHeads, c.contextLength, 10000.0 );
-
         IntStream.range(c.layerStart(), c.layerEnd()).parallel().forEach(i -> {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
@@ -61,8 +59,7 @@ public class LlamaModel extends AbstractModel {
                     weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
                     weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
                     weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType),
-                    Optional.of(ropeFreqs));
+                    weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType));
 
             prefix = base + "mlp.";
 

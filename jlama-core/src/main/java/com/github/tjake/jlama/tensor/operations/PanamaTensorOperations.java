@@ -80,7 +80,7 @@ final public class PanamaTensorOperations implements TensorOperations
                     case AVX_256 -> QDotProductI8Q4_256((Q8ByteBufferTensor) a, (Q4ByteBufferTensor) b, aoffset, boffset, limit);
                     default -> throw new UnsupportedOperationException();
                 };
-                default -> throw new UnsupportedOperationException();
+                default -> throw new UnsupportedOperationException(b.dType().name());
             };
             case BF16 -> switch (b.dType()) {
                 case F32 -> switch (vectorType) {

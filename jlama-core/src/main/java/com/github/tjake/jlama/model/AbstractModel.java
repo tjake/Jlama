@@ -252,7 +252,7 @@ public abstract class AbstractModel implements Generator
         if (ntokens > c.contextLength)
             ntokens = c.contextLength;
 
-        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), ntokens, 2, c.embeddingLength); //k and v are last 2 dims
+        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), ntokens, 2, c.kvLength); //k and v are last 2 dims
         AbstractTensor logits = makeTensor(c.vocabularySize);
 
         int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];

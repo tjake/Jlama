@@ -69,7 +69,7 @@ public class BertModel extends AbstractModel {
             CausalSelfAttention attention = new CausalSelfAttention(this,
                     keyBias, queryBias, valueBias,
                     keyWeight, queryWeight, valueWeight,
-                    outputBias, outputWeight, Optional.empty());
+                    outputBias, outputWeight);
 
             prefix = b;
             MLPBlock mlpBlock = new MLPBlock(this, ActivationFunction.Type.GELU,

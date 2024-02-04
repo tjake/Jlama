@@ -14,6 +14,9 @@ COPY mvnw .
 RUN --mount=type=cache,target=/root/.m2 ./mvnw clean package
 
 FROM openjdk:21-slim
+RUN apt-get update
+RUN apt-get install -y procps curl
+
 COPY inlinerules.json inlinerules.json
 COPY run-cli.sh run-cli.sh
 COPY conf/logback.xml logback.xml

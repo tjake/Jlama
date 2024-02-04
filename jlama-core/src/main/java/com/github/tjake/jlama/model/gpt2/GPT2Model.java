@@ -50,7 +50,7 @@ public class GPT2Model extends AbstractModel {
             AbstractTensor[] attnWeights = weights.load(prefix + "c_attn.weight").transpose().split(3, 0);
             CausalSelfAttention attention = new CausalSelfAttention(this, attnBias[0], attnBias[1], attnBias[2],
                     attnWeights[0], attnWeights[1], attnWeights[2],
-                    weights.load(prefix + "c_proj.bias"), weights.load(prefix + "c_proj.weight").transpose(), Optional.empty());
+                    weights.load(prefix + "c_proj.bias"), weights.load(prefix + "c_proj.weight").transpose());
 
             prefix = b + "mlp.";
             MLPBlock mlpBlock = new MLPBlock(this, ActivationFunction.Type.GELU,

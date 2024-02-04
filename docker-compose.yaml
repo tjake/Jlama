@@ -15,19 +15,25 @@ services:
           cpus: 1
     command:
       - cluster-coordinator
-      - --threads=4
-      - --worker-count=16
+      - --threads=2
+      - --worker-count=8
       - /models/Llama-2-7b-chat-hf-jlama-Q4/
     volumes:
       - "./models:/models"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ui/index.html"]
+      interval: 5s
   jlama-worker:
     image: jlama
     restart: always
+    depends_on: 
+      jlama-coordinator:
+        condition: service_healthy
     environment:
       - JLAMA_JVM_ARGS_EXTRA=-Xmx500M -Djava.net.preferIPv4Stack=true -Djlama.use_hostname_as_workerid=true
     deploy:
       mode: replicated
-      replicas: 16
+      replicas: 8
       resources:
         limits:
           cpus: 1
