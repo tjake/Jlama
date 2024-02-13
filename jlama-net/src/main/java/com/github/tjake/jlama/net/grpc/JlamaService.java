@@ -3,9 +3,6 @@ package com.github.tjake.jlama.net.grpc;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.net.*;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
-import com.github.tjake.jlama.tensor.TensorShape;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -15,7 +12,6 @@ import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.stub.StreamObserver;
 import jdk.incubator.vector.FloatVector;
 import org.jctools.queues.MpmcArrayQueue;
-import org.jctools.queues.MpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,14 +28,14 @@ import java.util.concurrent.TimeUnit;
 
 public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(JlamaService.class);
-    private static final Descriptors.FieldDescriptor tensorField = NormRequest.getDescriptor().findFieldByNumber(NormRequest.TENSOR_FIELD_NUMBER);
+    private static final Descriptors.FieldDescriptor tensorField = CombineRequest.getDescriptor().findFieldByNumber(CombineRequest.TENSOR_FIELD_NUMBER);
     private final AbstractModel model;
     private final int workerCount;
     private final ConcurrentMap<UUID, RegisterResponse> workers;
 
     private final GeneratorGroup generatorGroup;
 
-    private final ConcurrentMap<String, MpmcArrayQueue<Pair<NormRequest, StreamObserver<NormResponse>>>> norms;
+    private final ConcurrentMap<String, MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>>> combinations;
     private final int headSize;
     private final int headCount;
     private final int headsPerWorker;
@@ -49,7 +45,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         this.model = model;
         this.workerCount = workerCount;
         this.workers = new ConcurrentHashMap<>();
-        this.norms = new ConcurrentHashMap<>();
+        this.combinations = new ConcurrentHashMap<>();
         this.generatorGroup = new GeneratorGroup();
 
         this.headCount = model.getConfig().numberOfHeads;
@@ -122,24 +118,24 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     }
 
     @Override
-    public StreamObserver<NormRequest> norm(StreamObserver<NormResponse> responseObserver) {
+    public StreamObserver<CombineRequest> combine(StreamObserver<CombineResponse> responseObserver) {
 
-        return new StreamObserver<NormRequest>() {
+        return new StreamObserver<>() {
             @Override
-            public void onNext(NormRequest request)
+            public void onNext(CombineRequest request)
             {
                 String key = STR."\{UUID.nameUUIDFromBytes(request.getUuid().toByteArray())}:\{request.getLayer()}";
-                MpmcArrayQueue<Pair<NormRequest, StreamObserver<NormResponse>>> norm = norms.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount + 1));
-                norm.add(Pair.create(request, responseObserver));
+                MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>> members = combinations.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount + 1));
+                members.add(Pair.create(request, responseObserver));
 
                 // If we have all the workers, then we can calculate the result and send it back
-                if (norm.size() == workerCount && norms.remove(key, norm))
+                if (members.size() == workerCount && combinations.remove(key, members))
                 {
                     float sumSq = 0;
                     float sum = 0;
                     MemorySegment[] tensors = null;
                     Integer length = null;
-                    for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm)
+                    for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members)
                     {
                         sumSq += f.left.getSumSq();
                         sum += f.left.getSum();
@@ -168,24 +164,21 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                         }
                     }
 
-                    NormResponse.Builder responseBuilder = NormResponse.newBuilder()
+                    CombineResponse.Builder responseBuilder = CombineResponse.newBuilder()
                             .setSumSq(sumSq)
                             .setSum(sum);
 
-                    if (tensors != null)
-                    {
+                    if (tensors != null) {
                         for (int i = 0; i < tensors.length; i++)
                             responseBuilder = responseBuilder.addTensor(UnsafeByteOperations.unsafeWrap(tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
                     }
 
-                    NormResponse response = responseBuilder.build();
-                    for (Pair<NormRequest, StreamObserver<NormResponse>> f : norm)
-                    {
+                    CombineResponse response = responseBuilder.build();
+                    for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
                         f.right.onNext(response);
-                        //f.right.onCompleted();
                     }
 
-                    norm.clear();
+                    members.clear();
                 }
             }
 

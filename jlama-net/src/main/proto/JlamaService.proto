@@ -2,7 +2,7 @@ syntax = "proto3";
 option java_multiple_files = true;
 package com.github.tjake.jlama.net;
 
-message NormRequest {
+message CombineRequest {
   bytes workerid = 1;
   bytes uuid = 2;
   int32 layer = 3;
@@ -11,7 +11,7 @@ message NormRequest {
   repeated bytes tensor = 6;
 }
 
-message NormResponse {
+message CombineResponse {
   float sumSq = 1;
   float sum = 2;
   repeated bytes tensor = 3;
@@ -41,5 +41,5 @@ message RegisterResponse {
 service JlamaService {
   rpc register(RegisterRequest) returns (RegisterResponse);
   rpc generate(stream GenerateRequest) returns (stream GenerateResponse);
-  rpc norm(stream NormRequest) returns (stream NormResponse);
+  rpc combine(stream CombineRequest) returns (stream CombineResponse);
 }

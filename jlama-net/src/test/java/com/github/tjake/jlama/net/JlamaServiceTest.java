@@ -1,7 +1,6 @@
 package com.github.tjake.jlama.net;
 
 import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.model.LayerNorm;
 import com.github.tjake.jlama.model.TransformerBlock;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
@@ -13,8 +12,6 @@ import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -25,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -86,7 +82,7 @@ public class JlamaServiceTest {
     @Test
     public void testNorm() {
         UUID uuid = UUID.randomUUID();
-        NormRequest request = NormRequest.newBuilder()
+        CombineRequest request = CombineRequest.newBuilder()
                 .setUuid(ByteString.copyFrom(ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip()))
                 .setLayer(0)
                 .setSumSq(10)

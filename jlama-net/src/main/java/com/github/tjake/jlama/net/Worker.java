@@ -9,7 +9,6 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.Uninterruptibles;
 
 import com.google.protobuf.ByteString;
@@ -62,23 +61,23 @@ public class Worker {
         this.model = loadModel(AbstractModel.InferenceType.FORWARD_PASS, modelPrefix, workingDirectory, workingMemoryType, workingQuantizationType, modelQuantization, Optional.empty(), Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength())));
     }
 
-    class NormObserver implements StreamObserver<NormResponse> {
+    class CombineObserver implements StreamObserver<CombineResponse> {
 
         private final UUID session;
-        private final StreamObserver<NormRequest> requestStreamObserver;
+        private final StreamObserver<CombineRequest> requestStreamObserver;
 
-        private final AtomicReference<CompletableFuture<NormResponse>> activeRequestFuture;
+        private final AtomicReference<CompletableFuture<CombineResponse>> activeRequestFuture;
 
-        NormObserver(UUID session) {
+        CombineObserver(UUID session) {
             this.session = session;
-            this.requestStreamObserver = client.norm(this);
+            this.requestStreamObserver = client.combine(this);
             this.activeRequestFuture = new AtomicReference<>();
         }
 
-        public CompletableFuture<NormResponse> request(NormRequest request) {
-            CompletableFuture<NormResponse> f = new CompletableFuture<>();
+        public CompletableFuture<CombineResponse> request(CombineRequest request) {
+            CompletableFuture<CombineResponse> f = new CompletableFuture<>();
             if (!activeRequestFuture.compareAndSet(null, f))
-                throw new IllegalStateException("active future still ourstanding for " + session);
+                throw new IllegalStateException("active future still outstanding for " + session);
 
             requestStreamObserver.onNext(request);
 
@@ -86,17 +85,17 @@ public class Worker {
         }
 
         @Override
-        public void onNext(NormResponse normResponse) {
-            CompletableFuture<NormResponse> f = activeRequestFuture.getAndSet(null);
+        public void onNext(CombineResponse combineResponse) {
+            CompletableFuture<CombineResponse> f = activeRequestFuture.getAndSet(null);
             if (f == null)
                 logger.error("Missing future for {}", session);
             else
-                f.complete(normResponse);
+                f.complete(combineResponse);
         }
 
         @Override
         public void onError(Throwable throwable) {
-            CompletableFuture<NormResponse> f = activeRequestFuture.getAndSet(null);
+            CompletableFuture<CombineResponse> f = activeRequestFuture.getAndSet(null);
             if (f == null)
                 logger.error("Missing future for {}", session);
             else
@@ -105,8 +104,8 @@ public class Worker {
 
         @Override
         public void onCompleted() {
-            logger.info("NormResponseStream {} completed", session);
-            CompletableFuture<NormResponse> f = activeRequestFuture.getAndSet(null);
+            logger.info("CombineResponseStream {} completed", session);
+            CompletableFuture<CombineResponse> f = activeRequestFuture.getAndSet(null);
 
             if (f != null)
                 f.completeExceptionally(new RuntimeException("Stream was completed for " + session));
@@ -118,7 +117,7 @@ public class Worker {
         private final CountDownLatch finishedLatch;
         private final ConcurrentMap<UUID, Pair<RandomAccessFile, AbstractTensor>> kvBufferCache;
         private final ConcurrentMap<UUID, AtomicInteger> requestCount;
-        private final ConcurrentMap<UUID, NormObserver> normStreams;
+        private final ConcurrentMap<UUID, CombineObserver> combineStreams;
 
         private volatile StreamObserver<GenerateRequest> outputStream;
 
@@ -126,7 +125,7 @@ public class Worker {
             this.finishedLatch = finishedLatch;
             this.kvBufferCache = new ConcurrentHashMap<>();
             this.requestCount = new ConcurrentHashMap<>();
-            this.normStreams = new ConcurrentHashMap<>();
+            this.combineStreams = new ConcurrentHashMap<>();
         }
 
         private AbstractTensor getKvBuffer(UUID session) {
@@ -167,8 +166,8 @@ public class Worker {
             return requestCount.computeIfAbsent(session, s -> new AtomicInteger(0)).incrementAndGet();
         }
 
-        private NormObserver getNormResponseStream(UUID session) {
-            return normStreams.computeIfAbsent(session, s -> new NormObserver(session));
+        private CombineObserver getCombineResponseStream(UUID session) {
+            return combineStreams.computeIfAbsent(session, s -> new CombineObserver(session));
         }
 
         private ByteString getTensorBytes(AbstractTensor tensor) {
@@ -189,20 +188,20 @@ public class Worker {
 
             AbstractTensor output = model.forward(token, position, getKvBuffer(session),
                     Optional.of((a, b) -> {
-                        NormRequest nr = NormRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session)).setSumSq(a).setSum(b).build();
+                        CombineRequest nr = CombineRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session)).setSumSq(a).setSum(b).build();
 
-                        NormResponse normResponse = getNormResponseStream(session).request(nr).join();
-                        return Pair.create(normResponse.getSumSq(), normResponse.getSum());
+                        CombineResponse combineResponse = getCombineResponseStream(session).request(nr).join();
+                        return Pair.create(combineResponse.getSumSq(), combineResponse.getSum());
                     }),
                     Optional.of(t -> {
-                        NormRequest.Builder nrb = NormRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session));
+                        CombineRequest.Builder nrb = CombineRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session));
                         for (int i = 0; i < t.size(); i++)
                             nrb = nrb.addTensor(getTensorBytes(t.get(i)));
 
-                        NormResponse normResponse = getNormResponseStream(session).request(nrb.build()).join();
+                        CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
 
                         for (int i = 0; i < t.size(); i++)
-                            t.get(i).getMemorySegment().copyFrom(MemorySegment.ofBuffer(normResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
+                            t.get(i).getMemorySegment().copyFrom(MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
                     })
             );
 
