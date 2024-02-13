@@ -106,7 +106,7 @@ public class JlamaServiceTest {
 
     class MockConfig extends Config {
         public MockConfig(int contextLength, int embeddingLength, int hiddenLength, int numberOfHeads, int numberOfLayers, float layerNormEps) {
-            super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfHeads, numberOfLayers, layerNormEps, 32000, 1, 2);
+            super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfHeads, numberOfLayers, layerNormEps, 32000, 1, 2, 10000.0);
         }
     }
 

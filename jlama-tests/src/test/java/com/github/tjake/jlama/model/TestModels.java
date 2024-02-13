@@ -95,7 +95,7 @@ public class TestModels {
     }
 
     @Test
-    public void MisralRun() throws Exception {
+    public void MistralRun() throws Exception {
         String modelPrefix = "../models/Mistral-7B-v0.1";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {

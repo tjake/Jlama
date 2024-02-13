@@ -27,8 +27,6 @@ public class Config {
     public final int eosToken;
 
     public final Optional<float[][]> ropeFreqs;
-    public final Optional<float[][]> groupRopeFreqs;
-
     private volatile Optional<Pair<Integer, Integer>> offset;
     private volatile File workingDirectory;
 
@@ -72,13 +70,9 @@ public class Config {
         this.headGroupSize = numberOfHeads / numberOfKeyValueHeads;
         this.kvLength = numberOfKeyValueHeads * headSize;
         this.isGQA = numberOfKeyValueHeads < numberOfHeads;
-        if (ropeFreqsTheta != null) {
-            this.ropeFreqs = Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfHeads, contextLength, ropeFreqsTheta));
-            this.groupRopeFreqs = Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfKeyValueHeads, contextLength, ropeFreqsTheta));
-        } else {
-            this.ropeFreqs = Optional.empty();
-            this.groupRopeFreqs = Optional.empty();
-        }
+        this.ropeFreqs = ropeFreqsTheta == null ? Optional.empty() : Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfHeads, contextLength, ropeFreqsTheta));
+
+        // Set default values
         setOffset(null);
     }
 
@@ -152,9 +146,8 @@ public class Config {
     }
 
     public int maybeMapToGroupHead(int head) {
-        int i = (int) Math.floor((double) head / headGroupSize);
-        //System.out.println("i: " + i + " head: " + head);
-        return i;
+        if (!isGQA) return head;
+        return Math.floorDiv(head, headGroupSize);
     }
 
     public int groupHeadStart() {

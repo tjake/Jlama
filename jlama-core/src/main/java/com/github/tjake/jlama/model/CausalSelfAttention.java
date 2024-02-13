@@ -127,11 +127,12 @@ public class CausalSelfAttention {
                     for (int h = c.headStart(); h < c.headEnd(); h++) {
                         // get the q vectors for this head
                         int offset = h * c.headSize;
+                        int goffset = c.maybeMapToGroupHead(h) * c.headSize;
                         // rotate q by the freq theta and freq r
-                        for (int i = offset; i < (offset + headPiece); i++) {
+                        for (int i = offset, g = goffset; i < (offset + headPiece); i++, g++) {
                             float q0 = query.get(i);
                             float q1 = query.get(i + headPiece);  //hf permutation is 0,64,1,65 etc...
-                            float[] f = rf[poffset + i];
+                            float[] f = rf[poffset + g];
                             float fcr = f[0];
                             float fci = f[1];
                             query.set(q0 * fcr - q1 * fci, i);
@@ -139,7 +140,6 @@ public class CausalSelfAttention {
                         }
                     }
 
-                    //float[][] grf = c.groupRopeFreqs.get();
                     for (int h = c.groupHeadStart(); h < c.groupHeadEnd(); h++) {
                         // get the k vectors for this head
                         int offset = h * c.headSize;

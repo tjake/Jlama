@@ -11,6 +11,8 @@ import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
+import com.github.tjake.jlama.model.mistral.MistralConfig;
+import com.github.tjake.jlama.model.mistral.MistralModel;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
@@ -36,6 +38,7 @@ public class ModelSupport {
 
 
     public enum ModelType {
+        MISTRAL(MistralModel.class, MistralConfig.class, LlamaTokenizer.class),
         LLAMA(LlamaModel.class, LlamaConfig.class, LlamaTokenizer.class),
         GPT2(GPT2Model.class, GPT2Config.class, GPT2Tokenizer.class),
         BERT(BertModel.class, BertConfig.class, BertTokenizer.class);
