@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(JlamaService.class);
-    private static final Descriptors.FieldDescriptor tensorField = CombineRequest.getDescriptor().findFieldByNumber(CombineRequest.TENSOR_FIELD_NUMBER);
     private final AbstractModel model;
     private final int workerCount;
     private final ConcurrentMap<UUID, RegisterResponse> workers;

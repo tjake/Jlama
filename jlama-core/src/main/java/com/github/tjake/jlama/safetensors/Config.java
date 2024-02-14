@@ -25,7 +25,6 @@ public class Config {
     public final int vocabularySize;
     public final int bosToken;
     public final int eosToken;
-
     public final Optional<float[][]> ropeFreqs;
     private volatile Optional<Pair<Integer, Integer>> offset;
     private volatile File workingDirectory;

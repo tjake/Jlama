@@ -6,6 +6,8 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
 import com.github.tjake.jlama.model.bert.BertTokenizer;
+import com.github.tjake.jlama.model.mixtral.MixtralConfig;
+import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.model.gpt2.GPT2Config;
 import com.github.tjake.jlama.model.gpt2.GPT2Model;
@@ -96,12 +98,26 @@ public class TestModels {
 
     @Test
     public void MistralRun() throws Exception {
-        String modelPrefix = "../models/Mistral-7B-v0.1";
+        String modelPrefix = "../models/Mistral-7B-v0.1-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
+            String prompt = "Simply put, the theory of relativity states that";
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+        }
+    }
+
+
+    @Test
+    public void MixtralRun() throws Exception {
+        String modelPrefix = "../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+            LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+            MixtralConfig c = om.readValue(new File(modelPrefix + "/config.json"), MixtralConfig.class);
+            MixtralModel model = new MixtralModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Simply put, the theory of relativity states that";
             model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
         }

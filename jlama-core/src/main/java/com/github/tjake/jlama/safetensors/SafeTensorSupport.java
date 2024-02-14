@@ -70,7 +70,7 @@ public class SafeTensorSupport {
         Map<String, String> metadata = new HashMap<>();
         Map<String, TensorInfo> tensorInfoMap = readTensorInfoMap(safeBuf, Optional.of(metadata));
 
-        return new Weights(metadata, tensorInfoMap, safeBuf.slice());
+        return new Weights(metadata, tensorInfoMap, safeBuf.slice(), Optional.empty());
     }
 
     public static ModelType detectModel(File configFile) throws IOException {

@@ -77,7 +77,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     Map<String, TensorInfo> mmapTensorInfoMap = tensorInfoMap.entrySet().stream()
                             .filter(x -> tensors.contains(x.getKey())).collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
 
-                    Weights mmapWeights = new Weights(metadata, mmapTensorInfoMap, buf);
+                    Weights mmapWeights = new Weights(metadata, mmapTensorInfoMap, buf, Optional.of(index));
                     for (String tensor : tensors) {
                         index.weightMap.put(tensor, mmapWeights);
                     }

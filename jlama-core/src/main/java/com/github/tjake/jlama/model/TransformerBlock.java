@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.model;
 
+import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
@@ -17,31 +18,31 @@ public class TransformerBlock {
     final Optional<LayerNorm> preAttentionNorm;
     final CausalSelfAttention attention;
     final LayerNorm postAttentionNorm;
-    final MLPBlock mlpBlock;
-    final Optional<LayerNorm> postMlpNorm;
+    final FeedForward ffBlock;
+    final Optional<LayerNorm> postFFNorm;
 
-    public TransformerBlock(AbstractModel model, LayerNorm preAttentionNorm, CausalSelfAttention attention, LayerNorm postAttentionNorm, MLPBlock mlpBlock)
+    public TransformerBlock(AbstractModel model, LayerNorm preAttentionNorm, CausalSelfAttention attention, LayerNorm postAttentionNorm, FeedForward ffBlock)
     {
         this.model = model;
         this.preAttentionNorm = Optional.of(preAttentionNorm);
         this.attention = attention;
 
         this.postAttentionNorm = postAttentionNorm;
-        this.mlpBlock = mlpBlock;
+        this.ffBlock = ffBlock;
 
-        this.postMlpNorm = Optional.empty();
+        this.postFFNorm = Optional.empty();
     }
 
-    public TransformerBlock(AbstractModel model, CausalSelfAttention attention, LayerNorm postAttentionNorm, MLPBlock mlpBlock, LayerNorm postMlpNorm)
+    public TransformerBlock(AbstractModel model, CausalSelfAttention attention, LayerNorm postAttentionNorm, FeedForward ffBlock, LayerNorm postFFNorm)
     {
         this.model = model;
         this.preAttentionNorm = Optional.empty();
         this.attention = attention;
 
         this.postAttentionNorm = postAttentionNorm;
-        this.mlpBlock = mlpBlock;
+        this.ffBlock = ffBlock;
 
-        this.postMlpNorm = Optional.of(postMlpNorm);
+        this.postFFNorm = Optional.of(postFFNorm);
     }
 
     public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer) {
@@ -60,13 +61,13 @@ public class TransformerBlock {
         TensorOperationsProvider.get().accumulate(postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
 
         AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention, normReducer);
-        AbstractTensor postMlp;
+        AbstractTensor postFF;
         try(AbstractTensor qlnemb2 = model.maybeQuantize(lnemb2)) {
-            postMlp = mlpBlock.forward(qlnemb2, tensorReducer);
+            postFF = ffBlock.forward(qlnemb2, tensorReducer);
         }
 
         //residual connection
-        TensorOperationsProvider.get().accumulate(postMlp, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+        TensorOperationsProvider.get().accumulate(postFF, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
 
         //Release any tmp buffers
         if (lnemb != embedding)
@@ -75,10 +76,10 @@ public class TransformerBlock {
         lnemb2.close();
         postAttention.close();
 
-        return postMlpNorm.map(ln -> {
-            AbstractTensor lnout = ln.forward(postMlp, normReducer);
-            postMlp.close();
+        return postFFNorm.map(ln -> {
+            AbstractTensor lnout = ln.forward(postFF, normReducer);
+            postFF.close();
             return lnout;
-        }).orElse(postMlp);
+        }).orElse(postFF);
     }
 }

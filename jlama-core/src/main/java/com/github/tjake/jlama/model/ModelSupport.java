@@ -39,6 +39,7 @@ public class ModelSupport {
 
     public enum ModelType {
         MISTRAL(MistralModel.class, MistralConfig.class, LlamaTokenizer.class),
+        MIXTRAL(MistralModel.class, MistralConfig.class, LlamaTokenizer.class),
         LLAMA(LlamaModel.class, LlamaConfig.class, LlamaTokenizer.class),
         GPT2(GPT2Model.class, GPT2Config.class, GPT2Tokenizer.class),
         BERT(BertModel.class, BertConfig.class, BertTokenizer.class);

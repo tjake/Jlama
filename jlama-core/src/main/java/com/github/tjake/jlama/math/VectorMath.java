@@ -40,10 +40,9 @@ public class VectorMath {
     }
 
 
-    public static void softMax(AbstractTensor t) {
-        float[] x = (float[])t.getArray();
-        int offset = t.getArrayOffset(0);
-        int size = t.size();
+    public static void softMax(float[] x) {
+        int offset = 0;
+        int size = x.length;
 
         // find max value (for numerical stability)
         float max_val = x[offset];

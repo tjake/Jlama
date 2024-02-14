@@ -22,13 +22,14 @@ public class Weights implements WeightLoader {
     private final Map<String, TensorInfo> tensorInfoMap;
     private final ByteBuffer bytes;
     private final DType majorityDType;
+    private final Optional<WeightLoader> parent;
 
-    Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes)
-    {
+    Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes, Optional<WeightLoader> parent) {
         this.metadata = ImmutableMap.copyOf(metadata);
         this.tensorInfoMap = ImmutableMap.copyOf(tensorInfoMap);
         this.bytes = bytes.duplicate();
         this.majorityDType = findDType();
+        this.parent = parent;
     }
 
     private DType findDType() {
@@ -65,7 +66,7 @@ public class Weights implements WeightLoader {
     public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) throws NoSuchElementException {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null)
-            throw new NoSuchElementException();
+            throw new NoSuchElementException(name + " not found in weights");
 
         if (info.shape.length < 1)
             throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name);
@@ -111,11 +112,11 @@ public class Weights implements WeightLoader {
                 t = new FloatBufferTensor(name, fb, TensorShape.of(info.shape), true);
                 break;
             case Q4:
-                FloatBufferTensor qb = (FloatBufferTensor) load(name + ".qb", offset);
+                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", offset);
                 t = new Q4ByteBufferTensor(name, b.slice(), qb, TensorShape.of(info.shape), true);
                 break;
             case I8:
-                FloatBufferTensor qb1 = (FloatBufferTensor) load(name + ".qb", offset);
+                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", offset);
                 t = new Q8ByteBufferTensor(name, b.slice(), qb1, TensorShape.of(info.shape), true);
                 break;
             default:
