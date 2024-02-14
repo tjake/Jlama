@@ -17,14 +17,12 @@ import java.util.stream.IntStream;
 
 public class MixtralModel extends MistralModel {
     private static final Logger logger = LoggerFactory.getLogger(MixtralModel.class);
-
-
-
-    public MixtralModel(MixtralConfig config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+    
+    public MixtralModel(Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
         super(InferenceType.FULL_GENERATION, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
-    public MixtralModel(InferenceType inferenceType, MixtralConfig config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+    public MixtralModel(InferenceType inferenceType, Config config, WeightLoader weights, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
