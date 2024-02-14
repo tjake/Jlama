@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.github.tjake.jlama.tensor.Q4ByteBufferTensor.makeBlockShape;
+
 public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q8ByteBufferTensor.class);;
     public static final int BLOCK_SIZE = 32;
@@ -35,7 +37,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         Preconditions.checkArgument(ft.size() % BLOCK_SIZE == 0, "I8 buffer must be a multiple of BLOCK_SIZE");
 
         List<int[]> startBlockCursors = new ArrayList<>();
-        int[] cursor = new int[ft.shape.length];
+        int[] cursor = new int[ft.shape.dims()];
         int c = 0;
         do {
             if (c++ % BLOCK_SIZE == 0) {
@@ -74,34 +76,26 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         }
     }
 
-    private static int[] makeBlockShape(int[] shape) {
-        int[] blockShape = new int[shape.length];
-        for (int i = 0; i < shape.length; i++) {
-            if (i == shape.length - 1)
-                blockShape[i] = shape[i] / BLOCK_SIZE;
-            else
-                blockShape[i] = shape[i];
-        }
-
-        return blockShape;
+    public Q8ByteBufferTensor(int... shape) {
+        this(TensorShape.of(shape));
     }
 
-    public Q8ByteBufferTensor(int[] shape) {
+    public Q8ByteBufferTensor(TensorShape shape) {
         super(DType.I8, shape, true);
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
 
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(capacity, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
         } else {
-            this.b = ByteBuffer.allocate(capacity).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = ByteBuffer.allocate(size()).order(ByteOrder.LITTLE_ENDIAN);
         }
 
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] shape, boolean cacheSlices) {
+    public Q8ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, TensorShape shape, boolean cacheSlices) {
         super(DType.I8, shape, cacheSlices);
         this.name = name;
         this.blockF = blockF;
@@ -125,20 +119,20 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
 
 
     @Override
-    protected AbstractTensor make(int... shape) {
+    protected AbstractTensor make(TensorShape shape) {
         return new Q8ByteBufferTensor(shape);
     }
 
     @Override
-    protected AbstractTensor make(int offset, int length, int[] shape, boolean cacheSlices) {
+    protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
         FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make((int)(offset * I_BLOCK_SIZE), (int)(length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
         return new Q8ByteBufferTensor(name, b.slice(offset, length), newBlockF, shape, cacheSlices);
     }
 
     @Override
     public float get(int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         int i = getOffset(dims);
         float d = blockF.get(makeBlockShape(dims));
         return b.get(i) * d;
@@ -157,8 +151,8 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
 
     @Override
     public void set(float v, int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.length, "Too many dimensions specified for tensor");
-        Preconditions.checkArgument(dims.length == shape.length, "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified for tensor");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
         int i = getOffset(dims);
         float d = blockF.get(makeBlockShape(dims));
@@ -186,6 +180,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
 
     @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int offset) {
+        offset = getOffset(offset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
@@ -195,6 +190,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     public void intoTensor(ByteVector vector, int offset) {
         Preconditions.checkArgument(!b.isReadOnly());
+        offset = getOffset(offset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset));
         else
@@ -204,6 +200,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     public void intoTensor(ByteVector vector, int offset, VectorMask<Byte> msk) {
         Preconditions.checkArgument(!b.isReadOnly());
+        offset = getOffset(offset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset), msk);
         else
@@ -218,11 +215,6 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     public int getMemorySegmentOffset(int offset) {
         return offset;
-    }
-
-    @Override
-    public boolean hasMemorySegment() {
-        return true;
     }
 
     @Override
@@ -245,7 +237,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         b.duplicate().get(sample);
         return "ByteBufferTensor{" +
                 "name='" + name + '\'' +
-                "shape=" + Arrays.toString(shape) +
+                "shape=" + shape +
                 ", b=" + Arrays.toString(sample) +
                 "...}";
     }

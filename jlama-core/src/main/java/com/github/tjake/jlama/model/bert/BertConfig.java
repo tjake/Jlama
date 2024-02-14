@@ -13,6 +13,6 @@ public class BertConfig extends Config {
                         @JsonProperty("num_hidden_layers") int numberOfLayers,
                         @JsonProperty("layer_norm_eps") float layerNormEps,
                         @JsonProperty("vocab_size") int vocabularySize) {
-        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfLayers, layerNormEps, vocabularySize, 0, 0);
+        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfHeads, numberOfLayers, layerNormEps, vocabularySize, 0, 0, null);
     }
 }

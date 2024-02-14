@@ -22,23 +22,30 @@ public interface TensorOperations
 
     float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit);
 
-    default void dotProductChunk(AbstractTensor result, AbstractTensor a, AbstractTensor b, int limit, int chunkStart, int chunkSize) {
+    default void dotProductChunk(AbstractTensor result, AbstractTensor a, AbstractTensor b, int offset, int limit, int chunkStart, int chunkSize) {
         Preconditions.checkArgument(b.dims() == 2);
         for (int i = chunkStart; i < chunkStart + chunkSize; i++) {
-            float d = dotProduct(a, b.slice(i), 0, 0, limit);
+            float d = dotProduct(a, b.slice(i), offset, offset, limit);
             result.set(d, i);
+        }
+    }
+
+    default void dotProductBatchChunk(AbstractTensor[] result, AbstractTensor a, AbstractTensor[] b, int offset, int limit, int chunkStart, int chunkSize) {
+        Preconditions.checkArgument(b[0].dims() == 2 && result.length == b.length);
+        for (int j = 0; j < result.length; j++) {
+            dotProductChunk(result[j], a, b[j], offset, limit, chunkStart, chunkSize);
         }
     }
 
     /**
      * For each position in the tensor, add b into a.  Must be same size.
      */
-    void accumulate(AbstractTensor a, AbstractTensor b);
+    void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length);
 
     /**
      * For each position in the tensor, multiply b into a.  Must be same size.
      */
-    void maccumulate(AbstractTensor a, AbstractTensor b);
+    void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length);
 
     /**
      * The value computed is (alpha * X[i]) + Y[i]
@@ -58,9 +65,9 @@ public interface TensorOperations
     /**
      * Quantizes the tensor to the specified type (if supported)
      */
-    default AbstractTensor quantize(AbstractTensor t, DType qtype) {
+    default AbstractTensor quantize(AbstractTensor t, DType qtype, int offset, int length) {
         AbstractTensor t2 = TensorCache.instance.get(t.dType(), t.shape());
-        t2.copyFrom(t, 0, 0, t.size());
+        t2.copyFrom(t, offset, offset, length);
         return t2;
     }
 

@@ -2,12 +2,20 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
-public class MLPBlock {
+/**
+ * A standard Multi Layer Perceptron block for Transformer models
+ */
+public class MLPBlock implements FeedForward {
     private final AbstractModel model;
     private final Optional<AbstractTensor> fullyConnectedBias;
     private final AbstractTensor fullyConnectedWeights;
@@ -19,6 +27,8 @@ public class MLPBlock {
 
     private final ActivationFunction.Type activationFunction;
 
+    private final AbstractTensor[] batchResults;
+    private final AbstractTensor[] batchWeights;
 
     public MLPBlock(AbstractModel model, ActivationFunction.Type activationFunction, AbstractTensor fullyConnectedBias, AbstractTensor fullyConnectedWeights, AbstractTensor projectionBias, AbstractTensor projectionWeights)
     {
@@ -38,23 +48,36 @@ public class MLPBlock {
         this.projectionBias = projectionBias;
         this.projectionWeights = projectionWeights;
         this.upProjectionWeights = upProjectionWeights;
+        this.batchResults = new AbstractTensor[2];
+        this.batchWeights = new AbstractTensor[]{fullyConnectedWeights, upProjectionWeights};
     }
 
-    // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
-    // first calculate self.w1(x) and self.w3(x)
-    public AbstractTensor forward(AbstractTensor lnemb) {
+    // For FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
+    @Override
+    public AbstractTensor forward(AbstractTensor lnemb, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         int hiddenLength = model.c.hiddenLength;
         try(AbstractTensor buf = model.makeTensor(hiddenLength); AbstractTensor buf2 = model.makeTensor(hiddenLength)) {
 
-            VectorMath.pchunk(model.c.hiddenLength, (chunkStart, chunkSize) -> {
-                TensorOperationsProvider.get().dotProductChunk(buf, lnemb, fullyConnectedWeights, model.c.embeddingLength, chunkStart, chunkSize);
+            batchResults[0] = buf;
+            batchResults[1] = buf2;
 
+            VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
                 if (upProjectionWeights != null) {
-                    TensorOperationsProvider.get().dotProductChunk(buf2, lnemb, upProjectionWeights, model.c.embeddingLength, chunkStart, chunkSize);
+                    TensorOperationsProvider.get().dotProductBatchChunk(batchResults, lnemb, batchWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
+                } else {
+                    TensorOperationsProvider.get().dotProductChunk(buf, lnemb, fullyConnectedWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
                 }
             });
 
-            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias));
+            tensorReducer.ifPresent(func -> {
+                List<AbstractTensor> ts = new ArrayList<>(2);
+                ts.add(buf);
+                if (upProjectionWeights != null) ts.add(buf2);
+
+                func.accept(ts);
+            });
+
+            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, 0, hiddenLength));
 
             VectorMath.pfor(0, hiddenLength, i -> {
                 float w1 = buf.get(i);
@@ -63,15 +86,15 @@ public class MLPBlock {
             });
 
             if (upProjectionWeights != null) {
-                TensorOperationsProvider.get().maccumulate(buf, buf2);
+                TensorOperationsProvider.get().maccumulate(buf, buf2, 0, hiddenLength);
             }
 
             //matmul the projection and sum into input
             AbstractTensor result = model.makeTensor(model.c.embeddingLength);
-            VectorMath.pchunk(model.c.embeddingLength, (chunkStart, chunkSize) -> {
-                TensorOperationsProvider.get().dotProductChunk(result, buf, projectionWeights, hiddenLength, chunkStart, chunkSize);
+            VectorMath.pchunk(model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                TensorOperationsProvider.get().dotProductChunk(result, buf, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
             });
-            projectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias));
+            projectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()));
             return result;
         }
     }

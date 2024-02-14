@@ -1,0 +1,45 @@
+syntax = "proto3";
+option java_multiple_files = true;
+package com.github.tjake.jlama.net;
+
+message CombineRequest {
+  bytes workerid = 1;
+  bytes uuid = 2;
+  int32 layer = 3;
+  float sumSq = 4;
+  float sum = 5;
+  repeated bytes tensor = 6;
+}
+
+message CombineResponse {
+  float sumSq = 1;
+  float sum = 2;
+  repeated bytes tensor = 3;
+}
+
+message GenerateRequest {
+  bytes workerid = 1;
+  bytes session = 2;
+  bytes tensor = 3;
+}
+
+message GenerateResponse {
+  bytes session = 1;
+  int32 token = 2;
+  int32 position = 3;
+}
+
+message RegisterRequest {
+  bytes workerid = 1;
+}
+
+message RegisterResponse {
+  int32 offset = 1;
+  int32 length = 2;
+}
+
+service JlamaService {
+  rpc register(RegisterRequest) returns (RegisterResponse);
+  rpc generate(stream GenerateRequest) returns (stream GenerateResponse);
+  rpc combine(stream CombineRequest) returns (stream CombineResponse);
+}

@@ -21,7 +21,7 @@ public class VectorMath {
         );
     }
 
-    public static void pchunk(int length, BiIntConsumer action) {
+    public static void pchunk(int offset, int length, BiIntConsumer action) {
         int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
         int chunkSize = length / splits;
 
@@ -35,15 +35,14 @@ public class VectorMath {
         int fchunkSize = chunkSize;
 
         PhysicalCoreExecutor.instance.get().execute(() ->
-            IntStream.range(0, fsplits).parallel().forEach(i -> action.accept(i*fchunkSize, fchunkSize))
+            IntStream.range(0, fsplits).parallel().forEach(i -> action.accept(offset + (i*fchunkSize), fchunkSize))
         );
     }
 
 
-    public static void softMax(AbstractTensor t) {
-        float[] x = (float[])t.getArray();
-        int offset = t.getArrayOffset(0);
-        int size = t.size();
+    public static void softMax(float[] x) {
+        int offset = 0;
+        int size = x.length;
 
         // find max value (for numerical stability)
         float max_val = x[offset];

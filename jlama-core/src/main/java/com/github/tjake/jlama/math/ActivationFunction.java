@@ -9,8 +9,8 @@ public class ActivationFunction {
 
     public static float eval(Type t, float x) {
         return switch (t) {
-            case SILU -> (float) (x * (1.0f / (1.0f + Math.exp(-x))));
-            case GELU -> (float) (x / (1 + Math.exp(-1.702f * x)));
+            case SILU -> (float) (x * (1.0f / (1.0f + exp(-x))));
+            case GELU -> (float) (x / (1 + exp(-1.702f * x)));
         };
     }
 

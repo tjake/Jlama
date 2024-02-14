@@ -9,7 +9,6 @@ import java.util.function.Function;
 
 import com.github.tjake.jlama.util.MachineSpec;
 import com.github.tjake.jlama.util.RuntimeSupport;
-import jdk.incubator.vector.FloatVector;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,6 +31,7 @@ public class TestOperations
     private static final Random r = new Random();
     private static final Logger logger = LoggerFactory.getLogger(TensorOperations.class);
     private static final int SIZE = 1024;
+    private static final int ROWS = 128;
     private static final List<TensorOperations> opTypes = new ArrayList<>();
 
     private static final Map<DType, Function<AbstractTensor, AbstractTensor>> aTypes = new TreeMap<>();
@@ -90,6 +90,15 @@ public class TestOperations
         return f;
     }
 
+    static FloatBufferTensor makeWeights(int rows, int size) {
+        FloatBufferTensor f = new FloatBufferTensor(rows, size);
+        for (int j = 0; j < rows; j++)
+            for (int i = 0; i < size; i++)
+                f.set(r.nextFloat(), j, i);
+
+        return f;
+    }
+
     @Test
     public void testDotProduct() {
         AbstractTensor a = makeTensor(SIZE);
@@ -119,6 +128,20 @@ public class TestOperations
     }
 
     @Test
+    public void testSplitDotProduct() {
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = makeTensor(SIZE);
+
+        //This is what we compare others to
+        float control = controlOps.dotProduct(a, b, SIZE);
+
+        float p1 = controlOps.dotProduct(a, b, 0, 0, SIZE / 2);
+        float p2 = controlOps.dotProduct(a, b, SIZE / 2, SIZE / 2, SIZE / 2);
+
+        Assert.assertEquals(control, p1 + p2, control * .01f);
+    }
+
+    @Test
     public void testAccumulate() {
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
@@ -127,7 +150,7 @@ public class TestOperations
         AbstractTensor c = new FloatBufferTensor(a);
 
         //This is what we compare others to
-        controlOps.accumulate(a, b);
+        controlOps.accumulate(a, b, 0, SIZE);
         float control = controlOps.sum(a);
         for (TensorOperations t : opTypes) {
             int supported = 0;
@@ -137,7 +160,7 @@ public class TestOperations
                     AbstractTensor bhat = bType.getValue().apply(b);
 
                     try {
-                        t.accumulate(chat, bhat);
+                        t.accumulate(chat, bhat, 0, SIZE);
                         float dp = t.sum(chat);
                         supported++;
                         Assert.assertEquals("AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
@@ -251,12 +274,37 @@ public class TestOperations
         FloatBufferTensor a = makeTensor(SIZE);
 
         Q8ByteBufferTensor ref = new Q8ByteBufferTensor(a);
-        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a);
-        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a);
-        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a);
+        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a, 0, a.size());
+        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a, 0, a.size());
+        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a, 0, a.size());
 
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv2), 0.0001);
+    }
+
+    @Test
+    public void testBatchChunked()
+    {
+        FloatBufferTensor r0 = makeTensor(ROWS);
+        FloatBufferTensor r1 = makeTensor(ROWS);
+
+        FloatBufferTensor b0 = makeTensor(ROWS);
+        FloatBufferTensor b1 = makeTensor(ROWS);
+
+        FloatBufferTensor a = makeTensor(SIZE);
+
+        FloatBufferTensor w0 = makeWeights(ROWS, SIZE);
+        FloatBufferTensor w1 = makeWeights(ROWS, SIZE);
+
+        controlOps.dotProductChunk(r0, a, w0, 0, SIZE, 0, ROWS);
+        controlOps.dotProductChunk(r1, a, w1, 0, SIZE, 0, ROWS);
+
+        for (TensorOperations t : opTypes) {
+            t.dotProductBatchChunk(new AbstractTensor[]{ b0, b1 }, a, new AbstractTensor[]{ w0, w1 }, 0, SIZE, 0, ROWS);
+
+            Assert.assertEquals(controlOps.sum(r0), controlOps.sum(b0), 0.01);
+            Assert.assertEquals(controlOps.sum(r1), controlOps.sum(b1), 0.01);
+        }
     }
 }

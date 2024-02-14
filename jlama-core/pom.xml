@@ -30,11 +30,5 @@
             <artifactId>jctools-core</artifactId>
             <version>4.0.1</version>
         </dependency>
-
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.4.8</version>
-        </dependency>
   </dependencies>
 </project>

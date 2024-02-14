@@ -1,6 +1,7 @@
 package com.github.tjake.jlama.cli.serve;
 
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.functions.Generator;
 import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 
 import javax.ws.rs.core.Application;
@@ -11,8 +12,8 @@ import java.util.Set;
 
 public class JlamaRestApi extends Application {
 
-    final AbstractModel model;
-    public JlamaRestApi(AbstractModel model) {
+    final Generator model;
+    public JlamaRestApi(Generator model) {
         this.model = model;
     }
 

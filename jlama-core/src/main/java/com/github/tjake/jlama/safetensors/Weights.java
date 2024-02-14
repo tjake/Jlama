@@ -1,12 +1,9 @@
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.FloatConversions;
-import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.Float16BufferTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
-import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
-import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+import com.github.tjake.jlama.tensor.*;
 
+import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 
@@ -16,18 +13,23 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Weights implements WeightLoader {
+    private static final Logger logger = LoggerFactory.getLogger(Weights.class);
     private final Map<String, String> metadata;
     private final Map<String, TensorInfo> tensorInfoMap;
     private final ByteBuffer bytes;
     private final DType majorityDType;
+    private final Optional<WeightLoader> parent;
 
-    Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes)
-    {
+    Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes, Optional<WeightLoader> parent) {
         this.metadata = ImmutableMap.copyOf(metadata);
         this.tensorInfoMap = ImmutableMap.copyOf(tensorInfoMap);
         this.bytes = bytes.duplicate();
         this.majorityDType = findDType();
+        this.parent = parent;
     }
 
     private DType findDType() {
@@ -61,10 +63,10 @@ public class Weights implements WeightLoader {
     }
 
     @Override
-    public AbstractTensor load(String name) throws NoSuchElementException {
+    public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) throws NoSuchElementException {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null)
-            throw new NoSuchElementException();
+            throw new NoSuchElementException(name + " not found in weights");
 
         if (info.shape.length < 1)
             throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name);
@@ -76,10 +78,12 @@ public class Weights implements WeightLoader {
         int len;
         FloatBuffer fb;
         ShortBuffer sb;
+        AbstractTensor t;
         switch (info.dType) {
             case F32:
                 fb = b.asFloatBuffer().slice();
-                return new FloatBufferTensor(name, fb, info.shape, true);
+                t =  new FloatBufferTensor(name, fb, TensorShape.of(info.shape), true);
+                break;
             case F16:
                 // If the majority of the weights are F32 then convert to F32
                 if (majorityDType == DType.F32) {
@@ -90,11 +94,12 @@ public class Weights implements WeightLoader {
                         float v = Float.float16ToFloat(s);
                         bb.putFloat(i, v);
                     }
-                    return new FloatBufferTensor(bb.asFloatBuffer(), info.shape, true);
+                    t =  new FloatBufferTensor(bb.asFloatBuffer(), TensorShape.of(info.shape), true);
                 } else {
                     sb = b.asShortBuffer().slice();
-                    return new Float16BufferTensor(name, sb, info.shape, true);
+                    t =  new Float16BufferTensor(name, sb, TensorShape.of(info.shape), true);
                 }
+                break;
             case BF16:
                 //For now always convert to F32
                 len = b.remaining() / DType.F16.size();
@@ -104,16 +109,21 @@ public class Weights implements WeightLoader {
                     float v = FloatConversions.bFloat16ToFloat32(s);
                     fb.put(i, v);
                 }
-                return new FloatBufferTensor(name, fb, info.shape, true);
+                t = new FloatBufferTensor(name, fb, TensorShape.of(info.shape), true);
+                break;
             case Q4:
-                FloatBufferTensor qb = (FloatBufferTensor) load(name + ".qb");
-                return new Q4ByteBufferTensor(name, b.slice(), qb, info.shape, true);
+                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", offset);
+                t = new Q4ByteBufferTensor(name, b.slice(), qb, TensorShape.of(info.shape), true);
+                break;
             case I8:
-                FloatBufferTensor qb1 = (FloatBufferTensor) load(name + ".qb");
-                return new Q8ByteBufferTensor(name, b.slice(), qb1, info.shape, true);
+                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", offset);
+                t = new Q8ByteBufferTensor(name, b.slice(), qb1, TensorShape.of(info.shape), true);
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported Tensor type: " + info.dType.name() + " for " + name);
         }
+
+        return offset.map(o -> t.sparsify(o.left, o.right)).orElse(t);
     }
 
     @Override

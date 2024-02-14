@@ -12,25 +12,34 @@ final class constants$2 {
     // Suppresses default constructor, ensuring non-instantiability.
     private constants$2() {}
     static final MethodHandle const$0 = RuntimeHelper.downcallHandle(
-        "dot_product_q8_q4",
+        "dot_product_f32_q4",
+        constants$1.const$0
+    );
+    static final MethodHandle const$1 = RuntimeHelper.downcallHandle(
+        "dot_product_f32_q4_chunked",
+        constants$1.const$2
+    );
+    static final MethodHandle const$2 = RuntimeHelper.downcallHandle(
+        "dot_product_f32_q4_batch_chunked",
         constants$1.const$4
     );
-    static final FunctionDescriptor const$1 = FunctionDescriptor.ofVoid(
-        JAVA_INT,
-        RuntimeHelper.POINTER,
-        RuntimeHelper.POINTER,
-        RuntimeHelper.POINTER,
+    static final FunctionDescriptor const$3 = FunctionDescriptor.of(JAVA_FLOAT,
         JAVA_INT,
         RuntimeHelper.POINTER,
         RuntimeHelper.POINTER,
         JAVA_INT,
-        JAVA_INT,
+        RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
         JAVA_INT,
         JAVA_INT
     );
-    static final MethodHandle const$2 = RuntimeHelper.downcallHandle(
-        "dot_product_q8_q4_chunked",
-        constants$2.const$1
+    static final MethodHandle const$4 = RuntimeHelper.downcallHandle(
+        "dot_product_q8",
+        constants$2.const$3
+    );
+    static final MethodHandle const$5 = RuntimeHelper.downcallHandle(
+        "dot_product_q8_q4",
+        constants$2.const$3
     );
 }
 

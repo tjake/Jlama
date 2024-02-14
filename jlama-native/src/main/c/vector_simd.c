@@ -171,10 +171,16 @@ float dot_product_f32_q8(int flags, const float* a, int aoffset, const float *bf
 
 #endif
 
-void dot_product_f32_q8_chunked(int flags, float *r, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
+void dot_product_f32_q8_chunked(int flags, float *r, int roffset, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
     for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
         int bo = boffset + (c * length);
-        r[c] = dot_product_f32_q8(flags, a, aoffset, bf, b, bo, length);
+        r[roffset++] = dot_product_f32_q8(flags, a, aoffset, bf, b, bo, length);
+    }
+}
+
+void dot_product_f32_q8_batch_chunked(int flags, int batch_size, void **r, int roffset, const float* a, int aoffset, const void **bf, const void **b, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int i = 0; i < batch_size; i++) {
+        dot_product_f32_q8_chunked(flags, r[i], roffset, a, aoffset, bf[i], b[i], boffset, length, bchunkstart, bchunksize);
     }
 }
 
@@ -285,10 +291,16 @@ float dot_product_f32(int flags, const float* a, int aoffset, const float* b, in
 }
 #endif
 
-void dot_product_f32_chunked(int flags, float *r, const float* a, int aoffset, const float* b, int boffset, int length, int bchunkstart, int bchunksize) {
+void dot_product_f32_chunked(int flags, float *r, int roffset, const float* a, int aoffset, const float* b, int boffset, int length, int bchunkstart, int bchunksize) {
     for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
         int bo = boffset + (c * length);
-        r[c] = dot_product_f32(flags, a, aoffset, b, bo, length);
+        r[roffset++] = dot_product_f32(flags, a, aoffset, b, bo, length);
+    }
+}
+
+void dot_product_f32_batch_chunked(int flags, int batch_num, void **r /*list of addresses*/, int roffset, const float* a, int aoffset, void **b /*list of addresses*/, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int i = 0; i < batch_num; i++) {
+        dot_product_f32_chunked(flags, r[i], roffset, a, aoffset, b[i], boffset, length, bchunkstart, bchunksize);
     }
 }
 
@@ -583,12 +595,19 @@ float dot_product_f32_q4(int flags, const float* a, int aoffset, const float *bf
 }
 #endif
 
-void dot_product_f32_q4_chunked(int flags, float *r, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
+void dot_product_f32_q4_chunked(int flags, float *r, int roffset, const float* a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
     for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
         int bo = boffset + (c * (length/2)); // offset by chunk since q4 then divide by 2 since 4bits per element
-        r[c] = dot_product_f32_q4(flags, a, aoffset, bf, b, bo, length);
+        r[roffset++] = dot_product_f32_q4(flags, a, aoffset, bf, b, bo, length);
     }
 }
+
+void dot_product_f32_q4_batch_chunked(int flags, int batch_size, void **r, int roffset, const float* a, int aoffset, const void **bf, const void **b, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int i = 0; i < batch_size; i++) {
+        dot_product_f32_q4_chunked(flags, r[i], roffset, a, aoffset, bf[i], b[i], boffset, length, bchunkstart, bchunksize);
+    }
+}
+
 
 #if !defined(__ARM_NEON__)
 float dot_product_q8_q4_256(const float *af, const char* a, int aoffset, const float *bf, const char* b, int boffset, int length) {
@@ -888,9 +907,15 @@ float dot_product_q8_q4(int flags, const float* af, const char* a, int aoffset, 
 }
 #endif
 
-void dot_product_q8_q4_chunked(int flags, float *r, const float* af, const char *a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
+void dot_product_q8_q4_chunked(int flags, float *r, int roffset, const float* af, const char *a, int aoffset, const float *bf, const char* b, int boffset, int length, int bchunkstart, int bchunksize) {
      for (int c = bchunkstart; c < bchunkstart + bchunksize; c++) {
         int bo = boffset + (c * (length/2));
-        r[c] = dot_product_q8_q4(flags, af, a, aoffset, bf, b, bo, length);
+        r[roffset++] = dot_product_q8_q4(flags, af, a, aoffset, bf, b, bo, length);
      }
+}
+
+void dot_product_q8_q4_batch_chunked(int flags, int batch_size, void **r, int roffset, const float* af, const char* a, int aoffset, const void **bf, const void **b, int boffset, int length, int bchunkstart, int bchunksize) {
+    for (int i = 0; i < batch_size; i++) {
+        dot_product_q8_q4_chunked(flags, r[i], roffset, af, a, aoffset, bf[i], b[i], boffset, length, bchunkstart, bchunksize);
+    }
 }

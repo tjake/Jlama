@@ -1,31 +1,70 @@
 package com.github.tjake.jlama.model;
 
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.model.functions.EmbedInput;
+import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
-import com.github.tjake.jlama.tensor.TensorCache;
+import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
+import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import com.google.common.util.concurrent.AtomicDouble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
-public abstract class AbstractModel {
+public abstract class AbstractModel implements Generator
+{
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
-    protected final Config c;
+
+    public enum InferenceType {
+        INPUT_TO_EMBEDDING(true, false, false),
+        OUTPUT_TO_TOKEN(false, true, false),
+        FORWARD_PASS(true, false, true),
+        FULL_GENERATION(true, true, true);
+
+        final boolean isInput;
+        final boolean isOutput;
+        final boolean isFwdPass;
+        InferenceType(boolean isInput, boolean isOutput, boolean isFwdPass) {
+            this.isInput = isInput;
+            this.isOutput = isOutput;
+            this.isFwdPass = isFwdPass;
+        }
+
+        public boolean isEmbedding() {
+            return isInput;
+        }
+
+        public boolean isOutput() {
+            return isOutput;
+        }
+
+        public boolean isFwdPass() {
+            return isFwdPass;
+        }
+    }
+
+    protected final InferenceType inferenceType;
+    protected final  Config c;
     protected final WeightLoader weights;
     protected final Tokenizer tokenizer;
     protected final DType modelDType;
@@ -34,8 +73,13 @@ public abstract class AbstractModel {
     protected final Optional<DType> modelQType;
     private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
 
-    protected AbstractModel(Config c, WeightLoader w, Tokenizer t, DType workingMemoryDType, DType workingMemoryQType, Optional<DType> modelQType)
+    protected EmbedInput embedInput;
+    protected SampleOutput sampleOutput;
+    protected TransformerBlock[] transformerBlocks;
+
+    protected AbstractModel(InferenceType inferenceType, Config c, WeightLoader w, Tokenizer t, DType workingMemoryDType, DType workingMemoryQType, Optional<DType> modelQType)
     {
+        this.inferenceType = inferenceType;
         this.c = c;
         this.weights = w;
         this.tokenizer = t;
@@ -46,7 +90,7 @@ public abstract class AbstractModel {
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;
             AbstractTensor tmp = makeTensor(Q8ByteBufferTensor.BLOCK_SIZE);
-            try (AbstractTensor tmp2 = TensorOperationsProvider.get().quantize(tmp, workingMemoryQType)) {
+            try (AbstractTensor tmp2 = TensorOperationsProvider.get().quantize(tmp, workingMemoryQType, 0, Q8ByteBufferTensor.BLOCK_SIZE)) {
                 supportsQType = tmp2.dType() == workingMemoryQType;
                 if (!supportsQType) {
                     logger.warn("Quantized memory type {} not supported, falling back to {}", workingMemoryQType, workingMemoryDType);
@@ -60,45 +104,82 @@ public abstract class AbstractModel {
         }
 
         logger.info("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
+
+        this.embedInput = inferenceType.isInput ? loadInputWeights() : null;
+        this.transformerBlocks = inferenceType.isFwdPass ? loadTransformerBlockWeights() : null;
+        this.sampleOutput = inferenceType.isOutput ? loadOutputWeights() : null;
+    }
+
+    protected abstract EmbedInput loadInputWeights();
+
+    protected abstract TransformerBlock[] loadTransformerBlockWeights();
+
+    protected abstract SampleOutput loadOutputWeights();
+
+    public Config getConfig() {
+        return c;
+    }
+
+    public Tokenizer getTokenizer() {
+        return tokenizer;
     }
 
     public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
         return prompt;
     }
 
-    protected abstract AbstractTensor inputTokenToEmbedding(int inputToken, int position);
+    public AbstractTensor makeTensor(int ...shape) {
+        TensorShape s;
+        if (c.offset().isPresent() && shape[shape.length - 1] == c.embeddingLength)
+            s = TensorShape.sparse(shape, c.offset().get());
+        else
+            s = TensorShape.of(shape);
 
-    protected abstract TransformerBlock[] getTransformerBlocks();
+        return c.tensorCache.get(workingDType, s);
+    }
 
-    protected abstract LayerNorm getOutputLayerNorm();
+    public AbstractTensor makeFullTensor(int ...shape) {
+        return c.tensorCache.get(workingDType, TensorShape.of(shape));
+    }
 
-    protected abstract AbstractTensor getOutputLogitsWeights();
-
-    protected AbstractTensor makeTensor(int ...shape) {
+    public AbstractTensor makeFullTensor(TensorShape shape) {
         return c.tensorCache.get(workingDType, shape);
     }
 
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
-        AbstractTensor t2 = TensorCache.instance.get(t.dType(), t.shape());
+        AbstractTensor t2 = c.tensorCache.get(t.dType(), t.shape());
         t2.copyFrom(t, 0, 0, t.size());
         return t2;
     }
 
     protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
-        AbstractTensor embedding = inputTokenToEmbedding(token_id, pos);
-        TransformerBlock[] transformerBlocks = getTransformerBlocks();
+        return forward(token_id, pos, kvbuf, Optional.empty(), Optional.empty());
+    }
 
-        for (int i = 0; i < c.numberOfLayers; i++) {
+    /**
+     * This is a distributed version of forward pass that serves as a coordination point for the
+     * distributed model.  The layers are split into one or more heads and each head is processed
+     * by a different node.
+     *
+     * @param token_id
+     * @param pos
+     * @param kvbuf
+     * @return
+     */
+    public AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf, Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+        AbstractTensor embedding = embedInput.inputTokenToEmbedding(token_id, pos);
+
+        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; //reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, pos, kvlayer);
+            embedding = transformerBlocks[i].forward(embedding, pos, kvlayer, normReducer, tensorReducer);
             ref.close();
         }
+
         return embedding;
     }
 
     protected AbstractTensor[] batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
-        TransformerBlock[] transformerBlocks = getTransformerBlocks();
         int batchSize = token_ids.length;
 
         AbstractTensor[] embeddings = tmpArray.get();
@@ -106,12 +187,11 @@ public abstract class AbstractModel {
             embeddings = new AbstractTensor[batchSize];
             tmpArray.set(embeddings);
         }
-        AbstractTensor[] emf = embeddings;
-        VectorMath.pfor(0, batchSize, i -> {
-            emf[i] = inputTokenToEmbedding(token_ids[i], startPos+i);
-        });
 
-        for (int i = 0; i < c.numberOfLayers; i++) {
+        AbstractTensor[] emf = embeddings;
+        IntStream.range(0, batchSize).forEach(i -> emf[i] = embedInput.inputTokenToEmbedding(token_ids[i], startPos + i));
+
+        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
             AbstractTensor kvlayer = kvbuf.slice(i);
             for (int j = 0; j < batchSize; j++) {
                 AbstractTensor ref = embeddings[j];
@@ -123,15 +203,15 @@ public abstract class AbstractModel {
         return embeddings;
     }
 
-    protected int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
-        try(AbstractTensor embedding = getOutputLayerNorm().forward(output)) {
+    public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
+        try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
 
             AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
             AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
 
             //This is a mix of argmax and sampling with softmax
             VectorMath.pfor(0, c.vocabularySize, i -> {
-                float v = TensorOperationsProvider.get().dotProduct(embedding, getOutputLogitsWeights().slice(i), c.embeddingLength);
+                float v = TensorOperationsProvider.get().dotProduct(embedding, sampleOutput.getOutputLogitsWeights().slice(i), c.embeddingLength);
                 logits.set(v, i);
                 maxv.getAndUpdate(x -> {
                     if (v > x) {
@@ -165,18 +245,14 @@ public abstract class AbstractModel {
         }
     }
 
-    public void generate(String prompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
-        generate(prompt, null, temperature, ntokens, useEOS, onTokenWithTimings);
-    }
-
-    public void generate(String prompt, String cleanPrompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
+    public void generate(UUID sessionId, String prompt, String cleanPrompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
         if (ntokens > c.contextLength)
             ntokens = c.contextLength;
 
-        AbstractTensor kvmem = makeTensor(c.numberOfLayers, ntokens, 2, c.embeddingLength); //k and v are last 2 dims
+        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), ntokens, 2, c.kvLength); //k and v are last 2 dims
         AbstractTensor logits = makeTensor(c.vocabularySize);
 
         int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];

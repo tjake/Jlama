@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 import com.google.common.base.Suppliers;
 
 public class PhysicalCoreExecutor {
-    private static volatile int physicalCoreCount = Math.max(1, Runtime.getRuntime().availableProcessors()/2);
+    private static volatile int physicalCoreCount = Math.max(1, Runtime.getRuntime().availableProcessors());
     private static final AtomicBoolean started = new AtomicBoolean(false);
     public static void overrideThreadCount(int threadCount) {
         if (!started.compareAndSet(false, true))
