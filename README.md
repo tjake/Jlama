@@ -120,7 +120,7 @@ elapsed: 10s, 49.437500ms per token
 
 ## 🏷️ License and Citation
 
-The code is available under [Apache License](./LICENSE.md).
+The code is available under [Apache License](./LICENSE).
 
 If you find this project helpful in your research, please cite this work at
 
