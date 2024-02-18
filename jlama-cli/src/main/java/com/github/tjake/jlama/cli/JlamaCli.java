@@ -1,11 +1,6 @@
 package com.github.tjake.jlama.cli;
 
-import com.github.tjake.jlama.cli.commands.ChatCommand;
-import com.github.tjake.jlama.cli.commands.ClusterCoordinatorCommand;
-import com.github.tjake.jlama.cli.commands.ClusterWorkerCommand;
-import com.github.tjake.jlama.cli.commands.CompleteCommand;
-import com.github.tjake.jlama.cli.commands.QuantizeCommand;
-import com.github.tjake.jlama.cli.commands.ServeCommand;
+import com.github.tjake.jlama.cli.commands.*;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
@@ -23,6 +18,7 @@ public class JlamaCli implements Runnable {
 
     public static void main(String[] args) {
         CommandLine cli = new CommandLine(new JlamaCli());
+        cli.addSubcommand("download", new DownloadCommand());
         cli.addSubcommand("quantize", new QuantizeCommand());
         cli.addSubcommand("chat", new ChatCommand());
         cli.addSubcommand("complete", new CompleteCommand());

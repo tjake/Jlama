@@ -11,20 +11,26 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q5ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 
+import com.github.tjake.jlama.util.Pair;
+import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.base.Preconditions;
+import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Ints;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -209,5 +215,144 @@ public class SafeTensorSupport {
         }
 
         return qPath;
+    }
+
+    public static void maybeDownloadModel(String modelDir, Optional<String> modelOwner, String modelName, Optional<String> optionalAuthHeader, Optional<TriConsumer<String, Long, Long>> optionalProgressReporter) throws IOException {
+        String hfModel = modelOwner.map(mo -> mo + "/" + modelName).orElse(modelName);
+        InputStream modelInfoStream = getResponse("https://huggingface.co/api/models/" + hfModel, optionalAuthHeader).left;
+        String modelInfo = readInputStream(modelInfoStream);
+
+        if (modelInfo == null) {
+            throw new IOException("No valid model found or trying to access a restricted model (use HF_ACCESS_TOKEN env. var.)");
+        }
+
+        List<String> allFiles = parseFileList(modelInfo);
+        if (allFiles.isEmpty()) {
+            throw new IOException("No valid model found");
+        }
+
+        List<String> tensorFiles = new ArrayList<>();
+        for (String currFile : allFiles) {
+            if (currFile.contains("safetensor")) {
+                tensorFiles.add(currFile);
+            }
+        }
+
+        if (tensorFiles.isEmpty()) {
+            throw new IOException("Model is not available in safetensor format");
+        }
+
+        tensorFiles.addAll(Arrays.asList("config.json", "vocab.json", "tokenizer.json"));
+
+        Path localModelDir = Paths.get(modelDir, modelName);
+        Files.createDirectories(localModelDir);
+
+        logger.info("Downloading model to: {}", localModelDir);
+
+        for (String currFile : tensorFiles) {
+            downloadFile(hfModel, currFile, optionalAuthHeader, localModelDir.resolve(currFile), optionalProgressReporter, true);
+        }
+
+        downloadFile(hfModel, "tokenizer.model", optionalAuthHeader, localModelDir.resolve("tokenizer.model"), optionalProgressReporter, false);
+    }
+
+    private static List<String> parseFileList(String modelInfo) throws IOException {
+        List<String> fileList = new ArrayList<>();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = objectMapper.readTree(modelInfo);
+        JsonNode siblingsNode = rootNode.path("siblings");
+        if (siblingsNode.isArray()) {
+            for (JsonNode siblingNode : siblingsNode) {
+                String rFilename = siblingNode.path("rfilename").asText();
+                fileList.add(rFilename);
+            }
+        }
+
+        return fileList;
+    }
+
+    private static Pair<InputStream, Long> getResponse(String urlString, Optional<String> optionalAuthHeader) throws IOException {
+        URL url = new URL(urlString);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        // Set the request method
+        connection.setRequestMethod("GET");
+
+        // Set the request header
+        optionalAuthHeader.ifPresent(authHeader -> connection.setRequestProperty("Authorization", authHeader));
+
+        // Get the response code
+        int responseCode = connection.getResponseCode();
+
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            // If the response code is 200 (HTTP_OK), return the input stream
+            return Pair.create(connection.getInputStream(), connection.getContentLengthLong());
+        } else {
+            // If the response code is not 200, throw an IOException
+            throw new IOException("HTTP response code: " + responseCode + " for URL: " + urlString);
+        }
+    }
+
+    private static String readInputStream(InputStream inStream) throws IOException {
+        if (inStream == null) return null;
+
+        BufferedReader inReader = new BufferedReader(new InputStreamReader(inStream));
+        StringBuilder stringBuilder = new StringBuilder();
+
+        String currLine;
+        while ((currLine = inReader.readLine()) != null) {
+            stringBuilder.append(currLine);
+            stringBuilder.append(System.lineSeparator());
+        }
+
+        return stringBuilder.toString();
+    }
+    private static void downloadFile(String hfModel, String currFile, Optional<String> optionalAuthHeader, Path outputPath, Optional<TriConsumer<String,Long, Long>> optionalProgressConsumer, boolean required) throws IOException {
+        try {
+            Pair<InputStream, Long> stream = getResponse("https://huggingface.co/" + hfModel + "/resolve/main/" + currFile, optionalAuthHeader);
+
+            if (optionalProgressConsumer.isEmpty())
+                logger.info("Downloading file: {}", outputPath);
+
+            CountingInputStream inStream = new CountingInputStream(stream.left);
+
+            long totalBytes = stream.right;
+            optionalProgressConsumer.ifPresent(p -> p.accept(currFile, 0L, totalBytes));
+
+            CompletableFuture<Long> result = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return Files.copy(inStream, outputPath, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+            optionalProgressConsumer.ifPresent(p -> {
+                while (!result.isDone()) {
+                    p.accept(currFile, inStream.getCount(), totalBytes);
+                }
+
+                if (result.isCompletedExceptionally())
+                    p.accept(currFile, inStream.getCount(), totalBytes);
+                else
+                    p.accept(currFile, totalBytes, totalBytes);
+            });
+
+
+            try {
+                result.get();
+            } catch (Throwable e) {
+                if (required)
+                    throw new IOException("Failed to download file: " + currFile, e);
+            }
+
+            if (optionalProgressConsumer.isEmpty() && !result.isCompletedExceptionally())
+                logger.info("Downloaded file: {}", outputPath);
+        }
+        catch (IOException e) {
+            if (required)
+                throw e;
+        }
     }
 }

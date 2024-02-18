@@ -39,7 +39,7 @@ Add LLM Inference directly to your Java application.
 Jlama includes a simple UI if you just want to chat with an llm.
 
 ```
-./download-hf-model.sh tjake/llama2-7b-chat-hf-jlama-Q4
+./run-cli.sh download tjake/llama2-7b-chat-hf-jlama-Q4
 ./run-cli.sh serve models/llama2-7b-chat-hf-jlama-Q4
 
 ```
@@ -53,21 +53,22 @@ open browser to http://localhost:8080/ui/index.html
 Jlama includes a cli tool to run models via the `run-cli.sh` command. 
 Before you do that first download one or more models from huggingface.
 
-Use the `download-hf-models.sh` script in the data directory to download models from huggingface.
+Use the `./run-cli.sh download` command to download models from huggingface.
 
 ```shell
-./download-hf-model.sh gpt2-medium
-./download-hf-model.sh -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
-./download-hf-model.sh intfloat/e5-small-v2
+./run-cli.sh download gpt2-medium
+./run-cli.sh download -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
+./run-cli.sh download intfloat/e5-small-v2
 ```
 
-Then run the cli:
+Then run the cli tool to chat with the model or complete a prompt.
+
 ```shell
 ./run-cli.sh complete -p "The best part of waking up is " -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
 ./run-cli.sh chat -p "Tell me a joke about cats." -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
 ```
-## 🧪 Examples
 
+## 🧪 Examples
 ### Llama 2 7B
 
 ```

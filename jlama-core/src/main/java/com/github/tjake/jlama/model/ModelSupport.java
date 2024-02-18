@@ -22,15 +22,17 @@ import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.util.Pair;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 public class ModelSupport {
+
+    private static final Logger logger = LoggerFactory.getLogger(ModelSupport.class);
 
     private static final ObjectMapper om = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
