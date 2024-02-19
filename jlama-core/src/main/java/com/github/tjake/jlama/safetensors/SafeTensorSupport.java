@@ -281,7 +281,7 @@ public class SafeTensorSupport {
         connection.setRequestMethod("GET");
 
         // Set the request header
-        optionalAuthHeader.ifPresent(authHeader -> connection.setRequestProperty("Authorization", authHeader));
+        optionalAuthHeader.ifPresent(authHeader -> connection.setRequestProperty("Authorization", "Bearer " + authHeader));
 
         // Get the response code
         int responseCode = connection.getResponseCode();
