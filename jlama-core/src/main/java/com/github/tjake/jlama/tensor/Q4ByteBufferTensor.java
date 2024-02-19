@@ -5,6 +5,7 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.primitives.Ints;
 import jdk.incubator.vector.ByteVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
@@ -131,9 +132,9 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(this.size() / 2, UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(this.size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
         } else {
-            this.b = ByteBuffer.allocate(this.size() / 2).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = ByteBuffer.allocate(Ints.checkedCast(this.size() / 2)).order(ByteOrder.LITTLE_ENDIAN);
         }
 
         this.segment = MemorySegment.ofBuffer(b);

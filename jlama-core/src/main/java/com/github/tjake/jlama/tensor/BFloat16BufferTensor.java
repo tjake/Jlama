@@ -11,6 +11,7 @@ import com.google.common.base.Preconditions;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.primitives.Ints;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
@@ -37,9 +38,9 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         super(DType.BF16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
         } else {
-            this.b = ShortBuffer.allocate(size());
+            this.b = ShortBuffer.allocate(Ints.checkedCast(size()));
         }
         this.segment = MemorySegment.ofBuffer(b);
     }

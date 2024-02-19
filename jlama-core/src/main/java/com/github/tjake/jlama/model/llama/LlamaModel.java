@@ -13,6 +13,7 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,6 +123,6 @@ public class LlamaModel extends AbstractModel {
 
         return t.shape().last() == c.embeddingLength
                ? TensorOperationsProvider.get().quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
-               : TensorOperationsProvider.get().quantize(t, workingQType, 0, t.size());
+               : TensorOperationsProvider.get().quantize(t, workingQType, 0, Ints.checkedCast(t.size()));
     }
 }

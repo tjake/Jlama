@@ -5,6 +5,7 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.primitives.Ints;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
@@ -36,9 +37,9 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
         super(DType.F16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
         } else {
-            this.b = ShortBuffer.allocate(size());
+            this.b = ShortBuffer.allocate(Ints.checkedCast(size()));
         }
         this.segment = MemorySegment.ofBuffer(b);
     }

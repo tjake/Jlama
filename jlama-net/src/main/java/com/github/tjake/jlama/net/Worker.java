@@ -135,7 +135,8 @@ public class Worker {
         private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session)
         {
             TensorShape s;
-            int[] rawShape = new int[]{ model.getConfig().getNumberOfLayers(), model.getConfig().contextLength, 2, model.getConfig().kvLength };
+            //FIXME: Max size should be configurable
+            int[] rawShape = new int[]{ model.getConfig().getNumberOfLayers(), Math.min(2048, model.getConfig().contextLength), 2, model.getConfig().kvLength };
 
             if (model.getConfig().offset().isPresent()) {
                 Pair<Integer, Integer> offset = model.getConfig().offset().get();
@@ -150,7 +151,7 @@ public class Worker {
             try
             {
                 RandomAccessFile raf = new RandomAccessFile(Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString()).toFile(), "rw");
-                int bytes = s.size() * Float.BYTES;
+                long bytes = s.size() * Float.BYTES;
                 raf.setLength(bytes);
 
                 FloatBuffer fb = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, bytes).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();

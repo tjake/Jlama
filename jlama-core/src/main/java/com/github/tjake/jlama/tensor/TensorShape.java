@@ -20,7 +20,7 @@ public class TensorShape {
     }
 
     private final int[] tshape;
-    private final int capacity;
+    private final long capacity;
     private final Optional<Pair<Integer, Integer>> sparseRange;
     private final boolean isSparse;
     private final int sparseOffset;
@@ -33,7 +33,7 @@ public class TensorShape {
         this.sparseOffset = sparseRange.map(Pair::left).orElse(0);
         this.sparseLength = sparseRange.map(Pair::right).orElse(shape[shape.length - 1]);
 
-        int c = 1;
+        long c = 1;
         for (int i = 0; i < shape.length - 1; i++)
             c *= shape[i];
 
@@ -85,7 +85,7 @@ public class TensorShape {
         return tshape[tshape.length - 1];
     }
 
-    public int size() {
+    public long size() {
         return capacity;
     }
 

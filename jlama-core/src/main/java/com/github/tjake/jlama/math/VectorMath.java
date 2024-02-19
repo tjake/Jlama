@@ -43,7 +43,7 @@ public class VectorMath {
 
     public static void softMax(FloatBufferTensor x) {
         int offset = 0;
-        int size = x.size() / Float.BYTES;
+        long size = x.size();
 
         // find max value (for numerical stability)
         float max_val = x.get(offset);
@@ -99,7 +99,7 @@ public class VectorMath {
     public static void l1normalize(AbstractTensor t) {
         float[] x = (float[]) t.getArray();
         int offset = t.getArrayOffset(0);
-        int size = t.size();
+        long size = t.size();
 
         float sum = 0.0f;
         for (int i = offset; i < size; i++)
@@ -113,7 +113,7 @@ public class VectorMath {
     public static void l2normalize(AbstractTensor t) {
         float[] x = (float[]) t.getArray();
         int offset = t.getArrayOffset(0);
-        int size = t.size();
+        long size = t.size();
 
         float sum = 0.0f;
         for (int i = offset; i < size; i++)

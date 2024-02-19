@@ -5,6 +5,7 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.primitives.Ints;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
@@ -51,9 +52,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
         super(DType.F32, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(shape.size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(shape.size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
         } else {
-            this.b = FloatBuffer.allocate(shape.size());
+            this.b = FloatBuffer.allocate(Ints.checkedCast(shape.size()));
         }
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -69,14 +70,14 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
             if (b.isDirect()) {
                 this.b = b;
             } else {
-                this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(size() * dType().size(), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
+                this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
                 this.b.duplicate().put(b);
             }
         } else {
             if (!b.isDirect()) {
                 this.b = b;
             } else {
-                this.b = FloatBuffer.allocate(size());
+                this.b = FloatBuffer.allocate(Ints.checkedCast(size()));
                 this.b.duplicate().put(b);
             }
         }
@@ -161,7 +162,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     @Override
     public void clear() {
         if (b.hasArray()) {
-            Arrays.fill(b.array(), getArrayOffset(0), getArrayOffset(size()), 0);
+            Arrays.fill(b.array(), getArrayOffset(0), getArrayOffset(Ints.checkedCast(size())), 0);
         } else {
             segment.fill((byte) 0);
         }

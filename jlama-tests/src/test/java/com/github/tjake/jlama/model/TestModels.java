@@ -19,6 +19,7 @@ import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
+import com.google.common.primitives.Ints;
 import org.jctools.queues.MpmcArrayQueue;
 import org.jctools.queues.MpscArrayQueue;
 
@@ -305,9 +306,9 @@ public class TestModels {
 
             AbstractTensor result = a.copyShape();
             for (AbstractTensor t : sumt)
-                TensorOperationsProvider.get().accumulate(result, t, 0, result.size());
+                TensorOperationsProvider.get().accumulate(result, t, 0, Ints.checkedCast(result.size()));
 
-            b.copyFrom(result, 0, 0, result.size());
+            b.copyFrom(result, 0, 0, Ints.checkedCast(result.size()));
             return null;
         };
 
@@ -359,18 +360,18 @@ public class TestModels {
         AbstractTensor a2 = mSecondHalf.transformerBlocks[0].attention.forward(f2, 0, kvmem2.slice(0), Optional.empty());
 
         AbstractTensor tc = mFull.makeTensor(mFull.c.embeddingLength);
-        tc.copyFrom(t1, 0, 0, t1.size());
-        tc.copyFrom(t2, 0, t2.size(), t2.size());
+        tc.copyFrom(t1, 0, 0, (int)t1.size());
+        tc.copyFrom(t2, 0, (int)t2.size(), (int)t2.size());
         Assert.assertTrue(tensorEquals(tc, t0));
 
         AbstractTensor fc = mFull.makeTensor(mFull.c.embeddingLength);
-        fc.copyFrom(f1, 0, 0, f1.size());
-        fc.copyFrom(f2, 0, f2.size(), f2.size());
+        fc.copyFrom(f1, 0, 0, (int)f1.size());
+        fc.copyFrom(f2, 0, (int)f2.size(), (int)f2.size());
         Assert.assertTrue(tensorEquals(fc, f0));
 
         AbstractTensor qc = mFull.makeTensor(mFull.c.embeddingLength);
-        qc.copyFrom(q1, 0, 0, q1.size());
-        TensorOperationsProvider.get().accumulate(qc, q2, 0, qc.size());
+        qc.copyFrom(q1, 0, 0, (int)q1.size());
+        TensorOperationsProvider.get().accumulate(qc, q2, 0, (int)qc.size());
         Assert.assertTrue(tensorEquals(qc, q0));
     }
 

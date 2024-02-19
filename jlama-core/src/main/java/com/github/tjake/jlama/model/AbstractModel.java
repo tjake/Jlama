@@ -148,7 +148,7 @@ public abstract class AbstractModel implements Generator
 
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
         AbstractTensor t2 = c.tensorCache.get(t.dType(), t.shape());
-        t2.copyFrom(t, 0, 0, t.size());
+        t2.copyFrom(t, 0, 0, Ints.checkedCast(t.size()));
         return t2;
     }
 

@@ -4,6 +4,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.safetensors.TensorInfo;
+import com.google.common.primitives.Ints;
 import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
@@ -63,7 +64,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     /** Total capacity of the tensor */
-    final public int size() {
+    final public long size() {
         return shape.size();
     }
 
@@ -150,7 +151,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
         TensorShape newShape = shape.setDimValue(dim, innerLength);
         for (int i = 0; i < numChunks; i++) {
-            chunks[i] = this.make(i * newShape.size(), newShape.size(), newShape, true);
+            chunks[i] = this.make(Ints.checkedCast(i * newShape.size()), Ints.checkedCast(newShape.size()), newShape, true);
         }
 
         return chunks;

@@ -17,6 +17,8 @@ FROM openjdk:21-slim
 RUN apt-get update
 RUN apt-get install -y procps curl
 
+LABEL org.opencontainers.image.source=https://github.com/tjake/Jlama
+
 COPY inlinerules.json inlinerules.json
 COPY run-cli.sh run-cli.sh
 COPY conf/logback.xml logback.xml

@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /**
  * A Mixed of Experts block. See https://huggingface.co/blog/moe for more details
  */
-public class MOEBlock implements FeedForward {
+public class MoEBlock implements FeedForward {
 
     private final AbstractModel model;
     private final AbstractTensor moeGateWeight;
@@ -31,7 +31,7 @@ public class MOEBlock implements FeedForward {
     private final List<AbstractTensor> tmpTensors1;
 
 
-    public MOEBlock(AbstractModel model, int numberOfExperts, int numberOfExpertsPerToken, ActivationFunction.Type activationFunction, AbstractTensor moeGateWeight, AbstractTensor[] fullyConnectedWeights, AbstractTensor[] projectionWeights, AbstractTensor[] upProjectionWeights) {
+    public MoEBlock(AbstractModel model, int numberOfExperts, int numberOfExpertsPerToken, ActivationFunction.Type activationFunction, AbstractTensor moeGateWeight, AbstractTensor[] fullyConnectedWeights, AbstractTensor[] projectionWeights, AbstractTensor[] upProjectionWeights) {
         this.model = model;
         this.numberOfExperts = numberOfExperts;
         this.numberOfExpertsPerToken = numberOfExpertsPerToken;
@@ -112,7 +112,7 @@ public class MOEBlock implements FeedForward {
     }
 
     private int[] topk(FloatBufferTensor probs) {
-        int length = probs.size() / Float.BYTES;
+        long length = probs.size();
         for (int i = 0; i < numberOfExpertsPerToken; i++) {
             selectedExperts[i] = i;
         }
