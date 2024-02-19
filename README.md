@@ -57,7 +57,7 @@ Use the `./run-cli.sh download` command to download models from huggingface.
 
 ```shell
 ./run-cli.sh download gpt2-medium
-./run-cli.sh download -a XXXXXXXX meta-llama/Llama-2-7b-chat-hf
+./run-cli.sh download -t XXXXXXXX meta-llama/Llama-2-7b-chat-hf
 ./run-cli.sh download intfloat/e5-small-v2
 ```
 
