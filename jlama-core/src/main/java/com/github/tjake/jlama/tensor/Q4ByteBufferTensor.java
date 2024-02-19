@@ -123,7 +123,6 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
 
     static TensorShape makeBlockShape(TensorShape shape) {
         return shape.scaleLastDim(I_BLOCK_SIZE);
-        //return shape.setDimValue(shape.dims() - 1, shape.dim(shape.dims() - 1) / BLOCK_SIZE);
     }
 
     protected Q4ByteBufferTensor(TensorShape shape) {

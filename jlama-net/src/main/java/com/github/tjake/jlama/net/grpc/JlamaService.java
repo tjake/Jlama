@@ -40,7 +40,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private final int headsPerWorker;
 
     public JlamaService(AbstractModel model, int workerCount) {
-        Preconditions.checkArgument(workerCount <= model.getConfig().numberOfHeads, "Worker count must be less than or equal to number of heads");
+        Preconditions.checkArgument(workerCount <= model.getConfig().numberOfKeyValueHeads, "Worker count must be less than or equal to number of KV heads");
         this.model = model;
         this.workerCount = workerCount;
         this.workers = new ConcurrentHashMap<>();
@@ -133,31 +133,22 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     float sumSq = 0;
                     float sum = 0;
                     MemorySegment[] tensors = null;
-                    Integer length = null;
                     for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members)
                     {
                         sumSq += f.left.getSumSq();
                         sum += f.left.getSum();
-                        if (f.left.getTensorCount() > 0)
-                        {
-                            if (tensors == null)
-                            {
+                        if (f.left.getTensorCount() > 0) {
+                            if (tensors == null) {
                                 tensors = new MemorySegment[f.left.getTensorCount()];
-                                for (int i = 0; i < tensors.length; i++)
-                                {
+                                for (int i = 0; i < tensors.length; i++) {
                                     ByteBuffer bb = ByteBuffer.wrap(f.left.getTensor(i).toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
                                     tensors[i] = MemorySegment.ofBuffer(bb);
-                                    if (length == null)
-                                        length = bb.remaining() / Float.BYTES;
                                 }
-                            }
-                            else
-                            {
-                                for (int i = 0; i < tensors.length; i++)
-                                {
+                            } else {
+                                for (int i = 0; i < tensors.length; i++) {
                                     MemorySegment ms = MemorySegment.ofBuffer(f.left.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN));
                                     //Sum float buffers
-                                    accumulateF32(tensors[i], ms, length);
+                                    accumulateF32(tensors[i], ms, (int) tensors[i].byteSize() / Float.BYTES);
                                 }
                             }
                         }

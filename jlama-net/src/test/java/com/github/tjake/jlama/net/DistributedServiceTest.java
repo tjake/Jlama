@@ -55,7 +55,7 @@ public class DistributedServiceTest {
 
     @Test
     void manyWorkerTestLLama() throws Exception {
-        Path modelRoot = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
+        Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelRoot));
 
 

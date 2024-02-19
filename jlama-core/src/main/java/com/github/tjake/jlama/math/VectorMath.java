@@ -1,6 +1,7 @@
 package com.github.tjake.jlama.math;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
@@ -40,26 +41,26 @@ public class VectorMath {
     }
 
 
-    public static void softMax(float[] x) {
+    public static void softMax(FloatBufferTensor x) {
         int offset = 0;
-        int size = x.length;
+        int size = x.size() / Float.BYTES;
 
         // find max value (for numerical stability)
-        float max_val = x[offset];
+        float max_val = x.get(offset);
         for (int i = offset + 1; i < size; i++) {
-            if (x[i] > max_val) {
-                max_val = x[i];
+            if (x.get(i) > max_val) {
+                max_val = x.get(i);
             }
         }
         // exp and sum
         float sum = 0.0f;
         for (int i = offset; i < size; i++) {
-            x[i] = (float)StrictMath.exp(x[i] - max_val);
-            sum += x[i];
+            x.set((float)StrictMath.exp(x.get(i) - max_val), i);
+            sum += x.get(i);
         }
         // normalize
         for (int i = 0; i < size; i++) {
-            x[i] /= sum;
+            x.set(x.get(i) / sum, i);
         }
     }
 

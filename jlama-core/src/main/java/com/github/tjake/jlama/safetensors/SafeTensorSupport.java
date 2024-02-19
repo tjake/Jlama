@@ -223,7 +223,7 @@ public class SafeTensorSupport {
         String modelInfo = readInputStream(modelInfoStream);
 
         if (modelInfo == null) {
-            throw new IOException("No valid model found or trying to access a restricted model (use HF_ACCESS_TOKEN env. var.)");
+            throw new IOException("No valid model found or trying to access a restricted model (please include correct access token)");
         }
 
         List<String> allFiles = parseFileList(modelInfo);
@@ -232,17 +232,20 @@ public class SafeTensorSupport {
         }
 
         List<String> tensorFiles = new ArrayList<>();
+        boolean hasSafetensor = false;
         for (String currFile : allFiles) {
-            if (currFile.contains("safetensor")) {
+            String f = currFile.toLowerCase();
+            if (f.contains("safetensor") || f.contains("readme") || f.contains("config") || f.contains("tokenizer")) {
                 tensorFiles.add(currFile);
+                if (f.contains("safetensor")) {
+                    hasSafetensor = true;
+                }
             }
         }
 
-        if (tensorFiles.isEmpty()) {
+        if (!hasSafetensor) {
             throw new IOException("Model is not available in safetensor format");
         }
-
-        tensorFiles.addAll(Arrays.asList("config.json", "vocab.json", "tokenizer.json"));
 
         Path localModelDir = Paths.get(modelDir, modelName);
         Files.createDirectories(localModelDir);
@@ -252,8 +255,6 @@ public class SafeTensorSupport {
         for (String currFile : tensorFiles) {
             downloadFile(hfModel, currFile, optionalAuthHeader, localModelDir.resolve(currFile), optionalProgressReporter, true);
         }
-
-        downloadFile(hfModel, "tokenizer.model", optionalAuthHeader, localModelDir.resolve("tokenizer.model"), optionalProgressReporter, false);
     }
 
     private static List<String> parseFileList(String modelInfo) throws IOException {

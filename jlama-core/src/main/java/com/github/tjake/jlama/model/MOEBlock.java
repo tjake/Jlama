@@ -4,12 +4,10 @@ import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -24,12 +22,13 @@ public class MOEBlock implements FeedForward {
     private final AbstractTensor fullyConnectedWeights[];
     private final AbstractTensor projectionWeights[];
     private final AbstractTensor upProjectionWeights[];
-    private final float[] expertResults;
+    private final FloatBufferTensor expertResults;
     private final int[] selectedExperts;
     private final ActivationFunction.Type activationFunction;
 
     private final AbstractTensor[] batchResults;
     private final AbstractTensor[] batchWeights;
+    private final List<AbstractTensor> tmpTensors1;
 
 
     public MOEBlock(AbstractModel model, int numberOfExperts, int numberOfExpertsPerToken, ActivationFunction.Type activationFunction, AbstractTensor moeGateWeight, AbstractTensor[] fullyConnectedWeights, AbstractTensor[] projectionWeights, AbstractTensor[] upProjectionWeights) {
@@ -41,10 +40,11 @@ public class MOEBlock implements FeedForward {
         this.fullyConnectedWeights = fullyConnectedWeights;
         this.projectionWeights = projectionWeights;
         this.upProjectionWeights = upProjectionWeights;
-        this.expertResults = new float[numberOfExperts];
+        this.expertResults = new FloatBufferTensor(numberOfExperts);
         this.selectedExperts = new int[numberOfExpertsPerToken];
         this.batchResults = new AbstractTensor[2];
         this.batchWeights = new AbstractTensor[2];
+        this.tmpTensors1 = new ArrayList<>(2);
     }
 
     @Override
@@ -57,7 +57,11 @@ public class MOEBlock implements FeedForward {
 
             // Apply each experts gate to the input
             VectorMath.pfor(0, numberOfExperts, i -> {
-                expertResults[i] = TensorOperationsProvider.get().dotProduct(lnemb, moeGateWeight.slice(true, i), model.c.embeddingSegmentLength());
+                expertResults.set(TensorOperationsProvider.get().dotProduct(lnemb, moeGateWeight.slice(true, i), model.c.embeddingSegmentStart(), model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()), i);
+            });
+
+            tensorReducer.ifPresent(func -> {
+                func.accept(Collections.singletonList(expertResults));
             });
 
             // Pick the top experts for this token
@@ -77,10 +81,10 @@ public class MOEBlock implements FeedForward {
                 });
 
                 tensorReducer.ifPresent(func -> {
-                    List<AbstractTensor> ts = new ArrayList<>(2);
-                    ts.add(buf);
-                    ts.add(buf2);
-                    func.accept(ts);
+                    tmpTensors1.clear();
+                    tmpTensors1.add(buf);
+                    tmpTensors1.add(buf2);
+                    func.accept(tmpTensors1);
                 });
 
                 VectorMath.pfor(0, hiddenLength, iv -> {
@@ -97,7 +101,7 @@ public class MOEBlock implements FeedForward {
                 });
 
                 if (i == 0) {
-                    result.copyFrom(moeResult, model.c.embeddingSegmentStart(), model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+                    result.copyFrom(moeResult, moeResult.getOffset(model.c.embeddingSegmentStart()), result.getOffset(model.c.embeddingSegmentStart()), model.c.embeddingSegmentLength());
                 } else {
                     TensorOperationsProvider.get().accumulate(result, moeResult, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
                 }
@@ -107,18 +111,19 @@ public class MOEBlock implements FeedForward {
         }
     }
 
-    private int[] topk(float[] probs) {
+    private int[] topk(FloatBufferTensor probs) {
+        int length = probs.size() / Float.BYTES;
         for (int i = 0; i < numberOfExpertsPerToken; i++) {
             selectedExperts[i] = i;
         }
-        for (int i = numberOfExpertsPerToken; i < probs.length; i++) {
+        for (int i = numberOfExpertsPerToken; i < length; i++) {
             int min = 0;
             for (int j = 1; j < numberOfExpertsPerToken; j++) {
-                if (probs[selectedExperts[j]] < probs[selectedExperts[min]]) {
+                if (probs.get(selectedExperts[j]) < probs.get(selectedExperts[min])) {
                     min = j;
                 }
             }
-            if (probs[i] > probs[selectedExperts[min]]) {
+            if (probs.get(i) > probs.get(selectedExperts[min])) {
                 selectedExperts[min] = i;
             }
         }

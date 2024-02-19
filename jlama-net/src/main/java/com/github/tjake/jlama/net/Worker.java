@@ -135,14 +135,16 @@ public class Worker {
         private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session)
         {
             TensorShape s;
-            int[] rawShape = new int[]{ model.getConfig().getNumberOfLayers(), model.getConfig().contextLength, 2, model.getConfig().embeddingLength };
-            //return Pair.create(null, model.makeTensor(rawShape));
+            int[] rawShape = new int[]{ model.getConfig().getNumberOfLayers(), model.getConfig().contextLength, 2, model.getConfig().kvLength };
 
-            if (model.getConfig().offset().isPresent())
-                s = TensorShape.sparse(rawShape, model.getConfig().offset().get());
-            else
+            if (model.getConfig().offset().isPresent()) {
+                Pair<Integer, Integer> offset = model.getConfig().offset().get();
+                //Adjust the shape to be relative to the kv cache size (in case of GQA)
+                Pair<Integer, Integer> kvOffset = Pair.create(offset.left / model.getConfig().headGroupSize, offset.right / model.getConfig().headGroupSize);
+                s = TensorShape.sparse(rawShape, kvOffset);
+            } else {
                 s = TensorShape.of(rawShape);
-
+            }
             Preconditions.checkArgument(model.getConfig().workingDirectory().isPresent());
 
             try
