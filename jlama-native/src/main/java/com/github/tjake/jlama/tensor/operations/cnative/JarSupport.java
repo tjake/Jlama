@@ -39,7 +39,7 @@ public class JarSupport {
                 out.close();
                 in.close();
                 System.load(libfile.getAbsolutePath());
-                logger.info("Loaded jlama-native library: {}", libfile.getAbsolutePath());
+                logger.debug("Loaded jlama-native library: {}", libfile.getAbsolutePath());
                 return true;
             } catch (IOException e) {
                 logger.warn("Error loading jlama-native library");

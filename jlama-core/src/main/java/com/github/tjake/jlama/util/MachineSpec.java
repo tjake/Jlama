@@ -41,8 +41,8 @@ public class MachineSpec {
             logger.warn("Java SIMD Vector API *not* available. Add --add-modules=jdk.incubator.vector to your JVM options");
         }
 
-        logger.info("Machine Vector Spec: {}", tmp);
-        logger.info("Byte Order: {}", ByteOrder.nativeOrder().toString());
+        logger.debug("Machine Vector Spec: {}", tmp);
+        logger.debug("Byte Order: {}", ByteOrder.nativeOrder().toString());
         type = tmp;
     }
 

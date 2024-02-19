@@ -15,7 +15,7 @@ import static io.undertow.Handlers.resource;
 @CommandLine.Command(name = "serve", description = "Starts a rest api for interacting with this model")
 public class ServeCommand extends BaseCommand {
 
-    @CommandLine.Option(names = {"-p", "--port"}, description = "http port", defaultValue = "8080")
+    @CommandLine.Option(names = {"-p", "--port"}, description = "http port (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
     static final String APPLICATION_PATH = "/api";

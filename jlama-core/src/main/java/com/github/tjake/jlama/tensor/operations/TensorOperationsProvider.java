@@ -49,7 +49,7 @@ public class TensorOperationsProvider {
         if (pick == null)
             pick = MachineSpec.VECTOR_TYPE == MachineSpec.Type.NONE ? new NaiveTensorOperations() : new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
-        logger.info("Using {} ({})", pick.name(), (pick.requiresOffHeapTensor() ? "OffHeap" : "OnHeap"));
+        logger.debug("Using {} ({})", pick.name(), (pick.requiresOffHeapTensor() ? "OffHeap" : "OnHeap"));
         return pick;
     }
 }

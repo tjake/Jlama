@@ -5,7 +5,8 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
-@Command(name="jlama")
+
+@Command(name="jlama", mixinStandardHelpOptions = true, requiredOptionMarker = '*', usageHelpAutoWidth = true, sortOptions = true)
 public class JlamaCli implements Runnable {
 
     static {
@@ -25,6 +26,8 @@ public class JlamaCli implements Runnable {
         cli.addSubcommand("serve", new ServeCommand());
         cli.addSubcommand("cluster-coordinator", new ClusterCoordinatorCommand());
         cli.addSubcommand("cluster-worker", new ClusterWorkerCommand());
+
+        cli.setUsageHelpLongOptionsMaxWidth(256);
 
         String[] pargs = args.length == 0 ? new String[]{"-h"} : args;
         cli.parseWithHandler(new RunLast(), pargs);

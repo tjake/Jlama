@@ -14,9 +14,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-@CommandLine.Command(name = "download", description = "Downloads the specified model", mixinStandardHelpOptions = true)
+@CommandLine.Command(name = "download", description = "Downloads the specified model")
 public class DownloadCommand extends JlamaCli {
-    @CommandLine.Option(names={"-d", "--model-directory"}, description = "The directory to download the model to", defaultValue = "models")
+    @CommandLine.Option(names={"-d", "--model-directory"}, description = "The directory to download the model to (default: ${DEFAULT-VALUE})", defaultValue = "models")
     protected File modelDirectory = new File("models");
 
     @CommandLine.Option(names={"-t", "--auth-token"}, description = "The auth token to use for downloading the model (if required)")

@@ -15,13 +15,13 @@ import static io.undertow.Handlers.resource;
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers")
 public class ClusterCoordinatorCommand extends BaseCommand {
 
-    @CommandLine.Option(names = {"-w", "--worker-count"}, description = "signifies this instance is a coordinator", defaultValue = "1")
+    @CommandLine.Option(names = {"-w", "--worker-count"}, description = "signifies this instance is a coordinator", required = true)
     int workerCount = 1;
 
-    @CommandLine.Option(names = {"-g", "--grpc-port"}, description = "grpc port to listen on", defaultValue = "9777")
+    @CommandLine.Option(names = {"-g", "--grpc-port"}, description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
     int grpcPort = 9777;
 
-    @CommandLine.Option(names = {"-p", "--port"}, description = "http port to listen on", defaultValue = "8080")
+    @CommandLine.Option(names = {"-p", "--port"}, description = "http port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
     @Override

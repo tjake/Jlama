@@ -8,7 +8,7 @@ import java.util.UUID;
 
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
-@Command(name = "complete", description = "Completes a prompt using the specified model", mixinStandardHelpOptions = true)
+@Command(name = "complete", description = "Completes a prompt using the specified model")
 public class CompleteCommand extends ModelBaseCommand {
 
     @Override

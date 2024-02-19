@@ -20,11 +20,10 @@ public class ClusterWorkerCommand extends BaseCommand {
     private static final Boolean useHostnameAsWorkerId = Boolean.getBoolean("jlama.use_hostname_as_workerid");
     private static final String HOSTNAME = System.getenv("HOSTNAME");
 
-    @CommandLine.Option(names = {"-o", "--host"}, description = "hostname of coordinator", defaultValue = "9777", required = true)
+    @CommandLine.Option(names = {"-o", "--host"}, description = "hostname of coordinator", required = true)
     String host;
 
-
-    @CommandLine.Option(names = {"-g", "--grpc-port"}, description = "grpc port to listen on", defaultValue = "9777")
+    @CommandLine.Option(names = {"-g", "--grpc-port"}, description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
     int grpcPort = 9777;
 
     @CommandLine.Option(names = {"-w", "--worker-id"}, description = "consistent name to use when register this worker with the coordinator")
