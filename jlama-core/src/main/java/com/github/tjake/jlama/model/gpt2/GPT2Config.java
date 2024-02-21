@@ -15,6 +15,6 @@ public class GPT2Config extends Config {
                        @JsonProperty("vocab_size") int vocabularySize,
                        @JsonProperty("bos_token_id") int bosToken,
                        @JsonProperty("eos_token_id") int eosToken) {
-        super(contextLength, embeddingLength, embeddingLength * 4, numberOfHeads, numberOfHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, null);
+        super(contextLength, embeddingLength, embeddingLength * 4, numberOfHeads, numberOfHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, null, null);
     }
 }

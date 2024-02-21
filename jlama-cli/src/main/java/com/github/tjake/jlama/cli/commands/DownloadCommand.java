@@ -10,6 +10,7 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -18,6 +19,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DownloadCommand extends JlamaCli {
     @CommandLine.Option(names={"-d", "--model-directory"}, description = "The directory to download the model to (default: ${DEFAULT-VALUE})", defaultValue = "models")
     protected File modelDirectory = new File("models");
+
+    @CommandLine.Option(names={"-b", "--branch"}, description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
+    protected String branch = "main";
 
     @CommandLine.Option(names={"-t", "--auth-token"}, description = "The auth token to use for downloading the model (if required)")
     protected String authToken = null;
@@ -49,7 +53,7 @@ public class DownloadCommand extends JlamaCli {
 
 
         try {
-            SafeTensorSupport.maybeDownloadModel(modelDirectory.getAbsolutePath(), Optional.ofNullable(owner), name, Optional.ofNullable(authToken), Optional.of((n,c,t) -> {
+            SafeTensorSupport.maybeDownloadModel(modelDirectory.getAbsolutePath(), Optional.ofNullable(owner), name, Optional.ofNullable(URLEncoder.encode(branch)), Optional.ofNullable(authToken), Optional.of((n, c, t) -> {
                 if (progressRef.get() == null || !progressRef.get().getTaskName().equals(n)) {
                     ProgressBarBuilder builder = new ProgressBarBuilder()
                             .setTaskName(n)

@@ -144,11 +144,11 @@ public class VectorMath {
         return result;
     }
 
-    public static float[][] precomputeFreqsCis(int dim, int end, double theta) {
+    public static float[][] precomputeFreqsCis(int dim, int end, double theta, double scaling_factor) {
         float[] freqs = new float[dim / 2];
         float step = 0.0f;
         for (int i = 0; i < freqs.length; i++, step += 2.0)
-            freqs[i] = (float) (1.0 / StrictMath.pow(theta, step / dim));
+            freqs[i] = (float) ((1.0 / StrictMath.pow(theta, step / dim)) / scaling_factor);
 
         float[] t = new float[end];
         for (int i = 0; i < end; i++)

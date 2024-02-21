@@ -17,6 +17,6 @@ public class MistralConfig extends Config {
                         @JsonProperty("bos_token_id") int bosToken,
                         @JsonProperty("eos_token_id") int eosToken,
                         @JsonProperty("rope_theta") Double ropeTheta) {
-        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, ropeTheta);
+        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, ropeTheta, 1.0);
     }
 }

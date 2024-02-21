@@ -24,7 +24,7 @@ public class MixtralConfig extends Config {
                          @JsonProperty("rope_theta") Double ropeTheta,
                          @JsonProperty("num_local_experts") int numberOfExperts,
                          @JsonProperty("num_experts_per_tok") int numberOfExpertsPerToken) {
-        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, ropeTheta);
+        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, ropeTheta, 1.0);
 
         this.numberOfExperts = numberOfExperts;
         this.numberOfExpertsPerToken = numberOfExpertsPerToken;

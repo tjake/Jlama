@@ -62,7 +62,7 @@ public class TestModels {
             .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
             .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
+            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
 
     @Test
@@ -93,6 +93,19 @@ public class TestModels {
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Simply put, the theory of relativity states that";
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+        }
+    }
+
+    @Test
+    public void DeepCoderRun() throws Exception {
+        String modelPrefix = "../models/deepseek-coder-1.3b-base";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+            LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+            Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
+            String prompt = "#write a quicksort algorithm in python";
             model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
         }
     }

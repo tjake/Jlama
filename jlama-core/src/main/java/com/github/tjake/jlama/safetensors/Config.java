@@ -53,7 +53,8 @@ public class Config {
                   int vocabularySize,
                   int bosToken,
                   int eosToken,
-                  Double ropeFreqsTheta) {
+                  Double ropeFreqsTheta,
+                  Double ropeScalingFactor) {
         this.contextLength = contextLength;
         this.embeddingLength = embeddingLength;
         this.hiddenLength = hiddenLength;
@@ -69,7 +70,7 @@ public class Config {
         this.headGroupSize = numberOfHeads / numberOfKeyValueHeads;
         this.kvLength = numberOfKeyValueHeads * headSize;
         this.isGQA = numberOfKeyValueHeads < numberOfHeads;
-        this.ropeFreqs = ropeFreqsTheta == null ? Optional.empty() : Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfHeads, contextLength, ropeFreqsTheta));
+        this.ropeFreqs = ropeFreqsTheta == null ? Optional.empty() : Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfHeads, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
 
         // Set default values
         setOffset(null);

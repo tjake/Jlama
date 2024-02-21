@@ -126,7 +126,7 @@ public class WordPieceTokenizer implements Tokenizer {
                         return -1;
 
                     if (Character.isWhitespace(c))
-                        return Character.valueOf(' ');
+                        return ' ';
 
                     return c;
                 }).filter(c -> c != -1)

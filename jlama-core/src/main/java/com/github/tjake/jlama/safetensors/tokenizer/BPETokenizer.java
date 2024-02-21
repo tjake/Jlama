@@ -4,10 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
@@ -34,7 +31,14 @@ public abstract class BPETokenizer implements Tokenizer {
 
     @Override
     public List<String> tokenize(String sentence) {
-        throw new UnsupportedOperationException();
+
+        if (sentence.isEmpty())
+            return Collections.emptyList();
+
+        if (model.preTokenizer() != null)
+            return model.preTokenizer().pretokenize(sentence);
+
+        return Collections.singletonList(sentence);
     }
 
     protected String preProcess(String sentence) {
@@ -42,57 +46,71 @@ public abstract class BPETokenizer implements Tokenizer {
     }
 
     @Override
-    public long[] encode(String sentence) {
-        List<Long> tokens = new ArrayList<>();
-        sentence = preProcess(sentence);
-        int[] codes = sentence.codePoints().toArray();
-        for (int i = 0; i < codes.length; i++) {
-            String c = Character.toString(codes[i]);
-            Long id = model.vocabLookup.get(c);
-            if (id != null) {
-                // we found this codepoint in vocab, add it as a token
-                //logger.debug("{} -> {}", c, id);
-                tokens.add(id);
-            } else {
-                // byte_fallback encoding: just encode each byte as a token
-                String code = Character.toString(codes[i]);
-                byte[] chars = code.getBytes(StandardCharsets.UTF_8);
-                for (int k = 0; k < chars.length; k++) {
-                    long token = encodeCharacterAsToken(chars[k]);
-                    //logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
-                    tokens.add(token);
-                }
-            }
-        }
+    public long[] encode(String rawSentence) {
 
-        // merge the best consecutive pair each iteration
-        while (true) {
-            long bestId = -1;
-            long bestIdx = -1;
+        List<String> sentencePieces = tokenize(rawSentence);
+        List<Long> allTokens = new ArrayList<>();
 
-            for (int i = 0; i < tokens.size() - 1; i++) {
-                // check if we can merge the pair (tokens[i], tokens[i+1])
-                String merge = String.format("%s%s", decodeInternal(tokens.get(i)), decodeInternal(tokens.get(i+1)));
-                Long id = model.vocabLookup.get(merge);
+        for (String sentence : sentencePieces) {
+            List<Long> tokens = new ArrayList<>();
+            sentence = preProcess(sentence);
+            int[] codes = sentence.codePoints().toArray();
+            for (int i = 0; i < codes.length; i++) {
+                String c = Character.toString(codes[i]);
+                Long id = model.vocabLookup.get(c);
                 if (id != null) {
-                    // this merge pair exists in vocab! record its position
-                    bestId = id;
-                    bestIdx = i;
-                    break;
+                    // we found this codepoint in vocab, add it as a token
+                    //logger.debug("{} -> {}", c, id);
+                    tokens.add(id);
+                } else {
+                    if (model.byteFallback) {
+                        // byte_fallback encoding: just encode each byte as a token
+                        String code = Character.toString(codes[i]);
+                        byte[] chars = code.getBytes(StandardCharsets.UTF_8);
+                        for (int k = 0; k < chars.length; k++) {
+                            long token = encodeCharacterAsToken(chars[k]);
+                            //logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
+                            tokens.add(token);
+                        }
+                    } else {
+                        if (model.unkToken != null) {
+                            tokens.add(model.vocabLookup.get(model.unkToken));
+                        }
+                    }
                 }
             }
 
-            if (bestIdx == -1) {
-                break; // we couldn't find any more pairs to merge, so we're done
+            // merge the best consecutive pair each iteration
+            while (true) {
+                long bestId = -1;
+                long bestIdx = -1;
+
+                for (int i = 0; i < tokens.size() - 1; i++) {
+                    // check if we can merge the pair (tokens[i], tokens[i+1])
+                    String merge = String.format("%s%s", decodeInternal(tokens.get(i)), decodeInternal(tokens.get(i + 1)));
+                    Long id = model.vocabLookup.get(merge);
+                    if (id != null) {
+                        // this merge pair exists in vocab! record its position
+                        bestId = id;
+                        bestIdx = i;
+                        break;
+                    }
+                }
+
+                if (bestIdx == -1) {
+                    break; // we couldn't find any more pairs to merge, so we're done
+                }
+
+                // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
+                tokens.set((int) bestIdx, bestId);
+                // delete token at position best_idx+1, shift the entire sequence back 1
+                tokens.remove((int) bestIdx + 1);
             }
 
-            // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
-            tokens.set((int)bestIdx, bestId);
-            // delete token at position best_idx+1, shift the entire sequence back 1
-            tokens.remove((int)bestIdx+1);
+            allTokens.addAll(tokens);
         }
 
-        return tokens.stream().mapToLong(s -> s).toArray();
+        return allTokens.stream().mapToLong(s -> s).toArray();
     }
 
     protected String postProcessToken(String decoded) {

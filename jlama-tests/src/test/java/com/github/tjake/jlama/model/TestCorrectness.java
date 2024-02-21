@@ -32,7 +32,7 @@ public class TestCorrectness {
 
     @Test
     public void testBPETokenizer() {
-        String modelPrefix = "models/Llama-2-7b-chat-hf";
+        String modelPrefix = "../models/Llama-2-7b-chat-hf";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
@@ -50,7 +50,7 @@ public class TestCorrectness {
 
     @Test
     public void TestLLamaTokenizer() throws IOException {
-        String modelPrefix = "models/Llama-2-7b-chat-hf";
+        String modelPrefix = "../models/Llama-2-7b-chat-hf";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
@@ -89,7 +89,7 @@ public class TestCorrectness {
                 3.6517e-04,  3.1623e-04,  2.7384e-04,  2.3714e-04,  2.0535e-04,
                 1.7783e-04,  1.5399e-04,  1.3335e-04,  1.1548e-04};
 
-        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(128, 4096 * 2, 10000.0 );
+        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(128, 4096 * 2, 10000.0 , 1.0);
 
         for (int i = 0; i < 64; i++)
             Assert.assertEquals(expected[i], ropeFreqs[i + 64][1], 0.0001);
@@ -114,7 +114,7 @@ public class TestCorrectness {
         List<List<Float>> real = om.readerFor(new TypeReference<ArrayList<ArrayList<Float>>>() {}).readValue(Resources.getResource("real.json"));
         List<List<Float>> imag = om.readerFor(new TypeReference<ArrayList<ArrayList<Float>>>() {}).readValue(Resources.getResource("imag.json"));
 
-        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(128, 2048, 10000.0 );
+        float[][] ropeFreqs = VectorMath.precomputeFreqsCis(128, 2048, 10000.0, 1.0 );
 
         Assert.assertEquals(imag.size(), real.size());
         Assert.assertEquals(ropeFreqs.length, real.size() * 64);
@@ -140,7 +140,7 @@ public class TestCorrectness {
     @Test
     public void testGptTokenizer() throws IOException
     {
-        String modelPrefix = "models/gpt2-medium";
+        String modelPrefix = "../models/gpt2-medium";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
@@ -159,8 +159,29 @@ public class TestCorrectness {
     }
 
     @Test
+    public void testNeoTokenizer() throws IOException
+    {
+        String modelPrefix = "../models/deepseek-coder-1.3b-base";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+
+        String p =  "#write a quicksort algorithm";
+
+        long[] actual = tokenizer.encode(p);
+        long[] expected = new long[]{2, 6449, 245, 3383, 3724, 6713};
+
+        String d = tokenizer.decode(actual);
+        System.out.println(d);
+
+        Assert.assertArrayEquals(expected, actual);
+        Assert.assertEquals(p, d);
+    }
+
+
+    @Test
     public void testBertTokenizer() throws IOException {
-        String modelPrefix = "models/e5-small-v2";
+        String modelPrefix = "../models/e5-small-v2";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new WordPieceTokenizer(Paths.get(modelPrefix));

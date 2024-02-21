@@ -29,8 +29,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,13 +97,25 @@ public class SafeTensorSupport {
 
     public static TokenizerModel loadTokenizer(Path modelRoot) throws IOException {
         File tokenizerJson = modelRoot.resolve("tokenizer.json").toFile();
-        Preconditions.checkArgument(tokenizerJson.exists(), "No tokenizer.jsom found in " + modelRoot);
+        Preconditions.checkArgument(tokenizerJson.exists(), "No tokenizer.json found in " + modelRoot);
 
         JsonNode rootNode = om.readTree(tokenizerJson);
         if (!rootNode.has("model"))
             throw new IllegalArgumentException("Json missing 'model' key");
 
-        return om.treeToValue(rootNode.get("model"), TokenizerModel.class);
+        TokenizerModel model = om.treeToValue(rootNode.get("model"), TokenizerModel.class);
+
+        if (rootNode.has("pre_tokenizer") && rootNode.get("pre_tokenizer") != null)
+            model.setPreTokenizer(om.treeToValue(rootNode.get("pre_tokenizer"), TokenizerModel.PreTokenizer.class));
+
+        File tokenizerConfigJson = modelRoot.resolve("tokenizer_config.json").toFile();
+        if (tokenizerConfigJson.exists()) {
+            JsonNode configNode = om.readTree(tokenizerConfigJson);
+            if (configNode.has("legacy"))
+                model.setLegacy(configNode.get("legacy").asBoolean());
+        }
+
+        return model;
     }
 
     public static Path quantizeModel(Path modelRoot, DType modelQuantization, String[] skipLayerPrefixes, String[] dropLayerPrefixes, Optional<Path> outputRoot) throws IOException {
@@ -217,9 +227,9 @@ public class SafeTensorSupport {
         return qPath;
     }
 
-    public static void maybeDownloadModel(String modelDir, Optional<String> modelOwner, String modelName, Optional<String> optionalAuthHeader, Optional<TriConsumer<String, Long, Long>> optionalProgressReporter) throws IOException {
+    public static void maybeDownloadModel(String modelDir, Optional<String> modelOwner, String modelName, Optional<String> optionalBranch, Optional<String> optionalAuthHeader, Optional<TriConsumer<String, Long, Long>> optionalProgressReporter) throws IOException {
         String hfModel = modelOwner.map(mo -> mo + "/" + modelName).orElse(modelName);
-        InputStream modelInfoStream = getResponse("https://huggingface.co/api/models/" + hfModel, optionalAuthHeader).left;
+        InputStream modelInfoStream = getResponse("https://huggingface.co/api/models/" + hfModel + "/tree/" + optionalBranch.orElse("main"), optionalAuthHeader).left;
         String modelInfo = readInputStream(modelInfoStream);
 
         if (modelInfo == null) {
@@ -235,7 +245,7 @@ public class SafeTensorSupport {
         boolean hasSafetensor = false;
         for (String currFile : allFiles) {
             String f = currFile.toLowerCase();
-            if (f.contains("safetensor") || f.contains("readme") || f.contains("config") || f.contains("tokenizer")) {
+            if (f.contains("safetensor") || f.contains("readme") || f.equals("config.json") || f.contains("tokenizer")) {
                 tensorFiles.add(currFile);
                 if (f.contains("safetensor")) {
                     hasSafetensor = true;
@@ -253,7 +263,7 @@ public class SafeTensorSupport {
         logger.info("Downloading model to: {}", localModelDir);
 
         for (String currFile : tensorFiles) {
-            downloadFile(hfModel, currFile, optionalAuthHeader, localModelDir.resolve(currFile), optionalProgressReporter, true);
+            downloadFile(hfModel, currFile, optionalBranch, optionalAuthHeader, localModelDir.resolve(currFile), optionalProgressReporter);
         }
     }
 
@@ -261,11 +271,10 @@ public class SafeTensorSupport {
         List<String> fileList = new ArrayList<>();
 
         ObjectMapper objectMapper = new ObjectMapper();
-        JsonNode rootNode = objectMapper.readTree(modelInfo);
-        JsonNode siblingsNode = rootNode.path("siblings");
+        JsonNode siblingsNode = objectMapper.readTree(modelInfo);
         if (siblingsNode.isArray()) {
             for (JsonNode siblingNode : siblingsNode) {
-                String rFilename = siblingNode.path("rfilename").asText();
+                String rFilename = siblingNode.path("path").asText();
                 fileList.add(rFilename);
             }
         }
@@ -309,9 +318,9 @@ public class SafeTensorSupport {
 
         return stringBuilder.toString();
     }
-    private static void downloadFile(String hfModel, String currFile, Optional<String> optionalAuthHeader, Path outputPath, Optional<TriConsumer<String,Long, Long>> optionalProgressConsumer, boolean required) throws IOException {
+    private static void downloadFile(String hfModel, String currFile, Optional<String> optionalBranch, Optional<String> optionalAuthHeader, Path outputPath, Optional<TriConsumer<String,Long, Long>> optionalProgressConsumer) throws IOException {
         try {
-            Pair<InputStream, Long> stream = getResponse("https://huggingface.co/" + hfModel + "/resolve/main/" + currFile, optionalAuthHeader);
+            Pair<InputStream, Long> stream = getResponse("https://huggingface.co/" + hfModel + "/resolve/" + optionalBranch.orElse("main") + "/" + currFile, optionalAuthHeader);
 
             if (optionalProgressConsumer.isEmpty())
                 logger.info("Downloading file: {}", outputPath);
@@ -344,16 +353,14 @@ public class SafeTensorSupport {
             try {
                 result.get();
             } catch (Throwable e) {
-                if (required)
-                    throw new IOException("Failed to download file: " + currFile, e);
+                throw new IOException("Failed to download file: " + currFile, e);
             }
 
             if (optionalProgressConsumer.isEmpty() && !result.isCompletedExceptionally())
                 logger.info("Downloaded file: {}", outputPath);
         }
         catch (IOException e) {
-            if (required)
-                throw e;
+            throw e;
         }
     }
 }
