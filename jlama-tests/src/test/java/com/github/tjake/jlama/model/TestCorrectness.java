@@ -3,6 +3,7 @@ package com.github.tjake.jlama.model;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
@@ -193,4 +194,25 @@ public class TestCorrectness {
 
         Assert.assertArrayEquals(expected, actual);
     }
+
+    @Test
+    public void testGemmaTokenizer() throws IOException
+    {
+        String modelPrefix = "../models/gemma-2b";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
+
+        String p = "Write me a poem about Machine Learning.";
+
+        long[] actual = tokenizer.encode(p);
+        long[] expected = new long[]{5559,    682,    476,  19592,   1105,  13403,  14715, 235265};
+
+        String d = tokenizer.decode(actual);
+        System.out.println(d);
+
+        Assert.assertArrayEquals(expected, actual);
+        Assert.assertEquals(p, d);
+    }
+
 }
