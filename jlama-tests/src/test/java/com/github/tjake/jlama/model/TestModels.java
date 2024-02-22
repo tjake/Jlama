@@ -4,6 +4,9 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
 import com.github.tjake.jlama.model.bert.BertTokenizer;
+import com.github.tjake.jlama.model.gemma.GemmaConfig;
+import com.github.tjake.jlama.model.gemma.GemmaModel;
+import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.mixtral.MixtralConfig;
 import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.safetensors.*;
@@ -124,6 +127,19 @@ public class TestModels {
             MixtralModel model = new MixtralModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Simply put, the theory of relativity states that";
             model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+        }
+    }
+
+    @Test
+    public void GemmaRun() throws Exception {
+        String modelPrefix = "../models/gemma-2b";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+            GemmaTokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
+            GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
+            GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
+            String prompt = "Simply put, the theory of relativity states that";
+            model.generate(UUID.randomUUID(), prompt, 0.9f, 256, false, makeOutHandler());
         }
     }
 

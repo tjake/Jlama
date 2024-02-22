@@ -3,6 +3,9 @@ package com.github.tjake.jlama.model;
 import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
 import com.github.tjake.jlama.model.bert.BertTokenizer;
+import com.github.tjake.jlama.model.gemma.GemmaConfig;
+import com.github.tjake.jlama.model.gemma.GemmaModel;
+import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.gpt2.GPT2Config;
 import com.github.tjake.jlama.model.gpt2.GPT2Model;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
@@ -35,6 +38,7 @@ public class ModelSupport {
 
 
     public enum ModelType {
+        GEMMA(GemmaModel.class, GemmaConfig.class, GemmaTokenizer.class),
         MISTRAL(MistralModel.class, MistralConfig.class, LlamaTokenizer.class),
         MIXTRAL(MixtralModel.class, MixtralConfig.class, LlamaTokenizer.class),
         LLAMA(LlamaModel.class, LlamaConfig.class, LlamaTokenizer.class),

@@ -9,8 +9,15 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 
 public class RMSNorm extends LayerNorm {
+    private final float weightAdjustment;
+
     public RMSNorm(AbstractModel m, AbstractTensor weights) {
+        this(m, weights, 0.0f);
+    }
+
+    public RMSNorm(AbstractModel m, AbstractTensor weights, float weightAdjustment) {
         super(m, null, weights);
+        this.weightAdjustment = weightAdjustment;
     }
 
     @Override
@@ -34,7 +41,7 @@ public class RMSNorm extends LayerNorm {
         // normalize and scale
         AbstractTensor output = input.copyShape();
         for (int j = offset; j < limit; j++) {
-            output.set(weights.get(j) * (ss * input.get(j)), j);
+            output.set((weightAdjustment + weights.get(j)) * (ss * input.get(j)), j);
         }
         return output;
     }

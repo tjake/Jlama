@@ -7,6 +7,7 @@
 ## 🚀 Features
 
 Model Support:
+  * Gemma Models
   * Llama & Llama2 Models
   * Mistral & Mixtral Models
   * GPT-2 Models
