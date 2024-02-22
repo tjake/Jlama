@@ -71,8 +71,6 @@ public abstract class AbstractModel implements Generator
     protected final DType workingDType;
     protected final DType workingQType;
     protected final Optional<DType> modelQType;
-    private static final ThreadLocal<AbstractTensor[]> tmpArray = new ThreadLocal<>();
-
     protected EmbedInput embedInput;
     protected SampleOutput sampleOutput;
     protected TransformerBlock[] transformerBlocks;
@@ -142,10 +140,6 @@ public abstract class AbstractModel implements Generator
         return c.tensorCache.get(workingDType, TensorShape.of(shape));
     }
 
-    public AbstractTensor makeFullTensor(TensorShape shape) {
-        return c.tensorCache.get(workingDType, shape);
-    }
-
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
         AbstractTensor t2 = c.tensorCache.get(t.dType(), t.shape());
         t2.copyFrom(t, 0, 0, Ints.checkedCast(t.size()));
@@ -179,33 +173,20 @@ public abstract class AbstractModel implements Generator
         return embedding;
     }
 
-    protected AbstractTensor[] batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
-        int batchSize = token_ids.length;
+    protected AbstractTensor batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
+        AbstractTensor last = null;
+        for (int i = 0; i < token_ids.length; i++) {
+            if (last != null)
+                last.close();
 
-        AbstractTensor[] embeddings = tmpArray.get();
-        if (embeddings == null || embeddings.length < batchSize) {
-            embeddings = new AbstractTensor[batchSize];
-            tmpArray.set(embeddings);
+            last = forward(token_ids[i], startPos + i, kvbuf);
         }
 
-        AbstractTensor[] emf = embeddings;
-        IntStream.range(0, batchSize).forEach(i -> emf[i] = embedInput.inputTokenToEmbedding(token_ids[i], startPos + i));
-
-        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
-            AbstractTensor kvlayer = kvbuf.slice(i);
-            for (int j = 0; j < batchSize; j++) {
-                AbstractTensor ref = embeddings[j];
-                embeddings[j] = transformerBlocks[i].forward(ref, startPos + j, kvlayer);
-                ref.close();
-            }
-        }
-
-        return embeddings;
+       return last;
     }
 
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
         try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
-
             AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
             AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
 
@@ -258,8 +239,8 @@ public abstract class AbstractModel implements Generator
         int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
 
         promptTokens[0] = c.bosToken;
-        for (int i = 1; i < encoded.length; i++)
-            promptTokens[i] = Ints.checkedCast(encoded[i]);
+        for (int i = 1; i <= encoded.length; i++)
+            promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
 
         int promptLength = encoded.length;
 
@@ -272,24 +253,22 @@ public abstract class AbstractModel implements Generator
         onTokenWithTimings.accept(clientPrompt, 0f);
         long start = System.currentTimeMillis();
         //Batch Process Prompt
-        AbstractTensor batch[] = batchForward(promptTokens, 0, kvmem);
+        AbstractTensor last = batchForward(promptTokens, 0, kvmem);
 
         long promptBatchTime = System.currentTimeMillis() - start;
-        logger.debug("{} prompt tokens in {}ms {} tokens/sec", promptLength, promptBatchTime, Math.round((((double)promptBatchTime)/(double)promptLength)));
+        float avgTime = Math.round((((double)promptBatchTime)/(double)promptLength));
+        logger.debug("{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, avgTime);
 
         int tokensGenerated = 0;
-        AbstractTensor last = batch[batch.length - 1];
-
         int next = sample(last, temperature, ThreadLocalRandom.current().nextFloat(), logits);
         try {
             String c = tokenizer.decode(next);
-            onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (0 + 1));
+            onTokenWithTimings.accept(c, avgTime);
         } catch (Exception e) {
             logger.error("Failed to decode token {}", next, e);
         }
-        start = System.currentTimeMillis();
-        for (int i = promptTokens.length - 1; i < ntokens; i++)
-        {
+
+        for (int i = promptTokens.length - 1; i < ntokens; i++) {
             AbstractTensor output = forward(next, i, kvmem);
             tokensGenerated++;
             next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);

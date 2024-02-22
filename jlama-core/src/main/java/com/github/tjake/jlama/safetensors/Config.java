@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.safetensors;
 
+import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.util.Pair;
@@ -17,6 +18,7 @@ public class Config {
     public final int numberOfHeads;
     public final int numberOfKeyValueHeads;
     public final int headSize;
+    public final ActivationFunction.Type activationFunction;
     public final int headGroupSize;
     public final int kvLength;
     public final boolean isGQA;
@@ -53,6 +55,7 @@ public class Config {
                   int vocabularySize,
                   int bosToken,
                   int eosToken,
+                  ActivationFunction.Type activationFunction,
                   Double ropeFreqsTheta,
                   Double ropeScalingFactor) {
         this.contextLength = contextLength;
@@ -70,6 +73,7 @@ public class Config {
         this.headGroupSize = numberOfHeads / numberOfKeyValueHeads;
         this.kvLength = numberOfKeyValueHeads * headSize;
         this.isGQA = numberOfKeyValueHeads < numberOfHeads;
+        this.activationFunction = activationFunction;
         this.ropeFreqs = ropeFreqsTheta == null ? Optional.empty() : Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfHeads, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
 
         // Set default values

@@ -1,7 +1,5 @@
 package com.github.tjake.jlama.model;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
@@ -21,7 +19,6 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.primitives.Ints;
 import org.jctools.queues.MpmcArrayQueue;
-import org.jctools.queues.MpscArrayQueue;
 
 import org.junit.Assert;
 import org.junit.Assume;
@@ -41,16 +38,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import com.google.common.util.concurrent.Uninterruptibles;
+
+import static com.github.tjake.jlama.util.JsonSupport.om;
 
 public class TestModels {
 
@@ -58,16 +53,11 @@ public class TestModels {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
     }
 
-    private static final ObjectMapper om = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
 
     @Test
     public void GPT2Run() throws IOException {
-        String modelPrefix = "models/gpt2-medium";
+        String modelPrefix = "../models/gpt2-medium";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix+"/model.safetensors", "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
@@ -136,7 +126,6 @@ public class TestModels {
             model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
         }
     }
-
 
     @Test
     public void testQuantize() throws Exception {

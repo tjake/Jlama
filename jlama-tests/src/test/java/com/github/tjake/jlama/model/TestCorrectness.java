@@ -1,8 +1,6 @@
 package com.github.tjake.jlama.model;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
@@ -22,13 +20,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static com.github.tjake.jlama.util.JsonSupport.om;
+
 
 public class TestCorrectness {
-    private static final ObjectMapper om = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
 
     @Test
     public void testBPETokenizer() {
@@ -177,7 +172,6 @@ public class TestCorrectness {
         Assert.assertArrayEquals(expected, actual);
         Assert.assertEquals(p, d);
     }
-
 
     @Test
     public void testBertTokenizer() throws IOException {

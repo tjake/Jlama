@@ -10,7 +10,7 @@ public class ActivationFunction {
     public static float eval(Type t, float x) {
         return switch (t) {
             case SILU -> (float) (x * (1.0f / (1.0f + exp(-x))));
-            case GELU -> (float) (x / (1 + exp(-1.702f * x)));
+            case GELU -> (float) ( 0.5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3)))));
         };
     }
 

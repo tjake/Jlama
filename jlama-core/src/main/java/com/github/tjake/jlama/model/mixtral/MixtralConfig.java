@@ -2,6 +2,7 @@ package com.github.tjake.jlama.model.mixtral;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 
 public class MixtralConfig extends Config {
@@ -22,9 +23,10 @@ public class MixtralConfig extends Config {
                          @JsonProperty("bos_token_id") int bosToken,
                          @JsonProperty("eos_token_id") int eosToken,
                          @JsonProperty("rope_theta") Double ropeTheta,
+                         @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
                          @JsonProperty("num_local_experts") int numberOfExperts,
                          @JsonProperty("num_experts_per_tok") int numberOfExpertsPerToken) {
-        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, ropeTheta, 1.0);
+        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, activationFunction, ropeTheta, 1.0);
 
         this.numberOfExperts = numberOfExperts;
         this.numberOfExpertsPerToken = numberOfExpertsPerToken;

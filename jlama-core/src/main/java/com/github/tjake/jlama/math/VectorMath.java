@@ -124,13 +124,6 @@ public class VectorMath {
             x[i] /= magnitude;
     }
 
-    // https://pytorch.org/docs/stable/generated/torch.polar.html
-    public static float[] polar(float abs, float angle) {
-        float r = (float) StrictMath.cos(angle) * abs;
-        float theta = (float) StrictMath.sin(angle) * abs ;
-        return new float[] {r, theta};
-    }
-
     public static float[] outerProduct(float[] xs, float[] ys) {
         int n = xs.length;
         int m = ys.length;
@@ -158,7 +151,7 @@ public class VectorMath {
 
         float[][] r = new float[freqs_cis.length][];
         for (int i = 0; i < freqs_cis.length; i++)
-            r[i] = polar(1.0f, freqs_cis[i]);
+            r[i] = new float[]{(float) StrictMath.cos(freqs_cis[i]), (float) StrictMath.sin(freqs_cis[i])};
 
         return r;
     }

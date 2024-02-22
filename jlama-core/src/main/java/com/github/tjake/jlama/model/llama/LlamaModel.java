@@ -64,7 +64,7 @@ public class LlamaModel extends AbstractModel {
 
             prefix = base + "mlp.";
 
-            MLPBlock mlp = new MLPBlock(this, ActivationFunction.Type.SILU,
+            MLPBlock mlp = new MLPBlock(this, c.activationFunction,
                     weights.load(prefix + "gate_proj.weight", c.offset()).quantize(qType), //w1
                     weights.load(prefix + "down_proj.weight").quantize(qType), //w2
                     weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType));  //w3

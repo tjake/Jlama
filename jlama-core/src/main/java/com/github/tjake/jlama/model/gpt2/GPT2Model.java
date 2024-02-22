@@ -53,7 +53,7 @@ public class GPT2Model extends AbstractModel {
                     weights.load(prefix + "c_proj.bias"), weights.load(prefix + "c_proj.weight").transpose());
 
             prefix = b + "mlp.";
-            MLPBlock mlpBlock = new MLPBlock(this, ActivationFunction.Type.GELU,
+            MLPBlock mlpBlock = new MLPBlock(this, c.activationFunction,
                     weights.load(prefix + "c_fc.bias"), weights.load(prefix + "c_fc.weight").transpose(),
                     weights.load(prefix + "c_proj.bias"), weights.load( prefix + "c_proj.weight").transpose()
             );

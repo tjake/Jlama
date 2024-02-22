@@ -60,7 +60,7 @@ public class MixtralModel extends MistralModel {
             }
 
 
-            MoEBlock moe = new MoEBlock(this, mixtralConfig.numberOfExperts, mixtralConfig.numberOfExpertsPerToken, ActivationFunction.Type.SILU,
+            MoEBlock moe = new MoEBlock(this, mixtralConfig.numberOfExperts, mixtralConfig.numberOfExpertsPerToken, c.activationFunction,
                     weights.load(prefix + "gate.weight", c.offset()).quantize(qType),
                     expertGateWeights, //w1
                     expertDownWeights, //w2

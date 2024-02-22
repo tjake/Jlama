@@ -16,7 +16,7 @@ public class FloatConversions {
      * From https://github.com/stripe-archive/agate/blob/master/core/src/main/scala/com/stripe/agate/tensor/BFloat16.scala
      */
     public static float bFloat16ToFloat32(short raw) {
-        return Float.intBitsToFloat((raw & 0xffff) << 16);
+        return Float.intBitsToFloat(raw << 16);
     }
 
     public static short float32ToBFloat16(float n) {

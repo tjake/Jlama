@@ -2,6 +2,7 @@ package com.github.tjake.jlama.model.llama;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 
 import java.util.Map;
@@ -19,9 +20,10 @@ public class LlamaConfig extends Config {
                         @JsonProperty("vocab_size") int vocabularySize,
                         @JsonProperty("bos_token_id") int bosToken,
                         @JsonProperty("eos_token_id") int eosToken,
-                        @JsonProperty(value = "rope_theta") Double ropeFreqsTheta,
-                        @JsonProperty(value = "rope_scaling") Map<String,String> ropeScaling) {
-        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken,
+                        @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
+                        @JsonProperty("rope_theta") Double ropeFreqsTheta,
+                        @JsonProperty("rope_scaling") Map<String,String> ropeScaling) {
+        super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfKeyValueHeads, numberOfLayers, layerNormEps, vocabularySize, bosToken, eosToken, activationFunction,
                 ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
                 ropeScaling == null ? 1.0 : Double.parseDouble(ropeScaling.get("factor")));
     }
