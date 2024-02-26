@@ -37,6 +37,9 @@ public class MachineSpec {
             if (preferredBits == 128 && RuntimeSupport.isArm())
                 tmp = Type.ARM_128;
 
+            if (tmp == Type.NONE)
+                logger.warn("Unknown vector type: {}", preferredBits);
+
         } catch (Throwable t) {
             logger.warn("Java SIMD Vector API *not* available. Add --add-modules=jdk.incubator.vector to your JVM options");
         }
