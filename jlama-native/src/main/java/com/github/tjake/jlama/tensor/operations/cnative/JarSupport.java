@@ -18,7 +18,7 @@ import com.github.tjake.jlama.util.RuntimeSupport;
 public class JarSupport {
     private static final Logger logger = LoggerFactory.getLogger(JarSupport.class);
     static boolean maybeLoadLibrary() {
-        String ext = RuntimeSupport.isMac() ? ".dylib" : ".so";
+        String ext = RuntimeSupport.isMac() ? ".dylib" : RuntimeSupport.isWin() ? ".dll" : ".so";
         URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/libjlama" + ext);
 
         if (lib != null) {
