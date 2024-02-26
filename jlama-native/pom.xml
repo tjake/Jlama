@@ -222,7 +222,7 @@
   </build>
   </profile>
   <profile>
-    <id>mac-m1-cross-compile</id>
+    <id>mac-m1</id>
     <activation>
       <os>
         <family>mac</family>
