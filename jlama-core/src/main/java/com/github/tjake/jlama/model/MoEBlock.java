@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.ActivationFunction;
@@ -6,7 +21,6 @@ import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -30,8 +44,15 @@ public class MoEBlock implements FeedForward {
     private final AbstractTensor[] batchWeights;
     private final List<AbstractTensor> tmpTensors1;
 
-
-    public MoEBlock(AbstractModel model, int numberOfExperts, int numberOfExpertsPerToken, ActivationFunction.Type activationFunction, AbstractTensor moeGateWeight, AbstractTensor[] fullyConnectedWeights, AbstractTensor[] projectionWeights, AbstractTensor[] upProjectionWeights) {
+    public MoEBlock(
+            AbstractModel model,
+            int numberOfExperts,
+            int numberOfExpertsPerToken,
+            ActivationFunction.Type activationFunction,
+            AbstractTensor moeGateWeight,
+            AbstractTensor[] fullyConnectedWeights,
+            AbstractTensor[] projectionWeights,
+            AbstractTensor[] upProjectionWeights) {
         this.model = model;
         this.numberOfExperts = numberOfExperts;
         this.numberOfExpertsPerToken = numberOfExpertsPerToken;
@@ -53,11 +74,21 @@ public class MoEBlock implements FeedForward {
         int hiddenLength = model.c.hiddenLength;
         AbstractTensor result = model.makeTensor(model.c.embeddingLength);
 
-        try (AbstractTensor buf = model.makeTensor(hiddenLength); AbstractTensor buf2 = model.makeTensor(hiddenLength); AbstractTensor moeResult = model.makeTensor(model.c.embeddingLength)) {
+        try (AbstractTensor buf = model.makeTensor(hiddenLength);
+                AbstractTensor buf2 = model.makeTensor(hiddenLength);
+                AbstractTensor moeResult = model.makeTensor(model.c.embeddingLength)) {
 
             // Apply each experts gate to the input
             VectorMath.pfor(0, numberOfExperts, i -> {
-                expertResults.set(TensorOperationsProvider.get().dotProduct(lnemb, moeGateWeight.slice(true, i), model.c.embeddingSegmentStart(), model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()), i);
+                expertResults.set(
+                        TensorOperationsProvider.get()
+                                .dotProduct(
+                                        lnemb,
+                                        moeGateWeight.slice(true, i),
+                                        model.c.embeddingSegmentStart(),
+                                        model.c.embeddingSegmentStart(),
+                                        model.c.embeddingSegmentLength()),
+                        i);
             });
 
             tensorReducer.ifPresent(func -> {
@@ -77,7 +108,15 @@ public class MoEBlock implements FeedForward {
                 batchResults[1] = buf2;
 
                 VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
-                    TensorOperationsProvider.get().dotProductBatchChunk(batchResults, lnemb, batchWeights, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), chunkStart, chunkSize);
+                    TensorOperationsProvider.get()
+                            .dotProductBatchChunk(
+                                    batchResults,
+                                    lnemb,
+                                    batchWeights,
+                                    model.c.embeddingSegmentStart(),
+                                    model.c.embeddingSegmentLength(),
+                                    chunkStart,
+                                    chunkSize);
                 });
 
                 tensorReducer.ifPresent(func -> {
@@ -95,15 +134,27 @@ public class MoEBlock implements FeedForward {
 
                 TensorOperationsProvider.get().maccumulate(buf, buf2, 0, hiddenLength);
 
-                //matmul the projection and sum into result
-                VectorMath.pchunk(model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
-                    TensorOperationsProvider.get().dotProductChunk(moeResult, buf, projectionWeight, 0, hiddenLength, chunkStart, chunkSize);
-                });
+                // matmul the projection and sum into result
+                VectorMath.pchunk(
+                        model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                            TensorOperationsProvider.get()
+                                    .dotProductChunk(
+                                            moeResult, buf, projectionWeight, 0, hiddenLength, chunkStart, chunkSize);
+                        });
 
                 if (i == 0) {
-                    result.copyFrom(moeResult, moeResult.getOffset(model.c.embeddingSegmentStart()), result.getOffset(model.c.embeddingSegmentStart()), model.c.embeddingSegmentLength());
+                    result.copyFrom(
+                            moeResult,
+                            moeResult.getOffset(model.c.embeddingSegmentStart()),
+                            result.getOffset(model.c.embeddingSegmentStart()),
+                            model.c.embeddingSegmentLength());
                 } else {
-                    TensorOperationsProvider.get().accumulate(result, moeResult, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+                    TensorOperationsProvider.get()
+                            .accumulate(
+                                    result,
+                                    moeResult,
+                                    model.c.embeddingSegmentStart(),
+                                    model.c.embeddingSegmentLength());
                 }
             }
 

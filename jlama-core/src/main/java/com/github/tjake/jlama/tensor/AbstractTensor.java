@@ -1,22 +1,35 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
-import com.google.common.base.Preconditions;
-
 import com.github.tjake.jlama.safetensors.TensorInfo;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import jdk.incubator.vector.Vector;
-import jdk.incubator.vector.VectorMask;
-import jdk.incubator.vector.VectorSpecies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+import jdk.incubator.vector.Vector;
+import jdk.incubator.vector.VectorMask;
+import jdk.incubator.vector.VectorSpecies;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A Tensor is a multi-dimensional array of data.
  * See {@link FloatBufferTensor} for primary impl.
@@ -54,36 +67,35 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     /** Number of dimensions */
-    final public int dims() {
+    public final int dims() {
         return shape.dims();
     }
 
     /** Represents the dimensions of the tensor */
-    final public TensorShape shape() {
+    public final TensorShape shape() {
         return shape;
     }
 
     /** Total capacity of the tensor */
-    final public long size() {
+    public final long size() {
         return shape.size();
     }
 
     /** Get a value at the given coordinates */
-    public abstract float get(int ...dims);
+    public abstract float get(int... dims);
 
     /** Set a value at the given coordinates */
-    public abstract void set(float v, int ...dims);
+    public abstract void set(float v, int... dims);
 
-    public AbstractTensor slice(int ...dims) {
+    public AbstractTensor slice(int... dims) {
         return slice(false, dims);
     }
 
     /** Get a slice of the tensor along the given dimension */
-    public AbstractTensor slice(boolean cacheInnerSlice, int ...dims) {
+    public AbstractTensor slice(boolean cacheInnerSlice, int... dims) {
         Preconditions.checkArgument(dims.length < shape.dims(), "Too many dimensions specified for tensor");
 
-        if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null)
-            return sliceCache[dims[0]];
+        if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null) return sliceCache[dims[0]];
 
         TensorShape slicedShape = shape.slice(dims.length);
 
@@ -98,12 +110,10 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         }
 
         int length = slicedShape.sparseLength();
-        for (int i = 0; i < slicedShape.dims() - 1; i++)
-            length *= slicedShape.dim(i);
+        for (int i = 0; i < slicedShape.dims() - 1; i++) length *= slicedShape.dim(i);
 
         AbstractTensor r = this.make(totalOffset, length, slicedShape, cacheInnerSlice);
-        if (dims.length == 1 && sliceCache != null)
-            sliceCache[dims[0]] = r;
+        if (dims.length == 1 && sliceCache != null) sliceCache[dims[0]] = r;
 
         return r;
     }
@@ -113,27 +123,23 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
      * the range of in last dimension.
      */
     public AbstractTensor<V, T, A> sparsify(int offset, int length) {
-        if (shape.isSparse())
-            return this;
+        if (shape.isSparse()) return this;
 
-        if(length == shape.last())
-            return this;
+        if (length == shape.last()) return this;
 
-        AbstractTensor<V,T,A> sparseT = this.make(shape.sparsify(offset, length));
+        AbstractTensor<V, T, A> sparseT = this.make(shape.sparsify(offset, length));
         int originalLength = shape.last();
 
         int[] cursor = new int[shape.dims()];
 
-        try
-        {
-            do
-            {
+        try {
+            do {
                 cursor[cursor.length - 1] = offset;
                 sparseT.copyFrom(this, getOffset(cursor), sparseT.getOffset(cursor), length);
-                cursor[cursor.length - 1] = originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
-            }
-            while (iterate(cursor));
-        }catch (Throwable t) {
+                cursor[cursor.length - 1] =
+                        originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
+            } while (iterate(cursor));
+        } catch (Throwable t) {
             logger.warn("Cursor = {}", Arrays.toString(cursor), t);
             throw t;
         }
@@ -151,7 +157,8 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
         TensorShape newShape = shape.setDimValue(dim, innerLength);
         for (int i = 0; i < numChunks; i++) {
-            chunks[i] = this.make(Ints.checkedCast(i * newShape.size()), Ints.checkedCast(newShape.size()), newShape, true);
+            chunks[i] =
+                    this.make(Ints.checkedCast(i * newShape.size()), Ints.checkedCast(newShape.size()), newShape, true);
         }
 
         return chunks;
@@ -164,7 +171,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
      * @param cursor
      * @return false if cursor has hit its limit, otherwise true
      */
-    final public boolean iterate(int[] cursor) {
+    public final boolean iterate(int[] cursor) {
         Preconditions.checkArgument(cursor.length == shape.dims());
 
         for (int i = cursor.length - 1; i >= 0; i--) {
@@ -174,15 +181,14 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
                 break;
             } else {
                 cursor[i] = 0;
-                if (i == 0)
-                    return false;
+                if (i == 0) return false;
             }
         }
 
         return true;
     }
 
-    final public int getOffset(int... dims) {
+    public final int getOffset(int... dims) {
         Preconditions.checkArgument(dims.length == shape.dims(), "Method requires all dimensions specified");
         int totalOffset = 0;
 
@@ -199,13 +205,12 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     /** Transpose the tensor across all dimensions*/
-    final public AbstractTensor transpose() {
+    public final AbstractTensor transpose() {
         Preconditions.checkArgument(!shape.isSparse(), "Cannot transpose a sparse tensor");
 
-        //Reverse the dimensions
+        // Reverse the dimensions
         int[] tshape = new int[dims()];
-        for (int i = 0; i < tshape.length; i++)
-            tshape[i] = shape.dim(shape.dims() - i - 1);
+        for (int i = 0; i < tshape.length; i++) tshape[i] = shape.dim(shape.dims() - i - 1);
 
         AbstractTensor tt = this.make(TensorShape.of(tshape));
         int[] cursor = new int[dims()];
@@ -213,22 +218,22 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         do {
             float v = this.get(cursor);
 
-            //1000(0), 100(0), 10(1) -> 1
-            //10, 100, 1000 -> 10001
-            for (int i = 0; i < tcursor.length; i++)
-                tcursor[i] = cursor[cursor.length - i - 1];
+            // 1000(0), 100(0), 10(1) -> 1
+            // 10, 100, 1000 -> 10001
+            for (int i = 0; i < tcursor.length; i++) tcursor[i] = cursor[cursor.length - i - 1];
 
             tt.set(v, tcursor);
-        } while(iterate(cursor));
+        } while (iterate(cursor));
 
         return tt;
     }
 
-    final public DType dType() {
+    public final DType dType() {
         return dType;
     }
 
     public abstract A getArray();
+
     public abstract int getArrayOffset(int offset);
 
     public abstract V getVector(VectorSpecies<T> species, int offset);
@@ -249,8 +254,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     public abstract void clear();
 
     public void close() {
-        if (originCache != null)
-            originCache.release(this);
+        if (originCache != null) originCache.release(this);
     }
 
     void setOwnerCache(TensorCache cache) {
@@ -259,8 +263,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public AbstractTensor quantize(DType dType) {
 
-        if (this.dims() != 2 || this.dType == dType)
-            return this;
+        if (this.dims() != 2 || this.dType == dType) return this;
 
         if (shape.isSparse()) {
             logger.info("Quantizing sparse tensor is not supported");
@@ -284,10 +287,9 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         out.write(bb);
 
         long[] lshape = new long[shape.dims()];
-        for (int i = 0; i < shape.dims(); i++)
-            lshape[i] = shape.dim(i);
+        for (int i = 0; i < shape.dims(); i++) lshape[i] = shape.dim(i);
 
-        return new TensorInfo(dType, lshape, new long[]{startOffset, out.position()});
+        return new TensorInfo(dType, lshape, new long[] {startOffset, out.position()});
     }
 
     public void debug(String id) {

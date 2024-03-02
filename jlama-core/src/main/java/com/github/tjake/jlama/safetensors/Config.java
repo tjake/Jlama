@@ -1,15 +1,28 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.util.Pair;
-
-import java.io.File;
-import java.util.Optional;
-
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
+import java.io.File;
+import java.util.Optional;
 
 public class Config {
     public final int contextLength;
@@ -31,7 +44,7 @@ public class Config {
     private volatile Optional<Pair<Integer, Integer>> offset;
     private volatile File workingDirectory;
 
-    //Suppliers to store values that chance when offset is adjusted
+    // Suppliers to store values that chance when offset is adjusted
     private volatile int embeddingSegmentStart;
     private volatile int embeddingSegmentLength;
     private volatile int embeddingSegmentEnd;
@@ -45,19 +58,20 @@ public class Config {
 
     public final TensorCache tensorCache;
 
-    public Config(int contextLength,
-                  int embeddingLength,
-                  int hiddenLength,
-                  int numberOfHeads,
-                  int numberOfKeyValueHeads,
-                  int numberOfLayers,
-                  float layerNormEps,
-                  int vocabularySize,
-                  int bosToken,
-                  int eosToken,
-                  ActivationFunction.Type activationFunction,
-                  Double ropeFreqsTheta,
-                  Double ropeScalingFactor) {
+    public Config(
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfKeyValueHeads,
+            int numberOfLayers,
+            float layerNormEps,
+            int vocabularySize,
+            int bosToken,
+            int eosToken,
+            ActivationFunction.Type activationFunction,
+            Double ropeFreqsTheta,
+            Double ropeScalingFactor) {
         this.contextLength = contextLength;
         this.embeddingLength = embeddingLength;
         this.hiddenLength = hiddenLength;
@@ -74,7 +88,13 @@ public class Config {
         this.kvLength = numberOfKeyValueHeads * headSize;
         this.isGQA = numberOfKeyValueHeads < numberOfHeads;
         this.activationFunction = activationFunction;
-        this.ropeFreqs = ropeFreqsTheta == null ? Optional.empty() : Optional.of(VectorMath.precomputeFreqsCis(embeddingLength / numberOfHeads, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
+        this.ropeFreqs = ropeFreqsTheta == null
+                ? Optional.empty()
+                : Optional.of(VectorMath.precomputeFreqsCis(
+                        embeddingLength / numberOfHeads,
+                        contextLength,
+                        ropeFreqsTheta,
+                        ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
 
         // Set default values
         setOffset(null);

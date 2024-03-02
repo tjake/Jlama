@@ -185,8 +185,6 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-            <!-- optional: limit format enforcement to just the files changed by this feature branch -->
-            <ratchetFrom>origin/main</ratchetFrom>
             <formats>
               <!-- you can define as many formats as you want, each is independent -->
               <format>
@@ -208,13 +206,13 @@
             <java>
               <!-- no need to specify files, inferred automatically, but you can if you want -->
 
+              <removeUnusedImports /> <!-- self-explanatory -->
               <!-- apply a specific flavor of google-java-format and reflow long strings -->
-              <googleJavaFormat>
-                <version>1.20.0</version>
-                <style>AOSP</style>
-                <reflowLongStrings>true</reflowLongStrings>
-                <formatJavadoc>false</formatJavadoc>
-              </googleJavaFormat>
+              <palantirJavaFormat>
+                <version>2.40.0</version>                     <!-- optional -->
+                <style>PALANTIR</style>                       <!-- or AOSP/GOOGLE (optional) -->
+                <formatJavadoc>false</formatJavadoc>          <!-- defaults to false (optional, requires at least Palantir 2.39.0) -->
+              </palantirJavaFormat>
 
               <!-- make sure every file has the following copyright header.
                 optionally, Spotless can set copyright years by digging

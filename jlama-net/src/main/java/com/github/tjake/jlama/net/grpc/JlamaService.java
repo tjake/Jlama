@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.net.grpc;
 
 import com.github.tjake.jlama.model.AbstractModel;
@@ -7,14 +22,8 @@ import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.Descriptors;
 import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.stub.StreamObserver;
-import jdk.incubator.vector.FloatVector;
-import org.jctools.queues.MpmcArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
@@ -25,6 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import jdk.incubator.vector.FloatVector;
+import org.jctools.queues.MpmcArrayQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(JlamaService.class);
@@ -34,13 +47,16 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
     private final GeneratorGroup generatorGroup;
 
-    private final ConcurrentMap<String, MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>>> combinations;
+    private final ConcurrentMap<String, MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>>>
+            combinations;
     private final int headSize;
     private final int headCount;
     private final int headsPerWorker;
 
     public JlamaService(AbstractModel model, int workerCount) {
-        Preconditions.checkArgument(workerCount <= model.getConfig().numberOfKeyValueHeads, "Worker count must be less than or equal to number of KV heads");
+        Preconditions.checkArgument(
+                workerCount <= model.getConfig().numberOfKeyValueHeads,
+                "Worker count must be less than or equal to number of KV heads");
         this.model = model;
         this.workerCount = workerCount;
         this.workers = new ConcurrentHashMap<>();
@@ -94,7 +110,10 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 int offset = workers.size() * headsPerWorker * headSize;
                 int length = headsPerWorker * headSize;
 
-                RegisterResponse r = RegisterResponse.newBuilder().setOffset(offset).setLength(length).build();
+                RegisterResponse r = RegisterResponse.newBuilder()
+                        .setOffset(offset)
+                        .setLength(length)
+                        .build();
                 workers.put(wid, r);
                 logger.info("Registered worker {} with offset {} and length {}", wid, offset, length);
 
@@ -121,46 +140,49 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         return new StreamObserver<>() {
             @Override
-            public void onNext(CombineRequest request)
-            {
-                String key = STR."\{UUID.nameUUIDFromBytes(request.getUuid().toByteArray())}:\{request.getLayer()}";
-                MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>> members = combinations.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount + 1));
+            public void onNext(CombineRequest request) {
+                String key = String.format(
+                        "%s:%d", UUID.nameUUIDFromBytes(request.getUuid().toByteArray()), request.getLayer());
+                MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>> members =
+                        combinations.computeIfAbsent(key, k -> new MpmcArrayQueue<>(workerCount + 1));
                 members.add(Pair.create(request, responseObserver));
 
                 // If we have all the workers, then we can calculate the result and send it back
-                if (members.size() == workerCount && combinations.remove(key, members))
-                {
+                if (members.size() == workerCount && combinations.remove(key, members)) {
                     float sumSq = 0;
                     float sum = 0;
                     MemorySegment[] tensors = null;
-                    for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members)
-                    {
+                    for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
                         sumSq += f.left.getSumSq();
                         sum += f.left.getSum();
                         if (f.left.getTensorCount() > 0) {
                             if (tensors == null) {
                                 tensors = new MemorySegment[f.left.getTensorCount()];
                                 for (int i = 0; i < tensors.length; i++) {
-                                    ByteBuffer bb = ByteBuffer.wrap(f.left.getTensor(i).toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
+                                    ByteBuffer bb = ByteBuffer.wrap(
+                                                    f.left.getTensor(i).toByteArray())
+                                            .order(ByteOrder.LITTLE_ENDIAN);
                                     tensors[i] = MemorySegment.ofBuffer(bb);
                                 }
                             } else {
                                 for (int i = 0; i < tensors.length; i++) {
-                                    MemorySegment ms = MemorySegment.ofBuffer(f.left.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN));
-                                    //Sum float buffers
+                                    MemorySegment ms = MemorySegment.ofBuffer(f.left.getTensor(i)
+                                            .asReadOnlyByteBuffer()
+                                            .order(ByteOrder.LITTLE_ENDIAN));
+                                    // Sum float buffers
                                     accumulateF32(tensors[i], ms, (int) tensors[i].byteSize() / Float.BYTES);
                                 }
                             }
                         }
                     }
 
-                    CombineResponse.Builder responseBuilder = CombineResponse.newBuilder()
-                            .setSumSq(sumSq)
-                            .setSum(sum);
+                    CombineResponse.Builder responseBuilder =
+                            CombineResponse.newBuilder().setSumSq(sumSq).setSum(sum);
 
                     if (tensors != null) {
                         for (int i = 0; i < tensors.length; i++)
-                            responseBuilder = responseBuilder.addTensor(UnsafeByteOperations.unsafeWrap(tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
+                            responseBuilder = responseBuilder.addTensor(UnsafeByteOperations.unsafeWrap(
+                                    tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
                     }
 
                     CombineResponse response = responseBuilder.build();
@@ -173,16 +195,10 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             }
 
             @Override
-            public void onError(Throwable throwable)
-            {
-
-            }
+            public void onError(Throwable throwable) {}
 
             @Override
-            public void onCompleted()
-            {
-
-            }
+            public void onCompleted() {}
         };
     }
 
@@ -192,8 +208,10 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
             int fi = i * Float.BYTES;
-            FloatVector va = FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, a, fi, ByteOrder.LITTLE_ENDIAN);
-            FloatVector vb = FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, b, fi, ByteOrder.LITTLE_ENDIAN);
+            FloatVector va =
+                    FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, a, fi, ByteOrder.LITTLE_ENDIAN);
+            FloatVector vb =
+                    FloatVector.fromMemorySegment(FloatVector.SPECIES_PREFERRED, b, fi, ByteOrder.LITTLE_ENDIAN);
             va.add(vb).intoMemorySegment(a, fi, ByteOrder.LITTLE_ENDIAN);
         }
 
@@ -222,8 +240,15 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         public AbstractTensor generateNextOutput(UUID session, int tokenId, int position) {
             Preconditions.checkArgument(generators.size() == workerCount, "Missing workers %d", workers.size());
-            ByteString sid = ByteString.copyFrom(ByteBuffer.allocate(128).putLong(session.getMostSignificantBits()).putLong(session.getLeastSignificantBits()).flip());
-            GenerateResponse gr = GenerateResponse.newBuilder().setSession(sid).setToken(tokenId).setPosition(position).build();
+            ByteString sid = ByteString.copyFrom(ByteBuffer.allocate(128)
+                    .putLong(session.getMostSignificantBits())
+                    .putLong(session.getLeastSignificantBits())
+                    .flip());
+            GenerateResponse gr = GenerateResponse.newBuilder()
+                    .setSession(sid)
+                    .setToken(tokenId)
+                    .setPosition(position)
+                    .build();
             for (Generator g : generators) {
                 g.registerLatch(session);
                 g.responseObserver.onNext(gr);
@@ -235,13 +260,14 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 ByteString v = g.waitForOutput(session);
                 RegisterResponse r = workers.get(g.workerId);
 
-                FloatBuffer f = v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
-                for(int i = 0; i < r.getLength(); i++) {
+                FloatBuffer f =
+                        v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+                for (int i = 0; i < r.getLength(); i++) {
                     output.set(f.get(), r.getOffset() + i);
                 }
             }
 
-            //logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
+            // logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
 
             return output;
         }
@@ -255,7 +281,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         private final StreamObserver<GenerateResponse> responseObserver;
         private final ConcurrentMap<UUID, ByteString> outputs;
         private final ConcurrentMap<UUID, CountDownLatch> outputLatches;
-
 
         public Generator(StreamObserver<GenerateResponse> responseObserver) {
             this.workerId = null;
@@ -297,13 +322,11 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         public ByteString waitForOutput(UUID session) {
             CountDownLatch latch = outputLatches.get(session);
-            if (latch == null)
-                throw new RuntimeException("No latch registered for session " + session);
+            if (latch == null) throw new RuntimeException("No latch registered for session " + session);
 
             Uninterruptibles.awaitUninterruptibly(latch);
             ByteString output = outputs.get(session);
-            if (output == null)
-                throw new RuntimeException("No output received for session " + session);
+            if (output == null) throw new RuntimeException("No output received for session " + session);
 
             outputs.remove(session);
             return output;

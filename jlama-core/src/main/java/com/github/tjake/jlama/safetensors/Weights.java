@@ -1,18 +1,30 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.tensor.*;
-
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +36,11 @@ public class Weights implements WeightLoader {
     private final DType majorityDType;
     private final Optional<WeightLoader> parent;
 
-    Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes, Optional<WeightLoader> parent) {
+    Weights(
+            Map<String, String> metadata,
+            Map<String, TensorInfo> tensorInfoMap,
+            ByteBuffer bytes,
+            Optional<WeightLoader> parent) {
         this.metadata = ImmutableMap.copyOf(metadata);
         this.tensorInfoMap = ImmutableMap.copyOf(tensorInfoMap);
         this.bytes = bytes.duplicate();
@@ -48,7 +64,7 @@ public class Weights implements WeightLoader {
             }
         }
 
-        //FIXME don't really support B16 atm
+        // FIXME don't really support B16 atm
         return maxType == DType.BF16 || maxType == DType.F16 ? DType.F32 : maxType;
     }
 
@@ -65,13 +81,13 @@ public class Weights implements WeightLoader {
     @Override
     public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) throws NoSuchElementException {
         TensorInfo info = tensorInfoMap.get(name);
-        if (info == null)
-            throw new NoSuchElementException(name + " not found in weights");
+        if (info == null) throw new NoSuchElementException(name + " not found in weights");
 
         if (info.shape.length < 1)
             throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name);
 
-        ByteBuffer b = bytes.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+        ByteBuffer b = bytes.duplicate()
+                .order(ByteOrder.LITTLE_ENDIAN)
                 .position(Ints.checkedCast(info.dataOffsets[0]))
                 .limit(Ints.checkedCast(info.dataOffsets[1]));
 
@@ -82,7 +98,7 @@ public class Weights implements WeightLoader {
         switch (info.dType) {
             case F32:
                 fb = b.asFloatBuffer().slice();
-                t =  new FloatBufferTensor(name, fb, TensorShape.of(info.shape), true);
+                t = new FloatBufferTensor(name, fb, TensorShape.of(info.shape), true);
                 break;
             case F16:
                 // If the majority of the weights are F32 then convert to F32
@@ -94,14 +110,14 @@ public class Weights implements WeightLoader {
                         float v = Float.float16ToFloat(s);
                         bb.putFloat(i, v);
                     }
-                    t =  new FloatBufferTensor(bb.asFloatBuffer(), TensorShape.of(info.shape), true);
+                    t = new FloatBufferTensor(bb.asFloatBuffer(), TensorShape.of(info.shape), true);
                 } else {
                     sb = b.asShortBuffer().slice();
-                    t =  new Float16BufferTensor(name, sb, TensorShape.of(info.shape), true);
+                    t = new Float16BufferTensor(name, sb, TensorShape.of(info.shape), true);
                 }
                 break;
             case BF16:
-                //For now always convert to F32
+                // For now always convert to F32
                 len = b.remaining() / DType.F16.size();
                 fb = FloatBuffer.allocate(len);
                 for (int i = 0; i < len; i++) {
@@ -133,11 +149,7 @@ public class Weights implements WeightLoader {
 
     @Override
     public String toString() {
-        return "SafeTensor{" +
-                "metadata=" + metadata +
-                ", tensorInfoMap=" + tensorInfoMap +
-                ", bytes=" + bytes +
-                '}';
+        return "SafeTensor{" + "metadata=" + metadata + ", tensorInfoMap=" + tensorInfoMap + ", bytes=" + bytes + '}';
     }
 
     @Override
@@ -154,7 +166,5 @@ public class Weights implements WeightLoader {
     }
 
     @Override
-    public void close() throws Exception {
-
-    }
+    public void close() throws Exception {}
 }

@@ -1,16 +1,31 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.util;
 
+import com.google.common.base.Suppliers;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-
-import com.google.common.base.Suppliers;
 
 /**
  * Executor that uses a fixed number of physical cores
  */
 public class PhysicalCoreExecutor {
-    private static volatile int physicalCoreCount = Math.max(1, Runtime.getRuntime().availableProcessors());
+    private static volatile int physicalCoreCount =
+            Math.max(1, Runtime.getRuntime().availableProcessors());
     private static final AtomicBoolean started = new AtomicBoolean(false);
 
     /**
@@ -18,8 +33,7 @@ public class PhysicalCoreExecutor {
      * @param threadCount number of physical cores to use
      */
     public static void overrideThreadCount(int threadCount) {
-        if (!started.compareAndSet(false, true))
-            throw new IllegalStateException("Executor already started");
+        if (!started.compareAndSet(false, true)) throw new IllegalStateException("Executor already started");
 
         physicalCoreCount = threadCount;
     }

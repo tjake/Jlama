@@ -1,6 +1,19 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.math;
-
-import java.util.Arrays;
 
 public class FloatConversions {
 
@@ -20,7 +33,7 @@ public class FloatConversions {
     }
 
     public static short float32ToBFloat16(float n) {
-        //return (short) ((Float.floatToRawIntBits(n) >> 16) & 0xffff);
+        // return (short) ((Float.floatToRawIntBits(n) >> 16) & 0xffff);
         int nbits = Float.floatToRawIntBits(n);
         // 32 bits has 1 sign bit, 8 exponent bits, 23 mantissa bits
         int s = (nbits >>> 16) & 0x8000;
@@ -38,7 +51,7 @@ public class FloatConversions {
             // exponent + mantissa bits set. what luck!
             int m1 = round(m, 16);
             int e1 = e + m1;
-            return (short)(s | e1);
+            return (short) (s | e1);
         } else {
             // handle sentinels
             //
@@ -65,7 +78,7 @@ public class FloatConversions {
         int cmp = masked - mid;
         // we are losing more than 1/2
         if (cmp > 0) return mshift + 1;
-            // we are losing < 1/2
+        // we are losing < 1/2
         else if (cmp < 0) return mshift;
         else {
             // we are losing exactly 1/2
@@ -77,24 +90,24 @@ public class FloatConversions {
         }
     }
 
-
     /**
      * Convert a 16-bit floating-point number in ARM alternative half-precision format to a 32-bit floating-point number.
      *
      * Ported from https://github.com/Maratyszcza/FP16/blob/0a92994d729ff76a58f692d3028ca1b64b145d91/include/fp16/fp16.h#L255
      */
     public static float float16ToFloat32Alt(short raw) {
-        long  w = Integer.toUnsignedLong(raw << 16);
-        long  sign =  w & 0x80000000L;
-        long  nonsign = w & 0x7FFFFFFF;
+        long w = Integer.toUnsignedLong(raw << 16);
+        long sign = w & 0x80000000L;
+        long nonsign = w & 0x7FFFFFFF;
 
         int renorm_shift = Long.numberOfLeadingZeros(nonsign);
 
-        renorm_shift = renorm_shift > (32+5) ? renorm_shift - (32+5) : 0;
+        renorm_shift = renorm_shift > (32 + 5) ? renorm_shift - (32 + 5) : 0;
 
-        long zero_mask = (nonsign - 1) >> (32+31);
+        long zero_mask = (nonsign - 1) >> (32 + 31);
 
-        return Float.intBitsToFloat((int)(sign | (((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) & ~zero_mask)));
+        return Float.intBitsToFloat(
+                (int) (sign | (((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) & ~zero_mask)));
     }
 
     private static final short SIGN_MASK = (short) 0x8000;
@@ -205,7 +218,6 @@ public class FloatConversions {
         return (short) ((((new_m & 2047) | exp_part) >> 1) | sign);
     }
 
-
     public static short addIeeeFloat16(short a, short b) {
         if (((a ^ b) & 0x8000) != 0) {
             return subIeeeFloat16(a, (short) (b ^ 0x8000));
@@ -296,10 +308,9 @@ public class FloatConversions {
             v >>= (-new_exp + 1);
             new_exp = 0;
         } else if (new_exp >= 31) {
-            return SIGNED_INF_VALUE((short)sign);
+            return SIGNED_INF_VALUE((short) sign);
         }
 
         return (short) (sign | (new_exp << 10) | (v & 1023));
     }
 }
-

@@ -1,8 +1,22 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
-
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,14 +48,13 @@ public class TensorShape {
         this.sparseLength = sparseRange.map(Pair::right).orElse(shape[shape.length - 1]);
 
         long c = 1;
-        for (int i = 0; i < shape.length - 1; i++)
-            c *= shape[i];
+        for (int i = 0; i < shape.length - 1; i++) c *= shape[i];
 
         c *= sparseLength;
         this.capacity = c;
     }
 
-    final public boolean isSparse() {
+    public final boolean isSparse() {
         return isSparse;
     }
 
@@ -66,7 +79,9 @@ public class TensorShape {
     public TensorShape scaleLastDim(float scale) {
         int[] copy = Arrays.copyOf(tshape, tshape.length);
         copy[copy.length - 1] *= scale;
-        return isSparse ? sparse(copy, Pair.create((int)(sparseOffset * scale), (int)(sparseLength * scale))) : of(copy);
+        return isSparse
+                ? sparse(copy, Pair.create((int) (sparseOffset * scale), (int) (sparseLength * scale)))
+                : of(copy);
     }
 
     public TensorShape setDimValue(int dim, int value) {
@@ -116,10 +131,9 @@ public class TensorShape {
 
     @Override
     public String toString() {
-        return "TensorShape{" +
-                "tshape=" + Arrays.toString(tshape) +
-                ", capacity=" + capacity +
-                ", sparseRange=" + sparseRange +
-                '}';
+        return "TensorShape{" + "tshape="
+                + Arrays.toString(tshape) + ", capacity="
+                + capacity + ", sparseRange="
+                + sparseRange + '}';
     }
 }

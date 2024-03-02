@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.model.bert;
 
 import com.github.tjake.jlama.math.ActivationFunction;
@@ -7,31 +22,43 @@ import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.Weights;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-
 import com.google.common.base.Preconditions;
-
 import java.util.Optional;
 
 public class BertModel extends AbstractModel {
 
-    public BertModel(Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+    public BertModel(
+            Config c,
+            Weights w,
+            Tokenizer tokenizer,
+            DType workingDType,
+            DType workingQType,
+            Optional<DType> modelQType) {
         super(InferenceType.FULL_GENERATION, c, w, tokenizer, workingDType, workingQType, modelQType);
     }
 
-    public BertModel(InferenceType inferenceType, Config c, Weights w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
+    public BertModel(
+            InferenceType inferenceType,
+            Config c,
+            Weights w,
+            Tokenizer tokenizer,
+            DType workingDType,
+            DType workingQType,
+            Optional<DType> modelQType) {
         super(inferenceType, c, w, tokenizer, workingDType, workingQType, modelQType);
     }
 
     @Override
     protected EmbedInput loadInputWeights() {
-        AbstractTensor we =  weights.load("embeddings.word_embeddings.weight");
+        AbstractTensor we = weights.load("embeddings.word_embeddings.weight");
         AbstractTensor wte = weights.load("embeddings.token_type_embeddings.weight");
         AbstractTensor wpe = weights.load("embeddings.position_embeddings.weight");
 
-        LayerNorm inputLayerNorm = new LayerNorm(this, weights.load("embeddings.LayerNorm.bias"), weights.load("embeddings.LayerNorm.weight"));
+        LayerNorm inputLayerNorm = new LayerNorm(
+                this, weights.load("embeddings.LayerNorm.bias"), weights.load("embeddings.LayerNorm.weight"));
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeTensor(c.embeddingLength);
@@ -66,19 +93,24 @@ public class BertModel extends AbstractModel {
 
             AbstractTensor outputBias = weights.load(prefix + "output.dense.bias");
             AbstractTensor outputWeight = weights.load(prefix + "output.dense.weight");
-            CausalSelfAttention attention = new CausalSelfAttention(this,
-                    keyBias, queryBias, valueBias,
-                    keyWeight, queryWeight, valueWeight,
-                    outputBias, outputWeight);
+            CausalSelfAttention attention = new CausalSelfAttention(
+                    this, keyBias, queryBias, valueBias, keyWeight, queryWeight, valueWeight, outputBias, outputWeight);
 
             prefix = b;
-            MLPBlock mlpBlock = new MLPBlock(this, ActivationFunction.Type.GELU,
-                    weights.load(prefix + "intermediate.dense.bias"), weights.load(prefix + "intermediate.dense.weight"),
-                    weights.load(prefix + "output.dense.bias"), weights.load( prefix + "output.dense.weight")
-            );
+            MLPBlock mlpBlock = new MLPBlock(
+                    this,
+                    ActivationFunction.Type.GELU,
+                    weights.load(prefix + "intermediate.dense.bias"),
+                    weights.load(prefix + "intermediate.dense.weight"),
+                    weights.load(prefix + "output.dense.bias"),
+                    weights.load(prefix + "output.dense.weight"));
 
-            LayerNorm postAttentionNorm = new LayerNorm(this, weights.load(b + "attention.output.LayerNorm.bias"), weights.load(b + "attention.output.LayerNorm.weight"));
-            LayerNorm postMlpNorm = new LayerNorm(this, weights.load(b + "output.LayerNorm.bias"), weights.load(b + "output.LayerNorm.weight"));
+            LayerNorm postAttentionNorm = new LayerNorm(
+                    this,
+                    weights.load(b + "attention.output.LayerNorm.bias"),
+                    weights.load(b + "attention.output.LayerNorm.weight"));
+            LayerNorm postMlpNorm = new LayerNorm(
+                    this, weights.load(b + "output.LayerNorm.bias"), weights.load(b + "output.LayerNorm.weight"));
 
             transformerBlocks[i] = new TransformerBlock(this, attention, postAttentionNorm, mlpBlock, postMlpNorm);
         }
@@ -95,20 +127,20 @@ public class BertModel extends AbstractModel {
         long[] encoded = tokenizer.encode(input);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
-        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), encoded.length, 2, c.embeddingLength); // 2 for key and value
+        AbstractTensor kvmem =
+                makeTensor(c.getNumberOfLayers(), encoded.length, 2, c.embeddingLength); // 2 for key and value
 
         int promptLength = encoded.length;
-        float avgp = 1.0f/promptLength;
+        float avgp = 1.0f / promptLength;
 
         float[] outputEmbedding = new float[c.embeddingLength];
 
         for (int i = 0; i < promptLength; i++) {
-            int next = (int)encoded[i];
+            int next = (int) encoded[i];
             AbstractTensor output = forward(next, i, kvmem);
 
-            //Average Pooling
-            for (int ii = 0; ii < c.embeddingLength; ii++)
-                outputEmbedding[ii] += output.get(ii) * avgp;
+            // Average Pooling
+            for (int ii = 0; ii < c.embeddingLength; ii++) outputEmbedding[ii] += output.get(ii) * avgp;
 
             output.close();
         }

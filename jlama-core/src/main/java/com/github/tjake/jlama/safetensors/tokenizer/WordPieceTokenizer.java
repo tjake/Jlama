@@ -1,5 +1,22 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors.tokenizer;
 
+import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -7,10 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.google.common.base.Preconditions;
-
-import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 
 /**
  * WordPiece tokenizer
@@ -27,13 +40,15 @@ public class WordPieceTokenizer implements Tokenizer {
     protected static final String clsString = "[CLS]";
     protected static final String unkString = "[UNK]";
 
-
     public WordPieceTokenizer(Path modelRoot) {
-        Preconditions.checkArgument(modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.jsom found in " + modelRoot);
+        Preconditions.checkArgument(
+                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.jsom found in " + modelRoot);
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);
-            Preconditions.checkArgument(model.type == null || model.type.equalsIgnoreCase("WordPiece"), "Invalid model type: " + model.type);
+            Preconditions.checkArgument(
+                    model.type == null || model.type.equalsIgnoreCase("WordPiece"),
+                    "Invalid model type: " + model.type);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -66,8 +81,7 @@ public class WordPieceTokenizer implements Tokenizer {
                         String curSubStr = null;
                         while (start < end) {
                             String substr = str.substring(start, end);
-                            if (start > 0)
-                                substr = "##" + substr;
+                            if (start > 0) substr = "##" + substr;
                             if (model.vocabLookup.containsKey(substr)) {
                                 curSubStr = substr;
                                 break;
@@ -83,11 +97,11 @@ public class WordPieceTokenizer implements Tokenizer {
                         start = end;
                     }
 
-                    if (isBad)
-                        subTokens.add(model.unkToken);
+                    if (isBad) subTokens.add(model.unkToken);
 
                     return subTokens.stream();
-                }).collect(Collectors.toList());
+                })
+                .collect(Collectors.toList());
 
         tokens.addAll(stringList);
         tokens.add(sepString);
@@ -96,28 +110,25 @@ public class WordPieceTokenizer implements Tokenizer {
     }
 
     protected String preProcess(String sentence) {
-        sentence =  sentence.toLowerCase().strip();
+        sentence = sentence.toLowerCase().strip();
 
         return cleanText(sentence);
     }
 
     static boolean isControl(Integer c) {
-         // These are technically control characters but we count them as whitespace characters.
-        if (c =='\t' || c == '\n' || c == '\r')
-            return false;
+        // These are technically control characters but we count them as whitespace characters.
+        if (c == '\t' || c == '\n' || c == '\r') return false;
 
         return Character.isISOControl(c);
     }
 
     static boolean isPunctuation(Integer cp) {
-        if ((cp >= 33 && cp <= 47) || (cp >= 58 && cp <= 64) ||
-                (cp >= 91 && cp <= 96) || (cp >= 123 && cp <= 126)) {
+        if ((cp >= 33 && cp <= 47) || (cp >= 58 && cp <= 64) || (cp >= 91 && cp <= 96) || (cp >= 123 && cp <= 126)) {
             return true;
         }
 
         int t = Character.getType(cp);
-        if (t >= 20 && t <= 24)
-            return true;
+        if (t >= 20 && t <= 24) return true;
 
         return false;
     }
@@ -125,20 +136,18 @@ public class WordPieceTokenizer implements Tokenizer {
     String cleanText(String sentence) {
         return sentence.codePoints()
                 .map(c -> {
-                    if (c == 0 || c == 0xfffd || isControl(c))
-                        return -1;
+                    if (c == 0 || c == 0xfffd || isControl(c)) return -1;
 
-                    if (Character.isWhitespace(c))
-                        return ' ';
+                    if (Character.isWhitespace(c)) return ' ';
 
                     return c;
-                }).filter(c -> c != -1)
+                })
+                .filter(c -> c != -1)
                 .mapToObj(Character::toString)
                 .collect(Collectors.joining());
     }
 
-    Stream<String> splitByPunctuation(String str)
-    {
+    Stream<String> splitByPunctuation(String str) {
         List<String> result = new ArrayList<>();
 
         int start = 0;
@@ -167,15 +176,13 @@ public class WordPieceTokenizer implements Tokenizer {
 
     @Override
     public long[] encode(String sentence) {
-        return tokenize(sentence)
-                .stream()
+        return tokenize(sentence).stream()
                 .mapToLong(s -> model.vocabLookup.get(s))
                 .toArray();
     }
 
     protected String postProcessToken(String decoded) {
-        if (decoded.startsWith("##"))
-            return decoded.substring(2);
+        if (decoded.startsWith("##")) return decoded.substring(2);
 
         return " " + decoded;
     }

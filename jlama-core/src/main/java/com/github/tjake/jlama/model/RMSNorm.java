@@ -1,10 +1,23 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
-
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
-
 import java.util.Optional;
 import java.util.function.BiFunction;
 
@@ -21,7 +34,11 @@ public class RMSNorm extends LayerNorm {
     }
 
     @Override
-    public AbstractTensor forward(AbstractTensor input, int offset, int length, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+    public AbstractTensor forward(
+            AbstractTensor input,
+            int offset,
+            int length,
+            Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
         Preconditions.checkArgument(input.shape().dims() == 1);
         int limit = offset + length;
         float ss = 0.0f;
@@ -37,7 +54,7 @@ public class RMSNorm extends LayerNorm {
 
         ss /= m.c.embeddingLength;
         ss += m.c.layerNormEps;
-        ss = (float)(1.0 / StrictMath.sqrt(ss));
+        ss = (float) (1.0 / StrictMath.sqrt(ss));
         // normalize and scale
         AbstractTensor output = input.copyShape();
         for (int j = offset; j < limit; j++) {

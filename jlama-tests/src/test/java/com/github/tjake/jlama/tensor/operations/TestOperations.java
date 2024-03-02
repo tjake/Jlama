@@ -1,20 +1,21 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor.operations;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
-import java.util.function.Function;
-
-import com.github.tjake.jlama.util.MachineSpec;
-import com.github.tjake.jlama.util.RuntimeSupport;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
@@ -23,11 +24,21 @@ import com.github.tjake.jlama.tensor.Float16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.RuntimeSupport;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.TreeMap;
+import java.util.function.Function;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
-
-public class TestOperations
-{
+public class TestOperations {
     private static final Random r = new Random();
     private static final Logger logger = LoggerFactory.getLogger(TensorOperations.class);
     private static final int SIZE = 1024;
@@ -54,11 +65,9 @@ public class TestOperations
             opTypes.add(new NativeTensorOperations());
             opTypes.add(new NativeTensorOperations(0));
 
-            if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
-                opTypes.add(new NativeTensorOperations(HAS_AVX2));
+            if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) opTypes.add(new NativeTensorOperations(HAS_AVX2));
 
-            if (RuntimeSupport.isLinux() || RuntimeSupport.isWin())
-            {
+            if (RuntimeSupport.isLinux() || RuntimeSupport.isWin()) {
                 opTypes.add(new NativeTensorOperations(HAS_F16C));
                 if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
                     opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
@@ -66,7 +75,6 @@ public class TestOperations
 
             if (RuntimeSupport.isArm()) {
                 opTypes.add(new NativeTensorOperations(MachineSpec.Type.ARM_128.ctag));
-
             }
         }
 
@@ -84,17 +92,14 @@ public class TestOperations
 
     static FloatBufferTensor makeTensor(int size) {
         FloatBufferTensor f = new FloatBufferTensor(size);
-        for (int i = 0; i < size; i++)
-            f.set(r.nextFloat(), i);
+        for (int i = 0; i < size; i++) f.set(r.nextFloat(), i);
 
         return f;
     }
 
     static FloatBufferTensor makeWeights(int rows, int size) {
         FloatBufferTensor f = new FloatBufferTensor(rows, size);
-        for (int j = 0; j < rows; j++)
-            for (int i = 0; i < size; i++)
-                f.set(r.nextFloat(), j, i);
+        for (int j = 0; j < rows; j++) for (int i = 0; i < size; i++) f.set(r.nextFloat(), j, i);
 
         return f;
     }
@@ -104,7 +109,7 @@ public class TestOperations
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
 
-        //This is what we compare others to
+        // This is what we compare others to
         float control = controlOps.dotProduct(a, b, SIZE);
         int opt = 0;
         for (TensorOperations t : opTypes) {
@@ -114,9 +119,15 @@ public class TestOperations
                 for (Map.Entry<DType, Function<AbstractTensor, AbstractTensor>> bType : bTypes.entrySet()) {
                     try {
                         logger.debug("Running {} {} {}", opt, aType, bType);
-                        float dp = t.dotProduct(aType.getValue().apply(a), bType.getValue().apply(b), SIZE);
+                        float dp = t.dotProduct(
+                                aType.getValue().apply(a), bType.getValue().apply(b), SIZE);
                         supported++;
-                        Assert.assertEquals("OP " + t.name() + ", AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
+                        Assert.assertEquals(
+                                "OP " + t.name() + ", AType " + aType.getKey() + ", BType " + bType.getKey()
+                                        + " combo is outside of 1% error limit",
+                                control,
+                                dp,
+                                control * .01f);
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -132,7 +143,7 @@ public class TestOperations
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
 
-        //This is what we compare others to
+        // This is what we compare others to
         float control = controlOps.dotProduct(a, b, SIZE);
 
         float p1 = controlOps.dotProduct(a, b, 0, 0, SIZE / 2);
@@ -149,7 +160,7 @@ public class TestOperations
         // Make a copy for testing before its changed by operation
         AbstractTensor c = new FloatBufferTensor(a);
 
-        //This is what we compare others to
+        // This is what we compare others to
         controlOps.accumulate(a, b, 0, SIZE);
         float control = controlOps.sum(a);
         for (TensorOperations t : opTypes) {
@@ -163,7 +174,12 @@ public class TestOperations
                         t.accumulate(chat, bhat, 0, SIZE);
                         float dp = t.sum(chat);
                         supported++;
-                        Assert.assertEquals("AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
+                        Assert.assertEquals(
+                                "AType " + aType.getKey() + ", BType " + bType.getKey()
+                                        + " combo is outside of 1% error limit",
+                                control,
+                                dp,
+                                control * .01f);
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -180,7 +196,7 @@ public class TestOperations
         // Make a copy for testing before its changed by operation
         AbstractTensor c = new FloatBufferTensor(a);
 
-        //This is what we compare others to
+        // This is what we compare others to
         controlOps.scale(3.14159f, a, 0, SIZE);
         float control = controlOps.sum(a);
 
@@ -192,7 +208,8 @@ public class TestOperations
                     t.scale(3.14159f, chat, 0, SIZE);
                     float dp = t.sum(chat);
                     supported++;
-                    Assert.assertEquals("AType " + aType.getKey() + " is outside of 1% error limit", control, dp, control * .01f);
+                    Assert.assertEquals(
+                            "AType " + aType.getKey() + " is outside of 1% error limit", control, dp, control * .01f);
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
                     logger.debug("No support for AType {}", aType.getKey());
                 }
@@ -209,7 +226,7 @@ public class TestOperations
         // Make a copy for testing before its changed by operation
         AbstractTensor c = new FloatBufferTensor(b);
 
-        //This is what we compare others to
+        // This is what we compare others to
         controlOps.saxpy(3.14159f, a, b, 0, 0, SIZE);
         float control = controlOps.sum(b);
 
@@ -225,7 +242,12 @@ public class TestOperations
                         t.saxpy(3.14159f, ahat, chat, 0, 0, SIZE);
                         float dp = t.sum(chat);
                         supported++;
-                        Assert.assertEquals("AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
+                        Assert.assertEquals(
+                                "AType " + aType.getKey() + ", BType " + bType.getKey()
+                                        + " combo is outside of 1% error limit",
+                                control,
+                                dp,
+                                control * .01f);
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -243,7 +265,7 @@ public class TestOperations
         // Make a copy for testing before its changed by operation
         AbstractTensor c = new FloatBufferTensor(b);
 
-        //This is what we compare others to
+        // This is what we compare others to
         controlOps.sxpby(3.14159f, a, b, 0, 0, SIZE);
         float control = controlOps.sum(b);
 
@@ -259,7 +281,12 @@ public class TestOperations
                         t.sxpby(3.14159f, ahat, chat, 0, 0, SIZE);
                         float dp = t.sum(chat);
                         supported++;
-                        Assert.assertEquals("AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit", control, dp, control * .01f);
+                        Assert.assertEquals(
+                                "AType " + aType.getKey() + ", BType " + bType.getKey()
+                                        + " combo is outside of 1% error limit",
+                                control,
+                                dp,
+                                control * .01f);
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -274,9 +301,9 @@ public class TestOperations
         FloatBufferTensor a = makeTensor(SIZE);
 
         Q8ByteBufferTensor ref = new Q8ByteBufferTensor(a);
-        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a, 0, (int)a.size());
-        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a, 0, (int)a.size());
-        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a, 0, (int)a.size());
+        Q8ByteBufferTensor qv = vectorOps.quantizeQ8_256(a, 0, (int) a.size());
+        Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a, 0, (int) a.size());
+        Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a, 0, (int) a.size());
 
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);
@@ -284,8 +311,7 @@ public class TestOperations
     }
 
     @Test
-    public void testBatchChunked()
-    {
+    public void testBatchChunked() {
         FloatBufferTensor r0 = makeTensor(ROWS);
         FloatBufferTensor r1 = makeTensor(ROWS);
 
@@ -301,7 +327,7 @@ public class TestOperations
         controlOps.dotProductChunk(r1, a, w1, 0, SIZE, 0, ROWS);
 
         for (TensorOperations t : opTypes) {
-            t.dotProductBatchChunk(new AbstractTensor[]{ b0, b1 }, a, new AbstractTensor[]{ w0, w1 }, 0, SIZE, 0, ROWS);
+            t.dotProductBatchChunk(new AbstractTensor[] {b0, b1}, a, new AbstractTensor[] {w0, w1}, 0, SIZE, 0, ROWS);
 
             Assert.assertEquals(controlOps.sum(r0), controlOps.sum(b0), 0.01);
             Assert.assertEquals(controlOps.sum(r1), controlOps.sum(b1), 0.01);

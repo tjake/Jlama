@@ -1,24 +1,35 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.model;
 
-import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.EmbedInput;
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,10 +40,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public abstract class AbstractModel implements Generator
-{
+public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
 
     public enum InferenceType {
@@ -44,6 +55,7 @@ public abstract class AbstractModel implements Generator
         final boolean isInput;
         final boolean isOutput;
         final boolean isFwdPass;
+
         InferenceType(boolean isInput, boolean isOutput, boolean isFwdPass) {
             this.isInput = isInput;
             this.isOutput = isOutput;
@@ -64,7 +76,7 @@ public abstract class AbstractModel implements Generator
     }
 
     protected final InferenceType inferenceType;
-    protected final  Config c;
+    protected final Config c;
     protected final WeightLoader weights;
     protected final Tokenizer tokenizer;
     protected final DType modelDType;
@@ -75,8 +87,14 @@ public abstract class AbstractModel implements Generator
     protected SampleOutput sampleOutput;
     protected TransformerBlock[] transformerBlocks;
 
-    protected AbstractModel(InferenceType inferenceType, Config c, WeightLoader w, Tokenizer t, DType workingMemoryDType, DType workingMemoryQType, Optional<DType> modelQType)
-    {
+    protected AbstractModel(
+            InferenceType inferenceType,
+            Config c,
+            WeightLoader w,
+            Tokenizer t,
+            DType workingMemoryDType,
+            DType workingMemoryQType,
+            Optional<DType> modelQType) {
         this.inferenceType = inferenceType;
         this.c = c;
         this.weights = w;
@@ -88,10 +106,14 @@ public abstract class AbstractModel implements Generator
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;
             AbstractTensor tmp = makeTensor(Q8ByteBufferTensor.BLOCK_SIZE);
-            try (AbstractTensor tmp2 = TensorOperationsProvider.get().quantize(tmp, workingMemoryQType, 0, Q8ByteBufferTensor.BLOCK_SIZE)) {
+            try (AbstractTensor tmp2 = TensorOperationsProvider.get()
+                    .quantize(tmp, workingMemoryQType, 0, Q8ByteBufferTensor.BLOCK_SIZE)) {
                 supportsQType = tmp2.dType() == workingMemoryQType;
                 if (!supportsQType) {
-                    logger.warn("Quantized memory type {} not supported, falling back to {}", workingMemoryQType, workingMemoryDType);
+                    logger.warn(
+                            "Quantized memory type {} not supported, falling back to {}",
+                            workingMemoryQType,
+                            workingMemoryDType);
                     this.workingQType = this.workingDType;
                 } else {
                     this.workingQType = workingMemoryQType;
@@ -126,17 +148,16 @@ public abstract class AbstractModel implements Generator
         return prompt;
     }
 
-    public AbstractTensor makeTensor(int ...shape) {
+    public AbstractTensor makeTensor(int... shape) {
         TensorShape s;
         if (c.offset().isPresent() && shape[shape.length - 1] == c.embeddingLength)
             s = TensorShape.sparse(shape, c.offset().get());
-        else
-            s = TensorShape.of(shape);
+        else s = TensorShape.of(shape);
 
         return c.tensorCache.get(workingDType, s);
     }
 
-    public AbstractTensor makeFullTensor(int ...shape) {
+    public AbstractTensor makeFullTensor(int... shape) {
         return c.tensorCache.get(workingDType, TensorShape.of(shape));
     }
 
@@ -160,12 +181,17 @@ public abstract class AbstractModel implements Generator
      * @param kvbuf
      * @return
      */
-    public AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf, Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+    public AbstractTensor forward(
+            int token_id,
+            int pos,
+            AbstractTensor kvbuf,
+            Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
+            Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         AbstractTensor embedding = embedInput.inputTokenToEmbedding(token_id, pos);
 
         for (int i = c.layerStart(); i < c.layerEnd(); i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);
-            AbstractTensor ref = embedding; //reference so we can free
+            AbstractTensor ref = embedding; // reference so we can free
             embedding = transformerBlocks[i].forward(embedding, pos, kvlayer, normReducer, tensorReducer);
             ref.close();
         }
@@ -176,13 +202,12 @@ public abstract class AbstractModel implements Generator
     protected AbstractTensor batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
         AbstractTensor last = null;
         for (int i = 0; i < token_ids.length; i++) {
-            if (last != null)
-                last.close();
+            if (last != null) last.close();
 
             last = forward(token_ids[i], startPos + i, kvbuf);
         }
 
-       return last;
+        return last;
     }
 
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
@@ -190,14 +215,16 @@ public abstract class AbstractModel implements Generator
             AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
             AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
 
-            //This is a mix of argmax and sampling with softmax
+            // This is a mix of argmax and sampling with softmax
             VectorMath.pfor(0, c.vocabularySize, i -> {
-                float v = TensorOperationsProvider.get().dotProduct(embedding, sampleOutput.getOutputLogitsWeights().slice(i), c.embeddingLength);
+                float v = TensorOperationsProvider.get()
+                        .dotProduct(
+                                embedding, sampleOutput.getOutputLogitsWeights().slice(i), c.embeddingLength);
                 logits.set(v, i);
                 maxv.getAndUpdate(x -> {
                     if (v > x) {
                         maxi.set(i);
-                        return (double)v;
+                        return (double) v;
                     }
                     return x;
                 });
@@ -218,45 +245,49 @@ public abstract class AbstractModel implements Generator
             for (int i = 0; i < c.vocabularySize; i++) {
                 float v = logits.get(i) / sum;
                 acc += v;
-                if (acc >= uniformSample)
-                    return i;
+                if (acc >= uniformSample) return i;
             }
 
             return c.vocabularySize - 1;
         }
     }
 
-    public void generate(UUID sessionId, String prompt, String cleanPrompt, float temperature, int ntokens, boolean useEOS, BiConsumer<String, Float> onTokenWithTimings) {
+    public void generate(
+            UUID sessionId,
+            String prompt,
+            String cleanPrompt,
+            float temperature,
+            int ntokens,
+            boolean useEOS,
+            BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
-        if (ntokens > c.contextLength)
-            ntokens = c.contextLength;
+        if (ntokens > c.contextLength) ntokens = c.contextLength;
 
-        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), ntokens, 2, c.kvLength); //k and v are last 2 dims
+        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), ntokens, 2, c.kvLength); // k and v are last 2 dims
         AbstractTensor logits = makeTensor(c.vocabularySize);
 
         int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
 
         promptTokens[0] = c.bosToken;
-        for (int i = 1; i <= encoded.length; i++)
-            promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
+        for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
 
         int promptLength = encoded.length;
 
         if (useEOS) {
-            promptTokens[promptTokens.length - 1] = c.eosToken; //Add EOS
+            promptTokens[promptTokens.length - 1] = c.eosToken; // Add EOS
             promptLength++;
         }
 
         String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
         onTokenWithTimings.accept(clientPrompt, 0f);
         long start = System.currentTimeMillis();
-        //Batch Process Prompt
+        // Batch Process Prompt
         AbstractTensor last = batchForward(promptTokens, 0, kvmem);
 
         long promptBatchTime = System.currentTimeMillis() - start;
-        float avgTime = Math.round((((double)promptBatchTime)/(double)promptLength));
+        float avgTime = Math.round((((double) promptBatchTime) / (double) promptLength));
         logger.debug("{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, avgTime);
 
         int tokensGenerated = 0;
@@ -273,12 +304,10 @@ public abstract class AbstractModel implements Generator
             tokensGenerated++;
             next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
 
-            if (logger.isTraceEnabled())
-                logger.trace("Sampled token {} with temperature {}", next, temperature);
+            if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
 
-            //Model may tell us it's done
-            if (next == c.eosToken)
-                break;
+            // Model may tell us it's done
+            if (next == c.eosToken) break;
 
             try {
                 String c = tokenizer.decode(next);
@@ -289,6 +318,8 @@ public abstract class AbstractModel implements Generator
         }
 
         long end = System.currentTimeMillis();
-        System.out.printf("\n\nelapsed: %ds, %fms per token\n", TimeUnit.MILLISECONDS.toSeconds(end - start), ((end - start) / (float)tokensGenerated));
+        System.out.printf(
+                "\n\nelapsed: %ds, %fms per token\n",
+                TimeUnit.MILLISECONDS.toSeconds(end - start), ((end - start) / (float) tokensGenerated));
     }
 }

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.math;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
@@ -5,28 +20,26 @@ import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VectorMath {
 
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
     public static void pfor(int start, int end, IntConsumer action) {
-        PhysicalCoreExecutor.instance.get().execute(() ->
-            IntStream.range(start, end).parallel().forEach(action)
-        );
+        PhysicalCoreExecutor.instance
+                .get()
+                .execute(() -> IntStream.range(start, end).parallel().forEach(action));
     }
 
     public static void pchunk(int offset, int length, BiIntConsumer action) {
         int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
         int chunkSize = length / splits;
 
-        //Non optimal case, just run in parallel
+        // Non optimal case, just run in parallel
         if (splits == 1 || splits % length != 0) {
             splits = length;
             chunkSize = 1;
@@ -35,11 +48,10 @@ public class VectorMath {
         int fsplits = splits;
         int fchunkSize = chunkSize;
 
-        PhysicalCoreExecutor.instance.get().execute(() ->
-            IntStream.range(0, fsplits).parallel().forEach(i -> action.accept(offset + (i*fchunkSize), fchunkSize))
-        );
+        PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(0, fsplits)
+                .parallel()
+                .forEach(i -> action.accept(offset + (i * fchunkSize), fchunkSize)));
     }
-
 
     public static void softMax(FloatBufferTensor x) {
         int offset = 0;
@@ -55,7 +67,7 @@ public class VectorMath {
         // exp and sum
         float sum = 0.0f;
         for (int i = offset; i < size; i++) {
-            x.set((float)StrictMath.exp(x.get(i) - max_val), i);
+            x.set((float) StrictMath.exp(x.get(i) - max_val), i);
             sum += x.get(i);
         }
         // normalize
@@ -66,21 +78,17 @@ public class VectorMath {
 
     public static void l1normalize(float[] x) {
         float sum = 0.0f;
-        for (int i = 0; i < x.length; i++)
-            sum += Math.abs(x[i]);
+        for (int i = 0; i < x.length; i++) sum += Math.abs(x[i]);
 
-        for (int i = 0; i < x.length; i++)
-            x[i] /= sum;
+        for (int i = 0; i < x.length; i++) x[i] /= sum;
     }
 
     public static void l2normalize(float[] x) {
         float sum = 0.0f;
-        for (int i = 0; i < x.length; i++)
-            sum += x[i] * x[i];
+        for (int i = 0; i < x.length; i++) sum += x[i] * x[i];
 
         double magnitude = Math.sqrt(sum);
-        for (int i = 0; i < x.length; i++)
-            x[i] /= magnitude;
+        for (int i = 0; i < x.length; i++) x[i] /= magnitude;
     }
 
     public static float cosineSimilarity(float[] a, float[] b) {
@@ -93,7 +101,7 @@ public class VectorMath {
             bMagnitude += b[i] * b[i];
         }
 
-        return (float)(dotProduct / (Math.sqrt(aMagnitude) * Math.sqrt(bMagnitude)));
+        return (float) (dotProduct / (Math.sqrt(aMagnitude) * Math.sqrt(bMagnitude)));
     }
 
     public static void l1normalize(AbstractTensor t) {
@@ -102,13 +110,10 @@ public class VectorMath {
         long size = t.size();
 
         float sum = 0.0f;
-        for (int i = offset; i < size; i++)
-            sum += Math.abs(x[i]);
+        for (int i = offset; i < size; i++) sum += Math.abs(x[i]);
 
-        for (int i = offset; i < size; i++)
-            x[i] /= sum;
+        for (int i = offset; i < size; i++) x[i] /= sum;
     }
-
 
     public static void l2normalize(AbstractTensor t) {
         float[] x = (float[]) t.getArray();
@@ -116,12 +121,10 @@ public class VectorMath {
         long size = t.size();
 
         float sum = 0.0f;
-        for (int i = offset; i < size; i++)
-            sum += x[i] * x[i];
+        for (int i = offset; i < size; i++) sum += x[i] * x[i];
 
         double magnitude = Math.sqrt(sum);
-        for (int i = offset; i < size; i++)
-            x[i] /= magnitude;
+        for (int i = offset; i < size; i++) x[i] /= magnitude;
     }
 
     public static float[] outerProduct(float[] xs, float[] ys) {
@@ -144,14 +147,13 @@ public class VectorMath {
             freqs[i] = (float) ((1.0 / StrictMath.pow(theta, step / dim)) / scaling_factor);
 
         float[] t = new float[end];
-        for (int i = 0; i < end; i++)
-            t[i] = i;
+        for (int i = 0; i < end; i++) t[i] = i;
 
         float[] freqs_cis = outerProduct(t, freqs);
 
         float[][] r = new float[freqs_cis.length][];
         for (int i = 0; i < freqs_cis.length; i++)
-            r[i] = new float[]{(float) StrictMath.cos(freqs_cis[i]), (float) StrictMath.sin(freqs_cis[i])};
+            r[i] = new float[] {(float) StrictMath.cos(freqs_cis[i]), (float) StrictMath.sin(freqs_cis[i])};
 
         return r;
     }

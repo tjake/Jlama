@@ -1,23 +1,49 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.cli.commands;
 
-import java.io.File;
-
 import com.github.tjake.jlama.safetensors.DType;
+import java.io.File;
 import picocli.CommandLine;
 
 public class BaseCommand extends SimpleBaseCommand {
-    @CommandLine.Option(names={"-d", "--working-directory"}, description = "Working directory for attention cache")
+    @CommandLine.Option(
+            names = {"-d", "--working-directory"},
+            description = "Working directory for attention cache")
     protected File workingDirectory = null;
 
-    @CommandLine.Option(names={"-wm", "--working-dtype"}, description = "Working memory data type (default: ${DEFAULT-VALUE})", defaultValue = "F32")
+    @CommandLine.Option(
+            names = {"-wm", "--working-dtype"},
+            description = "Working memory data type (default: ${DEFAULT-VALUE})",
+            defaultValue = "F32")
     protected DType workingMemoryType = DType.F32;
 
-    @CommandLine.Option(names={"-wq", "--working-qtype"}, description = "Working memory quantization data type (default: ${DEFAULT-VALUE})", defaultValue = "I8")
+    @CommandLine.Option(
+            names = {"-wq", "--working-qtype"},
+            description = "Working memory quantization data type (default: ${DEFAULT-VALUE})",
+            defaultValue = "I8")
     protected DType workingQuantizationType = DType.I8;
 
-    @CommandLine.Option(names={"-tc", "--threads"}, description = "Number of threads to use (default: number of cores)")
+    @CommandLine.Option(
+            names = {"-tc", "--threads"},
+            description = "Number of threads to use (default: number of cores)")
     protected Integer threadCount = null;
 
-    @CommandLine.Option(names={"-q", "--quantization"}, description = "Model quantization type")
+    @CommandLine.Option(
+            names = {"-q", "--quantization"},
+            description = "Model quantization type")
     protected DType modelQuantization;
 }

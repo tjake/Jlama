@@ -1,4 +1,21 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.net;
+
+import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.safetensors.DType;
@@ -7,17 +24,13 @@ import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
-
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
-
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-import org.slf4j.Logger;
-
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
@@ -37,8 +50,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static com.github.tjake.jlama.model.ModelSupport.loadModel;
+import org.slf4j.Logger;
 
 public class Worker {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(Worker.class);
@@ -49,16 +61,42 @@ public class Worker {
     private final JlamaServiceGrpc.JlamaServiceBlockingStub blockingClient;
     private final RegisterResponse registerResponse;
 
-    public Worker(File modelPrefix, String host, int port, File workingDirectory, DType workingMemoryType, DType workingQuantizationType, Optional<DType> modelQuantization, Optional<String> optionalWorkerId) {
-        Channel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+    public Worker(
+            File modelPrefix,
+            String host,
+            int port,
+            File workingDirectory,
+            DType workingMemoryType,
+            DType workingQuantizationType,
+            Optional<DType> modelQuantization,
+            Optional<String> optionalWorkerId) {
+        Channel channel =
+                ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
 
-        this.workerId = optionalWorkerId.map(s -> new UUID(s.hashCode(), s.hashCode())).orElse(UUID.randomUUID());
+        this.workerId =
+                optionalWorkerId.map(s -> new UUID(s.hashCode(), s.hashCode())).orElse(UUID.randomUUID());
         this.client = JlamaServiceGrpc.newStub(channel);
         this.blockingClient = JlamaServiceGrpc.newBlockingStub(channel);
-        this.workerIdBytes = ByteString.copyFrom(ByteBuffer.allocate(128).putLong(workerId.getMostSignificantBits()).putLong(workerId.getLeastSignificantBits()).flip());
-        this.registerResponse = blockingClient.register(RegisterRequest.newBuilder().setWorkerid(workerIdBytes).build());
-        logger.info("Registered worker {} with offset {} and length {}", workerId, registerResponse.getOffset(), registerResponse.getLength());
-        this.model = loadModel(AbstractModel.InferenceType.FORWARD_PASS, modelPrefix, workingDirectory, workingMemoryType, workingQuantizationType, modelQuantization, Optional.empty(), Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength())));
+        this.workerIdBytes = ByteString.copyFrom(ByteBuffer.allocate(128)
+                .putLong(workerId.getMostSignificantBits())
+                .putLong(workerId.getLeastSignificantBits())
+                .flip());
+        this.registerResponse = blockingClient.register(
+                RegisterRequest.newBuilder().setWorkerid(workerIdBytes).build());
+        logger.info(
+                "Registered worker {} with offset {} and length {}",
+                workerId,
+                registerResponse.getOffset(),
+                registerResponse.getLength());
+        this.model = loadModel(
+                AbstractModel.InferenceType.FORWARD_PASS,
+                modelPrefix,
+                workingDirectory,
+                workingMemoryType,
+                workingQuantizationType,
+                modelQuantization,
+                Optional.empty(),
+                Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength())));
     }
 
     class CombineObserver implements StreamObserver<CombineResponse> {
@@ -87,19 +125,15 @@ public class Worker {
         @Override
         public void onNext(CombineResponse combineResponse) {
             CompletableFuture<CombineResponse> f = activeRequestFuture.getAndSet(null);
-            if (f == null)
-                logger.error("Missing future for {}", session);
-            else
-                f.complete(combineResponse);
+            if (f == null) logger.error("Missing future for {}", session);
+            else f.complete(combineResponse);
         }
 
         @Override
         public void onError(Throwable throwable) {
             CompletableFuture<CombineResponse> f = activeRequestFuture.getAndSet(null);
-            if (f == null)
-                logger.error("Missing future for {}", session);
-            else
-                f.completeExceptionally(throwable);
+            if (f == null) logger.error("Missing future for {}", session);
+            else f.completeExceptionally(throwable);
         }
 
         @Override
@@ -107,11 +141,9 @@ public class Worker {
             logger.info("CombineResponseStream {} completed", session);
             CompletableFuture<CombineResponse> f = activeRequestFuture.getAndSet(null);
 
-            if (f != null)
-                f.completeExceptionally(new RuntimeException("Stream was completed for " + session));
+            if (f != null) f.completeExceptionally(new RuntimeException("Stream was completed for " + session));
         }
     }
-
 
     class GenerateObserver implements StreamObserver<GenerateResponse> {
         private final CountDownLatch finishedLatch;
@@ -132,29 +164,39 @@ public class Worker {
             return kvBufferCache.computeIfAbsent(session, this::makeKvBuffer).right;
         }
 
-        private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session)
-        {
+        private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session) {
             TensorShape s;
-            //FIXME: Max size should be configurable
-            int[] rawShape = new int[]{ model.getConfig().getNumberOfLayers(), Math.min(2048, model.getConfig().contextLength), 2, model.getConfig().kvLength };
+            // FIXME: Max size should be configurable
+            int[] rawShape = new int[] {
+                model.getConfig().getNumberOfLayers(),
+                Math.min(2048, model.getConfig().contextLength),
+                2,
+                model.getConfig().kvLength
+            };
 
             if (model.getConfig().offset().isPresent()) {
                 Pair<Integer, Integer> offset = model.getConfig().offset().get();
-                //Adjust the shape to be relative to the kv cache size (in case of GQA)
-                Pair<Integer, Integer> kvOffset = Pair.create(offset.left / model.getConfig().headGroupSize, offset.right / model.getConfig().headGroupSize);
+                // Adjust the shape to be relative to the kv cache size (in case of GQA)
+                Pair<Integer, Integer> kvOffset = Pair.create(
+                        offset.left / model.getConfig().headGroupSize, offset.right / model.getConfig().headGroupSize);
                 s = TensorShape.sparse(rawShape, kvOffset);
             } else {
                 s = TensorShape.of(rawShape);
             }
             Preconditions.checkArgument(model.getConfig().workingDirectory().isPresent());
 
-            try
-            {
-                RandomAccessFile raf = new RandomAccessFile(Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString()).toFile(), "rw");
+            try {
+                RandomAccessFile raf = new RandomAccessFile(
+                        Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString())
+                                .toFile(),
+                        "rw");
                 long bytes = s.size() * Float.BYTES;
                 raf.setLength(bytes);
 
-                FloatBuffer fb = raf.getChannel().map(FileChannel.MapMode.READ_WRITE, 0, bytes).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+                FloatBuffer fb = raf.getChannel()
+                        .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                        .order(ByteOrder.LITTLE_ENDIAN)
+                        .asFloatBuffer();
 
                 FloatBufferTensor fbt = new FloatBufferTensor(fb, s, true);
 
@@ -166,7 +208,9 @@ public class Worker {
         }
 
         private int getNextRequestCount(UUID session) {
-            return requestCount.computeIfAbsent(session, s -> new AtomicInteger(0)).incrementAndGet();
+            return requestCount
+                    .computeIfAbsent(session, s -> new AtomicInteger(0))
+                    .incrementAndGet();
         }
 
         private CombineObserver getCombineResponseStream(UUID session) {
@@ -175,8 +219,8 @@ public class Worker {
 
         private ByteString getTensorBytes(AbstractTensor tensor) {
             Preconditions.checkArgument(tensor.dims() == 1 && tensor.dType() == DType.F32);
-            return TensorOperationsProvider.get().requiresOffHeapTensor() ?
-                    UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer())
+            return TensorOperationsProvider.get().requiresOffHeapTensor()
+                    ? UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer())
                     : UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().toArray(ValueLayout.JAVA_BYTE));
         }
 
@@ -189,24 +233,42 @@ public class Worker {
 
             logger.info("Processing token {} at position {} for session {}", token, position, session);
 
-            AbstractTensor output = model.forward(token, position, getKvBuffer(session),
+            AbstractTensor output = model.forward(
+                    token,
+                    position,
+                    getKvBuffer(session),
                     Optional.of((a, b) -> {
-                        CombineRequest nr = CombineRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session)).setSumSq(a).setSum(b).build();
+                        CombineRequest nr = CombineRequest.newBuilder()
+                                .setUuid(generateResponse.getSession())
+                                .setWorkerid(workerIdBytes)
+                                .setLayer(getNextRequestCount(session))
+                                .setSumSq(a)
+                                .setSum(b)
+                                .build();
 
-                        CombineResponse combineResponse = getCombineResponseStream(session).request(nr).join();
+                        CombineResponse combineResponse =
+                                getCombineResponseStream(session).request(nr).join();
                         return Pair.create(combineResponse.getSumSq(), combineResponse.getSum());
                     }),
                     Optional.of(t -> {
-                        CombineRequest.Builder nrb = CombineRequest.newBuilder().setUuid(generateResponse.getSession()).setWorkerid(workerIdBytes).setLayer(getNextRequestCount(session));
-                        for (int i = 0; i < t.size(); i++)
-                            nrb = nrb.addTensor(getTensorBytes(t.get(i)));
+                        CombineRequest.Builder nrb = CombineRequest.newBuilder()
+                                .setUuid(generateResponse.getSession())
+                                .setWorkerid(workerIdBytes)
+                                .setLayer(getNextRequestCount(session));
+                        for (int i = 0; i < t.size(); i++) nrb = nrb.addTensor(getTensorBytes(t.get(i)));
 
-                        CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
+                        CombineResponse combineResponse = getCombineResponseStream(session)
+                                .request(nrb.build())
+                                .join();
 
                         for (int i = 0; i < t.size(); i++)
-                            t.get(i).getMemorySegment().copyFrom(MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
-                    })
-            );
+                            t.get(i)
+                                    .getMemorySegment()
+                                    .copyFrom(MemorySegment.ofBuffer(combineResponse
+                                            .getTensor(i)
+                                            .asReadOnlyByteBuffer()
+                                            .order(ByteOrder.LITTLE_ENDIAN)));
+                    }));
 
             outputStream.onNext(GenerateRequest.newBuilder()
                     .setSession(generateResponse.getSession())
@@ -238,7 +300,7 @@ public class Worker {
         StreamObserver<GenerateRequest> request = client.generate(observer);
         observer.setOutputStream(request);
 
-        //Request first token
+        // Request first token
         request.onNext(GenerateRequest.newBuilder().setWorkerid(workerIdBytes).build());
 
         Uninterruptibles.awaitUninterruptibly(finishedLatch);

@@ -1,20 +1,24 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors;
 
-import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.model.ModelSupport;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
-import com.github.tjake.jlama.util.Pair;
-
 import com.google.common.io.BaseEncoding;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -22,31 +26,35 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Optional;
+import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TestParser {
     private static Logger logger = LoggerFactory.getLogger(TestParser.class);
 
     @Test
-    public void simpleTest()
-    {
+    public void simpleTest() {
         byte[] preamble = BaseEncoding.base16().decode("5900000000000000");
-		byte[] header = "{\"test\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]},\"__metadata__\":{\"foo\":\"bar\"}}".getBytes();
+        byte[] header =
+                "{\"test\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]},\"__metadata__\":{\"foo\":\"bar\"}}"
+                        .getBytes();
 
         ByteBuffer bb = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);
         bb.putFloat(1.0f);
         bb.putFloat(2.0f);
         bb.putFloat(3.0f);
         bb.putFloat(4.0f);
-        byte[] data   = bb.array();
+        byte[] data = bb.array();
 
         Assert.assertEquals(16, data.length);
         byte[] serialized = new byte[preamble.length + header.length + data.length];
         System.arraycopy(preamble, 0, serialized, 0, preamble.length);
-        System.arraycopy(header,0, serialized, preamble.length, header.length);
+        System.arraycopy(header, 0, serialized, preamble.length, header.length);
         System.arraycopy(data, 0, serialized, preamble.length + header.length, data.length);
 
         Weights v = SafeTensorSupport.readWeights(ByteBuffer.wrap(serialized));
@@ -56,10 +64,10 @@ public class TestParser {
         logger.debug("t = {}", t);
 
         Assert.assertEquals(2, t.dims());
-        Assert.assertEquals(1.0, t.get(0,0), 0.0001);
-        Assert.assertEquals(2.0, t.get(0,1), 0.0001);
-        Assert.assertEquals(3.0, t.get(1,0), 0.0001);
-        Assert.assertEquals(4.0, t.get(1,1), 0.0001);
+        Assert.assertEquals(1.0, t.get(0, 0), 0.0001);
+        Assert.assertEquals(2.0, t.get(0, 1), 0.0001);
+        Assert.assertEquals(3.0, t.get(1, 0), 0.0001);
+        Assert.assertEquals(4.0, t.get(1, 1), 0.0001);
 
         AbstractTensor s1 = t.slice(0);
         logger.debug("s1 = {}", s1);
@@ -89,21 +97,18 @@ public class TestParser {
             logger.debug("{} => {}", Arrays.toString(tcursor), tt.get(tcursor));
             Assert.assertTrue(i++ < 4);
         } while (tt.iterate(tcursor));
-
     }
 
     @Test
     public void testOffsets() {
         FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), TensorShape.of(50000, 768), false);
-        Assert.assertEquals(49000 * 768, b.getOffset(new int[]{49000, 0}));
-
+        Assert.assertEquals(49000 * 768, b.getOffset(new int[] {49000, 0}));
 
         b = new FloatBufferTensor(FloatBuffer.allocate(10), TensorShape.of(3, 7, 13), false);
 
-        Assert.assertEquals(0, b.getOffset(new int[]{0, 0, 0}));
-        Assert.assertEquals(7*13*1, b.getOffset(new int[]{1,0,0}));
-        Assert.assertEquals(7*13*2, b.getOffset(new int[]{2,0,0}));
-
+        Assert.assertEquals(0, b.getOffset(new int[] {0, 0, 0}));
+        Assert.assertEquals(7 * 13 * 1, b.getOffset(new int[] {1, 0, 0}));
+        Assert.assertEquals(7 * 13 * 2, b.getOffset(new int[] {2, 0, 0}));
     }
 
     @Test
@@ -115,7 +120,7 @@ public class TestParser {
             for (int col = 0; col < DIM; col++) {
                 v++;
                 b.set((row * DIM) + col, row, col);
-                Assert.assertEquals( v - 1, b.get(row, col), 1e-5f);
+                Assert.assertEquals(v - 1, b.get(row, col), 1e-5f);
             }
         }
 
@@ -124,11 +129,10 @@ public class TestParser {
         for (int row = 0; row < DIM; row++) {
             for (int col = 0; col < DIM; col++) {
                 v++;
-                Assert.assertEquals("col="+col+", row="+row, v - 1, bt.get(col, row), 1e-5f);
+                Assert.assertEquals("col=" + col + ", row=" + row, v - 1, bt.get(col, row), 1e-5f);
             }
         }
     }
-
 
     @Test
     public void testSparsify() {
@@ -139,7 +143,7 @@ public class TestParser {
             for (int col = 0; col < DIM; col++) {
                 v++;
                 b.set((row * DIM) + col, row, col);
-                Assert.assertEquals( v - 1, b.get(row, col), 1e-5f);
+                Assert.assertEquals(v - 1, b.get(row, col), 1e-5f);
             }
         }
 
@@ -159,7 +163,7 @@ public class TestParser {
                         bt.get(row, col);
                         Assert.fail("Should have errored trying to access value outside of sparse range");
                     } catch (Throwable t) {
-                        //pass
+                        // pass
                     }
                 }
             }
@@ -170,8 +174,7 @@ public class TestParser {
     public void testMMappedFile() throws IOException {
         String file = "data/gpt2/model.safetensors";
         Assume.assumeTrue(Files.exists(Paths.get(file)));
-        try (RandomAccessFile sc = new RandomAccessFile(file, "r"))
-        {
+        try (RandomAccessFile sc = new RandomAccessFile(file, "r")) {
             ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
             Weights v = SafeTensorSupport.readWeights(bb);

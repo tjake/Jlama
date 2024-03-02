@@ -1,16 +1,25 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.google.common.base.Preconditions;
-
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import jdk.incubator.vector.ByteVector;
-import jdk.incubator.vector.VectorSpecies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -18,20 +27,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
+import jdk.incubator.vector.ByteVector;
+import jdk.incubator.vector.VectorSpecies;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
-    private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);;
+    private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);
+    ;
     public static final int BLOCK_SIZE = 32;
     public static final int HALF_BLOCK = (BLOCK_SIZE / 2);
     private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
 
     final ByteBuffer b;
-    final FloatBufferTensor blockF; //Deltas
+    final FloatBufferTensor blockF; // Deltas
     private final String name;
     private final MemorySegment segment;
 
-    public Q4ByteBufferTensor(AbstractTensor ft)
-    {
+    public Q4ByteBufferTensor(AbstractTensor ft) {
         this(ft.shape);
         Preconditions.checkArgument(ft.dType != DType.Q4, "This should never happen, likely a bug");
         Preconditions.checkArgument(ft.size() % BLOCK_SIZE == 0, "I8 buffer must be a multiple of BLOCK_SIZE");
@@ -45,7 +58,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
             }
         } while (ft.iterate(cursor));
 
-        //Process each block in parallel
+        // Process each block in parallel
         IntStream.range(0, startBlockCursors.size()).parallel().forEach((i) -> {
             int[] blockStartCursor = startBlockCursors.get(i);
             processBlock(ft, blockStartCursor);
@@ -57,7 +70,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         float max = Float.MIN_VALUE;
         float amax = Float.MIN_VALUE;
 
-        //Accumulate the max value for this block
+        // Accumulate the max value for this block
         for (int i = 0; i < BLOCK_SIZE; i++) {
             float v = ft.get(cursor);
             float absv = v < 0 ? -v : v;
@@ -69,29 +82,28 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         }
 
         // Process the block and save it
-        float scale = max  / -8f;
+        float scale = max / -8f;
         float iscale = scale != 0.0f ? 1.0f / scale : 0.0f;
         this.blockF.set(scale, makeBlockShape(blockStartCursor));
         int i = ft.getOffset(blockStartCursor);
 
-
-        int ibyte = i/2;
-        for (int j = 0;  j < BLOCK_SIZE / 2; j++, i++, ibyte++) {
+        int ibyte = i / 2;
+        for (int j = 0; j < BLOCK_SIZE / 2; j++, i++, ibyte++) {
             float f0 = ft.get(blockStartCursor) * iscale;
 
-            //Since the iterator doesn't work for Q4, we need to manually increment the cursor
+            // Since the iterator doesn't work for Q4, we need to manually increment the cursor
             // to get the next value since the byte is packed with [0,15] position.
             // we do this because on the simd side we need to load 2 values at a time
             // and want to keep the order of the values in the byte the same as the original layout
             blockStartCursor[blockStartCursor.length - 1] += HALF_BLOCK;
             float f1 = ft.get(blockStartCursor) * iscale;
 
-            //Reset the cursor back to previous position
+            // Reset the cursor back to previous position
             blockStartCursor[blockStartCursor.length - 1] -= HALF_BLOCK;
             ft.iterate(blockStartCursor);
 
-            byte fb0 = (byte)Math.min(15, (byte)(f0 + 8.5f));
-            byte fb1 = (byte)Math.min(15, (byte)(f1 + 8.5f));
+            byte fb0 = (byte) Math.min(15, (byte) (f0 + 8.5f));
+            byte fb1 = (byte) Math.min(15, (byte) (f1 + 8.5f));
 
             this.b.put(ibyte, (byte) ((fb0) | ((fb1) << 4)));
 
@@ -109,14 +121,11 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         }
     }
 
-
     static int[] makeBlockShape(int... shape) {
         int[] blockShape = new int[shape.length];
         for (int i = 0; i < shape.length; i++) {
-            if (i == shape.length - 1)
-                blockShape[i] = shape[i] / BLOCK_SIZE;
-            else
-                blockShape[i] = shape[i];
+            if (i == shape.length - 1) blockShape[i] = shape[i] / BLOCK_SIZE;
+            else blockShape[i] = shape[i];
         }
 
         return blockShape;
@@ -132,7 +141,9 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(this.size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                            Ints.checkedCast(this.size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                    .order(ByteOrder.LITTLE_ENDIAN);
         } else {
             this.b = ByteBuffer.allocate(Ints.checkedCast(this.size() / 2)).order(ByteOrder.LITTLE_ENDIAN);
         }
@@ -140,7 +151,8 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public Q4ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, TensorShape shape, boolean cacheSlices) {
+    public Q4ByteBufferTensor(
+            String name, ByteBuffer b, FloatBufferTensor blockF, TensorShape shape, boolean cacheSlices) {
         super(DType.Q4, shape, cacheSlices);
         this.blockF = blockF;
         this.name = name;
@@ -169,8 +181,9 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
 
     @Override
     protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
-        FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make((int)(offset * I_BLOCK_SIZE), (int)(length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
-        return new Q4ByteBufferTensor(name, b.slice(offset/2, length/2), newBlockF, shape, cacheSlices);
+        FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make(
+                (int) (offset * I_BLOCK_SIZE), (int) (length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
+        return new Q4ByteBufferTensor(name, b.slice(offset / 2, length / 2), newBlockF, shape, cacheSlices);
     }
 
     @Override
@@ -181,7 +194,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         float scale = blockF.get(makeBlockShape(dims));
 
         // Represents the offset in the q4 byte array
-        int ibyte = ((int)(i * I_BLOCK_SIZE)) * HALF_BLOCK + (i % BLOCK_SIZE);
+        int ibyte = ((int) (i * I_BLOCK_SIZE)) * HALF_BLOCK + (i % BLOCK_SIZE);
 
         int x;
         if (i % BLOCK_SIZE < HALF_BLOCK) {
@@ -195,7 +208,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
     }
 
     public float getFactorForIndex(int i) {
-        int ix = (int)(i * I_BLOCK_SIZE);
+        int ix = (int) (i * I_BLOCK_SIZE);
         return blockF.get(ix);
     }
 
@@ -210,15 +223,13 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
 
     @Override
     public byte[] getArray() {
-        if (b.hasArray())
-            return b.array();
-        else
-            throw new UnsupportedOperationException();
+        if (b.hasArray()) return b.array();
+        else throw new UnsupportedOperationException();
     }
 
     @Override
     public int getArrayOffset(int i) {
-        return b.arrayOffset() + i/2;
+        return b.arrayOffset() + i / 2;
     }
 
     @Override
@@ -227,7 +238,8 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
-            return ByteVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+            return ByteVector.fromMemorySegment(
+                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -236,8 +248,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         offset = getOffset(offset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset));
-        else
-            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -247,15 +258,15 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
 
     @Override
     public int getMemorySegmentOffset(int offset) {
-        return offset/2;
+        return offset / 2;
     }
 
     @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
-        segment.asSlice(getMemorySegmentOffset(destOffset), length/2)
-                .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length/2));
+        segment.asSlice(getMemorySegmentOffset(destOffset), length / 2)
+                .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length / 2));
 
         Q4ByteBufferTensor srcQ4 = (Q4ByteBufferTensor) src;
         blockF.copyFrom(srcQ4.blockF, srcOffset / BLOCK_SIZE, destOffset / BLOCK_SIZE, length / BLOCK_SIZE);
@@ -264,17 +275,16 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
     @Override
     public void clear() {
         Preconditions.checkArgument(!b.isReadOnly(), "Can't clear a read-only buffer");
-        segment.fill((byte)0);
+        segment.fill((byte) 0);
     }
 
     @Override
     public String toString() {
         byte[] sample = new byte[Math.min(BLOCK_SIZE, b.remaining())];
         b.duplicate().get(sample);
-        return "Q4BufferTensor{" +
-                "name='" + name + '\'' +
-                "shape=" + shape +
-                ", b=" + Arrays.toString(sample) +
-                "...}";
+        return "Q4BufferTensor{" + "name='"
+                + name + '\'' + "shape="
+                + shape + ", b="
+                + Arrays.toString(sample) + "...}";
     }
 }

@@ -1,13 +1,26 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor.operations;
-
-import com.github.tjake.jlama.tensor.TensorCache;
-import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.TensorCache;
+import com.google.common.base.Preconditions;
 
-public interface TensorOperations
-{
+public interface TensorOperations {
     String name();
 
     boolean requiresOffHeapTensor();
@@ -22,7 +35,14 @@ public interface TensorOperations
 
     float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit);
 
-    default void dotProductChunk(AbstractTensor result, AbstractTensor a, AbstractTensor b, int offset, int limit, int chunkStart, int chunkSize) {
+    default void dotProductChunk(
+            AbstractTensor result,
+            AbstractTensor a,
+            AbstractTensor b,
+            int offset,
+            int limit,
+            int chunkStart,
+            int chunkSize) {
         Preconditions.checkArgument(b.dims() == 2);
         for (int i = chunkStart; i < chunkStart + chunkSize; i++) {
             float d = dotProduct(a, b.slice(i), offset, offset, limit);
@@ -30,7 +50,14 @@ public interface TensorOperations
         }
     }
 
-    default void dotProductBatchChunk(AbstractTensor[] result, AbstractTensor a, AbstractTensor[] b, int offset, int limit, int chunkStart, int chunkSize) {
+    default void dotProductBatchChunk(
+            AbstractTensor[] result,
+            AbstractTensor a,
+            AbstractTensor[] b,
+            int offset,
+            int limit,
+            int chunkStart,
+            int chunkSize) {
         Preconditions.checkArgument(b[0].dims() == 2 && result.length == b.length);
         for (int j = 0; j < result.length; j++) {
             dotProductChunk(result[j], a, b[j], offset, limit, chunkStart, chunkSize);
@@ -75,10 +102,9 @@ public interface TensorOperations
      * Collects the total sum of each position in the tensor.  (For testing purposes)
      */
     default float sum(AbstractTensor a) {
-        Preconditions.checkArgument( a.dims() == 1);
+        Preconditions.checkArgument(a.dims() == 1);
         float sum = 0f;
-        for (int i = 0; i < a.size(); i++)
-            sum += a.get(i);
+        for (int i = 0; i < a.size(); i++) sum += a.get(i);
         return sum;
     }
 }

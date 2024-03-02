@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -6,9 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -17,6 +29,8 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(SafeTensorIndex.class);
@@ -32,7 +46,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
     // Map from weight name to Weights data
     private final Map<String, Weights> weightMap = new HashMap<>();
-
 
     // Map from file name to RandomAccessFile
     private final Map<String, RandomAccessFile> fileMap = new HashMap<>();
@@ -57,14 +70,17 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
         for (Map.Entry<String, String> e : index.weightFileMap.entrySet()) {
             // Only load the file if it's not already loaded
             if (!index.fileMap.containsKey(e.getValue())) {
-                RandomAccessFile raf = new RandomAccessFile(Paths.get(modelRoot.toString(), e.getValue()).toFile(), "r");
+                RandomAccessFile raf = new RandomAccessFile(
+                        Paths.get(modelRoot.toString(), e.getValue()).toFile(), "r");
                 index.fileMap.put(e.getValue(), raf);
 
-                //Read the first 1MB of the file to get the TensorInfo
-                ByteBuffer header = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, Math.min(1 << 20, raf.length()));
+                // Read the first 1MB of the file to get the TensorInfo
+                ByteBuffer header =
+                        raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, Math.min(1 << 20, raf.length()));
 
                 Map<String, String> metadata = new HashMap<>();
-                Map<String, TensorInfo> tensorInfoMap = SafeTensorSupport.readTensorInfoMap(header, Optional.of(metadata));
+                Map<String, TensorInfo> tensorInfoMap =
+                        SafeTensorSupport.readTensorInfoMap(header, Optional.of(metadata));
                 int endOfHeaderPosition = header.position();
 
                 Map<List<Long>, List<String>> splits = index.computeMmapSplits(tensorInfoMap, raf.length());
@@ -73,9 +89,12 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     long length = split.getKey().get(1);
                     List<String> tensors = split.getValue();
 
-                    ByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset)).load();
+                    ByteBuffer buf = raf.getChannel()
+                            .map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset))
+                            .load();
                     Map<String, TensorInfo> mmapTensorInfoMap = tensorInfoMap.entrySet().stream()
-                            .filter(x -> tensors.contains(x.getKey())).collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+                            .filter(x -> tensors.contains(x.getKey()))
+                            .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
 
                     Weights mmapWeights = new Weights(metadata, mmapTensorInfoMap, buf, Optional.of(index));
                     for (String tensor : tensors) {
@@ -84,7 +103,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                 }
             }
         }
-
     }
 
     /**
@@ -105,8 +123,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
             long endOffset = 0;
 
             for (Map.Entry<String, TensorInfo> e : tensorInfoMap.entrySet()) {
-                if (added.contains(e.getKey()))
-                    continue;
+                if (added.contains(e.getKey())) continue;
 
                 TensorInfo info = e.getValue();
 
@@ -114,22 +131,23 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     tensors.add(e.getKey());
                     added.add(e.getKey());
 
-                    if (info.dataOffsets[1] > endOffset)
-                        endOffset = info.dataOffsets[1];
+                    if (info.dataOffsets[1] > endOffset) endOffset = info.dataOffsets[1];
 
-                    if (info.dataOffsets[0] < startOffset)
-                        startOffset = info.dataOffsets[0];
+                    if (info.dataOffsets[0] < startOffset) startOffset = info.dataOffsets[0];
 
                     // Adjust the offset to be relative to the start of the split
                     info.dataOffsets[0] -= lastSplitOffset;
                     info.dataOffsets[1] -= lastSplitOffset;
 
-                    logger.debug("Adding tensor {} to split {}-{}", e.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
+                    logger.debug(
+                            "Adding tensor {} to split {}-{}", e.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
                 }
             }
 
             logger.debug("Adding split {}-{} with {} tensors", startOffset, endOffset, tensors.size());
-            assert endOffset - startOffset < Integer.MAX_VALUE : "Mmap split too large " + (endOffset - startOffset) + " > " + Integer.MAX_VALUE + " " + lastSplitOffset;
+            assert endOffset - startOffset < Integer.MAX_VALUE
+                    : "Mmap split too large " + (endOffset - startOffset) + " > " + Integer.MAX_VALUE + " "
+                            + lastSplitOffset;
             splits.put(List.of(startOffset, endOffset), tensors);
             lastSplitOffset = endOffset;
         }
@@ -138,8 +156,9 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     }
 
     @JsonCreator
-    SafeTensorIndex(@JsonProperty("metadata") Map<String, String> metadata,
-                           @JsonProperty("weight_map") Map<String, String> weightFileMap) {
+    SafeTensorIndex(
+            @JsonProperty("metadata") Map<String, String> metadata,
+            @JsonProperty("weight_map") Map<String, String> weightFileMap) {
         this.metadata = ImmutableMap.copyOf(metadata);
         this.weightFileMap = ImmutableMap.copyOf(weightFileMap);
     }
@@ -154,8 +173,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
         Map<String, TensorInfo> tensorInfoMap = new HashMap<>();
         for (String name : weightMap.keySet()) {
             Weights w = weightMap.get(name);
-            if (w == null)
-                throw new NoSuchElementException(name);
+            if (w == null) throw new NoSuchElementException(name);
 
             tensorInfoMap.put(name, w.tensorInfoMap().get(name));
         }
@@ -166,14 +184,14 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     @Override
     public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) {
         Weights w = weightMap.get(name);
-        if (w == null)
-            throw new NoSuchElementException(name);
+        if (w == null) throw new NoSuchElementException(name);
 
         AbstractTensor t = w.load(name);
         return offset.map(o -> {
-            logger.debug("Sparsifying tensor {} with shape {}", name, o);
-            return t.sparsify(o.left, o.right);
-        }).orElse(t);
+                    logger.debug("Sparsifying tensor {} with shape {}", name, o);
+                    return t.sparsify(o.left, o.right);
+                })
+                .orElse(t);
     }
 
     @Override
@@ -185,7 +203,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     @Override
     public void close() throws Exception {
         weightMap.clear();
-        fileMap.forEach((k,v) -> {
+        fileMap.forEach((k, v) -> {
             try {
                 v.close();
             } catch (IOException e) {

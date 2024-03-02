@@ -1,18 +1,30 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors.tokenizer;
 
+import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import com.google.common.base.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 
 /**
  * Byte Pair Encoding tokenizer
@@ -23,7 +35,8 @@ public abstract class BPETokenizer implements Tokenizer {
     protected final ByteBuffer decodeBuffer = ByteBuffer.allocate(4);
 
     protected BPETokenizer(Path modelRoot) {
-        Preconditions.checkArgument(modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.jsom found in " + modelRoot);
+        Preconditions.checkArgument(
+                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.jsom found in " + modelRoot);
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);
@@ -35,11 +48,9 @@ public abstract class BPETokenizer implements Tokenizer {
     @Override
     public List<String> tokenize(String sentence) {
 
-        if (sentence.isEmpty())
-            return Collections.emptyList();
+        if (sentence.isEmpty()) return Collections.emptyList();
 
-        if (model.preTokenizer() != null)
-            return model.preTokenizer().pretokenize(sentence);
+        if (model.preTokenizer() != null) return model.preTokenizer().pretokenize(sentence);
 
         return Collections.singletonList(sentence);
     }
@@ -63,7 +74,7 @@ public abstract class BPETokenizer implements Tokenizer {
                 Long id = model.vocabLookup.get(c);
                 if (id != null) {
                     // we found this codepoint in vocab, add it as a token
-                    //logger.debug("{} -> {}", c, id);
+                    // logger.debug("{} -> {}", c, id);
                     tokens.add(id);
                 } else {
                     if (model.byteFallback) {
@@ -72,7 +83,7 @@ public abstract class BPETokenizer implements Tokenizer {
                         byte[] chars = code.getBytes(StandardCharsets.UTF_8);
                         for (int k = 0; k < chars.length; k++) {
                             long token = encodeCharacterAsToken(chars[k]);
-                            //logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
+                            // logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
                             tokens.add(token);
                         }
                     } else {
@@ -90,7 +101,8 @@ public abstract class BPETokenizer implements Tokenizer {
 
                 for (int i = 0; i < tokens.size() - 1; i++) {
                     // check if we can merge the pair (tokens[i], tokens[i+1])
-                    String merge = String.format("%s%s", decodeInternal(tokens.get(i)), decodeInternal(tokens.get(i + 1)));
+                    String merge =
+                            String.format("%s%s", decodeInternal(tokens.get(i)), decodeInternal(tokens.get(i + 1)));
                     Long id = model.vocabLookup.get(merge);
                     if (id != null) {
                         // this merge pair exists in vocab! record its position
@@ -117,43 +129,42 @@ public abstract class BPETokenizer implements Tokenizer {
     }
 
     protected String postProcessToken(String decoded) {
-        if (decoded == null)
-            decoded = model.unkToken;
+        if (decoded == null) decoded = model.unkToken;
 
         return decoded;
     }
 
     @Override
     public String decode(long id) {
-        return maybeDecodeTokenAsCharacter(id).map(c -> {
-            // We have a continuation byte or are buffering them
-            if (Character.isUnicodeIdentifierPart(c) || decodeBuffer.remaining() < 4) {
-                decodeBuffer.put((byte)c.charValue());
+        return maybeDecodeTokenAsCharacter(id)
+                .map(c -> {
+                    // We have a continuation byte or are buffering them
+                    if (Character.isUnicodeIdentifierPart(c) || decodeBuffer.remaining() < 4) {
+                        decodeBuffer.put((byte) c.charValue());
 
-                //Unicode symbol is ready
-                if (decodeBuffer.remaining() == 0) {
-                    String s = new String(decodeBuffer.array());
-                    decodeBuffer.rewind();
-                    return s;
-                }
+                        // Unicode symbol is ready
+                        if (decodeBuffer.remaining() == 0) {
+                            String s = new String(decodeBuffer.array());
+                            decodeBuffer.rewind();
+                            return s;
+                        }
 
-                return "";
-            }
-            return Character.toString(c);
-        }).orElseGet(() -> postProcessToken(model.vocabLookup.inverse().get(id)));
+                        return "";
+                    }
+                    return Character.toString(c);
+                })
+                .orElseGet(() -> postProcessToken(model.vocabLookup.inverse().get(id)));
     }
 
     protected abstract long encodeCharacterAsToken(byte c);
 
     protected abstract Optional<Character> maybeDecodeTokenAsCharacter(long id);
 
-    //Only used for merging
+    // Only used for merging
     protected String decodeInternal(long id) {
         return maybeDecodeTokenAsCharacter(id).map(Object::toString).orElseGet(() -> {
-
             String s = model.vocabLookup.inverse().get(id);
-            if (s == null)
-                s = model.unkToken;
+            if (s == null) s = model.unkToken;
 
             return s;
         });

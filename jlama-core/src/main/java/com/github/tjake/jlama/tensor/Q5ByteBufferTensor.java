@@ -1,25 +1,38 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor;
+
+import static com.github.tjake.jlama.tensor.Q4ByteBufferTensor.makeBlockShape;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.google.common.base.Preconditions;
-
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import jdk.incubator.vector.ByteVector;
-import jdk.incubator.vector.VectorSpecies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static com.github.tjake.jlama.tensor.Q4ByteBufferTensor.makeBlockShape;
+import jdk.incubator.vector.ByteVector;
+import jdk.incubator.vector.VectorSpecies;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
     private static final Logger logger = LoggerFactory.getLogger(Q5ByteBufferTensor.class);
@@ -27,8 +40,8 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
 
     final ByteBuffer b;
-    final FloatBufferTensor blockF; //Deltas
-    final int[] b5; //Fith bit of quants
+    final FloatBufferTensor blockF; // Deltas
+    final int[] b5; // Fith bit of quants
     private final String name;
     private final MemorySegment segment;
 
@@ -46,7 +59,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
             }
         } while (ft.iterate(cursor));
 
-        //Process each block in parallel
+        // Process each block in parallel
         VectorMath.pfor(0, startBlockCursors.size(), (i) -> {
             int[] blockStartCursor = startBlockCursors.get(i);
             processBlock(ft, blockStartCursor);
@@ -58,7 +71,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         float max = Float.MIN_VALUE;
         float amax = Float.MIN_VALUE;
 
-        //Accumulate the max value for this block
+        // Accumulate the max value for this block
         for (int i = 0; i < BLOCK_SIZE; i++) {
             float v = ft.get(cursor);
             float absv = v < 0 ? -v : v;
@@ -78,20 +91,20 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
 
         // Reset the cursor
         cursor = Arrays.copyOf(blockStartCursor, blockStartCursor.length);
-        for (int j = 0;  j < BLOCK_SIZE / 2; j++, i+=2) {
+        for (int j = 0; j < BLOCK_SIZE / 2; j++, i += 2) {
             float f0 = ft.get(cursor) * iscale;
             ft.iterate(cursor);
             float f1 = ft.get(cursor) * iscale;
             ft.iterate(cursor);
 
-            short fb0 =  (byte) Math.min(31, (byte)(f0 + 16.5f));
-            short fb1 =  (byte) Math.min(31, (byte)(f1 + 16.5f));
+            short fb0 = (byte) Math.min(31, (byte) (f0 + 16.5f));
+            short fb1 = (byte) Math.min(31, (byte) (f1 + 16.5f));
 
-            this.b.put(i/2, (byte) ((fb0 & 0x0F) | ((fb1 & 0x0F) << 4)));
+            this.b.put(i / 2, (byte) ((fb0 & 0x0F) | ((fb1 & 0x0F) << 4)));
 
             // 5th bit of each quant placed deterministically
             q |= ((fb0 & 0x10) >>> 4) << (j + 0);
-            q |= ((fb1 & 0x10) >>> 4) << (j + BLOCK_SIZE/2);
+            q |= ((fb1 & 0x10) >>> 4) << (j + BLOCK_SIZE / 2);
         }
 
         this.b5[getOffset(makeBlockShape(blockStartCursor))] = q;
@@ -105,7 +118,9 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.name = "tmp";
 
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).order(ByteOrder.LITTLE_ENDIAN);
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                            Ints.checkedCast(size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                    .order(ByteOrder.LITTLE_ENDIAN);
         } else {
             this.b = ByteBuffer.allocate(Ints.checkedCast(this.size() / 2)).order(ByteOrder.LITTLE_ENDIAN);
         }
@@ -113,7 +128,8 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public Q5ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, TensorShape shape, boolean cacheSlices) {
+    public Q5ByteBufferTensor(
+            String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, TensorShape shape, boolean cacheSlices) {
         super(DType.Q5, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
@@ -134,7 +150,8 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
 
     @Override
     protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
-        FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make((int)(offset * I_BLOCK_SIZE), (int)(length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
+        FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make(
+                (int) (offset * I_BLOCK_SIZE), (int) (length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
         return new Q5ByteBufferTensor(name, b.slice(offset, length), newBlockF, b5, shape, cacheSlices);
     }
 
@@ -145,7 +162,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         int i = getOffset(dims);
         float scale = blockF.get(makeBlockShape(dims));
         int q = b5[getOffset(makeBlockShape(dims))];
-        byte b0 = this.b.get(i/2);
+        byte b0 = this.b.get(i / 2);
         int j = i % BLOCK_SIZE / 2;
 
         byte xh;
@@ -154,7 +171,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
             xh = (byte) (((q >> (j + 0)) << 4) & 0x10);
             x = ((b0 & 0x0F) | xh) - 16;
         } else {
-            xh = (byte) (((q >> (j + 12))     ) & 0x10); // j + 12 == j + BLOCK_SIZE/2 << 4
+            xh = (byte) (((q >> (j + 12))) & 0x10); // j + 12 == j + BLOCK_SIZE/2 << 4
             x = ((b0 >> 4 & 0x0F) | xh) - 16;
         }
 
@@ -162,9 +179,8 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     public final float getFactorForIndex(int i) {
-        int ix = (int)(i * I_BLOCK_SIZE);
-        if (ix >= blockF.size())
-            throw new RuntimeException();
+        int ix = (int) (i * I_BLOCK_SIZE);
+        if (ix >= blockF.size()) throw new RuntimeException();
         return blockF.get(ix);
     }
 
@@ -175,17 +191,14 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
 
     @Override
     public byte[] getArray() {
-        if (b.hasArray())
-            return b.array();
-        else
-            throw new UnsupportedOperationException();
+        if (b.hasArray()) return b.array();
+        else throw new UnsupportedOperationException();
     }
 
     @Override
     public int getArrayOffset(int i) {
         return b.arrayOffset() + i;
     }
-
 
     @Override
     public MemorySegment getMemorySegment() {
@@ -210,7 +223,8 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
-            return ByteVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+            return ByteVector.fromMemorySegment(
+                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -218,24 +232,22 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         Preconditions.checkArgument(!b.isReadOnly());
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset));
-        else
-            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void clear() {
         Preconditions.checkArgument(!b.isReadOnly(), "Can't clear a read-only buffer");
-        segment.fill((byte)0);
+        segment.fill((byte) 0);
     }
 
     @Override
     public String toString() {
         byte[] sample = new byte[Math.min(10, b.remaining())];
         b.duplicate().get(sample);
-        return "Q5BufferTensor{" +
-                "name='" + name + '\'' +
-                "shape=" + shape +
-                ", b=" + Arrays.toString(sample) +
-                "...}";
+        return "Q5BufferTensor{" + "name='"
+                + name + '\'' + "shape="
+                + shape + ", b="
+                + Arrays.toString(sample) + "...}";
     }
 }

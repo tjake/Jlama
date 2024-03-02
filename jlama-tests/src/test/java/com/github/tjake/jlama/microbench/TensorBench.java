@@ -1,34 +1,56 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.microbench;
 
 import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
-import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.MachineSpec;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-
-
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
-@Fork(warmups = 1, value = 1, jvmArgsPrepend = {
-        "--add-modules=jdk.incubator.vector",
-        "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED", "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0",
-        "--enable-preview", "-XX:+UnlockDiagnosticVMOptions", "-XX:CompilerDirectivesFile=inlinerules.json",
-        "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector"})
+@Fork(
+        warmups = 1,
+        value = 1,
+        jvmArgsPrepend = {
+            "--add-modules=jdk.incubator.vector",
+            "--add-exports",
+            "java.base/sun.nio.ch=ALL-UNNAMED",
+            "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0",
+            "--enable-preview",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:CompilerDirectivesFile=inlinerules.json",
+            "--enable-native-access=ALL-UNNAMED",
+            "-XX:+AlignVector"
+        })
 public class TensorBench {
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
     private static final TensorOperations nops = TensorOperationsProvider.get();
 
     private static final int SIZE = 8192;
+
     @State(Scope.Benchmark)
     public static class Parameters {
         final FloatBufferTensor f = new FloatBufferTensor(SIZE);
@@ -38,10 +60,10 @@ public class TensorBench {
         final Q8ByteBufferTensor q82;
 
         final Q4ByteBufferTensor q4;
+
         public Parameters() {
 
-            for (int i = 0; i < SIZE; i++)
-            {
+            for (int i = 0; i < SIZE; i++) {
                 f.set(ThreadLocalRandom.current().nextFloat(), i);
                 f2.set(ThreadLocalRandom.current().nextFloat(), i);
             }
@@ -101,8 +123,7 @@ public class TensorBench {
         bh.consume(ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
 
-
     public static void main(String[] args) throws Exception {
-        org.openjdk.jmh.Main.main(new String[]{"-prof", "gc", "TensorBench"});
+        org.openjdk.jmh.Main.main(new String[] {"-prof", "gc", "TensorBench"});
     }
 }

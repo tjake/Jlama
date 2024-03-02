@@ -1,4 +1,21 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.net;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.model.AbstractModel;
@@ -17,14 +34,11 @@ import com.google.protobuf.ByteString;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.testing.GrpcCleanupRule;
+import java.nio.ByteBuffer;
+import java.util.*;
 import org.junit.Rule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.nio.ByteBuffer;
-import java.util.*;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class JlamaServiceTest {
     JlamaServiceGrpc.JlamaServiceBlockingStub blockingStub;
@@ -36,7 +50,7 @@ public class JlamaServiceTest {
     private final MockConfig modelConfig = new MockConfig(128, 4096, 8192, 16, 12, 1e5f);
 
     @BeforeEach
-    public void setup() throws Exception{
+    public void setup() throws Exception {
 
         String serverName = InProcessServerBuilder.generateName();
 
@@ -46,20 +60,22 @@ public class JlamaServiceTest {
                 .build()
                 .start());
 
-        blockingStub = JlamaServiceGrpc.newBlockingStub(grpcCleanup.register(InProcessChannelBuilder.forName(serverName)
-                .directExecutor()
-                .build()));
+        blockingStub = JlamaServiceGrpc.newBlockingStub(grpcCleanup.register(
+                InProcessChannelBuilder.forName(serverName).directExecutor().build()));
 
-        stub = JlamaServiceGrpc.newStub(grpcCleanup.register(InProcessChannelBuilder.forName(serverName)
-                .directExecutor()
-                .build()));
+        stub = JlamaServiceGrpc.newStub(grpcCleanup.register(
+                InProcessChannelBuilder.forName(serverName).directExecutor().build()));
     }
 
     @Test
     public void testRegister() {
         UUID uuid = UUID.randomUUID();
-        RegisterRequest request = RegisterRequest.newBuilder().setWorkerid(
-                ByteString.copyFrom(ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip())).build();
+        RegisterRequest request = RegisterRequest.newBuilder()
+                .setWorkerid(ByteString.copyFrom(ByteBuffer.allocate(128)
+                        .putLong(uuid.getLeastSignificantBits())
+                        .putLong(uuid.getMostSignificantBits())
+                        .flip()))
+                .build();
         RegisterResponse response = blockingStub.register(request);
         assertThat(response.getOffset()).isEqualTo(0);
         assertThat(response.getLength()).isEqualTo(1024);
@@ -69,22 +85,27 @@ public class JlamaServiceTest {
         assertThat(response.getOffset()).isEqualTo(0);
         assertThat(response.getLength()).isEqualTo(1024);
 
-
         // Should get a different response if we register with a different uuid
         uuid = UUID.randomUUID();
-        request = RegisterRequest.newBuilder().setWorkerid(
-                ByteString.copyFrom(ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip())).build();
+        request = RegisterRequest.newBuilder()
+                .setWorkerid(ByteString.copyFrom(ByteBuffer.allocate(128)
+                        .putLong(uuid.getLeastSignificantBits())
+                        .putLong(uuid.getMostSignificantBits())
+                        .flip()))
+                .build();
         response = blockingStub.register(request);
         assertThat(response.getOffset()).isEqualTo(1024);
         assertThat(response.getLength()).isEqualTo(1024);
     }
 
-
     @Test
     public void testNorm() {
         UUID uuid = UUID.randomUUID();
         CombineRequest request = CombineRequest.newBuilder()
-                .setUuid(ByteString.copyFrom(ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip()))
+                .setUuid(ByteString.copyFrom(ByteBuffer.allocate(128)
+                        .putLong(uuid.getLeastSignificantBits())
+                        .putLong(uuid.getMostSignificantBits())
+                        .flip()))
                 .setLayer(0)
                 .setSumSq(10)
                 .build();
@@ -102,8 +123,27 @@ public class JlamaServiceTest {
     }
 
     class MockConfig extends Config {
-        public MockConfig(int contextLength, int embeddingLength, int hiddenLength, int numberOfHeads, int numberOfLayers, float layerNormEps) {
-            super(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfHeads, numberOfLayers, layerNormEps, 32000, 1, 2, ActivationFunction.Type.SILU, 10000.0, 1.0);
+        public MockConfig(
+                int contextLength,
+                int embeddingLength,
+                int hiddenLength,
+                int numberOfHeads,
+                int numberOfLayers,
+                float layerNormEps) {
+            super(
+                    contextLength,
+                    embeddingLength,
+                    hiddenLength,
+                    numberOfHeads,
+                    numberOfHeads,
+                    numberOfLayers,
+                    layerNormEps,
+                    32000,
+                    1,
+                    2,
+                    ActivationFunction.Type.SILU,
+                    10000.0,
+                    1.0);
         }
     }
 
@@ -123,16 +163,13 @@ public class JlamaServiceTest {
             return null;
         }
 
-
         @Override
         public DType getModelDType() {
             return DType.F32;
         }
 
         @Override
-        public void close() throws Exception {
-
-        }
+        public void close() throws Exception {}
     }
 
     class MockTokenizer implements Tokenizer {
@@ -160,7 +197,14 @@ public class JlamaServiceTest {
 
     class MockModel extends AbstractModel {
         protected MockModel(Config c) {
-            super(InferenceType.INPUT_TO_EMBEDDING, c, new MockWeightLoader(), new MockTokenizer(), DType.F32, DType.F32, Optional.empty());
+            super(
+                    InferenceType.INPUT_TO_EMBEDDING,
+                    c,
+                    new MockWeightLoader(),
+                    new MockTokenizer(),
+                    DType.F32,
+                    DType.F32,
+                    Optional.empty());
         }
 
         @Override
@@ -178,6 +222,4 @@ public class JlamaServiceTest {
             return null;
         }
     }
-
-
 }

@@ -1,26 +1,47 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.microbench;
 
-import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Float16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.util.MachineSpec;
-import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.infra.Blackhole;
-
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 1, time = 5)
-@Fork(warmups = 1, value = 1, jvmArgsAppend = {"--add-modules=jdk.incubator.vector", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
-"-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"})
+@Fork(
+        warmups = 1,
+        value = 1,
+        jvmArgsAppend = {
+            "--add-modules=jdk.incubator.vector",
+            "--add-exports",
+            "java.base/sun.nio.ch=ALL-UNNAMED",
+            "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"
+        })
 public class ActivationBench {
     private static final TensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
-    static int size = 1<<20;
-    static byte[] cacheKill = new byte[1 << 10]; //To Flush the L3 cache
+    static int size = 1 << 20;
+    static byte[] cacheKill = new byte[1 << 10]; // To Flush the L3 cache
     static FloatBufferTensor f1 = new FloatBufferTensor(size);
     static FloatBufferTensor f2 = new FloatBufferTensor(size);
     static Q8ByteBufferTensor b1;

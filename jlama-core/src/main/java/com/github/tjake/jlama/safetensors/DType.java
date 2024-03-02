@@ -1,6 +1,19 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors;
-
-import java.util.Optional;
 
 public enum DType {
     // BOOL represents a boolean type.
@@ -30,7 +43,7 @@ public enum DType {
     // U64 represents a 64-bit unsigned integer type.
     U64(8),
 
-    //JLAMA specific types
+    // JLAMA specific types
     // Q4 represents a 4-bit quantized type.
     Q4(1),
     // Q5 represents a 5-bit quantized type.
@@ -42,8 +55,7 @@ public enum DType {
         this.size = size;
     }
 
-    public int size()
-    {
+    public int size() {
         return size;
     }
 }

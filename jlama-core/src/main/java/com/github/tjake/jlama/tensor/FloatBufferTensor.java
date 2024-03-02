@@ -1,21 +1,33 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.google.common.base.Preconditions;
-
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import java.lang.foreign.MemorySegment;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
+import java.util.Arrays;
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.util.Arrays;
 
 /**
  * A Tensor is a multidimensional array of floats.  It is backed by a FloatBuffer
@@ -52,7 +64,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
         super(DType.F32, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(shape.size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                            Ints.checkedCast(shape.size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                    .asFloatBuffer();
         } else {
             this.b = FloatBuffer.allocate(Ints.checkedCast(shape.size()));
         }
@@ -70,7 +84,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
             if (b.isDirect()) {
                 this.b = b;
             } else {
-                this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asFloatBuffer();
+                this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                                Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                        .asFloatBuffer();
                 this.b.duplicate().put(b);
             }
         } else {
@@ -103,7 +119,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     }
 
     @Override
-    public void set(float v, int ...dims) {
+    public void set(float v, int... dims) {
         Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified for tensor");
         Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
@@ -120,12 +136,10 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
         return (b.hasArray() ? b.arrayOffset() : 0) + offset;
     }
 
-
     @Override
     public MemorySegment getMemorySegment() {
         return segment;
     }
-
 
     @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
@@ -146,7 +160,8 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
         if (!TensorOperationsProvider.get().requiresOffHeapTensor() && b.hasArray())
             return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
-            return FloatVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+            return FloatVector.fromMemorySegment(
+                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -155,8 +170,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
         offset = getOffset(offset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor() && b.hasArray())
             vector.intoArray(getArray(), getArrayOffset(offset));
-        else
-            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -172,10 +186,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     public String toString() {
         float[] sample = new float[Math.min(10, b.remaining())];
         b.duplicate().get(sample);
-        return "FloatBufferTensor{" +
-                "name='" + name + '\'' +
-                " shape=" + shape +
-                ", b=" + Arrays.toString(sample) +
-                "...}";
+        return "FloatBufferTensor{" + "name='"
+                + name + '\'' + " shape="
+                + shape + ", b="
+                + Arrays.toString(sample) + "...}";
     }
 }

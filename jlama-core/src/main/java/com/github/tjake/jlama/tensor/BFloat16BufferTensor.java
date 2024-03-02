@@ -1,17 +1,30 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.tensor;
 
+import com.github.tjake.jlama.math.FloatConversions;
+import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
+import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
-
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.google.common.base.Preconditions;
-
-import com.github.tjake.jlama.math.FloatConversions;
-import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
-import com.google.common.primitives.Ints;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
@@ -20,6 +33,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     private final ShortBuffer b;
     private final String name;
     private final MemorySegment segment;
+
     public BFloat16BufferTensor(AbstractTensor ft) {
         this(ft.shape);
         Preconditions.checkArgument(ft.dType != DType.BF16, "This should never happen, likely a bug");
@@ -38,7 +52,9 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         super(DType.BF16, shape, true);
         this.name = "tmp";
         if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE).asShortBuffer();
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                            Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                    .asShortBuffer();
         } else {
             this.b = ShortBuffer.allocate(Ints.checkedCast(size()));
         }
@@ -74,7 +90,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     }
 
     @Override
-    public void set(float v, int ...dims) {
+    public void set(float v, int... dims) {
         Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified for tensor");
         Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         Preconditions.checkArgument(!b.isReadOnly(), "Can't modify a read only buffer");
@@ -83,10 +99,8 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
 
     @Override
     public short[] getArray() {
-        if (b.hasArray())
-            return b.array();
-        else
-            throw new UnsupportedOperationException("Can't get array from direct buffer");
+        if (b.hasArray()) return b.array();
+        else throw new UnsupportedOperationException("Can't get array from direct buffer");
     }
 
     @Override
@@ -99,7 +113,8 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             return ShortVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
-            return ShortVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+            return ShortVector.fromMemorySegment(
+                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -107,8 +122,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         Preconditions.checkArgument(!b.isReadOnly());
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset));
-        else
-            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -132,17 +146,16 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     @Override
     public void clear() {
         Preconditions.checkArgument(!b.isReadOnly(), "Can't clear a read-only buffer");
-        segment.fill((byte)0);
+        segment.fill((byte) 0);
     }
 
     @Override
     public String toString() {
         short[] sample = new short[Math.min(10, b.remaining())];
         b.duplicate().get(sample);
-        return "BFloat16BufferTensor{" +
-                "name='" + name + '\'' +
-                ", shape=" + shape +
-                ", b=" + Arrays.toString(sample) +
-                "...}";
+        return "BFloat16BufferTensor{" + "name='"
+                + name + '\'' + ", shape="
+                + shape + ", b="
+                + Arrays.toString(sample) + "...}";
     }
 }
