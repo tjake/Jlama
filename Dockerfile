@@ -24,6 +24,8 @@ COPY run-cli.sh run-cli.sh
 COPY conf/logback.xml logback.xml
 COPY --from=builder jlama-cli/target/jlama-cli.jar ./jlama-cli.jar
 
+RUN curl -s -L https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz | tar xvz - -C /profiler
+
 ENV JLAMA_PREINSTALLED_JAR=/jlama-cli.jar
 ENV JLAMA_JVM_ARGS="-Dlogback.configurationFile=./logback.xml"
 

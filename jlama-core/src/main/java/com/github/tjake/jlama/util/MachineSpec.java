@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteOrder;
 
+/**
+ * Detects the machine's vector capabilities
+ */
 public class MachineSpec {
     private static final Logger logger = LoggerFactory.getLogger(MachineSpec.class);
     public static final Type VECTOR_TYPE = new MachineSpec().type;

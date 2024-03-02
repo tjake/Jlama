@@ -14,6 +14,9 @@ import org.slf4j.LoggerFactory;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 
+/**
+ * Byte Pair Encoding tokenizer
+ */
 public abstract class BPETokenizer implements Tokenizer {
     protected static final Logger logger = LoggerFactory.getLogger(BPETokenizer.class);
     protected final TokenizerModel model;

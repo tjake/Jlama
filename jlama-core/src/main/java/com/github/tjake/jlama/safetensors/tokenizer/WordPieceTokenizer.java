@@ -12,7 +12,10 @@ import com.google.common.base.Preconditions;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 
-// https://github.com/google-research/bert/blob/master/tokenization.py
+/**
+ * WordPiece tokenizer
+ * @see <a href="https://github.com/google-research/bert/blob/master/tokenization.py">...</a>
+ */
 public class WordPieceTokenizer implements Tokenizer {
 
     protected final TokenizerModel model;

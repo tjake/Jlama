@@ -2,6 +2,9 @@ package com.github.tjake.jlama.util;
 
 import com.google.common.base.Objects;
 
+/**
+ * A simple pair class
+ */
 public class Pair<T1, T2>
 {
     public final T1 left;

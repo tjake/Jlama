@@ -1,5 +1,8 @@
 package com.github.tjake.jlama.util;
 
+/**
+ * Helper class for runtime support
+ */
 public class RuntimeSupport {
     static String OS = System.getProperty("os.name").toLowerCase();
     static String Arch = System.getProperty("os.arch").toLowerCase();

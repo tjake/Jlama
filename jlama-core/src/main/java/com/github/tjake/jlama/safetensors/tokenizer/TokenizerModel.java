@@ -15,6 +15,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
+/**
+ * Tokenizer model, loosely based on Huggingface's Tokenizer format
+ */
 public class TokenizerModel
 {
     @JsonProperty("type")

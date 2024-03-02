@@ -6,9 +6,17 @@ import java.util.function.Supplier;
 
 import com.google.common.base.Suppliers;
 
+/**
+ * Executor that uses a fixed number of physical cores
+ */
 public class PhysicalCoreExecutor {
     private static volatile int physicalCoreCount = Math.max(1, Runtime.getRuntime().availableProcessors());
     private static final AtomicBoolean started = new AtomicBoolean(false);
+
+    /**
+     * Override the number of physical cores to use
+     * @param threadCount number of physical cores to use
+     */
     public static void overrideThreadCount(int threadCount) {
         if (!started.compareAndSet(false, true))
             throw new IllegalStateException("Executor already started");

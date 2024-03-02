@@ -48,6 +48,7 @@
     <os.detection.classifierWithLikes>fedora,suse,arch</os.detection.classifierWithLikes>
     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
 
+    <spotless.version>2.43.0</spotless.version>
     <junit.version>4.13.2</junit.version>
     <assertj.version>3.21.0</assertj.version>
     <junit-platform.version>1.9.2</junit-platform.version>
@@ -178,6 +179,51 @@
               </goals>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>${spotless.version}</version>
+          <configuration>
+            <!-- optional: limit format enforcement to just the files changed by this feature branch -->
+            <ratchetFrom>origin/main</ratchetFrom>
+            <formats>
+              <!-- you can define as many formats as you want, each is independent -->
+              <format>
+                <!-- define the files to apply to -->
+                <includes>
+                  <include>.gitattributes</include>
+                  <include>.gitignore</include>
+                </includes>
+                <!-- define the steps to apply to those files -->
+                <trimTrailingWhitespace/>
+                <endWithNewline/>
+                <indent>
+                  <tabs>true</tabs>
+                  <spacesPerTab>4</spacesPerTab>
+                </indent>
+              </format>
+            </formats>
+            <!-- define a language-specific format -->
+            <java>
+              <!-- no need to specify files, inferred automatically, but you can if you want -->
+
+              <!-- apply a specific flavor of google-java-format and reflow long strings -->
+              <googleJavaFormat>
+                <version>1.20.0</version>
+                <style>AOSP</style>
+                <reflowLongStrings>true</reflowLongStrings>
+                <formatJavadoc>false</formatJavadoc>
+              </googleJavaFormat>
+
+              <!-- make sure every file has the following copyright header.
+                optionally, Spotless can set copyright years by digging
+                through git history (see "license" section below) -->
+              <licenseHeader>
+                <file>conf/license-header</file>
+              </licenseHeader>
+            </java>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
