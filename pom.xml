@@ -42,7 +42,7 @@
   <!-- Build property abstractions: versions, etc -->
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <revision>0.1.0-SNAPSHOT</revision>
+    <revision>0.1.0</revision>
 
     <osmaven.version>1.7.1</osmaven.version>
     <os.detection.classifierWithLikes>fedora,suse,arch</os.detection.classifierWithLikes>
@@ -94,14 +94,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <modules>
-    <module>jlama-core</module>
-    <module>jlama-native</module>
-    <module>jlama-net</module>
-    <module>jlama-cli</module>
-    <module>jlama-tests</module>
-  </modules>
 
   <build>
     <extensions>
@@ -254,4 +246,109 @@
         </plugin>
       </plugins>
   </build>
+  <profiles>
+    <profile>
+      <id>allmodules</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+          <module>jlama-core</module>
+          <module>jlama-native</module>
+          <module>jlama-net</module>
+          <module>jlama-cli</module>
+          <module>jlama-tests</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>release</id>
+      <properties>
+        <maven.install.skip>false</maven.install.skip>
+      </properties>
+      <modules>
+        <module>jlama-core</module>
+        <module>jlama-native</module>
+      </modules>
+      <distributionManagement>
+        <snapshotRepository>
+          <id>ossrh</id>
+          <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+          <id>ossrh</id>
+          <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+      </distributionManagement>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>2.2.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.6.3</version>
+            <configuration>
+              <skippedModules>jlama-tests</skippedModules>
+              <additionalJOptions>
+                <additionalJOption>--add-modules=jdk.incubator.vector</additionalJOption>
+                <additionalJOption>--enable-preview</additionalJOption>
+              </additionalJOptions>
+              <release>21</release>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.5</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <version>1.6.13</version>
+            <extensions>true</extensions>
+            <configuration>
+              <serverId>ossrh</serverId>
+              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <skipStagingRepositoryClose>true</skipStagingRepositoryClose>
+              <autoReleaseAfterClose>false</autoReleaseAfterClose>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

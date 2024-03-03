@@ -22,7 +22,7 @@
     <nativeJarWorkdir>${project.build.directory}/native-jar-work</nativeJarWorkdir>
     <nativeObjsOnlyDir>${project.build.directory}/native-objs-only</nativeObjsOnlyDir>
     <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
-    <defaultJarFile>${project.build.directory}/${project.build.finalName}-none.jar</defaultJarFile>
+    <defaultJarFile>${project.build.directory}/${project.build.finalName}.jar</defaultJarFile>
     <nativeJarFile>${project.build.directory}/${project.build.finalName}-${jni.classifier}.jar</nativeJarFile>
   </properties>
 
@@ -40,9 +40,24 @@
     <plugin>
       <artifactId>maven-jar-plugin</artifactId>
       <!-- All other configuration information is in the parent pom -->
-      <configuration>
-        <classifier>${jni.classifier}</classifier>
-      </configuration>
+      <executions>
+        <execution>
+          <phase>package</phase>
+          <goals>
+            <goal>jar</goal>
+          </goals>
+          <configuration>
+            <classifier>${jni.classifier}</classifier>
+          </configuration>
+        </execution>
+        <execution>
+          <id>default-jar</id>
+          <phase>package</phase>
+          <goals>
+            <goal>jar</goal>
+          </goals>
+        </execution>
+      </executions>
     </plugin>
     <!-- Ensure to put maven-antrun-plugin at the end of the plugin list
    so that they are run lastly in the same phase. -->
@@ -159,13 +174,6 @@
   <build>
     <plugins>
       <plugin>
-        <artifactId>maven-jar-plugin</artifactId>
-        <!-- All other configuration information is in the parent pom -->
-        <configuration>
-          <classifier>none</classifier>
-        </configuration>
-      </plugin>
-      <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <!-- Build the additional JAR that contains the native library. -->
@@ -233,13 +241,6 @@
     </properties>
     <build>
       <plugins>
-        <plugin>
-          <artifactId>maven-jar-plugin</artifactId>
-          <!-- All other configuration information is in the parent pom -->
-          <configuration>
-            <classifier>none</classifier>
-          </configuration>
-        </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
           <executions>
@@ -313,13 +314,6 @@
     <build>
       <plugins>
         <plugin>
-          <artifactId>maven-jar-plugin</artifactId>
-          <!-- All other configuration information is in the parent pom -->
-          <configuration>
-            <classifier>none</classifier>
-          </configuration>
-        </plugin>
-        <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
           <executions>
             <!-- Build the additional JAR that contains the native library. -->
@@ -391,13 +385,6 @@
     </properties>
     <build>
       <plugins>
-        <plugin>
-          <artifactId>maven-jar-plugin</artifactId>
-          <!-- All other configuration information is in the parent pom -->
-          <configuration>
-            <classifier>none</classifier>
-          </configuration>
-        </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
           <executions>
