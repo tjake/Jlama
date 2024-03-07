@@ -16,10 +16,12 @@
 package com.github.tjake.jlama.cli.serve;
 
 import com.github.tjake.jlama.model.functions.Generator;
+import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
+
+import jakarta.ws.rs.core.Application;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
-import javax.ws.rs.core.Application;
-import org.jboss.resteasy.plugins.providers.jackson.ResteasyJackson2Provider;
 
 public class JlamaRestApi extends Application {
 
@@ -40,6 +42,7 @@ public class JlamaRestApi extends Application {
     public Set<Object> getSingletons() {
         Set<Object> set = new HashSet<>();
         set.add(new GenerateResource(model));
+        set.add(new ChatApi(model));
         set.add(new EmbedResource());
         return set;
     }
