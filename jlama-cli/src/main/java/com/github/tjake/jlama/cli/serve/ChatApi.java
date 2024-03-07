@@ -127,7 +127,8 @@ public class ChatApi {
             so.write(baos);
 
             String content = baos.toString(StandardCharsets.UTF_8);
-            CreateChatCompletionResponseChoicesInner inner = new CreateChatCompletionResponseChoicesInner();
+            //TODO: support LENGTH when finalNumTokens == the number of tokens generated
+            CreateChatCompletionResponseChoicesInner inner = new CreateChatCompletionResponseChoicesInner().finishReason(CreateChatCompletionResponseChoicesInner.FinishReasonEnum.STOP);
             ChatCompletionResponseMessage message = new ChatCompletionResponseMessage()
                     .content(content)
                     .role(ChatCompletionResponseMessage.RoleEnum.ASSISTANT);
