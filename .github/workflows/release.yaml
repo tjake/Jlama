@@ -27,7 +27,7 @@ jobs:
       - name: Setup maven settings
         run: |
           # Setup maven settings
-          echo "<settings><servers><server><id>ossrh</id><username>${{ secrets.OSSRH_USERNAME }}</username><password>${{ secrets.OSSRH_PASSWORD }}</password></server></servers><profiles><profile><id>ossrh</id><activation><activeByDefault>true</activeByDefault></activation><properties><gpg.executable>gpg</gpg.executable><gpg.passphrase>${{ secrets.GPG_KEY_PASSWORD }}</gpg.passphrase></properties></profile></profiles></settings>" > $HOME/.m2/settings.xml
+          echo "<settings><servers><server><id>ossrh</id><username>${{ secrets.OSSRH_USERNAME }}</username><password>${{ secrets.OSSRH_PASSWORD }}</password></server></servers><profiles><profile><id>ossrh</id><activation><activeByDefault>true</activeByDefault></activation><properties><gpg.executable>gpg</gpg.executable><gpg.passphrase>${{ secrets.GPG_KEY_PASSWORD }}</gpg.passphrase></properties></profile></profiles></settings>" > ~/.m2/settings.xml
       - name: Release artifacts
         if: startsWith(matrix.os,'ubuntu')
         run: mvn -B -DskipTests -Prelease deploy
