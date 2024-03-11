@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         jdk: [ 21 ]
-        os: [ windows-latest ]
+        os: [ ubuntu-latest, windows-latest, macos-latest, macos-14 ]
       fail-fast: true
       max-parallel: 1
     runs-on: ${{ matrix.os }}
@@ -34,6 +34,7 @@ jobs:
         if: startsWith(matrix.os,'ubuntu')
         run: mvn -B -DskipTests -Prelease deploy
       - name: native libraries
+        shell: bash
         if: ${{ !startsWith(matrix.os,'ubuntu') }}
         run: |
           REPO_ID=`mvn -Prelease nexus-staging:rc-list | grep "comgithubtjake".*OPEN | cut -d' ' -f2 | tail -1`
