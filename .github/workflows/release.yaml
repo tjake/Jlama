@@ -1,0 +1,43 @@
+name: Release OSSRH
+on: workflow_dispatch
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        jdk: [ 21 ]
+        os: [ ubuntu-latest, windows-latest, macos-latest, macos-14 ]
+      fail-fast: true
+      max-parallel: 1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ matrix.jdk }}
+          distribution: adopt
+          cache: maven
+      - name: Install gpg secret key
+        run: |
+          # Install gpg secret key
+          cat <(echo -e "${{ secrets.GPG_PRIVATE_KEY }}") | gpg --batch --import
+          # Verify gpg secret key
+          gpg --list-secret-keys --keyid-format LONG
+      - name: Setup maven settings
+        run: |
+          # Setup maven settings
+          echo "<settings><servers><server><id>ossrh</id><username>${{ secrets.OSSRH_USERNAME }}</username><password>${{ secrets.OSSRH_PASSWORD }}</password></server></servers><profiles><profile><id>ossrh</id><activation><activeByDefault>true</activeByDefault></activation><properties><gpg.executable>gpg</gpg.executable><gpg.passphrase>${{ secrets.GPG_KEY_PASSWORD }}</gpg.passphrase></properties></profile></profiles></settings>" > $HOME/.m2/settings.xml
+      - name: Release artifacts
+        if: startsWith(matrix.os,'ubuntu')
+        run: mvn -B -DskipTests -Prelease deploy
+      - name: native libraries
+        if: ${{ !startsWith(matrix.os,'ubuntu') }}
+        run: |
+          REPO_ID=`mvn -Prelease nexus-staging:rc-list | grep "comgithubtjake".*OPEN | cut -d' ' -f2 | tail -1`
+          if [ -z "$REPO_ID" ]; then
+            echo "No open staging repository found"
+            exit 1
+          fi
+          echo "Using staging repository $REPO_ID"
+          mvn -B -Prelease -am -pl jlama-native deploy -DstagingRepositoryId="$REPO_ID"
