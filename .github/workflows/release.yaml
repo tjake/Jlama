@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         jdk: [ 21 ]
-        os: [ ubuntu-latest, windows-latest, macos-latest, macos-14 ]
+        os: [ windows-latest ]
       fail-fast: true
       max-parallel: 1
     runs-on: ${{ matrix.os }}
@@ -19,12 +19,14 @@ jobs:
           distribution: adopt
           cache: maven
       - name: Install gpg secret key
+        shell: bash
         run: |
           # Install gpg secret key
           cat <(echo -e "${{ secrets.GPG_PRIVATE_KEY }}") | gpg --batch --import
           # Verify gpg secret key
           gpg --list-secret-keys --keyid-format LONG
       - name: Setup maven settings
+        shell: bash
         run: |
           # Setup maven settings
           echo "<settings><servers><server><id>ossrh</id><username>${{ secrets.OSSRH_USER }}</username><password>${{ secrets.OSSRH_PASSWORD }}</password></server></servers><profiles><profile><id>ossrh</id><activation><activeByDefault>true</activeByDefault></activation><properties><gpg.executable>gpg</gpg.executable><gpg.passphrase>${{ secrets.GPG_KEY_PASSWORD }}</gpg.passphrase></properties></profile></profiles></settings>" > ~/.m2/settings.xml
