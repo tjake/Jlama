@@ -4,6 +4,8 @@
   <img src="docs/jlama.jpg" width="300" height="300" alt="Cute Jlama">
 </p>
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.tjake/jlama-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.tjake/jlama-core)
+
 ## 🚀 Features
 
 Model Support:
