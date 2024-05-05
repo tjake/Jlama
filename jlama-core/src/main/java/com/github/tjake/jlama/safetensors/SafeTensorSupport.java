@@ -384,6 +384,12 @@ public class SafeTensorSupport {
             CountingInputStream inStream = new CountingInputStream(stream.left);
 
             long totalBytes = stream.right;
+
+            if (outputPath.toFile().exists() && outputPath.toFile().length() == totalBytes) {
+                logger.info("File already exists: {}", outputPath);
+                return;
+            }
+
             optionalProgressConsumer.ifPresent(p -> p.accept(currFile, 0L, totalBytes));
 
             CompletableFuture<Long> result = CompletableFuture.supplyAsync(() -> {

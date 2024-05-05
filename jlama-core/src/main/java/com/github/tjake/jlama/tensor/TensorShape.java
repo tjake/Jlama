@@ -26,6 +26,10 @@ import java.util.Optional;
  */
 public class TensorShape {
     public static TensorShape of(int... shape) {
+        //Special case for vectors
+        if (shape.length == 1)
+            shape = new int[]{1, shape[0]};
+
         return new TensorShape(shape, Optional.empty());
     }
 
@@ -41,6 +45,7 @@ public class TensorShape {
     private final int sparseLength;
 
     private TensorShape(int[] shape, Optional<Pair<Integer, Integer>> sparseRange) {
+        Preconditions.checkArgument(shape.length > 1, "Shape must have at least two dimensions, even if first is 1 (to represent a vector)");
         this.tshape = shape;
         this.sparseRange = sparseRange;
         this.isSparse = sparseRange.isPresent();
@@ -69,6 +74,10 @@ public class TensorShape {
 
     public int sparseLength() {
         return sparseLength;
+    }
+
+    public int sparseOffset() {
+        return sparseOffset;
     }
 
     public int sparseAdjustment(int offset) {
@@ -111,6 +120,10 @@ public class TensorShape {
 
     public TensorShape slice(int numDims) {
         Preconditions.checkArgument(numDims < tshape.length, "Too many dimensions specified for tensor");
+        int newLength = tshape.length - numDims;
+        if (newLength == 1)
+            return new TensorShape(new int[]{1, tshape[tshape.length - 1]}, sparseRange);
+
         return new TensorShape(Arrays.copyOfRange(tshape, numDims, tshape.length), sparseRange);
     }
 

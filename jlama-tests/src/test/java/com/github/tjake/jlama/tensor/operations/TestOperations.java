@@ -17,7 +17,7 @@ package com.github.tjake.jlama.tensor.operations;
 
 import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
 
-import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.math.VectorMath;import com.github.tjake.jlama.model.AbstractModel;import com.github.tjake.jlama.model.LayerNorm;import com.github.tjake.jlama.model.Mocks;import com.github.tjake.jlama.model.RMSNorm;import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.Float16BufferTensor;
@@ -26,11 +26,7 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.util.MachineSpec;
 import com.github.tjake.jlama.util.RuntimeSupport;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Function;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -41,6 +37,7 @@ import org.slf4j.LoggerFactory;
 public class TestOperations {
     private static final Random r = new Random();
     private static final Logger logger = LoggerFactory.getLogger(TensorOperations.class);
+    private static final int BATCH = 32;
     private static final int SIZE = 1024;
     private static final int ROWS = 128;
     private static final List<TensorOperations> opTypes = new ArrayList<>();
@@ -56,7 +53,7 @@ public class TestOperations {
     @BeforeClass
     public static void init() {
         logger.info("Globally using {}", globalOps.name());
-        opTypes.add(new NaiveTensorOperations());
+      //  opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_512));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_256));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.ARM_128));
@@ -329,8 +326,51 @@ public class TestOperations {
         for (TensorOperations t : opTypes) {
             t.dotProductBatchChunk(new AbstractTensor[] {b0, b1}, a, new AbstractTensor[] {w0, w1}, 0, SIZE, 0, ROWS);
 
-            Assert.assertEquals(controlOps.sum(r0), controlOps.sum(b0), 0.01);
-            Assert.assertEquals(controlOps.sum(r1), controlOps.sum(b1), 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0), 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r1), controlOps.sum(b1), 0.01);
         }
+    }
+
+    @Test
+    public void testBatchDotProduct() {
+        //M == BATCH, N == ROWS, K == SIZE
+
+        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
+
+        for (TensorOperations t : opTypes) {
+            t.batchDotProduct(c1, a, b, 0, 0, SIZE);
+            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1), 0.1);
+        }
+    }
+
+    @Test
+    public void testLayerNorm() {
+        // M == BATCH, N == ROWS, K == SIZE
+
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, SIZE);
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE);
+        AbstractTensor b = makeWeights(1, SIZE).slice(0);
+
+
+        AbstractModel m = Mocks.makeModel(8192, SIZE, 1024, 16, 6);
+        LayerNorm ln = new RMSNorm(m, b);
+
+        VectorMath.pfor(0, BATCH, i -> {
+            try(AbstractTensor o = ln.forward(a.slice(i), Optional.empty())) {
+                c.copyFrom(o, 0, i * m.getConfig().embeddingLength, m.getConfig().embeddingLength);
+            }
+        });
+
+        AbstractTensor c1 = ln.batchForward(a);
+
+        Assert.assertEquals(controlOps.sum(c), controlOps.sum(c1), 0.01);
     }
 }

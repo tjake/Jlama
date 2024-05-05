@@ -95,7 +95,12 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     public AbstractTensor slice(boolean cacheInnerSlice, int... dims) {
         Preconditions.checkArgument(dims.length < shape.dims(), "Too many dimensions specified for tensor");
 
+        try {
         if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null) return sliceCache[dims[0]];
+        } catch (Throwable t) {
+            logger.warn("Dims = {}", Arrays.toString(dims), t);
+            throw t;
+        }
 
         TensorShape slicedShape = shape.slice(dims.length);
 
@@ -236,9 +241,9 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public abstract int getArrayOffset(int offset);
 
-    public abstract V getVector(VectorSpecies<T> species, int offset);
+    public abstract V getVector(VectorSpecies<T> species, int... offset);
 
-    public abstract void intoTensor(V vector, int offset);
+    public abstract void intoTensor(V vector, int... offset);
 
     public void intoTensor(V vector, int offset, VectorMask<T> mask) {
         throw new UnsupportedOperationException();

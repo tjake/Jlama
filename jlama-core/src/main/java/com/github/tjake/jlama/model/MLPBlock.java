@@ -99,8 +99,9 @@ public class MLPBlock implements FeedForward {
     @Override
     public AbstractTensor forward(AbstractTensor lnemb, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         int hiddenLength = model.c.hiddenLength;
-        try (AbstractTensor buf = model.makeTensor(hiddenLength);
-                AbstractTensor buf2 = model.makeTensor(hiddenLength)) {
+        int batchSize = lnemb.shape().first();
+        try (AbstractTensor buf = model.makeTensor(batchSize, hiddenLength);
+                AbstractTensor buf2 = model.makeTensor(batchSize, hiddenLength)) {
 
             batchResults[0] = buf;
             batchResults[1] = buf2;
@@ -140,9 +141,11 @@ public class MLPBlock implements FeedForward {
             fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, 0, hiddenLength));
 
             VectorMath.pfor(0, hiddenLength, i -> {
-                float w1 = buf.get(i);
-                float w1a = ActivationFunction.eval(activationFunction, w1);
-                buf.set(w1a, i);
+                for (int j = 0; j < batchSize; j++) {
+                    float w1 = buf.get(j, i);
+                    float w1a = ActivationFunction.eval(activationFunction, w1);
+                    buf.set(w1a, j, i);
+                }
             });
 
             if (upProjectionWeights != null) {
@@ -150,7 +153,7 @@ public class MLPBlock implements FeedForward {
             }
 
             // matmul the projection and sum into input
-            AbstractTensor result = model.makeTensor(model.c.embeddingLength);
+            AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
             VectorMath.pchunk(
                     model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
                         TensorOperationsProvider.get()

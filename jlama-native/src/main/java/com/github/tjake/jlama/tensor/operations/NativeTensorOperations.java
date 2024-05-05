@@ -136,6 +136,11 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
+    public void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
     public void dotProductChunk(
             AbstractTensor r,
             AbstractTensor a,

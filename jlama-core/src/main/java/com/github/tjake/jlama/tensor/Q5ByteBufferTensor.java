@@ -219,7 +219,8 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public ByteVector getVector(VectorSpecies<Byte> species, int offset) {
+    public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
+        int offset = getOffset(voffset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
@@ -228,8 +229,9 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public void intoTensor(ByteVector vector, int offset) {
+    public void intoTensor(ByteVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
+        int offset = getOffset(aoffset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset));
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);

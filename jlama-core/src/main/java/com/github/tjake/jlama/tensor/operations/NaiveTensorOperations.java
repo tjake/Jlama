@@ -32,10 +32,12 @@ public class NaiveTensorOperations implements TensorOperations {
     // a[0..n] += b[0..n]
     @Override
     public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
-        Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
+        Preconditions.checkArgument(a.shape().last() == b.shape().last() && b.dims() == 1);
 
-        for (int i = offset; i < offset + length; ++i) {
-            a.set(a.get(i) + b.get(i), i);
+        for (int ai = 0; ai < a.shape().first(); ai++) {
+            for (int i = offset; i < offset + length; ++i) {
+                a.set(a.get(ai, i) + b.get(i), ai, i);
+            }
         }
     }
 
@@ -58,10 +60,24 @@ public class NaiveTensorOperations implements TensorOperations {
 
         float s = 0;
         for (; aoffset < alen && boffset < blen; aoffset++, boffset++) {
-            s += a.get(aoffset) * b.get(boffset);
+            s += a.get(0, aoffset) * b.get(0, boffset);
         }
 
         return s;
+    }
+
+    @Override
+    public void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+        Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
+
+        int bRowLimit = bRowOffset + rowChunkSize;
+
+        for (int i = 0; i < a.shape().first(); i++) {
+            for (int j = bRowOffset; j < bRowLimit; j++) {
+                float d = dotProduct(a.slice(i), b.slice(j), aColumnOffset, bColumnOffset, columnLength);
+                result.set(d, i, j);
+            }
+        }
     }
 
     // Computes a constant times a vector plus a vector (single-precision).

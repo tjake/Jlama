@@ -200,6 +200,18 @@ public abstract class AbstractModel implements Generator {
     }
 
     protected AbstractTensor batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
+
+        AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
+        
+        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
+            AbstractTensor kvlayer = kvbuf.slice(true, i);
+            AbstractTensor ref = embedding; // reference so we can free
+
+            embedding = transformerBlocks[i].forward(embedding, startPos, kvlayer, Optional.empty(), Optional.empty());
+            ref.close();
+        }
+
+
         AbstractTensor last = null;
         for (int i = 0; i < token_ids.length; i++) {
             if (last != null) last.close();
@@ -220,7 +232,7 @@ public abstract class AbstractModel implements Generator {
                 float v = TensorOperationsProvider.get()
                         .dotProduct(
                                 embedding, sampleOutput.getOutputLogitsWeights().slice(i), c.embeddingLength);
-                logits.set(v, i);
+                logits.set(v, 0, i);
                 maxv.getAndUpdate(x -> {
                     if (v > x) {
                         maxi.set(i);
@@ -236,14 +248,14 @@ public abstract class AbstractModel implements Generator {
 
             float sum = 0;
             for (int i = 0; i < c.vocabularySize; i++) {
-                float v = (float) Math.exp((logits.get(i) - maxv.get()) / temperature);
+                float v = (float) Math.exp((logits.get(0, i) - maxv.get()) / temperature);
                 sum += v;
-                logits.set(v, i);
+                logits.set(v, 0, i);
             }
 
             float acc = 0;
             for (int i = 0; i < c.vocabularySize; i++) {
-                float v = logits.get(i) / sum;
+                float v = logits.get(0, i) / sum;
                 acc += v;
                 if (acc >= uniformSample) return i;
             }

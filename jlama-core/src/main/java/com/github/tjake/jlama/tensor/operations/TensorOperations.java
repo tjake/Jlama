@@ -35,19 +35,21 @@ public interface TensorOperations {
 
     float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit);
 
+    default void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLimit) {
+        batchDotProduct(result, a, b, aColumnOffset, bColumnOffset, columnLimit, 0, b.shape().first());
+    }
+
+    void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLimit, int bRowOffset, int rowChunkSize);
+
     default void dotProductChunk(
             AbstractTensor result,
             AbstractTensor a,
             AbstractTensor b,
-            int offset,
-            int limit,
-            int chunkStart,
-            int chunkSize) {
-        Preconditions.checkArgument(b.dims() == 2);
-        for (int i = chunkStart; i < chunkStart + chunkSize; i++) {
-            float d = dotProduct(a, b.slice(i), offset, offset, limit);
-            result.set(d, i);
-        }
+            int columnOffset,
+            int columnLimit,
+            int rowOffset,
+            int rowChunkSize) {
+        batchDotProduct(result, a, b, columnOffset, columnOffset, columnLimit, rowOffset, rowChunkSize);
     }
 
     default void dotProductBatchChunk(
@@ -102,9 +104,9 @@ public interface TensorOperations {
      * Collects the total sum of each position in the tensor.  (For testing purposes)
      */
     default float sum(AbstractTensor a) {
-        Preconditions.checkArgument(a.dims() == 1);
         float sum = 0f;
-        for (int i = 0; i < a.size(); i++) sum += a.get(i);
+        int[] cursor = new int[a.dims()];
+        while (a.iterate(cursor)) sum += a.get(cursor);
         return sum;
     }
 }

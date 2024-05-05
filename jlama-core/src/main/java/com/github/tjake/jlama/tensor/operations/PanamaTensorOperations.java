@@ -22,11 +22,16 @@ import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
+import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.QuadIntConsumer;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class PanamaTensorOperations implements TensorOperations {
+    private static final Logger logger = LoggerFactory.getLogger(PanamaTensorOperations.class);
     static final ByteVector Q4_BYTE_SUB_128 = ByteVector.broadcast(ByteVector.SPECIES_128, 8);
     static final ByteVector Q4_BYTE_MASK_128 = ByteVector.broadcast(ByteVector.SPECIES_128, 0xF);
     static final ByteVector Q4_BYTE_SHIFT_128 = ByteVector.broadcast(ByteVector.SPECIES_128, 4);
@@ -139,6 +144,234 @@ public final class PanamaTensorOperations implements TensorOperations {
             };
             default -> throw new UnsupportedOperationException();
         };
+    }
+
+    /**
+     *  multiplies matrices on cpu
+     *  with column major ordering
+     *
+     *  m×k * k×n → m×n
+     *  k×m * k×n → m×n if aᵀ
+     *  m×k * n×k → m×n if bᵀ
+     *  k×m * n×k → m×n if aᵀ and bᵀ
+     *
+     *  In Jlama we use row major ordering
+     *  So: k×m * n×k → m×n
+     *  EmbeddingxBatch * WeightsxEmbedding → BATCHxEmbedding
+     */
+    @Override
+    public void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+        Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
+        Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
+        Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
+        Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K");
+
+        int M = a.shape().dim(0);
+        int N = rowChunkSize; //b.shape().dim(0);
+        int K = columnLength; //a.shape().dim(1);
+
+        new Gemmer(K, a, b, result, 0, 1).matmul(0, M, bRowOffset, bRowOffset + N);
+    }
+
+    private class Gemmer {
+        final int k;
+        final AbstractTensor a;
+        final AbstractTensor b;
+        final AbstractTensor c;
+        int ith;
+        int nth;
+
+        final BiIntConsumer matmul1x1;
+        final BiIntConsumer matmul1x4;
+        final BiIntConsumer matmul3x4;
+        final BiIntConsumer matmul4x1;
+
+
+        // The id of each thread is called ith and the number of threads is called nth.
+        Gemmer(int k, AbstractTensor a, AbstractTensor b, AbstractTensor c, int ith, int nth) {
+            this.k = k;
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.ith = ith;
+            this.nth = nth;
+            this.matmul1x1 = initMatmul1x1();
+            this.matmul1x4 = initMatmul1x4();
+            this.matmul3x4 = initMatmul3x4();
+            this.matmul4x1 = initMatmul4x1();
+        }
+
+        void matmul(int m0, int m, int n0, int n) {
+            mnpack(m0, m, n0, n);
+        }
+
+        void mnpack(int m0, int m, int n0, int n) {
+            if (m - m0 <= 0 || n - n0 <= 0)
+                return;
+            int mc, nc, mp, np;
+            if (m - m0 >= 3 && n - n0 >= 4) {
+                mc = 3;
+                nc = 4;
+                kernel(m0, m, 3,  n0, n, 4, matmul3x4);
+            } else if (m - m0 >= 4 && n - n0 >= 1) {
+                mc = 4;
+                nc = 1;
+                kernel(m0, m, 4, n0, n, 1, matmul4x1);
+            } else if (m - m0 >= 1 && n - n0 >= 4) {
+                mc = 1;
+                nc = 4;
+                kernel(m0, m, 1, n0, n, 4, matmul1x4);
+            } else {
+                mc = 1;
+                nc = 1;
+                kernel(m0, m, 1, n0, n, 1, matmul1x1);
+            }
+            mp = m0 + (m - m0) / mc * mc;
+            np = n0 + (n - n0) / nc * nc;
+            mnpack(mp, m, n0, np);
+            mnpack(m0, mp, np, n);
+            mnpack(mp, m, np, n);
+        }
+
+        void kernel(int m0, int m, int RM, int n0, int n, int RN, BiIntConsumer action) {
+            int ytiles = (m - m0) / RM;
+            int xtiles = (n - n0) / RN;
+            int tiles = ytiles * xtiles;
+            int duty = (tiles + nth - 1) / nth;
+            int start = duty * ith;
+            int end = start + duty;
+            if (end > tiles)
+                end = tiles;
+
+            for (int job = start; job < end; ++job) {
+                int i = m0 + job / xtiles * RM;
+                int j = n0 + job % xtiles * RN;
+
+                action.accept(i, j);
+            }
+        }
+
+        BiIntConsumer initMatmul1x1() {
+            return (i, j) -> {
+                FloatVector vc = FloatVector.zero(FloatVector.SPECIES_256);
+                for (int l = 0; l < k; l += FloatVector.SPECIES_256.length()) {
+                    FloatVector va = a.getVector(FloatVector.SPECIES_256, i, l).reinterpretAsFloats();
+                    FloatVector vb = b.getVector(FloatVector.SPECIES_256, j, l).reinterpretAsFloats();
+                    vc = va.fma(vb, vc);
+                }
+                c.set(vc.reduceLanes(VectorOperators.ADD), i, j);
+            };
+        }
+
+
+        BiIntConsumer initMatmul1x4() {
+            return (i, j) -> {
+                FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc2 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc3 = FloatVector.zero(FloatVector.SPECIES_256);
+                for (int l = 0; l < k; l += FloatVector.SPECIES_256.length()) {
+                    FloatVector va = a.getVector(FloatVector.SPECIES_256, i, l).reinterpretAsFloats();
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_256, j + 0, l).reinterpretAsFloats();
+                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_256, j + 1, l).reinterpretAsFloats();
+                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_256, j + 2, l).reinterpretAsFloats();
+                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_256, j + 3, l).reinterpretAsFloats();
+                    vc0 = va.fma(vb0, vc0);
+                    vc1 = va.fma(vb1, vc1);
+                    vc2 = va.fma(vb2, vc2);
+                    vc3 = va.fma(vb3, vc3);
+                }
+
+                c.set(vc0.reduceLanes(VectorOperators.ADD), i, j + 0);
+                c.set(vc1.reduceLanes(VectorOperators.ADD), i, j + 1);
+                c.set(vc2.reduceLanes(VectorOperators.ADD), i, j + 2);
+                c.set(vc3.reduceLanes(VectorOperators.ADD), i, j + 3);
+            };
+        }
+
+        BiIntConsumer initMatmul3x4() {
+            return (i, j) -> {
+                FloatVector vc00 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc01 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc02 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc03 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc10 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc11 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc12 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc13 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc20 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc21 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc22 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc23 = FloatVector.zero(FloatVector.SPECIES_256);
+
+                for (int l = 0; l < k; l += FloatVector.SPECIES_256.length()) {
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_256, j + 0, l).reinterpretAsFloats();
+                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_256, j + 1, l).reinterpretAsFloats();
+                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_256, j + 2, l).reinterpretAsFloats();
+                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_256, j + 3, l).reinterpretAsFloats();
+
+                    FloatVector va = a.getVector(FloatVector.SPECIES_256, i + 0, l).reinterpretAsFloats();
+                    vc00 = va.fma(vb0, vc00);
+                    vc01 = va.fma(vb1, vc01);
+                    vc02 = va.fma(vb2, vc02);
+                    vc03 = va.fma(vb3, vc03);
+
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_256, i + 1, l).reinterpretAsFloats();
+                    vc10 = va1.fma(vb0, vc10);
+                    vc11 = va1.fma(vb1, vc11);
+                    vc12 = va1.fma(vb2, vc12);
+                    vc13 = va1.fma(vb3, vc13);
+
+                    FloatVector va2 = a.getVector(FloatVector.SPECIES_256, i + 2, l).reinterpretAsFloats();
+                    vc20 = va2.fma(vb0, vc20);
+                    vc21 = va2.fma(vb1, vc21);
+                    vc22 = va2.fma(vb2, vc22);
+                    vc23 = va2.fma(vb3, vc23);
+                }
+
+                c.set(vc00.reduceLanes(VectorOperators.ADD), i + 0, j + 0);
+                c.set(vc01.reduceLanes(VectorOperators.ADD), i + 0, j + 1);
+                c.set(vc02.reduceLanes(VectorOperators.ADD), i + 0, j + 2);
+                c.set(vc03.reduceLanes(VectorOperators.ADD), i + 0, j + 3);
+
+                c.set(vc10.reduceLanes(VectorOperators.ADD), i + 1, j + 0);
+                c.set(vc11.reduceLanes(VectorOperators.ADD), i + 1, j + 1);
+                c.set(vc12.reduceLanes(VectorOperators.ADD), i + 1, j + 2);
+                c.set(vc13.reduceLanes(VectorOperators.ADD), i + 1, j + 3);
+
+                c.set(vc20.reduceLanes(VectorOperators.ADD), i + 2, j + 0);
+                c.set(vc21.reduceLanes(VectorOperators.ADD), i + 2, j + 1);
+                c.set(vc22.reduceLanes(VectorOperators.ADD), i + 2, j + 2);
+                c.set(vc23.reduceLanes(VectorOperators.ADD), i + 2, j + 3);
+            };
+        }
+
+        BiIntConsumer initMatmul4x1() {
+            return (i, j) -> {
+                FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc2 = FloatVector.zero(FloatVector.SPECIES_256);
+                FloatVector vc3 = FloatVector.zero(FloatVector.SPECIES_256);
+
+                for (int l = 0; l < k; l += FloatVector.SPECIES_256.length()) {
+                    FloatVector va0 = a.getVector(FloatVector.SPECIES_256, i, l).reinterpretAsFloats();
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_256, i + 1, l).reinterpretAsFloats();
+                    FloatVector va2 = a.getVector(FloatVector.SPECIES_256, i + 2, l).reinterpretAsFloats();
+                    FloatVector va3 = a.getVector(FloatVector.SPECIES_256, i + 3, l).reinterpretAsFloats();
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_256, j, l).reinterpretAsFloats();
+
+                    vc0 = va0.fma(vb0, vc0);
+                    vc1 = va1.fma(vb0, vc1);
+                    vc2 = va2.fma(vb0, vc2);
+                    vc3 = va3.fma(vb0, vc3);
+                }
+
+                c.set(vc0.reduceLanes(VectorOperators.ADD), i + 0, j);
+                c.set(vc1.reduceLanes(VectorOperators.ADD), i + 1, j);
+                c.set(vc2.reduceLanes(VectorOperators.ADD), i + 2, j);
+                c.set(vc3.reduceLanes(VectorOperators.ADD), i + 3, j);
+            };
+        }
     }
 
     @Override
@@ -1049,15 +1282,15 @@ public final class PanamaTensorOperations implements TensorOperations {
         int blim = boffset + upperBound;
         int slen = FloatVector.SPECIES_PREFERRED.length();
         for (; ao < alim && bo < blim; ao += slen, bo += slen) {
-            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, ao);
-            FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, bo);
+            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, 0, ao);
+            FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, 0, bo);
             acc = va.fma(vb, acc);
         }
         // reduce
         float res = acc.reduceLanes(VectorOperators.ADD);
         // tail
         for (; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
-            res += a.get(ao) * b.get(bo);
+            res += a.get(0, ao) * b.get(0, bo);
         }
         return res;
     }
@@ -1093,28 +1326,31 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int limit) {
-        Preconditions.checkArgument(a.dType() == b.dType());
+    public void accumulate(AbstractTensor aBatch, AbstractTensor b, int offset, int limit) {
+        Preconditions.checkArgument(aBatch.dType() == b.dType());
         Preconditions.checkArgument(limit % 8 == 0);
 
-        switch (a.dType()) {
-            case F32:
-                accumulateF32((FloatBufferTensor) a, (FloatBufferTensor) b, offset, limit);
-                break;
-            case BF16:
-                switch (vectorType) {
-                    case AVX_512:
-                        accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
-                        break;
-                    case AVX_256:
-                        accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
-                        break;
-                    default:
-                        throw new UnsupportedOperationException();
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException();
+        for (int ai = 0; ai < aBatch.shape().first(); ai++) {
+            AbstractTensor a = aBatch.slice(ai);
+            switch (a.dType()) {
+                case F32:
+                    accumulateF32((FloatBufferTensor) a, (FloatBufferTensor) b, offset, limit);
+                    break;
+                case BF16:
+                    switch (vectorType) {
+                        case AVX_512:
+                            accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                            break;
+                        case AVX_256:
+                            accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                            break;
+                        default:
+                            throw new UnsupportedOperationException();
+                    }
+                    break;
+                default:
+                    throw new UnsupportedOperationException();
+            }
         }
     }
 
@@ -1123,14 +1359,14 @@ public final class PanamaTensorOperations implements TensorOperations {
         int i = offset;
 
         for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
-            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i);
-            FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, i);
-            a.intoTensor(va.add(vb), i);
+            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, 0, i);
+            FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, 0, i);
+            a.intoTensor(va.add(vb), 0, i);
         }
 
         // tail
         for (; i < offset + limit; i++) {
-            a.set(a.get(i) + b.get(i), i);
+            a.set(a.get(0, i) + b.get(0, i), 0, i);
         }
     }
 
@@ -1227,13 +1463,13 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, factor);
         for (; i < upperBound; i += FloatVector.SPECIES_PREFERRED.length()) {
-            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i);
-            a.intoTensor(va.mul(sf), i);
+            FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, 0, i);
+            a.intoTensor(va.mul(sf), 0, i);
         }
 
         // tail
         for (; i < (offset + length); i++) {
-            a.set(a.get(i) + factor, i);
+            a.set(a.get(0, i) * factor, 0, i);
         }
     }
 
@@ -1322,15 +1558,15 @@ public final class PanamaTensorOperations implements TensorOperations {
         for (;
                 xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
                 xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
-            FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, xo);
-            FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, yo);
-            y.intoTensor(vy.add(vx.mul(alpha)), yo);
+            FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, 0, xo);
+            FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
+            y.intoTensor(vy.add(vx.mul(alpha)), 0, yo);
         }
 
         // tail
         for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = y.get(yo) + (alpha * x.get(xo));
-            y.set(v, yo);
+            float v = y.get(0, yo) + (alpha * x.get(0, xo));
+            y.set(v, 0, yo);
         }
     }
 
@@ -1443,15 +1679,15 @@ public final class PanamaTensorOperations implements TensorOperations {
         for (;
                 xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
                 xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
-            FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, xo);
-            FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, yo);
-            y.intoTensor(vx.add(vy.mul(beta)), yo);
+            FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, 0, xo);
+            FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
+            y.intoTensor(vx.add(vy.mul(beta)), 0, yo);
         }
 
         // tail
         for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(xo) + beta * y.get(yo);
-            y.set(v, yo);
+            float v = x.get(0, xo) + beta * y.get(0, yo);
+            y.set(v, 0, yo);
         }
     }
 

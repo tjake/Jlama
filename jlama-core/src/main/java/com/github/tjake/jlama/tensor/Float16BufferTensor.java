@@ -108,7 +108,8 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
     }
 
     @Override
-    public ShortVector getVector(VectorSpecies<Short> species, int offset) {
+    public ShortVector getVector(VectorSpecies<Short> species, int... voffset) {
+        int offset = getOffset(voffset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             return ShortVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
@@ -117,8 +118,9 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short, shor
     }
 
     @Override
-    public void intoTensor(ShortVector vector, int offset) {
+    public void intoTensor(ShortVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
+        int offset = getOffset(aoffset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset));
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
