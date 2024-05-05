@@ -1,6 +1,6 @@
 package com.github.tjake.jlama.microbench;
 
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.AbstractTensor;import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.NaiveTensorOperations;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class BatchBench {
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
-    private static final int BATCH_SIZE = 32;
+    private static final int BATCH_SIZE = 1;
     private static final int SIZE = 4096;
 
     @State(Scope.Benchmark)
@@ -54,7 +54,7 @@ public class BatchBench {
     @BenchmarkMode(Mode.Throughput)
     public void dotBatch(Parameters p, Blackhole bh) {
         ops.batchDotProduct(p.r, p.fb1, p.fb2, 0, 0, SIZE);
-        bh.consume(p.ra);
+        bh.consume(p.r);
     }
 
 
@@ -62,9 +62,12 @@ public class BatchBench {
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void slow(Parameters p, Blackhole bh) {
-        for (int i = 0; i < p.fb1.shape().dim(0); i++) {
-            for (int j = 0; j < p.fb2.shape().dim(0); j++) {
-                float d = ops.dotProduct(p.fb1.slice(i), p.fb2.slice(j), 0, 0, SIZE);
+        int alim = p.fb1.shape().dim(0);
+        int blim = p.fb2.shape().dim(0);
+        for (int i = 0; i < alim; i++) {
+            AbstractTensor a = p.fb1.slice(true, i);
+            for (int j = 0; j < blim; j++) {
+                float d = ops.dotProduct(a, p.fb2.slice(true, j), 0, 0, SIZE);
                 p.r.set(d, i, j);
             }
         }
