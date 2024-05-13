@@ -38,19 +38,24 @@ public class VectorMath {
     public static void pchunk(int offset, int length, BiIntConsumer action) {
         int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
         int chunkSize = length / splits;
+        int remainder = 0;
 
         // Non optimal case, just run in parallel
-        if (splits == 1 || splits % length != 0) {
+        if (splits == 1) {
             splits = length;
             chunkSize = 1;
+        } else if (length % chunkSize != 0) {
+            remainder = length % chunkSize;
         }
 
         int fsplits = splits;
         int fchunkSize = chunkSize;
+        int fremainder = remainder;
 
         PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(0, fsplits)
                 .parallel()
-                .forEach(i -> action.accept(offset + (i * fchunkSize), fchunkSize)));
+                .forEach(i -> action.accept(offset + (i * fchunkSize), fremainder > 0 ? fchunkSize + fremainder : fchunkSize)));
+        
     }
 
     public static void softMax(FloatBufferTensor x) {

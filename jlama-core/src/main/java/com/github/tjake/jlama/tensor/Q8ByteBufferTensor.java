@@ -213,9 +213,9 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public void intoTensor(ByteVector vector, int offset, VectorMask<Byte> msk) {
+    public void intoTensor(ByteVector vector, VectorMask<Byte> msk, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
-        offset = getOffset(offset);
+        int offset = getOffset(aoffset);
         if (!TensorOperationsProvider.get().requiresOffHeapTensor())
             vector.intoArray(getArray(), getArrayOffset(offset), msk);
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN, msk);

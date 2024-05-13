@@ -42,7 +42,7 @@ public interface EmbedInput {
         VectorMath.pfor(1, inputTokens.length, i -> {
             AbstractTensor ti = inputTokenToEmbedding(inputTokens[i], startPos + i);
 
-            tb.copyFrom(t, 0, tb.getOffset(i, 0), ti.shape().sparseLength());
+            tb.copyFrom(ti, 0, i * ti.shape().sparseLength(), ti.shape().sparseLength());
 
             ti.close();
         });

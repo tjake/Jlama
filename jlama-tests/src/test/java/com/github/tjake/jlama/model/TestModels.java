@@ -86,6 +86,8 @@ public class TestModels {
                     + "previously unexplored valley, in the Andes Mountains. "
                     + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
+            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
+
         }
     }
 

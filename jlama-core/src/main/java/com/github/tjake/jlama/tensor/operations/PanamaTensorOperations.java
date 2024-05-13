@@ -24,7 +24,7 @@ import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.MachineSpec;
-import com.github.tjake.jlama.util.QuadIntConsumer;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;import com.github.tjake.jlama.util.QuadIntConsumer;
 import com.google.common.base.Preconditions;
 import jdk.incubator.vector.*;
 import org.slf4j.Logger;
@@ -65,6 +65,10 @@ public final class PanamaTensorOperations implements TensorOperations {
     @Override
     public boolean requiresOffHeapTensor() {
         return true;
+    }
+
+    public int parallelSplitSize() {
+        return PhysicalCoreExecutor.instance.get().getCoreCount();
     }
 
     @Override
@@ -170,16 +174,25 @@ public final class PanamaTensorOperations implements TensorOperations {
         int N = rowChunkSize; //b.shape().dim(0);
         int K = columnLength; //a.shape().dim(1);
 
-        new Gemmer(K, a, b, result, 0, 1).matmul(0, M, bRowOffset, bRowOffset + N);
+        switch (a.dType()) {
+            case F32 ->
+            switch (b.dType()) {
+                case F32 -> switch (vectorType) {
+                    case AVX_512 -> batchDotProductF32_512(
+                            (FloatBufferTensor) result, (FloatBufferTensor) a, (FloatBufferTensor) b, aColumnOffset, bColumnOffset, columnLength, bRowOffset, rowChunkSize);
+                    case AVX_256 -> batchDotProductF32_256(
+                            (FloatBufferTensor) result, (FloatBufferTensor) a, (FloatBufferTensor) b, aColumnOffset, bColumnOffset, columnLength, bRowOffset, rowChunkSize);
+                    case ARM_128 -> batchDotProductF32_arm(
+                            (FloatBufferTensor) result, (FloatBufferTensor) a, (FloatBufferTensor) b, aColumnOffset, bColumnOffset, columnLength, bRowOffset, rowChunkSize);
+                    default -> throw new UnsupportedOperationException(MachineSpec.VECTOR_TYPE.name());
+                };
+
+            };
+            }
+        new GemmerF32(K, a, b, result, 0, 1).matmul(0, M, bRowOffset, bRowOffset + N);
     }
 
-    private class Gemmer {
-        final int k;
-        final AbstractTensor a;
-        final AbstractTensor b;
-        final AbstractTensor c;
-        int ith;
-        int nth;
+    private class GemmerF32 extends Gemmer {
 
         final BiIntConsumer matmul1x1;
         final BiIntConsumer matmul1x4;
@@ -187,71 +200,17 @@ public final class PanamaTensorOperations implements TensorOperations {
         final BiIntConsumer matmul4x1;
 
 
-        // The id of each thread is called ith and the number of threads is called nth.
-        Gemmer(int k, AbstractTensor a, AbstractTensor b, AbstractTensor c, int ith, int nth) {
-            this.k = k;
-            this.a = a;
-            this.b = b;
-            this.c = c;
-            this.ith = ith;
-            this.nth = nth;
+        GemmerF32(int k, AbstractTensor a, AbstractTensor b, AbstractTensor c, int ith, int nth) {
+            super(k, a, b, c, ith, nth);
+
             this.matmul1x1 = initMatmul1x1();
             this.matmul1x4 = initMatmul1x4();
             this.matmul3x4 = initMatmul3x4();
             this.matmul4x1 = initMatmul4x1();
         }
 
-        void matmul(int m0, int m, int n0, int n) {
-            mnpack(m0, m, n0, n);
-        }
-
-        void mnpack(int m0, int m, int n0, int n) {
-            if (m - m0 <= 0 || n - n0 <= 0)
-                return;
-            int mc, nc, mp, np;
-            if (m - m0 >= 3 && n - n0 >= 4) {
-                mc = 3;
-                nc = 4;
-                kernel(m0, m, 3,  n0, n, 4, matmul3x4);
-            } else if (m - m0 >= 4 && n - n0 >= 1) {
-                mc = 4;
-                nc = 1;
-                kernel(m0, m, 4, n0, n, 1, matmul4x1);
-            } else if (m - m0 >= 1 && n - n0 >= 4) {
-                mc = 1;
-                nc = 4;
-                kernel(m0, m, 1, n0, n, 4, matmul1x4);
-            } else {
-                mc = 1;
-                nc = 1;
-                kernel(m0, m, 1, n0, n, 1, matmul1x1);
-            }
-            mp = m0 + (m - m0) / mc * mc;
-            np = n0 + (n - n0) / nc * nc;
-            mnpack(mp, m, n0, np);
-            mnpack(m0, mp, np, n);
-            mnpack(mp, m, np, n);
-        }
-
-        void kernel(int m0, int m, int RM, int n0, int n, int RN, BiIntConsumer action) {
-            int ytiles = (m - m0) / RM;
-            int xtiles = (n - n0) / RN;
-            int tiles = ytiles * xtiles;
-            int duty = (tiles + nth - 1) / nth;
-            int start = duty * ith;
-            int end = start + duty;
-            if (end > tiles)
-                end = tiles;
-
-            for (int job = start; job < end; ++job) {
-                int i = m0 + job / xtiles * RM;
-                int j = n0 + job % xtiles * RN;
-
-                action.accept(i, j);
-            }
-        }
-
-        BiIntConsumer initMatmul1x1() {
+        @Override
+        protected BiIntConsumer initMatmul1x1() {
             return (i, j) -> {
                 FloatVector vc = FloatVector.zero(FloatVector.SPECIES_256);
                 for (int l = 0; l < k; l += FloatVector.SPECIES_256.length()) {
@@ -263,8 +222,8 @@ public final class PanamaTensorOperations implements TensorOperations {
             };
         }
 
-
-        BiIntConsumer initMatmul1x4() {
+        @Override
+        protected BiIntConsumer initMatmul1x4() {
             return (i, j) -> {
                 FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_256);
                 FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_256);
@@ -289,7 +248,8 @@ public final class PanamaTensorOperations implements TensorOperations {
             };
         }
 
-        BiIntConsumer initMatmul3x4() {
+        @Override
+        protected BiIntConsumer initMatmul3x4() {
             return (i, j) -> {
                 FloatVector vc00 = FloatVector.zero(FloatVector.SPECIES_256);
                 FloatVector vc01 = FloatVector.zero(FloatVector.SPECIES_256);
@@ -346,7 +306,8 @@ public final class PanamaTensorOperations implements TensorOperations {
             };
         }
 
-        BiIntConsumer initMatmul4x1() {
+        @Override
+        protected BiIntConsumer initMatmul4x1() {
             return (i, j) -> {
                 FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_256);
                 FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_256);
@@ -374,9 +335,86 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
+    private abstract class Gemmer {
+        final int k;
+        final AbstractTensor a;
+        final AbstractTensor b;
+        final AbstractTensor c;
+        int ith;
+        int nth;
+
+
+
+        // The id of each thread is called ith and the number of threads is called nth.
+        Gemmer(int k, AbstractTensor a, AbstractTensor b, AbstractTensor c, int ith, int nth) {
+            this.k = k;
+            this.a = a;
+            this.b = b;
+            this.c = c;
+            this.ith = ith;
+            this.nth = nth;
+        }
+
+        void matmul(int m0, int m, int n0, int n) {
+            mnpack(m0, m, n0, n);
+        }
+
+        private void mnpack(int m0, int m, int n0, int n) {
+            if (m - m0 <= 0 || n - n0 <= 0)
+                return;
+            int mc, nc, mp, np;
+            if (m - m0 >= 3 && n - n0 >= 4) {
+                mc = 3;
+                nc = 4;
+                kernel(m0, m, 3,  n0, n, 4, matmul3x4);
+            } else if (m - m0 >= 4 && n - n0 >= 1) {
+                mc = 4;
+                nc = 1;
+                kernel(m0, m, 4, n0, n, 1, matmul4x1);
+            } else if (m - m0 >= 1 && n - n0 >= 4) {
+                mc = 1;
+                nc = 4;
+                kernel(m0, m, 1, n0, n, 4, matmul1x4);
+            } else {
+                mc = 1;
+                nc = 1;
+                kernel(m0, m, 1, n0, n, 1, matmul1x1);
+            }
+            mp = m0 + (m - m0) / mc * mc;
+            np = n0 + (n - n0) / nc * nc;
+            mnpack(mp, m, n0, np);
+            mnpack(m0, mp, np, n);
+            mnpack(mp, m, np, n);
+        }
+
+        private void pick(int m0, int m, int n0, int n) {
+
+        }
+
+        private void kernel(int m0, int m, int RM, int n0, int n, int RN, BiIntConsumer action) {
+            int ytiles = (m - m0) / RM;
+            int xtiles = (n - n0) / RN;
+            int tiles = ytiles * xtiles;
+            int duty = (tiles + nth - 1) / nth;
+            int start = duty * ith;
+            int end = start + duty;
+            if (end > tiles)
+                end = tiles;
+
+            for (int job = start; job < end; ++job) {
+                int i = m0 + job / xtiles * RM;
+                int j = n0 + job % xtiles * RN;
+
+                action.accept(i, j);
+            }
+        }
+
+
+    }
+
     @Override
     public AbstractTensor quantize(AbstractTensor t, DType qtype, int offset, int length) {
-        Preconditions.checkArgument(t.dims() == 1);
+        Preconditions.checkArgument(t.dims() == 2 && t.shape().first() == 1 && length % Q8ByteBufferTensor.BLOCK_SIZE == 0);
 
         return switch (t.dType()) {
             case F32 -> switch (qtype) {
@@ -393,14 +431,13 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     public Q8ByteBufferTensor quantizeQ8_512(FloatBufferTensor ft, int offset, int length) {
-        Preconditions.checkArgument(length % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
 
         // Up to caller to release
         Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
 
         for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
-            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_512, i);
-            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_512, i + 16);
+            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_512, 0, i);
+            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_512, 0, i + 16);
 
             // Compute max abs
             var maxAbs0 = fv0.abs();
@@ -422,25 +459,24 @@ public final class PanamaTensorOperations implements TensorOperations {
             var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
                     .reinterpretAsBytes();
 
-            qft.intoTensor(bvq0, i);
-            qft.intoTensor(bvq1, i + 16);
-            qft.getBlockF().set(d, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+            qft.intoTensor(bvq0, 0, i);
+            qft.intoTensor(bvq1, 0, i + 16);
+            qft.getBlockF().set(d, 0, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
         }
 
         return qft;
     }
 
     public Q8ByteBufferTensor quantizeQ8_256(FloatBufferTensor ft, int offset, int length) {
-        Preconditions.checkArgument(length % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
 
         // Up to caller to release
         Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
 
         for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
-            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_256, i);
-            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_256, i + 8);
-            FloatVector fv2 = ft.getVector(FloatVector.SPECIES_256, i + 16);
-            FloatVector fv3 = ft.getVector(FloatVector.SPECIES_256, i + 24);
+            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_256, 0, i);
+            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_256, 0, i + 8);
+            FloatVector fv2 = ft.getVector(FloatVector.SPECIES_256, 0, i + 16);
+            FloatVector fv3 = ft.getVector(FloatVector.SPECIES_256, 0, i + 24);
 
             // Compute max abs
             var maxAbs0 = fv0.abs();
@@ -472,32 +508,31 @@ public final class PanamaTensorOperations implements TensorOperations {
             var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
                     .reinterpretAsBytes();
 
-            qft.intoTensor(bvq0, i);
-            qft.intoTensor(bvq1, i + 8);
-            qft.intoTensor(bvq2, i + 16);
-            qft.intoTensor(bvq3, i + 24);
+            qft.intoTensor(bvq0, 0, i);
+            qft.intoTensor(bvq1, 0, i + 8);
+            qft.intoTensor(bvq2, 0, i + 16);
+            qft.intoTensor(bvq3, 0, i + 24);
 
-            qft.getBlockF().set(d, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+            qft.getBlockF().set(d, 0, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
         }
 
         return qft;
     }
 
     public Q8ByteBufferTensor quantizeQ8_arm(FloatBufferTensor ft, int offset, int length) {
-        Preconditions.checkArgument(length % Q8ByteBufferTensor.BLOCK_SIZE == 0 && ft.dims() == 1);
 
         // Up to caller to release
         Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
 
         for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
-            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_128, i);
-            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_128, i + 4);
-            FloatVector fv2 = ft.getVector(FloatVector.SPECIES_128, i + 8);
-            FloatVector fv3 = ft.getVector(FloatVector.SPECIES_128, i + 12);
-            FloatVector fv4 = ft.getVector(FloatVector.SPECIES_128, i + 16);
-            FloatVector fv5 = ft.getVector(FloatVector.SPECIES_128, i + 20);
-            FloatVector fv6 = ft.getVector(FloatVector.SPECIES_128, i + 24);
-            FloatVector fv7 = ft.getVector(FloatVector.SPECIES_128, i + 28);
+            FloatVector fv0 = ft.getVector(FloatVector.SPECIES_128, 0, i + 0);
+            FloatVector fv1 = ft.getVector(FloatVector.SPECIES_128, 0, i + 4);
+            FloatVector fv2 = ft.getVector(FloatVector.SPECIES_128, 0, i + 8);
+            FloatVector fv3 = ft.getVector(FloatVector.SPECIES_128, 0, i + 12);
+            FloatVector fv4 = ft.getVector(FloatVector.SPECIES_128, 0, i + 16);
+            FloatVector fv5 = ft.getVector(FloatVector.SPECIES_128, 0, i + 20);
+            FloatVector fv6 = ft.getVector(FloatVector.SPECIES_128, 0, i + 24);
+            FloatVector fv7 = ft.getVector(FloatVector.SPECIES_128, 0, i + 28);
 
             // Compute max abs
             var maxAbs0 = fv0.abs();
@@ -551,16 +586,16 @@ public final class PanamaTensorOperations implements TensorOperations {
             var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
                     .reinterpretAsBytes();
 
-            qft.intoTensor(bvq0, i, BYTE_MASK_32);
-            qft.intoTensor(bvq1, i + 4, BYTE_MASK_32);
-            qft.intoTensor(bvq2, i + 8, BYTE_MASK_32);
-            qft.intoTensor(bvq3, i + 12, BYTE_MASK_32);
-            qft.intoTensor(bvq4, i + 16, BYTE_MASK_32);
-            qft.intoTensor(bvq5, i + 20, BYTE_MASK_32);
-            qft.intoTensor(bvq6, i + 24, BYTE_MASK_32);
-            qft.intoTensor(bvq7, i + 28, BYTE_MASK_32);
+            qft.intoTensor(bvq0, BYTE_MASK_32, 0, i + 0);
+            qft.intoTensor(bvq1, BYTE_MASK_32, 0, i + 4);
+            qft.intoTensor(bvq2, BYTE_MASK_32, 0, i + 8);
+            qft.intoTensor(bvq3, BYTE_MASK_32, 0, i + 12);
+            qft.intoTensor(bvq4, BYTE_MASK_32, 0, i + 16);
+            qft.intoTensor(bvq5, BYTE_MASK_32, 0, i + 20);
+            qft.intoTensor(bvq6, BYTE_MASK_32, 0, i + 24);
+            qft.intoTensor(bvq7, BYTE_MASK_32, 0, i + 28);
 
-            qft.getBlockF().set(d, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+            qft.getBlockF().set(d, 0, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
         }
 
         return qft;
@@ -1326,12 +1361,14 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void accumulate(AbstractTensor aBatch, AbstractTensor b, int offset, int limit) {
-        Preconditions.checkArgument(aBatch.dType() == b.dType());
+    public void accumulate(AbstractTensor aBatch, AbstractTensor bBatch, int offset, int limit) {
+        Preconditions.checkArgument(aBatch.dType() == bBatch.dType());
         Preconditions.checkArgument(limit % 8 == 0);
 
+        boolean isBatch = bBatch.shape().first() > 1;
         for (int ai = 0; ai < aBatch.shape().first(); ai++) {
             AbstractTensor a = aBatch.slice(ai);
+            AbstractTensor b = isBatch ? bBatch.slice(ai) : bBatch;
             switch (a.dType()) {
                 case F32:
                     accumulateF32((FloatBufferTensor) a, (FloatBufferTensor) b, offset, limit);
@@ -1353,6 +1390,8 @@ public final class PanamaTensorOperations implements TensorOperations {
             }
         }
     }
+
+
 
     void accumulateF32(FloatBufferTensor a, FloatBufferTensor b, int offset, int limit) {
         int upperBound = offset + FloatVector.SPECIES_PREFERRED.loopBound(limit);
@@ -1436,6 +1475,7 @@ public final class PanamaTensorOperations implements TensorOperations {
 
     @Override
     public void scale(float factor, AbstractTensor a, int offset, int length) {
+        Preconditions.checkArgument(a.shape().first() == 1);
         switch (a.dType()) {
             case F32:
                 scaleF32(factor, (FloatBufferTensor) a, offset, length);
@@ -1525,6 +1565,7 @@ public final class PanamaTensorOperations implements TensorOperations {
 
     @Override
     public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
+        Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
         Preconditions.checkArgument(x.dType() == y.dType());
         Preconditions.checkArgument(limit % 2 == 0);
 

@@ -81,7 +81,6 @@ public class TransformerBlock {
         try (AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
             postAttention = attention.forward(qlnemb, position, kvBuffer, tensorReducer);
         }
-
         // residual connection
         TensorOperationsProvider.get()
                 .accumulate(
@@ -111,41 +110,4 @@ public class TransformerBlock {
                 })
                 .orElse(postFF);
     }
-
-   /* public AbstractTensor batchForward(AbstractTensor embedding, AbstractTensor kvBuffer) {
-        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.batchForward(embedding)).orElse(embedding);
-        AbstractTensor postAttention;
-        try (AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
-            postAttention = attention.batchForward(qlnemb, kvBuffer);
-        }
-
-        // residual connection
-        TensorOperationsProvider.get()
-                .accumulate(
-                        postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
-
-        AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention, normReducer);
-        AbstractTensor postFF;
-        try (AbstractTensor qlnemb2 = model.maybeQuantize(lnemb2)) {
-            postFF = ffBlock.forward(qlnemb2, tensorReducer);
-        }
-
-        // residual connection
-        TensorOperationsProvider.get()
-                .accumulate(postFF, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
-
-        // Release any tmp buffers
-        if (lnemb != embedding) lnemb.close();
-
-        lnemb2.close();
-        postAttention.close();
-
-        return postFFNorm
-                .map(ln -> {
-                    AbstractTensor lnout = ln.forward(postFF, normReducer);
-                    postFF.close();
-                    return lnout;
-                })
-                .orElse(postFF);
-    }*/
 }

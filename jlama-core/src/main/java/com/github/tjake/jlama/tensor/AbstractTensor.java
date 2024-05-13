@@ -245,7 +245,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public abstract void intoTensor(V vector, int... offset);
 
-    public void intoTensor(V vector, int offset, VectorMask<T> mask) {
+    public void intoTensor(V vector, VectorMask<T> mask, int... offset) {
         throw new UnsupportedOperationException();
     }
 

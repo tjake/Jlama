@@ -185,8 +185,8 @@ public class CausalSelfAttention {
             // For distributed sum of tensor
             tensorReducer.ifPresent(func -> func.accept(List.of(queryBatch, tmpKeyBatch, tmpValBatch)));
 
-            queryAttnBias.ifPresent(bias -> TensorOperationsProvider.get()
-                    .accumulate(queryBatch, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
+            queryAttnBias.ifPresent(bias ->
+                    TensorOperationsProvider.get().accumulate(queryBatch, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
             keyAttnBias.ifPresent(bias ->
                     TensorOperationsProvider.get().accumulate(tmpKeyBatch, bias, c.kvSegmentStart(), c.kvSegmentLength()));
             valueAttnBias.ifPresent(bias ->
