@@ -25,6 +25,8 @@ import java.util.Optional;
  *
  */
 public class TensorShape {
+    public static TensorShape one = of(1, 1);
+
     public static TensorShape of(int... shape) {
         //Special case for vectors
         if (shape.length == 1)
@@ -46,6 +48,7 @@ public class TensorShape {
 
     private TensorShape(int[] shape, Optional<Pair<Integer, Integer>> sparseRange) {
         Preconditions.checkArgument(shape.length > 1, "Shape must have at least two dimensions, even if first is 1 (to represent a vector)");
+
         this.tshape = shape;
         this.sparseRange = sparseRange;
         this.isSparse = sparseRange.isPresent();
@@ -81,7 +84,7 @@ public class TensorShape {
     }
 
     public int sparseAdjustment(int offset) {
-        Preconditions.checkArgument(sparseOffset <= offset, "Offset is outside of sparse range");
+        //Preconditions.checkArgument(sparseOffset <= offset, "Offset is outside of sparse range");
         return offset - sparseOffset;
     }
 

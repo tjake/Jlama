@@ -83,7 +83,8 @@ public class TensorCache {
             case F16 -> new Float16BufferTensor(shape);
             case BF16 -> new BFloat16BufferTensor(shape);
             case I8 -> new Q8ByteBufferTensor(shape);
-            default -> throw new RuntimeException("Unsupported tensor type: " + dType);};
+            default -> throw new RuntimeException("Unsupported tensor type: " + dType);
+        };
 
         // Assign to this cache or just over allocate
         if (currentBytes.addAndGet(t.size()) < bytesCapacity) {

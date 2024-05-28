@@ -17,10 +17,15 @@ package com.github.tjake.jlama.tensor.operations;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
+import com.github.tjake.jlama.tensor.TensorShape;
+
 import com.google.common.base.Preconditions;
 
 public interface TensorOperations {
+    ThreadLocal<FloatBufferTensor> scratch = ThreadLocal.withInitial(() -> new FloatBufferTensor(TensorShape.one));
+
     String name();
 
     boolean requiresOffHeapTensor();
@@ -33,7 +38,12 @@ public interface TensorOperations {
         return dotProduct(a, b, 0, 0, limit);
     }
 
-    float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit);
+    default float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
+        FloatBufferTensor r = scratch.get();
+        //r.clear();
+        batchDotProduct(r, a, b, aoffset, boffset, limit);
+        return r.get(0, 0);
+    }
 
     default void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLimit) {
         batchDotProduct(result, a, b, aColumnOffset, bColumnOffset, columnLimit, 0, b.shape().first());

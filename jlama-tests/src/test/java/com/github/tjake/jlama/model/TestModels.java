@@ -85,6 +85,7 @@ public class TestModels {
             String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
                     + "previously unexplored valley, in the Andes Mountains. "
                     + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
+
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
 
@@ -100,8 +101,11 @@ public class TestModels {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
-            String prompt = "Simply put, the theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+            String prompt0 = "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, " +
+                    "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, " +
+                    "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
+            String prompt1 = "The theory of relativity states that";
+            model.generate(UUID.randomUUID(), prompt0, 0.1f, 256, false, makeOutHandler());
         }
     }
 

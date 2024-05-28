@@ -160,10 +160,10 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         return blockF;
     }
 
-    public final float getFactorForIndex(int i) {
+    public final float getFactorForIndex(int d, int i) {
         int ix = (int) (i * I_BLOCK_SIZE);
         if (ix >= blockF.size()) throw new RuntimeException();
-        return blockF.get(ix);
+        return blockF.get(d, ix);
     }
 
     @Override
@@ -196,7 +196,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+        if (!requiresOffHeapTensor)
             return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return ByteVector.fromMemorySegment(

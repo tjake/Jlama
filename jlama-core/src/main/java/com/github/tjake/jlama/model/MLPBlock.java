@@ -152,17 +152,20 @@ public class MLPBlock implements FeedForward {
                 TensorOperationsProvider.get().maccumulate(buf, buf2, 0, hiddenLength);
             }
 
-            // matmul the projection and sum into input
-            AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
-            VectorMath.pchunk(
-                    model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
-                        TensorOperationsProvider.get()
-                                .dotProductChunk(
-                                        result, buf, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
-                    });
-            projectionBias.ifPresent(bias -> TensorOperationsProvider.get()
-                    .accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()));
-            return result;
+            try(AbstractTensor bufq = model.maybeQuantize(buf)) {
+                // matmul the projection and sum into input
+                AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
+                VectorMath.pchunk(
+                        model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                            TensorOperationsProvider.get()
+                                    .dotProductChunk(
+                                            result, bufq, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
+                        });
+
+                projectionBias.ifPresent(bias -> TensorOperationsProvider.get()
+                        .accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()));
+                return result;
+            }
         }
     }
 }

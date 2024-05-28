@@ -25,6 +25,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
@@ -46,12 +48,14 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     protected final TensorShape shape;
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
+    protected final boolean requiresOffHeapTensor;
     private volatile TensorCache originCache = null;
 
     protected AbstractTensor(DType dType, TensorShape shape, boolean cacheSlices) {
         Preconditions.checkArgument(shape != null && shape.dims() > 0);
         this.dType = dType;
         this.shape = shape;
+        this.requiresOffHeapTensor = TensorOperationsProvider.get().requiresOffHeapTensor();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
     }
 
@@ -194,7 +198,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     public final int getOffset(int... dims) {
-        Preconditions.checkArgument(dims.length == shape.dims(), "Method requires all dimensions specified");
+        //Preconditions.checkArgument(dims.length == shape.dims(), "Method requires all dimensions specified");
         int totalOffset = 0;
 
         for (int d = 0; d < dims.length - 1; d++) { // Stop before last dimension

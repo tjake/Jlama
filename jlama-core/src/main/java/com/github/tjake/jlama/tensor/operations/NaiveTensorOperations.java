@@ -34,7 +34,6 @@ public class NaiveTensorOperations implements TensorOperations {
     public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
         Preconditions.checkArgument(a.dims() == b.dims());
 
-
         boolean isBatch = b.shape().first() > 1;
         for (int ai = 0; ai < a.shape().first(); ai++) {
             AbstractTensor as = a.slice(ai);
@@ -49,7 +48,6 @@ public class NaiveTensorOperations implements TensorOperations {
     @Override
     public void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
         Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
-
         for (int i = offset; i < offset + length; ++i) {
             a.set(a.get(i) * b.get(i), i);
         }

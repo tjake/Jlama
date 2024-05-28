@@ -81,6 +81,5 @@ public class LayerNorm {
         }
 
         return output;
-
     }
 }

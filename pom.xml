@@ -141,7 +141,7 @@
               --enable-preview
               --enable-native-access=ALL-UNNAMED
               --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-              -Djava.library.path=target/native-lib-only
+              -Djava.library.path=../jlama-native/target/native-lib-only
             </argLine>
           </configuration>
         </plugin>

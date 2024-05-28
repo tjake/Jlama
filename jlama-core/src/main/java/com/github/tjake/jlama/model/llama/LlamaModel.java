@@ -66,7 +66,7 @@ public class LlamaModel extends AbstractModel {
             embedding.copyFrom(
                     wte,
                     wte.getOffset(inputToken, c.embeddingSegmentStart()),
-                    embedding.getOffset(c.embeddingSegmentStart()),
+                    embedding.getOffset(0, c.embeddingSegmentStart()),
                     c.embeddingSegmentLength());
 
             return embedding;
@@ -153,12 +153,12 @@ public class LlamaModel extends AbstractModel {
 
     @Override
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
-        Preconditions.checkArgument(t.dims() == 1, "Unexpected shape");
+        Preconditions.checkArgument(t.dims() == 2, "Unexpected shape");
         if (t.dType() == workingQType) return super.maybeQuantize(t);
 
         return t.shape().last() == c.embeddingLength
                 ? TensorOperationsProvider.get()
                         .quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
-                : TensorOperationsProvider.get().quantize(t, workingQType, 0, Ints.checkedCast(t.size()));
+                : TensorOperationsProvider.get().quantize(t, workingQType, 0, Ints.checkedCast(t.shape().last()));
     }
 }

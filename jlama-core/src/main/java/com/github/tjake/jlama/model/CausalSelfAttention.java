@@ -195,6 +195,7 @@ public class CausalSelfAttention {
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
                 int finalPostion = position;
+                
                 AbstractTensor kvp = kvMem.slice(true, position);
 
                 AbstractTensor key = kvp.slice(0);
@@ -230,13 +231,13 @@ public class CausalSelfAttention {
                             int goffset = c.maybeMapToGroupHead(h) * c.headSize;
                             // rotate q by the freq theta and freq r
                             for (int i = offset, g = goffset; i < (offset + headPiece); i++, g++) {
-                                float q0 = query.get(i);
-                                float q1 = query.get(i + headPiece); // hf permutation is 0,64,1,65 etc...
+                                float q0 = query.get(0, i);
+                                float q1 = query.get(0, i + headPiece); // hf permutation is 0,64,1,65 etc...
                                 float[] f = rf[poffset + g];
                                 float fcr = f[0];
                                 float fci = f[1];
-                                query.set(q0 * fcr - q1 * fci, i);
-                                query.set(q0 * fci + q1 * fcr, i + headPiece);
+                                query.set(q0 * fcr - q1 * fci, 0, i);
+                                query.set(q0 * fci + q1 * fcr, 0, i + headPiece);
                             }
                         }
 
@@ -245,13 +246,13 @@ public class CausalSelfAttention {
                             int offset = h * c.headSize;
                             // rotate k by the freq theta and freq r
                             for (int i = offset; i < (offset + headPiece); i++) {
-                                float k0 = key.get(i);
-                                float k1 = key.get(i + headPiece); // hf permutation is 0,64,1,65 etc...
+                                float k0 = key.get(0, i);
+                                float k1 = key.get(0, i + headPiece); // hf permutation is 0,64,1,65 etc...
                                 float[] f = rf[poffset + i];
                                 float fcr = f[0];
                                 float fci = f[1];
-                                key.set(k0 * fcr - k1 * fci, i);
-                                key.set(k0 * fci + k1 * fcr, i + headPiece);
+                                key.set(k0 * fcr - k1 * fci, 0, i);
+                                key.set(k0 * fci + k1 * fcr, 0, i + headPiece);
                             }
                         }
                     } else {
@@ -261,17 +262,17 @@ public class CausalSelfAttention {
                             int offset = h * c.headSize;
                             // rotate q and k by the freq theta and freq r
                             for (int i = offset; i < (offset + headPiece); i++) {
-                                float q0 = query.get(i);
-                                float q1 = query.get(i + headPiece); // hf permutation is 0,64,1,65 etc...
-                                float k0 = key.get(i);
-                                float k1 = key.get(i + headPiece);
+                                float q0 = query.get(0, i);
+                                float q1 = query.get(0, i + headPiece); // hf permutation is 0,64,1,65 etc...
+                                float k0 = key.get(0, i);
+                                float k1 = key.get(0, i + headPiece);
                                 float[] f = rf[poffset + i];
                                 float fcr = f[0];
                                 float fci = f[1];
-                                query.set(q0 * fcr - q1 * fci, i);
-                                query.set(q0 * fci + q1 * fcr, i + headPiece);
-                                key.set(k0 * fcr - k1 * fci, i);
-                                key.set(k0 * fci + k1 * fcr, i + headPiece);
+                                query.set(q0 * fcr - q1 * fci, 0, i);
+                                query.set(q0 * fci + q1 * fcr, 0, i + headPiece);
+                                key.set(k0 * fcr - k1 * fci, 0, i);
+                                key.set(k0 * fci + k1 * fcr, 0, i + headPiece);
                             }
                         }
                     }

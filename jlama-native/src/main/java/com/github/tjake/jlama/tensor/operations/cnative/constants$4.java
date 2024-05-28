@@ -7,58 +7,63 @@ import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.lang.foreign.*;
 import static java.lang.foreign.ValueLayout.*;
-final class constants$3 {
+final class constants$4 {
 
     // Suppresses default constructor, ensuring non-instantiability.
-    private constants$3() {}
+    private constants$4() {}
     static final FunctionDescriptor const$0 = FunctionDescriptor.ofVoid(
         JAVA_INT,
-        RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,
         RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,
         RuntimeHelper.POINTER,
+        JAVA_INT,
+        RuntimeHelper.POINTER,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
         JAVA_INT,
         JAVA_INT,
         JAVA_INT,
         JAVA_INT
     );
     static final MethodHandle const$1 = RuntimeHelper.downcallHandle(
-        "dot_product_q8_q4_chunked",
-        constants$3.const$0
+        "gemm_q8_q4_batch",
+        constants$4.const$0
     );
     static final FunctionDescriptor const$2 = FunctionDescriptor.ofVoid(
         JAVA_INT,
-        JAVA_INT,
         RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,
-        RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,
-        RuntimeHelper.POINTER,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
         JAVA_INT,
         JAVA_INT,
         JAVA_INT,
         JAVA_INT
     );
     static final MethodHandle const$3 = RuntimeHelper.downcallHandle(
-        "dot_product_q8_q4_batch_chunked",
-        constants$3.const$2
+        "gemm_f32",
+        constants$4.const$2
     );
     static final FunctionDescriptor const$4 = FunctionDescriptor.ofVoid(
         JAVA_INT,
-        RuntimeHelper.POINTER,
-        RuntimeHelper.POINTER,
         JAVA_INT,
-        RuntimeHelper.POINTER,
         RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,
         JAVA_INT,
-        JAVA_INT,
+        RuntimeHelper.POINTER,
         JAVA_INT,
         JAVA_INT,
         JAVA_INT,
@@ -69,8 +74,8 @@ final class constants$3 {
         JAVA_INT
     );
     static final MethodHandle const$5 = RuntimeHelper.downcallHandle(
-        "gemm_q8_q4",
-        constants$3.const$4
+        "gemm_f32_batch",
+        constants$4.const$4
     );
 }
 

@@ -214,11 +214,15 @@ public abstract class AbstractModel implements Generator {
 
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
         try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
-            AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
-            AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
+            //AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
+            //AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
 
             // This is a mix of argmax and sampling with softmax
-            VectorMath.pfor(0, c.vocabularySize, i -> {
+            VectorMath.pchunk(0, c.vocabularySize, (chunkStart, chunkSize) -> {
+                TensorOperationsProvider.get().dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
+            });
+
+            /*VectorMath.pfor(0, c.vocabularySize, i -> {
                 float v = TensorOperationsProvider.get()
                         .dotProduct(
                                 embedding, sampleOutput.getOutputLogitsWeights().slice(i), c.embeddingLength);
@@ -230,15 +234,25 @@ public abstract class AbstractModel implements Generator {
                     }
                     return x;
                 });
-            });
+            });*/
+
+            int maxi = Integer.MIN_VALUE;
+            double maxv = Double.NEGATIVE_INFINITY;
+            for (int i = 0; i < c.vocabularySize; i++) {
+                float v = logits.get(0, i);
+                if (v > maxv) {
+                    maxi = i;
+                    maxv = v;
+                }
+            }
 
             if (temperature == 0.0) {
-                return maxi.get();
+                return maxi;
             }
 
             float sum = 0;
             for (int i = 0; i < c.vocabularySize; i++) {
-                float v = (float) Math.exp((logits.get(0, i) - maxv.get()) / temperature);
+                float v = (float) Math.exp((logits.get(0, i) - maxv) / temperature);
                 sum += v;
                 logits.set(v, 0, i);
             }
