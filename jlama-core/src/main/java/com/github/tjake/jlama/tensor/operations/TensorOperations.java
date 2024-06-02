@@ -40,7 +40,6 @@ public interface TensorOperations {
 
     default float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
         FloatBufferTensor r = scratch.get();
-        //r.clear();
         batchDotProduct(r, a, b, aoffset, boffset, limit);
         return r.get(0, 0);
     }
@@ -87,9 +86,21 @@ public interface TensorOperations {
     void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length);
 
     /**
-     * The value computed is (alpha * X[i]) + Y[i]
+     * The value computed is Y[i] = (alpha * X[i]) + Y[i]
      */
     void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit);
+
+    /**
+     * The value computed is Y[i] = (alpha[j] * X[j, i]) + Y[i]
+     */
+    default void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+        Preconditions.checkArgument(alpha.shape().first() == x.shape().first());
+
+        for (int i = 0; i < batchSize; i++) {
+            saxpy(alpha.get(i), x.slice(i), y, xoffset, yoffset, limit);
+        }
+    }
+
 
     /**
      * The value computed is Y[i] = X[i] + (beta * Y[i])

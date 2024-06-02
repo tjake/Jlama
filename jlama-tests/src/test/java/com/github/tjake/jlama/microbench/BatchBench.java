@@ -26,6 +26,8 @@ public class BatchBench {
 
     private static final int BATCH_SIZE = 32;
     private static final int SIZE = 1024;
+    private static final int SIZE2 = 1024/2;
+
 
     @State(Scope.Benchmark)
     public static class Parameters {

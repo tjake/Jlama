@@ -359,7 +359,7 @@ public class TestOperations {
         Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv2), 0.0001);
     }
 
-   // @Test
+    @Test
     public void testBatchChunked() {
         FloatBufferTensor r0 = makeTensor(ROWS);
         FloatBufferTensor r1 = makeTensor(ROWS);

@@ -21,7 +21,6 @@ import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
@@ -144,8 +143,8 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
 
     @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
-        Preconditions.checkArgument(this.dType == src.dType, "Different types");
-        Preconditions.checkArgument(!b.isReadOnly());
+        //Preconditions.checkArgument(this.dType == src.dType, "Different types");
+        //Preconditions.checkArgument(!b.isReadOnly());
         segment.asSlice(getMemorySegmentOffset(destOffset), length * dType.size())
                 .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));
     }
@@ -158,7 +157,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor() && b.hasArray())
+        if (!requiresOffHeapTensor)
             return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return FloatVector.fromMemorySegment(
@@ -167,9 +166,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
 
     @Override
     public void intoTensor(FloatVector vector, int... aoffset) {
-        Preconditions.checkArgument(!b.isReadOnly());
+        //Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor() && b.hasArray())
+        if (!requiresOffHeapTensor)
             vector.intoArray(getArray(), getArrayOffset(offset));
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }

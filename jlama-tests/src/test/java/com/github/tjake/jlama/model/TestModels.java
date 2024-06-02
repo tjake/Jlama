@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
 public class TestModels {
 
     static {
-        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+       System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -88,7 +88,6 @@ public class TestModels {
 
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
-
         }
     }
 

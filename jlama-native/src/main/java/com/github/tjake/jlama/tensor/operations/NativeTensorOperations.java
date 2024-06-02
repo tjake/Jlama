@@ -86,11 +86,14 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     public int parallelSplitSize() {
-        return PhysicalCoreExecutor.instance.get().getCoreCount();
+        return 256;
     }
 
     @Override
     public void batchDotProduct(AbstractTensor result, AbstractTensor at, AbstractTensor bt, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+
+        //if (true)
+        //    return;
 
         int M = at.shape().dim(0);
         int N = rowChunkSize; //b.shape().dim(0);
@@ -161,11 +164,11 @@ public class NativeTensorOperations implements TensorOperations {
                                 bRowOffset,
                                 N,
                                 K,
-                                a.getOffset(1, 0),
-                                a.getBlockF().getOffset(1, 0),
-                                b.getMemorySegmentOffset(b.getOffset(1, 0)),
-                                b.getBlockF().getOffset(1, 0),
-                                result.getOffset(1, 0));
+                                a.getStride(),
+                                a.getBlockF().getStride(),
+                                b.getMemorySegmentOffset(b.getStride()),
+                                b.getBlockF().getStride(),
+                                result.getStride());
                         break;
                     default:
                         throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
@@ -186,6 +189,9 @@ public class NativeTensorOperations implements TensorOperations {
             int bRowOffset,
             int rowChunkSize)
     {
+        //if (true)
+        //    return;
+
         MemorySegment[] tmp = tmpArr.get();
         MemorySegment ra = tmp[0];
         MemorySegment rb = tmp[1];
@@ -293,8 +299,6 @@ public class NativeTensorOperations implements TensorOperations {
             default:
                 throw new UnsupportedOperationException(a.dType().name());
         }
-
-
     }
 
     @Override
@@ -310,6 +314,11 @@ public class NativeTensorOperations implements TensorOperations {
     @Override
     public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
         delegate.saxpy(alpha, x, y, xoffset, yoffset, limit);
+    }
+
+    @Override
+    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+        delegate.saxpy(alpha, x, y, xoffset, yoffset, limit, batchSize);
     }
 
     @Override

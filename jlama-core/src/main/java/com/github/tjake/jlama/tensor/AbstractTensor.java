@@ -49,6 +49,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
     protected final boolean requiresOffHeapTensor;
+    private final int stride;
     private volatile TensorCache originCache = null;
 
     protected AbstractTensor(DType dType, TensorShape shape, boolean cacheSlices) {
@@ -57,6 +58,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         this.shape = shape;
         this.requiresOffHeapTensor = TensorOperationsProvider.get().requiresOffHeapTensor();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
+        this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, 0) : 0;
     }
 
     /** Create a new tensor with the given shape of the same Tensor implementation */
@@ -98,7 +100,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     /** Get a slice of the tensor along the given dimension */
     public AbstractTensor slice(boolean cacheInnerSlice, int... dims) {
         Preconditions.checkArgument(dims.length < shape.dims(), "Too many dimensions specified for tensor");
-
         try {
         if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null) return sliceCache[dims[0]];
         } catch (Throwable t) {
@@ -107,23 +108,27 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         }
 
         TensorShape slicedShape = shape.slice(dims.length);
-
         int totalOffset = 0;
-        for (int d = 0; d <= dims.length - 1; d++) {
-            int offset = shape.sparseLength();
-            for (int i = shape.dims() - 2; i > d; i--) { // factor scaling of each dim shape
-                offset *= shape.dim(i);
-            }
+        if (dims.length == 1 && this.shape.dims() == 2)
+        {
+            totalOffset = shape.sparseLength() * dims[0];
+        }
+        else
+        {
+            for (int d = 0; d <= dims.length - 1; d++)
+            {
+                int offset = shape.sparseLength();
+                for (int i = shape.dims() - 2; i > d; i--)
+                { // factor scaling of each dim shape
+                    offset *= shape.dim(i);
+                }
 
-            totalOffset += dims[d] * offset;
+                totalOffset += dims[d] * offset;
+            }
         }
 
-        int length = slicedShape.sparseLength();
-        for (int i = 0; i < slicedShape.dims() - 1; i++) length *= slicedShape.dim(i);
-
-        AbstractTensor r = this.make(totalOffset, length, slicedShape, cacheInnerSlice);
+        AbstractTensor r = this.make(totalOffset, (int)slicedShape.size(), slicedShape, cacheInnerSlice);
         if (dims.length == 1 && sliceCache != null) sliceCache[dims[0]] = r;
-
         return r;
     }
 
@@ -197,20 +202,12 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         return true;
     }
 
+    public final int getStride() {
+        return stride;
+    }
+
     public final int getOffset(int... dims) {
-        //Preconditions.checkArgument(dims.length == shape.dims(), "Method requires all dimensions specified");
-        int totalOffset = 0;
-
-        for (int d = 0; d < dims.length - 1; d++) { // Stop before last dimension
-            int offset = shape.sparseLength();
-            for (int i = shape.dims() - 2; i > d; i--) { // factor scaling of each dim shape
-                offset *= shape.dim(i);
-            }
-
-            totalOffset += dims[d] * offset;
-        }
-
-        return totalOffset + shape.sparseAdjustment(dims[dims.length - 1]);
+       return shape.getOffset(dims);
     }
 
     /** Transpose the tensor across all dimensions*/
@@ -272,7 +269,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public AbstractTensor quantize(DType dType) {
 
-        if (this.dims() != 2 || this.dType == dType) return this;
+        if (this.shape().first() == 1 || this.dType == dType) return this;
 
         if (shape.isSparse()) {
             logger.info("Quantizing sparse tensor is not supported");

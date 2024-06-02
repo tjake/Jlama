@@ -222,20 +222,6 @@ public abstract class AbstractModel implements Generator {
                 TensorOperationsProvider.get().dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
             });
 
-            /*VectorMath.pfor(0, c.vocabularySize, i -> {
-                float v = TensorOperationsProvider.get()
-                        .dotProduct(
-                                embedding, sampleOutput.getOutputLogitsWeights().slice(i), c.embeddingLength);
-                logits.set(v, 0, i);
-                maxv.getAndUpdate(x -> {
-                    if (v > x) {
-                        maxi.set(i);
-                        return (double) v;
-                    }
-                    return x;
-                });
-            });*/
-
             int maxi = Integer.MIN_VALUE;
             double maxv = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < c.vocabularySize; i++) {
@@ -281,7 +267,7 @@ public abstract class AbstractModel implements Generator {
 
         if (ntokens > c.contextLength) ntokens = c.contextLength;
 
-        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), ntokens, 2, c.kvLength); // k and v are last 2 dims
+        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), 2, ntokens, c.kvLength); // k and v for context window
         AbstractTensor logits = makeTensor(c.vocabularySize);
 
         int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
@@ -331,7 +317,7 @@ public abstract class AbstractModel implements Generator {
             try {
                 String c = tokenizer.decode(next);
                 genMsPerToken = (System.currentTimeMillis() - start) / (float) (tokensGenerated);
-                onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (tokensGenerated));
+                onTokenWithTimings.accept(c, genMsPerToken);
             } catch (Exception e) {
                 logger.error("Failed to decode token {}", next, e);
             }

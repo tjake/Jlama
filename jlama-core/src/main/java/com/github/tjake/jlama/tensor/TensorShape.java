@@ -75,6 +75,34 @@ public class TensorShape {
         return tshape[i];
     }
 
+    public final int getOffset(int... pdims)
+    {
+        //Preconditions.checkArgument(pdims.length == dims(), "Method requires all dimensions specified");
+        switch (pdims.length)
+        {
+            case 1:
+                return sparseLength * pdims[0];
+            case 2:
+                return sparseLength * pdims[0] + pdims[1] - sparseOffset;  //Most common case
+            case 3:
+                return (sparseLength * tshape[1] * pdims[0]) + (sparseLength * pdims[1]) + pdims[2] - sparseOffset;
+            default:
+                int totalOffset = 0;
+                for (int d = 0; d < pdims.length - 1; ++d)
+                { // Stop before last dimension
+                    int offset = sparseLength;
+                    for (int i = tshape.length - 2; i > d; --i)
+                    { // factor scaling of each dim shape
+                        offset *= tshape[i];
+                    }
+
+                    totalOffset += pdims[d] * offset;
+                }
+
+                return totalOffset + pdims[pdims.length - 1] - sparseOffset;
+        }
+    }
+
     public int sparseLength() {
         return sparseLength;
     }

@@ -2388,13 +2388,13 @@ public final class PanamaTensorOperations implements TensorOperations {
         for (; i < upperBound; i += FloatVector.SPECIES_256.length()) {
 
             // Convert BF16 to F32
-            var af = a.getVector(ShortVector.SPECIES_128, i)
+            var af = a.getVector(ShortVector.SPECIES_128, 0, i)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var bf = b.getVector(ShortVector.SPECIES_128, i)
+            var bf = b.getVector(ShortVector.SPECIES_128,0, i)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
@@ -2404,12 +2404,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                     .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
                     .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
 
-            a.intoTensor((ShortVector) res, i);
+            a.intoTensor((ShortVector) res, 0, i);
         }
 
         // tail
         for (; i < offset + limit; i++) {
-            a.set(a.get(i) + b.get(i), i);
+            a.set(a.get(0, i) + b.get(0, i), 0, i);
         }
     }
 
@@ -2420,13 +2420,13 @@ public final class PanamaTensorOperations implements TensorOperations {
         for (; i < upperBound; i += FloatVector.SPECIES_512.length()) {
 
             // Convert BF16 to F32
-            var af = a.getVector(ShortVector.SPECIES_256, i)
+            var af = a.getVector(ShortVector.SPECIES_256, 0, i)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var bf = b.getVector(ShortVector.SPECIES_256, i)
+            var bf = b.getVector(ShortVector.SPECIES_256, 0, i)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
@@ -2436,12 +2436,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                     .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
                     .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
 
-            a.intoTensor((ShortVector) res, i);
+            a.intoTensor((ShortVector) res, 0, i);
         }
 
         // tail
         for (; i < offset + limit; i++) {
-            a.set(a.get(i) + b.get(i), i);
+            a.set(a.get(0, i) + b.get(0, i), 0, i);
         }
     }
 
@@ -2491,7 +2491,7 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_512, factor);
         for (; i < upperBound; i += FloatVector.SPECIES_512.length()) {
-            var va = a.getVector(ShortVector.SPECIES_256, i)
+            var va = a.getVector(ShortVector.SPECIES_256, 0, i)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
@@ -2501,12 +2501,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                     .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
                     .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
 
-            a.intoTensor((ShortVector) res, i);
+            a.intoTensor((ShortVector) res, 0, i);
         }
 
         // tail
         for (; i < (offset + length); i++) {
-            a.set(a.get(i) + factor, i);
+            a.set(a.get(0, i) + factor, 0, i);
         }
     }
 
@@ -2516,7 +2516,7 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_256, factor);
         for (; i < upperBound; i += FloatVector.SPECIES_256.length()) {
-            var va = a.getVector(ShortVector.SPECIES_128, i)
+            var va = a.getVector(ShortVector.SPECIES_128, 0, i)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
@@ -2526,18 +2526,18 @@ public final class PanamaTensorOperations implements TensorOperations {
                     .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
                     .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
 
-            a.intoTensor((ShortVector) res, i);
+            a.intoTensor((ShortVector) res, 0, i);
         }
 
         // tail
         for (; i < (offset + length); i++) {
-            a.set(a.get(i) + factor, i);
+            a.set(a.get(0, i) + factor, 0, i);
         }
     }
 
     @Override
     public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
+        //Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
         Preconditions.checkArgument(x.dType() == y.dType());
         Preconditions.checkArgument(limit % 2 == 0);
 
@@ -2568,18 +2568,67 @@ public final class PanamaTensorOperations implements TensorOperations {
         int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
         int xo = xoffset;
         int yo = yoffset;
+        FloatVector av = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha);
         for (;
                 xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
                 xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
             FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, 0, xo);
             FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
-            y.intoTensor(vy.add(vx.mul(alpha)), 0, yo);
+            FloatVector res = vx.fma(av, vy);
+            y.intoTensor(res, 0, yo);
         }
 
         // tail
         for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
             float v = y.get(0, yo) + (alpha * x.get(0, xo));
             y.set(v, 0, yo);
+        }
+    }
+
+    @Override
+    public void saxpy(AbstractTensor alpha, AbstractTensor xt, AbstractTensor yt, int xoffset, int yoffset, int limit, int batchSize) {
+        Preconditions.checkArgument(xt.dType() == yt.dType() && xt.dType() == DType.F32, "F32 support only!");
+
+        FloatBufferTensor x = (FloatBufferTensor) xt;
+        FloatBufferTensor y = (FloatBufferTensor) yt;
+
+        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
+
+        //Use Nearest multiple of 4
+        int batchLimit = batchSize - (batchSize % 4);
+        int a = 0;
+
+        for (; a < batchLimit; a += 4) {
+            int xo = xoffset;
+            int yo = yoffset;
+
+            FloatVector a0 = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha.get(0, a + 0));
+            FloatVector a1 = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha.get(0, a + 1));
+            FloatVector a2 = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha.get(0, a + 2));
+            FloatVector a3 = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha.get(0, a + 3));
+
+
+            for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length())
+            {
+                FloatVector x0 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 0, xo);
+                FloatVector x1 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 1, xo);
+                FloatVector x2 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 2, xo);
+                FloatVector x3 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 3, xo);
+
+                FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
+
+                FloatVector r0 = x0.fma(a0, vy);
+                r0 = x1.fma(a1, r0);
+                r0 = x2.fma(a2, r0);
+                r0 = x3.fma(a3, r0);
+
+                y.intoTensor(r0, 0, yo);
+            }
+        }
+
+        // tail
+        for (; a < batchSize; a++) {
+            saxpyF32(alpha.get(0, a), (FloatBufferTensor) x.slice(a), y, xoffset, yoffset, limit);
         }
     }
 
@@ -2594,13 +2643,13 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         for (; ao < (aoffset + upperBound) && bo < (boffset + upperBound); ao += len, bo += len) {
             // Convert BF16 to F32
-            var af = a.getVector(ShortVector.SPECIES_128, ao)
+            var af = a.getVector(ShortVector.SPECIES_128,0, ao)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var bf = b.getVector(ShortVector.SPECIES_128, bo)
+            var bf = b.getVector(ShortVector.SPECIES_128, 0, bo)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
@@ -2610,13 +2659,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                     .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
                     .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
 
-            b.intoTensor((ShortVector) r, bo);
+            b.intoTensor((ShortVector) r, 0, bo);
         }
 
         // tail
         for (; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
-            float v = a.get(ao) + alpha * b.get(bo);
-            b.set(v, bo);
+            float v = a.get(0, ao) + alpha * b.get(0, bo);
+            b.set(v, 0, bo);
         }
     }
 
@@ -2631,13 +2680,13 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         for (; ao < (aoffset + upperBound) && bo < (boffset + upperBound); ao += len, bo += len) {
             // Convert BF16 to F32
-            var af = a.getVector(ShortVector.SPECIES_256, ao)
+            var af = a.getVector(ShortVector.SPECIES_256, 0, ao)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var bf = b.getVector(ShortVector.SPECIES_256, bo)
+            var bf = b.getVector(ShortVector.SPECIES_256, 0, bo)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
@@ -2647,13 +2696,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                     .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
                     .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
 
-            b.intoTensor((ShortVector) r, bo);
+            b.intoTensor((ShortVector) r, 0, bo);
         }
 
         // tail
         for (; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
-            float v = a.get(ao) + alpha * b.get(bo);
-            b.set(v, bo);
+            float v = a.get(0, ao) + alpha * b.get(0, bo);
+            b.set(v, 0, bo);
         }
     }
 
@@ -2689,12 +2738,15 @@ public final class PanamaTensorOperations implements TensorOperations {
         int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
         int xo = xoffset;
         int yo = yoffset;
+
+        FloatVector bv = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, beta);
+
         for (;
                 xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
                 xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
             FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, 0, xo);
             FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
-            y.intoTensor(vx.add(vy.mul(beta)), 0, yo);
+            y.intoTensor(vx.add(vy.mul(bv)), 0, yo);
         }
 
         // tail
@@ -2716,13 +2768,13 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += len, yo += len) {
             // Convert BF16 to F32
-            var xv = x.getVector(ShortVector.SPECIES_128, xo)
+            var xv = x.getVector(ShortVector.SPECIES_128, 0, xo)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var yv = y.getVector(ShortVector.SPECIES_128, yo)
+            var yv = y.getVector(ShortVector.SPECIES_128, 0, yo)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
                     .reinterpretAsFloats();
@@ -2734,12 +2786,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                     (ShortVector) res.reinterpretAsInts()
                             .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
                             .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0),
-                    yo);
+                    0, yo);
         }
 
         for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(xo) + beta * y.get(yo);
-            y.set(v, yo);
+            float v = x.get(0, xo) + beta * y.get(0, yo);
+            y.set(v, 0, yo);
         }
     }
 
@@ -2755,13 +2807,13 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += len, yo += len) {
             // Convert BF16 to F32
-            var xv = x.getVector(ShortVector.SPECIES_256, xo)
+            var xv = x.getVector(ShortVector.SPECIES_256, 0, xo)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var yv = y.getVector(ShortVector.SPECIES_256, yo)
+            var yv = y.getVector(ShortVector.SPECIES_256,0, yo)
                     .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
                     .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
                     .reinterpretAsFloats();
@@ -2773,12 +2825,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                     (ShortVector) res.reinterpretAsInts()
                             .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
                             .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0),
-                    yo);
+                    0, yo);
         }
 
         for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(xo) + beta * y.get(yo);
-            y.set(v, yo);
+            float v = x.get(0, xo) + beta * y.get(0, yo);
+            y.set(v, 0, yo);
         }
     }
 }

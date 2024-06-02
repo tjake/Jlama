@@ -96,7 +96,7 @@ public class MoEBlock implements FeedForward {
             });
 
             // Pick the top experts for this token
-            VectorMath.softMax(expertResults);
+            VectorMath.softMax(expertResults, 0, numberOfExperts);
             topk(expertResults);
 
             // Apply the selected experts to the input

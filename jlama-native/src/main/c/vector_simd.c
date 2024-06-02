@@ -14,13 +14,13 @@
 //All params
 struct gemm_params {
     int flags;
-    const float *af;
-    const char* a;
+    const float* restrict af;
+    const char* restrict a;
     int aoffset;
-    const float *bf;
-    const char* b;
+    const float* restrict bf;
+    const char* restrict b;
     int boffset;
-    float *r;
+    float * restrict r;
     int roffset;
     int m;
     int n;
@@ -32,9 +32,9 @@ struct gemm_params {
     int ldc;
 } gemm_params;
 
-void gemm(int m0, int m, int n0, int n, void (*gemmPtr)(int, int, int, int, int, int, struct gemm_params), struct gemm_params params) {
+void __attribute__((noinline)) gemm(int m0, int m, int n0, int n, void (*gemmPtr)(int, int, int, int, int, int, struct gemm_params), struct gemm_params params) {
     int mc, nc, mp, np;
-    switch ((MIN(m - m0, 5) << 4) | MIN(n - n0, 5)) {
+    switch ((MIN(m - m0, 4) << 4) | MIN(n - n0, 4)) {
             case 0x55:
                 mc = 5;
                 nc = 5;
@@ -154,130 +154,23 @@ void gemm(int m0, int m, int n0, int n, void (*gemmPtr)(int, int, int, int, int,
 }
 
 
-void gemm_q8_q4_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_params params) {
-#if defined(__AVX512F__)
+void __attribute__((noinline)) gemm_q8_q4_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_params params) {
     int ytiles = (m - m0) / RM;
     int xtiles = (n - n0) / RN;
     int tiles = xtiles * ytiles;
     // Mask to keep the first 4 bits of each byte
-    __m128i mask_first_4bits = _mm_set1_epi8(0xF);
-    //Subtract 8 from each byte to get signed values
-    __m128i eight = _mm_set1_epi8(8);
-
-    // This fits on the stack (max of 5x5)
-    __m512 sums[RM][RN];
-
-    for (int job = 0; job < tiles; ++job) {
-        int ii = m0 + job / xtiles * RM;
-        int jj = n0 + job % xtiles * RN;
-
-        //Reset the sums to zero for this tile
-        for (int i = 0; i < RM; i++) {
-            for (int j = 0; j < RN; j++) {
-                sums[i][j] = _mm512_setzero_ps();
-            }
-        }
-
-        int ao = params.aoffset;
-                                int bo = params.boffset;
-
-  for(int j = 0; j < params.k; j += 32, ao += 32, bo += 16) {
-
-        for (int mi = 0; mi < RM; ++mi) {
-         float afactor = params.af[params.ldaf * (ii + mi) + (ao / Q4_BLOCK_SIZE)];
-   for (int ni = 0; ni < RN; ++ni) {
-
-
-                //First take the scaling factors of both tensors and multiply them in SIMD
-                //for (int i = 0; i < numBlocks; i += 16) { //512bits == 16floats
-                    // perform a block at a time
-
-
-                        // Load float32
-
-                        float bfactor = params.bf[params.ldbf * (jj + ni) + ((bo*2) / Q4_BLOCK_SIZE)];
-
-                        // broadcast the float32 version of 'factor' to all elements
-                        __m512 scale_f32 = _mm512_set1_ps(afactor * bfactor);
-
-                        // Load 8 bytes into a 128-bit integer register
-                        __m128i int_vb0 = _mm_loadu_si128((__m128i const*)(params.b + params.ldb * (jj + ni) + bo)); // Load 128 bits
-
-                        /*__m256i vb0 = _mm256_and_si256(_mm256_set1_epi8(15),
-                                                        _mm256_insertf128_si256(_mm256_castsi128_si256(int_vb0),
-                                                                               _mm_srli_epi16(int_vb0, 4), 1));
-
-
-                        vb0 = _mm256_sub_epi8(vb0, eight);*/
-
-                        // Masked values
-                        __m128i first_4bits0 = _mm_and_si128(int_vb0, mask_first_4bits);
-
-                        // Shift first 4 bits to rightmost positions
-                        __m128i last_4bits0 = _mm_srli_epi16(int_vb0, 4);
-                        last_4bits0 = _mm_and_si128(last_4bits0, mask_first_4bits);
-
-                        //Subtract 8 from each int
-                        first_4bits0 = _mm_sub_epi8(first_4bits0, eight);
-                        last_4bits0 = _mm_sub_epi8(last_4bits0, eight);
-
-                        // Extend these bytes to 32-bit integers (low and high)
-                        __m512i int_vb_ext_lo0 = _mm512_cvtepi8_epi32(first_4bits0);
-                        __m512i int_vb_ext_hi0 = _mm512_cvtepi8_epi32(last_4bits0);
-
-                        // Load 16 bytes into 2 128-bit integer registers
-                        __m128i int_va0 = _mm_loadu_si128((__m128i const*)(params.a + params.lda * (ii + mi) + ao));
-                        __m128i int_va1 = _mm_loadu_si128((__m128i const*)(params.a + params.lda * (ii + mi) + ao + 16));
-
-                        //Extend to 32-bit ints
-                        __m512i int_va0_ext = _mm512_cvtepi8_epi32(int_va0);
-                        __m512i int_va1_ext = _mm512_cvtepi8_epi32(int_va1);
-
-
-                        // Multiply the 32-bit integers
-                        __m512i isum = _mm512_mullo_epi32(int_va0_ext, int_vb_ext_lo0);
-                        isum = _mm512_add_epi32(_mm512_mullo_epi32(int_va1_ext, int_vb_ext_hi0), isum);
-
-                        // Convert these 32-bit integers to floats
-                        __m512 fsum = _mm512_cvtepi32_ps(isum);
-
-                        // Multiply and accumulate
-                        sums[mi][ni] = _mm512_fmadd_ps(scale_f32, fsum, sums[mi][ni]);
-                    }
-                }
-            //}
-        }
-
-        for (int mi = 0; mi < RM; ++mi) {
-            for (int ni = 0; ni < RN; ++ni) {
-                // Horizontal sum of the vector to get dot product
-                float r = _mm512_reduce_add_ps(sums[mi][ni]);
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = r;
-            }
-        }
-    }
-#else
-    //gemm_q8_q4_256(m0, m, n0, n, RM, RN, params);
-#endif
-}
-
-
-void gemm_q8_q4_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_params params) {
-#if defined(__AVX512F__)
-    int ytiles = (m - m0) / RM;
-    int xtiles = (n - n0) / RN;
-    int tiles = xtiles * ytiles;
-    // Mask to keep the first 4 bits of each byte
-    //__m128i mask_first_4bits = _mm_set1_epi8(0xF);
+    __m256i mask_first_4bits = _mm256_set1_epi8(0xF);
     //Subtract 8 from each byte to get signed values
     __m256i eight = _mm256_set1_epi8(8);
+    int numBlocks = params.k / Q4_BLOCK_SIZE;
 
     // This fits on the stack (max of 5x5)
-    __m256 sums[RM][RN];
-
+    __attribute__((aligned(16))) float scalef[8];
     for (int job = 0; job < tiles; ++job) {
         int ii = m0 + job / xtiles * RM;
         int jj = n0 + job % xtiles * RN;
+
+        __m256 sums[RM][RN];
 
         //Reset the sums to zero for this tile
         for (int i = 0; i < RM; i++) {
@@ -285,78 +178,68 @@ void gemm_q8_q4_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_pa
                 sums[i][j] = _mm256_setzero_ps();
             }
         }
-         int ao = params.aoffset;
-                        int bo = params.boffset;
-  for(int j = 0; j < params.k; j += 32, ao += 32, bo += 16) {
-        for (int mi = 0; mi < RM; ++mi) {
-         float afactor = params.af[params.ldaf * (ii + mi) + (ao / Q4_BLOCK_SIZE)];
-               // Load 16 bytes into 2 128-bit integer registers
-                                 __m256i int_va0 = _mm256_loadu_si256((__m256i const*)(params.a + params.lda * (ii + mi) + ao));
-      // Load 16 bytes into 2 128-bit integer registers
+
+        for (int ni = 0; ni < RN; ++ni) {
+            int ao = params.aoffset;
+            int bo = params.boffset;
+
+            for (int i = 0; i < numBlocks; i += 8) { //256bits == 8floats
+                int aoo = ao;
+                int boo = bo;
+
+                for (int mi = 0; mi < RM; ++mi) {
+                    ao = aoo;
+                    bo = boo;
+
+                    // Load float32
+                     __m256 ablock = _mm256_loadu_ps(params.af + (params.ldaf * (ii + mi) + (ao / Q4_BLOCK_SIZE)));
+                     __m256 bblock = _mm256_loadu_ps(params.bf + (params.ldbf * (jj + ni) + ((bo*2) / Q4_BLOCK_SIZE)));
+                     __m256 scaled = _mm256_mul_ps(ablock, bblock);
+                     _mm256_store_ps(scalef, scaled);
+
+                    for(int j = 0; j < 8; j++, ao += 32, bo += 16) {
+                        // Load 16 bytes into 2 128-bit integer registers
                         __m256i int_va1 = _mm256_loadu_si256((__m256i const*)(params.a + params.lda * (ii + mi) + ao));
- int_va0 = _mm256_sign_epi8(int_va0, int_va0);
-   for (int ni = 0; ni < RN; ++ni) {
-
-
-
-                //First take the scaling factors of both tensors and multiply them in SIMD
-                //for (int i = 0; i < numBlocks; i += 16) { //512bits == 16floats
-                    // perform a block at a time
-
-
-                        // Load float32
-
-                        float bfactor = params.bf[params.ldbf * (jj + ni) + ((bo*2) / Q4_BLOCK_SIZE)];
-
-                        // broadcast the float32 version of 'factor' to all elements
-                        __m256 scale_f32 = _mm256_set1_ps(afactor * bfactor);
-
+                        __m256i int_va0 = _mm256_sign_epi8(int_va1, int_va1);
 
                         // Load 8 bytes into a 128-bit integer register
                         __m128i int_vb0 = _mm_loadu_si128((__m128i const*)(params.b + params.ldb * (jj + ni) + bo)); // Load 128 bits
 
-                        __m256i vb0 = _mm256_and_si256(_mm256_set1_epi8(15),
-                                                        _mm256_insertf128_si256(_mm256_castsi128_si256(int_vb0),
+                        __m256i vb0 = _mm256_and_si256(mask_first_4bits,
+                                                       _mm256_insertf128_si256(_mm256_castsi128_si256(int_vb0),
                                                                                _mm_srli_epi16(int_vb0, 4), 1));
-
-
 
                         vb0 = _mm256_sign_epi8(_mm256_sub_epi8(vb0, eight), int_va1);
 
+                        __m256i res;
+                        #if defined(__AVXVNNI__) || (defined(__AVX512VNNI__) && defined(__AVX512VL__))
+                                res = _mm256_dpbusd_epi32(_mm256_setzero_si256(), int_va0, vb0);
+                        #else
+                                res = _mm256_madd_epi16(_mm256_set1_epi16(1), _mm256_maddubs_epi16(int_va0, vb0));
+                        #endif
 
+                        __m256 resf = _mm256_cvtepi32_ps(res);
 
-                        __m256 res = _mm256_cvtepi32_ps(_mm256_dpbusd_epi32(_mm256_setzero_si256(), int_va0, vb0));
+                        // broadcast the float32 version of 'factor' to all elements
+                        __m256 scale_f32 = _mm256_set1_ps(scalef[j]);
 
-
-                        sums[mi][ni] = _mm256_fmadd_ps(scale_f32, res, sums[mi][ni]);
+                        sums[mi][ni] = _mm256_fmadd_ps(scale_f32, resf, sums[mi][ni]);
                     }
                 }
-            //}
+            }
         }
 
-        __attribute__((aligned(16))) float result[8];
         for (int mi = 0; mi < RM; ++mi) {
             for (int ni = 0; ni < RN; ++ni) {
                 // Horizontal sum of the vector to get dot product
-                 // Horizontal sum of the vector to get dot product
-
-                    _mm256_store_ps(result, sums[mi][ni]);
-
-                    float dot = 0.0;
-                    for(int i = 0; i < 8; ++i) {
-                        dot += result[i];
-                    }
-                //float r = _mm512_reduce_add_ps(sums[mi][ni]);
+                float dot = _mm512_reduce_add_ps(_mm512_castps256_ps512(sums[mi][ni]));
                 params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
             }
         }
     }
-#else
-    //gemm_q8_q4_256(m0, m, n0, n, RM, RN, params);
-#endif
 }
 
-void gemm_q8_q4(int flags, const float *af, const char* a, int aoffset, const float *bf, const char* b, int boffset, float *r, int roffset, int m, int n0, int n, int k, int lda, int ldaf, int ldb, int ldbf, int ldc) {
+void gemm_q8_q4(int flags, const float * restrict af, const char * restrict a, int aoffset, const float * restrict bf, const char* restrict b, int boffset, float * restrict r, int roffset, int m, int n0, int n, int k, int lda, int ldaf, int ldb, int ldbf, int ldc) {
 
     struct gemm_params p = {
                         .flags = flags,
@@ -378,10 +261,8 @@ void gemm_q8_q4(int flags, const float *af, const char* a, int aoffset, const fl
                         .ldc = ldc
     };
 
-    ((flags & HAS_AVX2) != 0)
-           ? gemm(0, m, n0, n0 + n, gemm_q8_q4_256, p)
-           : gemm(0, m, n0, n0 + n, gemm_q8_q4_512, p);
 
+    gemm(0, m, n0, n0 + n, gemm_q8_q4_256, p);
 }
 
 void gemm_q8_q4_batch(int flags, int batch_num, const float *af, const char *a, int aoffset, const float **bf, const char **b, int boffset, float **r, int roffset, int m, int n0, int n, int k, int lda, int ldaf, int ldb, int ldbf, int ldc)
@@ -411,14 +292,15 @@ void gemm_f32_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_para
             }
         }
 
-        for (int mi = 0; mi < RM; ++mi) {
-            for (int ni = 0; ni < RN; ++ni) {
-                int ao = params.aoffset;
-                int bo = params.boffset;
-                for(int j = 0; j < params.k; j += 16, ao += 16, bo += 16) { // 512bits == 16floats
-                    // Load float32
+        for (int ni = 0; ni < RN; ++ni) {
+            int ao = params.aoffset;
+            int bo = params.boffset;
+            for(int j = 0; j < params.k; j += 16, ao += 16, bo += 16) { // 512bits == 16floats
+                // Load float32
+                __m512 vb = _mm512_loadu_ps(params.bf + params.ldb * (jj + ni) + bo);
+
+                for (int mi = 0; mi < RM; ++mi) {
                     __m512 va = _mm512_loadu_ps(params.af + params.lda * (ii + mi) + ao);
-                    __m512 vb = _mm512_loadu_ps(params.bf + params.ldb * (jj + ni) + bo);
 
                     // Multiply and accumulate
                     sums[mi][ni] = _mm512_fmadd_ps(va, vb, sums[mi][ni]);
@@ -435,8 +317,59 @@ void gemm_f32_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_para
         }
     }
 #else
-    //gemm_q8_q4_256(m0, m, n0, n, RM, RN, params);
+    gemm_q8_q4_256(m0, m, n0, n, RM, RN, params);
 #endif
+}
+
+void gemm_f32_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_params params) {
+    int ytiles = (m - m0) / RM;
+    int xtiles = (n - n0) / RN;
+    int tiles = xtiles * ytiles;
+
+    // This fits on the stack (max of 5x5)
+    __m256 sums[RM][RN];
+
+    for (int job = 0; job < tiles; ++job) {
+        int ii = m0 + job / xtiles * RM;
+        int jj = n0 + job % xtiles * RN;
+
+        //Reset the sums to zero for this tile
+        for (int i = 0; i < RM; i++) {
+            for (int j = 0; j < RN; j++) {
+                sums[i][j] = _mm256_setzero_ps();
+            }
+        }
+
+        for (int ni = 0; ni < RN; ++ni) {
+            int ao = params.aoffset;
+            int bo = params.boffset;
+            for(int j = 0; j < params.k; j += 8, ao += 8, bo += 8) { // 256bits == 8floats
+                // Load float32
+                __m256 vb = _mm256_loadu_ps(params.bf + params.ldb * (jj + ni) + bo);
+
+                for (int mi = 0; mi < RM; ++mi) {
+                    __m256 va = _mm256_loadu_ps(params.af + params.lda * (ii + mi) + ao);
+
+                    // Multiply and accumulate
+                    sums[mi][ni] = _mm256_fmadd_ps(va, vb, sums[mi][ni]);
+                }
+            }
+        }
+
+        for (int mi = 0; mi < RM; ++mi) {
+            for (int ni = 0; ni < RN; ++ni) {
+                // Horizontal sum of the vector to get dot product
+                float result[8];
+                _mm256_storeu_ps(result, sums[mi][ni]);
+
+                float dot = 0.0;
+                for(int i = 0; i < 8; ++i) {
+                    dot += result[i];
+                }
+                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+            }
+        }
+    }
 }
 
 void gemm_f32(int flags, const float *a, int aoffset, const float *b, int boffset, float *r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc)
@@ -463,7 +396,7 @@ void gemm_f32(int flags, const float *a, int aoffset, const float *b, int boffse
 
     ((flags & HAS_AVX2) != 0)
            ? gemm(0, m, n0, n0 + n, gemm_f32_512, p)
-           : gemm(0, m, n0, n0 + n, gemm_f32_512, p);
+           : gemm(0, m, n0, n0 + n, gemm_f32_256, p);
 }
 
 void gemm_f32_batch(int flags, int batch_num, const float *a, int aoffset, const float **b, int boffset, float **r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc)
@@ -498,15 +431,18 @@ void gemm_f32_q4_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_p
             }
         }
 
-        for (int mi = 0; mi < RM; ++mi) {
-            for (int ni = 0; ni < RN; ++ni) {
-                int ao = params.aoffset;
-                int bo = params.boffset;
 
-                //First take the scaling factors of both tensors and multiply them in SIMD
-                //for (int i = 0; i < numBlocks; i += 16) { //512bits == 16floats
-                    // perform a block at a time
-                    for(int j = 0; j < params.k; j += 32, ao += 32, bo += 16) {
+        int ao = params.aoffset;
+        int bo = params.boffset;
+
+
+        for(int j = 0; j < params.k; j += 32, ao += 32, bo += 16) {
+
+            for (int mi = 0; mi < RM; ++mi) {
+            // Load float32
+                                __m512 va0 = _mm512_loadu_ps(params.af + params.lda * (ii + mi) + ao);
+                                __m512 va1 = _mm512_loadu_ps(params.af + params.lda * (ii + mi) + ao + 16);
+            for (int ni = 0; ni < RN; ++ni) {
 
                         // Load float32
                         float bfactor = params.bf[params.ldbf * (jj + ni) + ((bo*2) / Q4_BLOCK_SIZE)];
@@ -539,9 +475,7 @@ void gemm_f32_q4_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_p
                         __m512 vb_scaled_lo0 = _mm512_mul_ps(vb_f32, float_vb_lo0);
                         __m512 vb_scaled_hi0 = _mm512_mul_ps(vb_f32, float_vb_hi0);
 
-                        // Load float32
-                        __m512 va0 = _mm512_loadu_ps(params.af + params.lda * (ii + mi) + ao);
-                        __m512 va1 = _mm512_loadu_ps(params.af + params.lda * (ii + mi) + ao + 16);
+
 
                         // Multiply and accumulate
                         sums[mi][ni] = _mm512_fmadd_ps(va0, vb_scaled_lo0, sums[mi][ni]);
