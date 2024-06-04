@@ -81,7 +81,7 @@ public class TensorShape {
         switch (pdims.length)
         {
             case 1:
-                return sparseLength * pdims[0];
+                return sparseLength * pdims[0] - sparseOffset;
             case 2:
                 return sparseLength * pdims[0] + pdims[1] - sparseOffset;  //Most common case
             case 3:

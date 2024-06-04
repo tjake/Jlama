@@ -53,25 +53,30 @@ public class DistributedServiceTest {
 
         Coordinator coordinator =
                 new Coordinator(modelPath.toFile(), com.google.common.io.Files.createTempDir(), 8888, 1);
-        new Thread(() -> {
-                    try {
-                        coordinator.start();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                })
-                .start();
+        try {
+            new Thread(() -> {
+                        try {
+                            coordinator.start();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .start();
 
-        startWorker(modelPath);
+            startWorker(modelPath);
 
-        coordinator.generate(
-                UUID.randomUUID(),
-                "Simply put, the theory of relativity states that",
-                null,
-                0.7f,
-                256,
-                false,
-                makeOutHandler());
+            coordinator.generate(
+                    UUID.randomUUID(),
+                    "Simply put, the theory of relativity states that",
+                    null,
+                    0.7f,
+                    256,
+                    false,
+                    makeOutHandler());
+
+        } finally {
+            coordinator.stop();
+        }
     }
 
     @Test
@@ -81,33 +86,37 @@ public class DistributedServiceTest {
         Assume.assumeTrue(Files.exists(modelRoot));
 
         Coordinator coordinator = new Coordinator(modelRoot.toFile(), null, 8888, 4);
-        new Thread(() -> {
-                    try {
-                        coordinator.start();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                })
-                .start();
+        try {
+            new Thread(() -> {
+                        try {
+                            coordinator.start();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .start();
 
-        startWorker(modelRoot);
-        startWorker(modelRoot);
-        startWorker(modelRoot);
-        startWorker(modelRoot);
+            startWorker(modelRoot);
+            startWorker(modelRoot);
+            startWorker(modelRoot);
+            startWorker(modelRoot);
 
-        // startWorker(modelRoot);
-        // startWorker(modelRoot);
-        // startWorker(modelRoot);
-        // startWorker(modelRoot);
+            // startWorker(modelRoot);
+            // startWorker(modelRoot);
+            // startWorker(modelRoot);
+            // startWorker(modelRoot);
 
-        coordinator.generate(
-                UUID.randomUUID(),
-                "Simply put, the theory of relativity states that",
-                null,
-                0.7f,
-                256,
-                false,
-                makeOutHandler());
+            coordinator.generate(
+                    UUID.randomUUID(),
+                    "Simply put, the theory of relativity states that",
+                    null,
+                    0.7f,
+                    256,
+                    false,
+                    makeOutHandler());
+        } finally {
+            coordinator.stop();
+        }
     }
 
     private void startWorker(Path modelRoot) throws Exception {

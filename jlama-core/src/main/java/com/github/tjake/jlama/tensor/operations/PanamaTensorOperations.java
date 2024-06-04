@@ -89,7 +89,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
         Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
         Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
-        Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K");
+        //Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K");
 
         int M = a.shape().dim(0);
         int N = rowChunkSize; //b.shape().dim(0);

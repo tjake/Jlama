@@ -482,7 +482,7 @@ public class TestOperations {
     @Test
     public void testNativeDotProductFast() {
         //M == BATCH, N == ROWS, K == SIZE
-       // Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
 
         FloatBufferTensor c =  new FloatBufferTensor(1, SIZE);
         FloatBufferTensor c1 =  new FloatBufferTensor(1, SIZE);

@@ -21,7 +21,6 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
 import com.github.tjake.jlama.util.MachineSpec;
-import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import com.github.tjake.jlama.util.RuntimeSupport;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -86,14 +85,11 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     public int parallelSplitSize() {
-        return 256;
+        return 128;
     }
 
     @Override
     public void batchDotProduct(AbstractTensor result, AbstractTensor at, AbstractTensor bt, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
-
-        //if (true)
-        //    return;
 
         int M = at.shape().dim(0);
         int N = rowChunkSize; //b.shape().dim(0);
@@ -189,8 +185,6 @@ public class NativeTensorOperations implements TensorOperations {
             int bRowOffset,
             int rowChunkSize)
     {
-        //if (true)
-        //    return;
 
         MemorySegment[] tmp = tmpArr.get();
         MemorySegment ra = tmp[0];
@@ -227,7 +221,7 @@ public class NativeTensorOperations implements TensorOperations {
                                 K,
                                 a.getOffset(1, 0),
                                 b[0].getOffset(1, 0),
-                                r[0].getOffset(1, 0));
+                                r[0].getStride());
                         break;
                     case Q4:
                         Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
@@ -253,7 +247,7 @@ public class NativeTensorOperations implements TensorOperations {
                                 a.getOffset(1, 0),
                                 b[0].getMemorySegmentOffset(b[0].getOffset(1, 0)),
                                 bt.getBlockF().getOffset(1, 0),
-                                r[0].getOffset(1, 0));
+                                r[0].getStride());
                         break;
                     default:
                         throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());
@@ -290,7 +284,7 @@ public class NativeTensorOperations implements TensorOperations {
                                 at.getBlockF().getOffset(1, 0),
                                 bt.getMemorySegmentOffset(bt.getOffset(1, 0)),
                                 bt.getBlockF().getOffset(1, 0),
-                                r[0].getOffset(1, 0));
+                                r[0].getStride());
                         break;
                     default:
                         throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());

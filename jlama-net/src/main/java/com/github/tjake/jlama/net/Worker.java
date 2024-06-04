@@ -169,8 +169,8 @@ public class Worker {
             // FIXME: Max size should be configurable
             int[] rawShape = new int[] {
                 model.getConfig().getNumberOfLayers(),
-                Math.min(2048, model.getConfig().contextLength),
                 2,
+                Math.min(256, model.getConfig().contextLength),
                 model.getConfig().kvLength
             };
 
@@ -218,7 +218,7 @@ public class Worker {
         }
 
         private ByteString getTensorBytes(AbstractTensor tensor) {
-            Preconditions.checkArgument(tensor.dims() == 1 && tensor.dType() == DType.F32);
+            Preconditions.checkArgument(tensor.dims() == 2 && tensor.dType() == DType.F32);
             return TensorOperationsProvider.get().requiresOffHeapTensor()
                     ? UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer())
                     : UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().toArray(ValueLayout.JAVA_BYTE));

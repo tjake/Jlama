@@ -52,9 +52,9 @@ public class GPT2Model extends AbstractModel {
         final AbstractTensor wpe = weights.load("wpe.weight");
 
         return (inputToken, position) -> {
-            AbstractTensor embedding = makeTensor(c.embeddingLength);
+            AbstractTensor embedding = makeTensor(1, c.embeddingLength);
 
-            for (int i = 0; i < c.embeddingLength; i++) {
+            for (int i = c.embeddingSegmentStart(); i < c.embeddingSegmentLength(); i++) {
                 float v = wte.get(inputToken, i) + wpe.get(position, i);
                 embedding.set(v, 0, i);
             }

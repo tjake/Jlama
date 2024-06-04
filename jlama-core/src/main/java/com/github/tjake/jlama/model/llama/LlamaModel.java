@@ -62,7 +62,7 @@ public class LlamaModel extends AbstractModel {
                 .quantize(workingDType); // Don't quantize this, it's used for the embedding layer
 
         return (inputToken, position) -> {
-            AbstractTensor embedding = makeTensor(c.embeddingLength);
+            AbstractTensor embedding = makeTensor(1, c.embeddingLength);
             embedding.copyFrom(
                     wte,
                     wte.getOffset(inputToken, c.embeddingSegmentStart()),
