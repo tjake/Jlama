@@ -105,7 +105,7 @@ public class TestModels {
                             + "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, "
                             + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
             String prompt1 = "The theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt0, 0.1f, 256, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), prompt1, 0.1f, 256, false, makeOutHandler());
         }
     }
 

@@ -430,13 +430,15 @@ public class TestOperations {
         globalOps.batchDotProduct(c1, a, b, 0, 0, SIZE);
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
-        c1.clear();
-        c.clear();
-        controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
-        sum = controlOps.sum(c);
+        if (MachineSpec.VECTOR_TYPE != MachineSpec.Type.ARM_128) {
+            c1.clear();
+            c.clear();
+            controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
+            sum = controlOps.sum(c);
 
-        globalOps.batchDotProduct(c1, a, q4, 0, 0, SIZE);
-        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+            globalOps.batchDotProduct(c1, a, q4, 0, 0, SIZE);
+            Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+        }
     }
 
     @Test
@@ -466,13 +468,15 @@ public class TestOperations {
         globalOps.batchDotProduct(c1, a, b, 512, 512, 512);
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
-        c1.clear();
-        c.clear();
-        controlOps.batchDotProduct(c, a, q4, 512, 512, 512);
-        sum = controlOps.sum(c);
+        if (MachineSpec.VECTOR_TYPE != MachineSpec.Type.ARM_128) {
+            c1.clear();
+            c.clear();
+            controlOps.batchDotProduct(c, a, q4, 512, 512, 512);
+            sum = controlOps.sum(c);
 
-        globalOps.batchDotProduct(c1, a, q4, 512, 512, 512);
-        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+            globalOps.batchDotProduct(c1, a, q4, 512, 512, 512);
+            Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+        }
     }
 
     @Test
@@ -507,14 +511,16 @@ public class TestOperations {
         });
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
-        c1.clear();
-        c.clear();
-        controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
-        sum = controlOps.sum(c);
+        if (MachineSpec.VECTOR_TYPE != MachineSpec.Type.ARM_128) {
+            c1.clear();
+            c.clear();
+            controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
+            sum = controlOps.sum(c);
 
-        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
-            globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength);
-        });
-        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+            VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
+                globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength);
+            });
+            Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+        }
     }
 }

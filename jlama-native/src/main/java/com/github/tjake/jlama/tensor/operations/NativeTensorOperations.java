@@ -124,24 +124,29 @@ public class NativeTensorOperations implements TensorOperations {
                                 result.getStride());
                         break;
                     case Q4:
-                        Q4ByteBufferTensor b = (Q4ByteBufferTensor) bt;
-                        NativeSimd.gemm_f32_q4(
-                                flags,
-                                at.getMemorySegment(),
-                                at.getOffset(0, aColumnOffset),
-                                b.getBlockF().getMemorySegment(),
-                                b.getMemorySegment(),
-                                b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
-                                result.getMemorySegment(),
-                                result.shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                at.getStride(),
-                                b.getMemorySegmentOffset(b.getStride()),
-                                b.getBlockF().getStride(),
-                                result.getStride());
+                        switch (MachineSpec.VECTOR_TYPE) {
+                            case ARM_128:
+                                throw new UnsupportedOperationException("F32 Q4 Unsupported on Arm");
+                            default:
+                                Q4ByteBufferTensor b = (Q4ByteBufferTensor) bt;
+                                NativeSimd.gemm_f32_q4(
+                                        flags,
+                                        at.getMemorySegment(),
+                                        at.getOffset(0, aColumnOffset),
+                                        b.getBlockF().getMemorySegment(),
+                                        b.getMemorySegment(),
+                                        b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
+                                        result.getMemorySegment(),
+                                        result.shape().sparseOffset(),
+                                        M,
+                                        bRowOffset,
+                                        N,
+                                        K,
+                                        at.getStride(),
+                                        b.getMemorySegmentOffset(b.getStride()),
+                                        b.getBlockF().getStride(),
+                                        result.getStride());
+                        }
                         break;
                     default:
                         throw new UnsupportedOperationException(
@@ -229,30 +234,35 @@ public class NativeTensorOperations implements TensorOperations {
                                 r[0].getStride());
                         break;
                     case Q4:
-                        Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
-                        for (int i = 0; i < r.length; i++)
-                            rc.setAtIndex(
-                                    ValueLayout.ADDRESS,
-                                    i,
-                                    ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment());
-                        NativeSimd.gemm_f32_q4_batch(
-                                flags,
-                                r.length,
-                                a.getMemorySegment(),
-                                a.getOffset(0, columnOffset),
-                                rc,
-                                rb,
-                                b[0].getMemorySegmentOffset(b[0].getOffset(0, columnOffset)),
-                                ra,
-                                r[0].shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                a.getStride(),
-                                b[0].getMemorySegmentOffset(b[0].getStride()),
-                                bt.getBlockF().getStride(),
-                                r[0].getStride());
+                        switch (MachineSpec.VECTOR_TYPE) {
+                            case ARM_128:
+                                throw new UnsupportedOperationException("F32 Q4 Unsupported on Arm");
+                            default:
+                                Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
+                                for (int i = 0; i < r.length; i++)
+                                    rc.setAtIndex(
+                                            ValueLayout.ADDRESS,
+                                            i,
+                                            ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment());
+                                NativeSimd.gemm_f32_q4_batch(
+                                        flags,
+                                        r.length,
+                                        a.getMemorySegment(),
+                                        a.getOffset(0, columnOffset),
+                                        rc,
+                                        rb,
+                                        b[0].getMemorySegmentOffset(b[0].getOffset(0, columnOffset)),
+                                        ra,
+                                        r[0].shape().sparseOffset(),
+                                        M,
+                                        bRowOffset,
+                                        N,
+                                        K,
+                                        a.getStride(),
+                                        b[0].getMemorySegmentOffset(b[0].getStride()),
+                                        bt.getBlockF().getStride(),
+                                        r[0].getStride());
+                        }
                         break;
                     default:
                         throw new UnsupportedOperationException(
