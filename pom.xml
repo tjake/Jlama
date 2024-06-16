@@ -45,7 +45,6 @@
     <revision>0.2.0-SNAPSHOT</revision>
 
     <osmaven.version>1.7.1</osmaven.version>
-    <os.detection.classifierWithLikes>fedora,suse,arch</os.detection.classifierWithLikes>
     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
 
     <spotless.version>2.43.0</spotless.version>
