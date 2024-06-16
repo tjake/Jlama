@@ -17,7 +17,6 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
-import com.google.common.base.Preconditions;
 import java.util.Optional;
 import java.util.function.BiFunction;
 
@@ -51,8 +50,7 @@ public class RMSNorm extends LayerNorm {
                 ss += v * v;
             }
 
-            if (reducer.isPresent())
-            {
+            if (reducer.isPresent()) {
                 Pair<Float, Float> p = reducer.get().apply(ss, 0f);
                 ss = p.left;
             }

@@ -143,8 +143,8 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
 
     @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
-        //Preconditions.checkArgument(this.dType == src.dType, "Different types");
-        //Preconditions.checkArgument(!b.isReadOnly());
+        // Preconditions.checkArgument(this.dType == src.dType, "Different types");
+        // Preconditions.checkArgument(!b.isReadOnly());
         segment.asSlice(getMemorySegmentOffset(destOffset), length * dType.size())
                 .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));
     }
@@ -157,8 +157,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!requiresOffHeapTensor)
-            return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
+        if (!requiresOffHeapTensor) return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return FloatVector.fromMemorySegment(
                     species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
@@ -166,10 +165,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
 
     @Override
     public void intoTensor(FloatVector vector, int... aoffset) {
-        //Preconditions.checkArgument(!b.isReadOnly());
+        // Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!requiresOffHeapTensor)
-            vector.intoArray(getArray(), getArrayOffset(offset));
+        if (!requiresOffHeapTensor) vector.intoArray(getArray(), getArrayOffset(offset));
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 

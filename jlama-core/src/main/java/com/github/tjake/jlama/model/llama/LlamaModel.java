@@ -159,6 +159,7 @@ public class LlamaModel extends AbstractModel {
         return t.shape().last() == c.embeddingLength
                 ? TensorOperationsProvider.get()
                         .quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
-                : TensorOperationsProvider.get().quantize(t, workingQType, 0, Ints.checkedCast(t.shape().last()));
+                : TensorOperationsProvider.get()
+                        .quantize(t, workingQType, 0, Ints.checkedCast(t.shape().last()));
     }
 }

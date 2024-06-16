@@ -28,8 +28,7 @@ public interface EmbedInput {
         Preconditions.checkArgument(inputTokens.length > 0);
 
         AbstractTensor t = inputTokenToEmbedding(inputTokens[0], startPos);
-        if (inputTokens.length == 1)
-            return t;
+        if (inputTokens.length == 1) return t;
 
         TensorShape tbs = TensorShape.of(inputTokens.length, t.shape().last());
         if (t.shape().isSparse())

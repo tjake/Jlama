@@ -17,11 +17,7 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
-import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
-import com.github.tjake.jlama.tensor.TensorCache;
-import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import java.util.*;
@@ -49,7 +45,6 @@ public class CausalSelfAttention {
     private final AbstractTensor[] qkvWeights;
 
     private static final boolean USE_FLASH_ATTN = false;
-
 
     public CausalSelfAttention(
             AbstractModel m,
@@ -134,7 +129,6 @@ public class CausalSelfAttention {
                 AbstractTensor tmpValBatch = m.makeFullTensor(batchSize, c.kvLength);
                 AbstractTensor valueBatch = m.makeFullTensor(batchSize, c.embeddingLength)) {
 
-
             if (c.isGQA) {
                 VectorMath.pchunk(0, c.embeddingLength, (chunkStart, chunkLength) -> {
                     TensorOperationsProvider.get()
@@ -189,23 +183,20 @@ public class CausalSelfAttention {
             // For distributed sum of tensor
             tensorReducer.ifPresent(func -> func.accept(List.of(queryBatch, tmpKeyBatch, tmpValBatch)));
 
-            queryAttnBias.ifPresent(bias ->
-                    TensorOperationsProvider.get().accumulate(queryBatch, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
-            keyAttnBias.ifPresent(bias ->
-                    TensorOperationsProvider.get().accumulate(tmpKeyBatch, bias, c.kvSegmentStart(), c.kvSegmentLength()));
-            valueAttnBias.ifPresent(bias ->
-                    TensorOperationsProvider.get().accumulate(tmpValBatch, bias, c.kvSegmentStart(), c.kvSegmentLength()));
-
+            queryAttnBias.ifPresent(bias -> TensorOperationsProvider.get()
+                    .accumulate(queryBatch, bias, c.embeddingSegmentStart(), c.embeddingSegmentLength()));
+            keyAttnBias.ifPresent(bias -> TensorOperationsProvider.get()
+                    .accumulate(tmpKeyBatch, bias, c.kvSegmentStart(), c.kvSegmentLength()));
+            valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get()
+                    .accumulate(tmpValBatch, bias, c.kvSegmentStart(), c.kvSegmentLength()));
 
             // with all key-value entries populated, compute attention
             // the softmax is incrementally aggregated using the flash attention technique
             AbstractTensor k0 = kvMem.slice(true, 0).slice(0);
             AbstractTensor v0 = kvMem.slice(true, 1).slice(0);
 
-
             // This is our memory of the key and value vectors for each position
-            for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++)
-            {
+            for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
                 int finalPostion = position;
                 int finalBi = bi;
 
@@ -237,17 +228,14 @@ public class CausalSelfAttention {
                     int headPiece = c.headSize / 2;
                     int poffset = finalPostion * headPiece;
 
-                    if (c.isGQA)
-                    {
+                    if (c.isGQA) {
                         // apply RoPE rotation to the q and k vectors for each head
-                        for (int h = c.headStart(); h < c.headEnd(); h++)
-                        {
+                        for (int h = c.headStart(); h < c.headEnd(); h++) {
                             // get the q vectors for this head
                             int offset = h * c.headSize;
                             int goffset = c.maybeMapToGroupHead(h) * c.headSize;
                             // rotate q by the freq theta and freq r
-                            for (int i = offset, g = goffset; i < (offset + headPiece); i++, g++)
-                            {
+                            for (int i = offset, g = goffset; i < (offset + headPiece); i++, g++) {
                                 float q0 = query.get(0, i);
                                 float q1 = query.get(0, i + headPiece); // hf permutation is 0,64,1,65 etc...
                                 float[] f = rf[poffset + g];
@@ -258,13 +246,11 @@ public class CausalSelfAttention {
                             }
                         }
 
-                        for (int h = c.groupHeadStart(); h < c.groupHeadEnd(); h++)
-                        {
+                        for (int h = c.groupHeadStart(); h < c.groupHeadEnd(); h++) {
                             // get the k vectors for this head
                             int offset = h * c.headSize;
                             // rotate k by the freq theta and freq r
-                            for (int i = offset; i < (offset + headPiece); i++)
-                            {
+                            for (int i = offset; i < (offset + headPiece); i++) {
                                 float k00 = key.get(0, i);
                                 float k1 = key.get(0, i + headPiece); // hf permutation is 0,64,1,65 etc...
                                 float[] f = rf[poffset + i];
@@ -274,17 +260,13 @@ public class CausalSelfAttention {
                                 key.set(k00 * fci + k1 * fcr, 0, i + headPiece);
                             }
                         }
-                    }
-                    else
-                    {
+                    } else {
                         // apply RoPE rotation to the q and k vectors for each head
-                        for (int h = c.headStart(); h < c.headEnd(); h++)
-                        {
+                        for (int h = c.headStart(); h < c.headEnd(); h++) {
                             // get the q and k vectors for this head
                             int offset = h * c.headSize;
                             // rotate q and k by the freq theta and freq r
-                            for (int i = offset; i < (offset + headPiece); i++)
-                            {
+                            for (int i = offset; i < (offset + headPiece); i++) {
                                 float q0 = query.get(0, i);
                                 float q1 = query.get(0, i + headPiece); // hf permutation is 0,64,1,65 etc...
                                 float k00 = key.get(0, i);
@@ -301,109 +283,85 @@ public class CausalSelfAttention {
                     }
                 });
 
-                if (USE_FLASH_ATTN)
-                {
+                if (USE_FLASH_ATTN) {
 
                     // value is initially the position 0 value for all heads
                     // POSITION ZERO
-                    for (int i = c.headStart(); i < c.headEnd(); i++)
-                    {
+                    for (int i = c.headStart(); i < c.headEnd(); i++) {
                         value.copyFrom(
                                 v0,
                                 v0.getOffset(0, c.maybeMapToGroupHead(i) * c.headSize),
                                 value.getOffset(0, i * c.headSize),
                                 c.headSize);
                         float a = TensorOperationsProvider.get()
-                                .dotProduct(
-                                        query,
-                                        k0,
-                                        i * c.headSize,
-                                        c.maybeMapToGroupHead(i) * c.headSize,
-                                        c.headSize)
+                                        .dotProduct(
+                                                query,
+                                                k0,
+                                                i * c.headSize,
+                                                c.maybeMapToGroupHead(i) * c.headSize,
+                                                c.headSize)
                                 * attentionScale;
                         flashAttn_m.set(a, bi, i);
                         flashAttn_l.set(1, bi, i);
                     }
 
                     // POSITION > 0
-                    // This is where the context length gets expensive! We need to run this query token by all prior tokens.
+                    // This is where the context length gets expensive! We need to run this query token by all prior
+                    // tokens.
                     // Now aggregate results per head
                     VectorMath.pfor(c.headStart(), c.headEnd(), h -> {
                         int xoffset = c.maybeMapToGroupHead(h) * c.headSize;
                         int yoffset = h * c.headSize;
-                        for (int i = 0; i < finalPostion; i++)
-                        {
+                        for (int i = 0; i < finalPostion; i++) {
 
                             AbstractTensor pmem = kvMem.slice(true, i + 1);
                             // KEY
-                            float a = TensorOperationsProvider.get()
-                                    .dotProduct(
-                                            query,
-                                            pmem,
-                                            yoffset,
-                                            xoffset,
-                                            c.headSize)
-                                    * attentionScale;
+                            float a =
+                                    TensorOperationsProvider.get().dotProduct(query, pmem, yoffset, xoffset, c.headSize)
+                                            * attentionScale;
 
                             // VALUE
-                            if (a > flashAttn_m.get(finalBi, h))
-                            {
+                            if (a > flashAttn_m.get(finalBi, h)) {
                                 float e = (float) Math.exp(flashAttn_m.get(finalBi, h) - a);
-                                TensorOperationsProvider.get()
-                                        .sxpby(
-                                                e,
-                                                pmem,
-                                                value,
-                                                xoffset,
-                                                yoffset,
-                                                c.headSize);
+                                TensorOperationsProvider.get().sxpby(e, pmem, value, xoffset, yoffset, c.headSize);
                                 flashAttn_l.set(1 + e * flashAttn_l.get(finalBi, h), finalBi, h);
                                 flashAttn_m.set(a, finalBi, h);
-                            }
-                            else
-                            {
+                            } else {
                                 float e = (float) Math.exp(a - flashAttn_m.get(finalBi, h));
                                 TensorOperationsProvider.get()
-                                        .saxpy(
-                                                e,
-                                                pmem,
-                                                value,
-                                                pmem.getOffset(1, xoffset),
-                                                yoffset,
-                                                c.headSize);
+                                        .saxpy(e, pmem, value, pmem.getOffset(1, xoffset), yoffset, c.headSize);
                                 flashAttn_l.set(flashAttn_l.get(finalBi, h) + e, finalBi, h);
                             }
                         }
                     });
 
                     // scale y by 1/l
-                    for (int h = c.headStart(); h < c.headEnd(); h++)
-                    {
+                    for (int h = c.headStart(); h < c.headEnd(); h++) {
                         float scale = 1.0f / flashAttn_l.get(bi, h);
                         TensorOperationsProvider.get().scale(scale, value, (h * c.headSize), c.headSize);
                     }
-                }
-                else
-                {
+                } else {
 
                     VectorMath.pfor(c.headStart(), c.headEnd(), h -> {
-                        try (AbstractTensor attn = m.makeFullTensor(1, kvp.shape().first()))
-                        {
+                        try (AbstractTensor attn =
+                                m.makeFullTensor(1, kvp.shape().first())) {
                             int xoffset = c.maybeMapToGroupHead(h) * c.headSize;
                             int yoffset = h * c.headSize;
 
                             // compute attention scores by multiplying query and key for every position
-                            TensorOperationsProvider.get().batchDotProduct(attn, query, kvp, yoffset, xoffset, c.headSize, 0, finalPostion + 1);
+                            TensorOperationsProvider.get()
+                                    .batchDotProduct(
+                                            attn, query, kvp, yoffset, xoffset, c.headSize, 0, finalPostion + 1);
                             TensorOperationsProvider.get().scale(attentionScale, attn, 0, finalPostion + 1);
 
                             // softmax the scores to get attention weights, from 0..pos inclusively
                             VectorMath.softMax(attn, 0, finalPostion + 1);
 
                             // apply adjusted attention weights to value vectors
-                            TensorOperationsProvider.get().saxpy(attn, vvp, value, xoffset, yoffset, c.headSize, finalPostion + 1);
+                            TensorOperationsProvider.get()
+                                    .saxpy(attn, vvp, value, xoffset, yoffset, c.headSize, finalPostion + 1);
                         }
                     });
-
                 }
             }
             // matmul the projection and sum into input

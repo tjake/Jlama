@@ -91,7 +91,8 @@ public class MoEBlock implements FeedForward {
                                             model.c.embeddingSegmentStart(),
                                             model.c.embeddingSegmentStart(),
                                             model.c.embeddingSegmentLength()),
-                            0, i);
+                            0,
+                            i);
                 });
 
                 tensorReducer.ifPresent(func -> {

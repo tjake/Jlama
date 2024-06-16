@@ -69,7 +69,15 @@ public class NaiveTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+    public void batchDotProduct(
+            AbstractTensor result,
+            AbstractTensor a,
+            AbstractTensor b,
+            int aColumnOffset,
+            int bColumnOffset,
+            int columnLength,
+            int bRowOffset,
+            int rowChunkSize) {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
 
         int bRowLimit = bRowOffset + rowChunkSize;

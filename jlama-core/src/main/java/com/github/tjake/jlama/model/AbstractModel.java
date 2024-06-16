@@ -24,7 +24,8 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.KvBufferCache;import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
@@ -35,8 +36,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -218,7 +217,15 @@ public abstract class AbstractModel implements Generator {
         try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
             // This is a mix of argmax and sampling with softmax
             VectorMath.pchunk(0, c.vocabularySize, (chunkStart, chunkSize) -> {
-                TensorOperationsProvider.get().dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
+                TensorOperationsProvider.get()
+                        .dotProductChunk(
+                                logits,
+                                embedding,
+                                sampleOutput.getOutputLogitsWeights(),
+                                0,
+                                c.embeddingLength,
+                                chunkStart,
+                                chunkSize);
             });
 
             int maxi = Integer.MIN_VALUE;

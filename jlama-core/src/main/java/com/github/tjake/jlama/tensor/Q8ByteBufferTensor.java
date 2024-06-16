@@ -196,8 +196,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!requiresOffHeapTensor)
-            return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
+        if (!requiresOffHeapTensor) return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return ByteVector.fromMemorySegment(
                     species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
@@ -207,8 +206,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     public void intoTensor(ByteVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!requiresOffHeapTensor)
-            vector.intoArray(getArray(), getArrayOffset(offset));
+        if (!requiresOffHeapTensor) vector.intoArray(getArray(), getArrayOffset(offset));
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
@@ -216,8 +214,7 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     public void intoTensor(ByteVector vector, VectorMask<Byte> msk, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!requiresOffHeapTensor)
-            vector.intoArray(getArray(), getArrayOffset(offset), msk);
+        if (!requiresOffHeapTensor) vector.intoArray(getArray(), getArrayOffset(offset), msk);
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN, msk);
     }
 

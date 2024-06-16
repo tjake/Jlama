@@ -17,7 +17,8 @@ package com.github.tjake.jlama.tensor.operations;
 
 import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
 
-import com.github.tjake.jlama.math.VectorMath;import com.github.tjake.jlama.model.AbstractModel;import com.github.tjake.jlama.model.LayerNorm;import com.github.tjake.jlama.model.Mocks;import com.github.tjake.jlama.model.RMSNorm;import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.Float16BufferTensor;
@@ -54,7 +55,7 @@ public class TestOperations {
     @BeforeClass
     public static void init() {
         logger.info("Globally using {}", globalOps.name());
-      //  opTypes.add(new NaiveTensorOperations());
+        //  opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_512));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_256));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.ARM_128));
@@ -379,41 +380,39 @@ public class TestOperations {
         for (TensorOperations t : opTypes) {
             t.dotProductBatchChunk(new AbstractTensor[] {b0, b1}, a, new AbstractTensor[] {w0, w1}, 0, SIZE, 0, ROWS);
 
-            Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0),  controlOps.sum(r0) * 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0), controlOps.sum(r0) * 0.01);
             Assert.assertEquals(t.name(), controlOps.sum(r1), controlOps.sum(b1), controlOps.sum(r1) * 0.01);
         }
     }
 
     @Test
     public void testBatchDotProduct() {
-        //M == BATCH, N == ROWS, K == SIZE
+        // M == BATCH, N == ROWS, K == SIZE
 
-        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
-        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
 
-
-        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
-        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
 
         controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
 
         for (TensorOperations t : opTypes) {
             t.batchDotProduct(c1, a, b, 0, 0, SIZE);
-            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1),  controlOps.sum(c) * 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1), controlOps.sum(c) * 0.01);
         }
     }
 
     @Test
     public void testNativeBatchDotProduct() {
-        //M == BATCH, N == ROWS, K == SIZE
+        // M == BATCH, N == ROWS, K == SIZE
         Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
 
-        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
-        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
 
-
-        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
-        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
 
         Q8ByteBufferTensor q8 = new Q8ByteBufferTensor(a);
         Q4ByteBufferTensor q4 = new Q4ByteBufferTensor(b);
@@ -431,7 +430,6 @@ public class TestOperations {
         globalOps.batchDotProduct(c1, a, b, 0, 0, SIZE);
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
-
         c1.clear();
         c.clear();
         controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
@@ -443,15 +441,14 @@ public class TestOperations {
 
     @Test
     public void testNativeBatchDotProductWithOffsets() {
-        //M == BATCH, N == ROWS, K == SIZE
+        // M == BATCH, N == ROWS, K == SIZE
         Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
 
-        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
-        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
 
-
-        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
-        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
 
         Q8ByteBufferTensor q8 = new Q8ByteBufferTensor(a);
         Q4ByteBufferTensor q4 = new Q4ByteBufferTensor(b);
@@ -469,7 +466,6 @@ public class TestOperations {
         globalOps.batchDotProduct(c1, a, b, 512, 512, 512);
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
-
         c1.clear();
         c.clear();
         controlOps.batchDotProduct(c, a, q4, 512, 512, 512);
@@ -479,18 +475,16 @@ public class TestOperations {
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
     }
 
-
     @Test
     public void testNativeDotProductFast() {
-        //M == BATCH, N == ROWS, K == SIZE
+        // M == BATCH, N == ROWS, K == SIZE
         Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
 
-        FloatBufferTensor c =  new FloatBufferTensor(1, SIZE);
-        FloatBufferTensor c1 =  new FloatBufferTensor(1, SIZE);
+        FloatBufferTensor c = new FloatBufferTensor(1, SIZE);
+        FloatBufferTensor c1 = new FloatBufferTensor(1, SIZE);
 
-
-        FloatBufferTensor a = makeWeights(1, SIZE);  // a
-        FloatBufferTensor b = makeWeights(SIZE, SIZE);  // b
+        FloatBufferTensor a = makeWeights(1, SIZE); // a
+        FloatBufferTensor b = makeWeights(SIZE, SIZE); // b
 
         Q8ByteBufferTensor q8 = new Q8ByteBufferTensor(a);
         Q4ByteBufferTensor q4 = new Q4ByteBufferTensor(b);
@@ -512,7 +506,6 @@ public class TestOperations {
             globalOps.dotProductChunk(c1, a, b, 0, SIZE, chunkStart, chunkLength);
         });
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
-
 
         c1.clear();
         c.clear();

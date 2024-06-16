@@ -20,9 +20,7 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
-import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
@@ -30,16 +28,14 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.Channel;
-import io.grpc.ManagedChannel;import io.grpc.ManagedChannelBuilder;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.io.*;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 
-public class Worker implements Closeable  {
+public class Worker implements Closeable {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(Worker.class);
     private final UUID workerId;
     private final ByteString workerIdBytes;
@@ -99,7 +95,7 @@ public class Worker implements Closeable  {
 
     @Override
     public void close() {
-        ((ManagedChannel)client.getChannel()).shutdown();
+        ((ManagedChannel) client.getChannel()).shutdown();
     }
 
     class CombineObserver implements StreamObserver<CombineResponse> {

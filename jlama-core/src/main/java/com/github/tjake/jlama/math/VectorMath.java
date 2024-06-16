@@ -16,7 +16,6 @@
 package com.github.tjake.jlama.math;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
@@ -54,8 +53,8 @@ public class VectorMath {
 
         PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(0, fsplits)
                 .parallel()
-                .forEach(i -> action.accept(offset + (i * fchunkSize), fremainder > 0 ? fchunkSize + fremainder : fchunkSize)));
-        
+                .forEach(i -> action.accept(
+                        offset + (i * fchunkSize), fremainder > 0 ? fchunkSize + fremainder : fchunkSize)));
     }
 
     public static void softMax(AbstractTensor x, int offset, int length) {

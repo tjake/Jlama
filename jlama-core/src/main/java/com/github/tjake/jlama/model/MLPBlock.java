@@ -152,7 +152,7 @@ public class MLPBlock implements FeedForward {
                 TensorOperationsProvider.get().maccumulate(buf, buf2, 0, hiddenLength);
             }
 
-            try(AbstractTensor bufq = model.maybeQuantize(buf)) {
+            try (AbstractTensor bufq = model.maybeQuantize(buf)) {
                 // matmul the projection and sum into input
                 AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
                 VectorMath.pchunk(

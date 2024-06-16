@@ -1,19 +1,30 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.microbench;
 
-import com.github.tjake.jlama.tensor.AbstractTensor;import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
-import com.github.tjake.jlama.tensor.operations.NaiveTensorOperations;
-import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.github.tjake.jlama.util.MachineSpec;
-import jdk.incubator.vector.IntVector;
-import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.infra.Blackhole;
-
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
@@ -26,8 +37,7 @@ public class BatchBench {
 
     private static final int BATCH_SIZE = 32;
     private static final int SIZE = 1024;
-    private static final int SIZE2 = 1024/2;
-
+    private static final int SIZE2 = 1024 / 2;
 
     @State(Scope.Benchmark)
     public static class Parameters {
@@ -40,12 +50,11 @@ public class BatchBench {
         final Q8ByteBufferTensor qa8;
         final Q4ByteBufferTensor qb4;
 
-
         public Parameters() {
             for (int j = 0; j < BATCH_SIZE; j++) {
                 for (int i = 0; i < SIZE; i++) {
-                    fb1.set(ThreadLocalRandom.current().nextFloat(),j, i);
-                    fb2.set(ThreadLocalRandom.current().nextFloat(),j, i);
+                    fb1.set(ThreadLocalRandom.current().nextFloat(), j, i);
+                    fb2.set(ThreadLocalRandom.current().nextFloat(), j, i);
                 }
             }
 
@@ -62,7 +71,6 @@ public class BatchBench {
         bh.consume(p.r);
     }
 
-
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -76,7 +84,7 @@ public class BatchBench {
                 p.r.set(d, i, j);
             }
         }
-       bh.consume(p.r);
+        bh.consume(p.r);
     }
 
     @Benchmark

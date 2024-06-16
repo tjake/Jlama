@@ -17,6 +17,7 @@ package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.TensorInfo;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import java.io.IOException;
@@ -24,9 +25,9 @@ import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.Arrays;import java.util.HashMap;import java.util.Map;
-
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
@@ -111,7 +112,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     public AbstractTensor slice(boolean cacheInnerSlice, int... dims) {
         Preconditions.checkArgument(dims.length < shape.dims(), "Too many dimensions specified for tensor");
         try {
-        if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null) return sliceCache[dims[0]];
+            if (dims.length == 1 && sliceCache != null && sliceCache[dims[0]] != null) return sliceCache[dims[0]];
         } catch (Throwable t) {
             logger.warn("Dims = {}", Arrays.toString(dims), t);
             throw t;
@@ -119,17 +120,12 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
         TensorShape slicedShape = shape.slice(dims.length);
         int totalOffset = 0;
-        if (dims.length == 1 && this.shape.dims() == 2)
-        {
+        if (dims.length == 1 && this.shape.dims() == 2) {
             totalOffset = shape.sparseLength() * dims[0];
-        }
-        else
-        {
-            for (int d = 0; d <= dims.length - 1; d++)
-            {
+        } else {
+            for (int d = 0; d <= dims.length - 1; d++) {
                 int offset = shape.sparseLength();
-                for (int i = shape.dims() - 2; i > d; i--)
-                { // factor scaling of each dim shape
+                for (int i = shape.dims() - 2; i > d; i--) { // factor scaling of each dim shape
                     offset *= shape.dim(i);
                 }
 
@@ -137,7 +133,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
             }
         }
 
-        AbstractTensor r = this.make(totalOffset, (int)slicedShape.size(), slicedShape, cacheInnerSlice);
+        AbstractTensor r = this.make(totalOffset, (int) slicedShape.size(), slicedShape, cacheInnerSlice);
         if (dims.length == 1 && sliceCache != null) sliceCache[dims[0]] = r;
         return r;
     }
@@ -217,7 +213,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     public final int getOffset(int... dims) {
-       return shape.getOffset(dims);
+        return shape.getOffset(dims);
     }
 
     /** Transpose the tensor across all dimensions*/

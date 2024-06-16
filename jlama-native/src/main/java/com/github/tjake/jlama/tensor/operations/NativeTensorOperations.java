@@ -89,16 +89,23 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void batchDotProduct(AbstractTensor result, AbstractTensor at, AbstractTensor bt, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+    public void batchDotProduct(
+            AbstractTensor result,
+            AbstractTensor at,
+            AbstractTensor bt,
+            int aColumnOffset,
+            int bColumnOffset,
+            int columnLength,
+            int bRowOffset,
+            int rowChunkSize) {
 
         int M = at.shape().dim(0);
-        int N = rowChunkSize; //b.shape().dim(0);
-        int K = columnLength; //a.shape().dim(1);
+        int N = rowChunkSize; // b.shape().dim(0);
+        int K = columnLength; // a.shape().dim(1);
 
         switch (at.dType()) {
             case F32:
-                switch (bt.dType())
-                {
+                switch (bt.dType()) {
                     case F32:
                         NativeSimd.gemm_f32(
                                 flags,
@@ -137,12 +144,12 @@ public class NativeTensorOperations implements TensorOperations {
                                 result.getStride());
                         break;
                     default:
-                        throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
+                        throw new UnsupportedOperationException(
+                                at.dType().name() + " " + bt.dType().name());
                 }
                 break;
             case I8:
-                switch (bt.dType())
-                {
+                switch (bt.dType()) {
                     case Q4:
                         Q8ByteBufferTensor a = (Q8ByteBufferTensor) at;
                         Q4ByteBufferTensor b = (Q4ByteBufferTensor) bt;
@@ -167,7 +174,8 @@ public class NativeTensorOperations implements TensorOperations {
                                 result.getStride());
                         break;
                     default:
-                        throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
+                        throw new UnsupportedOperationException(
+                                at.dType().name() + " " + bt.dType().name());
                 }
                 break;
             default:
@@ -183,28 +191,25 @@ public class NativeTensorOperations implements TensorOperations {
             int columnOffset,
             int columnLength,
             int bRowOffset,
-            int rowChunkSize)
-    {
+            int rowChunkSize) {
 
         MemorySegment[] tmp = tmpArr.get();
         MemorySegment ra = tmp[0];
         MemorySegment rb = tmp[1];
         MemorySegment rc = tmp[2];
 
-        for (int i = 0; i < r.length; i++)
-        {
+        for (int i = 0; i < r.length; i++) {
             ra.setAtIndex(ValueLayout.ADDRESS, i, r[i].getMemorySegment());
             rb.setAtIndex(ValueLayout.ADDRESS, i, b[i].getMemorySegment());
         }
 
         int M = a.shape().dim(0);
-        int N = rowChunkSize; //b.shape().dim(0);
-        int K = columnLength; //a.shape().dim(1);
+        int N = rowChunkSize; // b.shape().dim(0);
+        int K = columnLength; // a.shape().dim(1);
 
         switch (a.dType()) {
             case F32:
-                switch (b[0].dType())
-                {
+                switch (b[0].dType()) {
                     case F32:
                         NativeSimd.gemm_f32_batch(
                                 flags,
@@ -250,12 +255,12 @@ public class NativeTensorOperations implements TensorOperations {
                                 r[0].getStride());
                         break;
                     default:
-                        throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());
+                        throw new UnsupportedOperationException(
+                                a.dType().name() + " " + b[0].dType().name());
                 }
                 break;
             case I8:
-                switch (b[0].dType())
-                {
+                switch (b[0].dType()) {
                     case Q4:
                         for (int i = 0; i < r.length; i++)
                             rc.setAtIndex(
@@ -287,7 +292,8 @@ public class NativeTensorOperations implements TensorOperations {
                                 r[0].getStride());
                         break;
                     default:
-                        throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());
+                        throw new UnsupportedOperationException(
+                                a.dType().name() + " " + b[0].dType().name());
                 }
                 break;
             default:
@@ -311,7 +317,14 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+    public void saxpy(
+            AbstractTensor alpha,
+            AbstractTensor x,
+            AbstractTensor y,
+            int xoffset,
+            int yoffset,
+            int limit,
+            int batchSize) {
         delegate.saxpy(alpha, x, y, xoffset, yoffset, limit, batchSize);
     }
 

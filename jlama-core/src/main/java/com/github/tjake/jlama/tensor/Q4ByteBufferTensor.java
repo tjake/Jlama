@@ -23,7 +23,6 @@ import com.google.common.primitives.Ints;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -128,7 +127,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
             blockShape[i] = shape[i];
         }
 
-        blockShape[shape.length - 1] = (int)(shape[shape.length - 1] * I_BLOCK_SIZE);
+        blockShape[shape.length - 1] = (int) (shape[shape.length - 1] * I_BLOCK_SIZE);
 
         return blockShape;
     }
@@ -238,8 +237,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
     @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!requiresOffHeapTensor)
-            return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
+        if (!requiresOffHeapTensor) return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return ByteVector.fromMemorySegment(
                     species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
