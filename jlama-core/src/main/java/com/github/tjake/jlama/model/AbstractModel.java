@@ -24,7 +24,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
@@ -86,6 +86,7 @@ public abstract class AbstractModel implements Generator {
     protected EmbedInput embedInput;
     protected SampleOutput sampleOutput;
     protected TransformerBlock[] transformerBlocks;
+    protected KvBufferCache kvBufferCache;
 
     protected AbstractModel(
             InferenceType inferenceType,
@@ -102,6 +103,7 @@ public abstract class AbstractModel implements Generator {
         this.modelDType = w.getModelDType();
         this.workingDType = workingMemoryDType;
         this.modelQType = modelQType;
+        this.kvBufferCache = new KvBufferCache(this);
 
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;
@@ -214,9 +216,6 @@ public abstract class AbstractModel implements Generator {
 
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
         try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
-            //AtomicReference<Double> maxv = new AtomicReference<>(Double.NEGATIVE_INFINITY);
-            //AtomicInteger maxi = new AtomicInteger(Integer.MIN_VALUE);
-
             // This is a mix of argmax and sampling with softmax
             VectorMath.pchunk(0, c.vocabularySize, (chunkStart, chunkSize) -> {
                 TensorOperationsProvider.get().dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
@@ -265,67 +264,79 @@ public abstract class AbstractModel implements Generator {
         long[] encoded = tokenizer.encode(prompt);
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
+        AbstractTensor kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window
+        Integer startPos = (Integer) kvmem.getMetadata(KvBufferCache.TOKEN_COUNT); // Number of tokens in the buffer
+        if (startPos == null) startPos = 0;
+
+        logger.info("Starting at token {} for session {}", startPos, sessionId);
+
         if (ntokens > c.contextLength) ntokens = c.contextLength;
 
-        AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), 2, ntokens, c.kvLength); // k and v for context window
-        AbstractTensor logits = makeTensor(c.vocabularySize);
+        try (AbstractTensor logits = makeTensor(c.vocabularySize)) {
 
-        int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
+            int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
 
-        promptTokens[0] = c.bosToken;
-        for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
+            promptTokens[0] = c.bosToken;
+            for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
 
-        int promptLength = encoded.length;
+            int promptLength = encoded.length;
 
-        if (useEOS) {
-            promptTokens[promptTokens.length - 1] = c.eosToken; // Add EOS
-            promptLength++;
-        }
+            if (useEOS) {
+                promptTokens[promptTokens.length - 1] = c.eosToken; // Add EOS
+                promptLength++;
+            }
 
-        String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
-        onTokenWithTimings.accept(clientPrompt, 0f);
-        long start = System.currentTimeMillis();
-        // Batch Process Prompt
-        AbstractTensor last = batchForward(promptTokens, 0, kvmem);
+            String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
+            onTokenWithTimings.accept(clientPrompt, 0f);
+            long start = System.currentTimeMillis();
+            // Batch Process Prompt
+            AbstractTensor last = batchForward(promptTokens, startPos, kvmem);
 
-        long promptBatchTime = System.currentTimeMillis() - start;
-        float batchMsPerToken = Math.round((((double) promptBatchTime) / (double) promptLength));
-        logger.debug("{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, batchMsPerToken);
+            long promptBatchTime = System.currentTimeMillis() - start;
+            float batchMsPerToken = Math.round((((double) promptBatchTime) / (double) promptLength));
+            logger.debug("{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, batchMsPerToken);
 
-        float genMsPerToken = 0;
-        int tokensGenerated = 0;
-        int next = sample(last.slice(promptTokens.length - 1), temperature, ThreadLocalRandom.current().nextFloat(), logits);
-        last.close();
-        try {
-            String c = tokenizer.decode(next);
-            onTokenWithTimings.accept(c, batchMsPerToken);
-        } catch (Exception e) {
-            logger.error("Failed to decode token {}", next, e);
-        }
-
-        start = System.currentTimeMillis();
-        for (int i = promptTokens.length - 1; i < ntokens; i++) {
-            AbstractTensor output = forward(next, i, kvmem);
-            tokensGenerated++;
-            next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
-
-            if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
-            output.close();
-            // Model may tell us it's done
-            if (next == c.eosToken) break;
-
+            float genMsPerToken = 0;
+            int tokensGenerated = 0;
+            int next = sample(
+                    last.slice(promptTokens.length - 1),
+                    temperature,
+                    ThreadLocalRandom.current().nextFloat(),
+                    logits);
+            last.close();
             try {
                 String c = tokenizer.decode(next);
-                genMsPerToken = (System.currentTimeMillis() - start) / (float) (tokensGenerated);
-                onTokenWithTimings.accept(c, genMsPerToken);
+                onTokenWithTimings.accept(c, batchMsPerToken);
             } catch (Exception e) {
                 logger.error("Failed to decode token {}", next, e);
             }
-        }
 
-        long end = System.currentTimeMillis();
-        System.out.printf(
-                "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
-                TimeUnit.MILLISECONDS.toSeconds(end - start), batchMsPerToken, genMsPerToken);
+            start = System.currentTimeMillis();
+            for (int i = startPos + promptTokens.length - 1; i < ntokens; i++) {
+                AbstractTensor output = forward(next, i, kvmem);
+                tokensGenerated++;
+
+                next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
+
+                if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
+                output.close();
+                // Model may tell us it's done
+                if (next == c.eosToken) break;
+                kvmem.setMetadata(KvBufferCache.TOKEN_COUNT, i);
+
+                try {
+                    String c = tokenizer.decode(next);
+                    genMsPerToken = (System.currentTimeMillis() - start) / (float) (tokensGenerated);
+                    onTokenWithTimings.accept(c, genMsPerToken);
+                } catch (Exception e) {
+                    logger.error("Failed to decode token {}", next, e);
+                }
+            }
+
+            long end = System.currentTimeMillis();
+            System.out.printf(
+                    "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
+                    TimeUnit.MILLISECONDS.toSeconds(end - start), batchMsPerToken, genMsPerToken);
+        }
     }
 }

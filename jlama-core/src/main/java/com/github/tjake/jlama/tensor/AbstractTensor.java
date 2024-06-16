@@ -24,7 +24,7 @@ import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.Arrays;
+import java.util.Arrays;import java.util.HashMap;import java.util.Map;
 
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import jdk.incubator.vector.Vector;
@@ -49,6 +49,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
     protected final boolean requiresOffHeapTensor;
+    protected final Map<String, Object> metadata;
     private final int stride;
     private volatile TensorCache originCache = null;
 
@@ -57,8 +58,17 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         this.dType = dType;
         this.shape = shape;
         this.requiresOffHeapTensor = TensorOperationsProvider.get().requiresOffHeapTensor();
+        this.metadata = new HashMap<>();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
         this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, shape.sparseOffset()) : 0;
+    }
+
+    public void setMetadata(String key, Object value) {
+        metadata.put(key, value);
+    }
+
+    public Object getMetadata(String key) {
+        return metadata.get(key);
     }
 
     /** Create a new tensor with the given shape of the same Tensor implementation */

@@ -21,6 +21,7 @@ import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
@@ -149,7 +150,7 @@ public class Worker implements Closeable  {
 
     class GenerateObserver implements StreamObserver<GenerateResponse> {
         private final CountDownLatch finishedLatch;
-        private final ConcurrentMap<UUID, Pair<RandomAccessFile, AbstractTensor>> kvBufferCache;
+        private final KvBufferCache kvBufferCache;
         private final ConcurrentMap<UUID, AtomicInteger> requestCount;
         private final ConcurrentMap<UUID, CombineObserver> combineStreams;
 
@@ -157,56 +158,9 @@ public class Worker implements Closeable  {
 
         private GenerateObserver(CountDownLatch finishedLatch) {
             this.finishedLatch = finishedLatch;
-            this.kvBufferCache = new ConcurrentHashMap<>();
+            this.kvBufferCache = new KvBufferCache(model);
             this.requestCount = new ConcurrentHashMap<>();
             this.combineStreams = new ConcurrentHashMap<>();
-        }
-
-        private AbstractTensor getKvBuffer(UUID session) {
-            return kvBufferCache.computeIfAbsent(session, this::makeKvBuffer).right;
-        }
-
-        private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session) {
-            TensorShape s;
-            // FIXME: Max size should be configurable
-            int[] rawShape = new int[] {
-                model.getConfig().getNumberOfLayers(),
-                2,
-                Math.min(256, model.getConfig().contextLength),
-                model.getConfig().kvLength
-            };
-
-            if (model.getConfig().offset().isPresent()) {
-                Pair<Integer, Integer> offset = model.getConfig().offset().get();
-                // Adjust the shape to be relative to the kv cache size (in case of GQA)
-                Pair<Integer, Integer> kvOffset = Pair.create(
-                        offset.left / model.getConfig().headGroupSize, offset.right / model.getConfig().headGroupSize);
-                s = TensorShape.sparse(rawShape, kvOffset);
-            } else {
-                s = TensorShape.of(rawShape);
-            }
-            Preconditions.checkArgument(model.getConfig().workingDirectory().isPresent());
-
-            try {
-                RandomAccessFile raf = new RandomAccessFile(
-                        Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString())
-                                .toFile(),
-                        "rw");
-                long bytes = s.size() * Float.BYTES;
-                raf.setLength(bytes);
-
-                FloatBuffer fb = raf.getChannel()
-                        .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                        .order(ByteOrder.LITTLE_ENDIAN)
-                        .asFloatBuffer();
-
-                FloatBufferTensor fbt = new FloatBufferTensor(fb, s, true);
-
-                return Pair.create(raf, fbt);
-
-            } catch (IOException e) {
-                throw new IOError(e);
-            }
         }
 
         private int getNextRequestCount(UUID session) {
@@ -238,7 +192,7 @@ public class Worker implements Closeable  {
             AbstractTensor output = model.forward(
                     token,
                     position,
-                    getKvBuffer(session),
+                    kvBufferCache.getKvBuffer(session),
                     Optional.of((a, b) -> {
                         CombineRequest nr = CombineRequest.newBuilder()
                                 .setUuid(generateResponse.getSession())

@@ -18,9 +18,11 @@ function autoFocusInput() {
   const userInput = document.getElementById('user-input');
   userInput.focus();
 }
+let session = URL.createObjectURL(new Blob()).substr(-36);
 
 // Fetch available models and populate the dropdown
 async function setupSend() {
+  document.getElementById('session').innerText = 'Session UUID: ' + session;
   document.getElementById('send-button').addEventListener('click', submitRequest);
 }
 
@@ -82,7 +84,7 @@ async function submitRequest() {
 
   const input = document.getElementById('user-input').value;
   const context = document.getElementById('chat-history').context;
-  const data = { prompt: input, context: context };
+  const data = { prompt: input, session: session };
 
   // Create user message element and append to chat history
   let chatHistory = document.getElementById('chat-history');
@@ -172,56 +174,9 @@ document.getElementById('user-input').addEventListener('keydown', function (e) {
 
 window.onload = () => {
   setupSend();
-  updateChatList();
   adjustPadding();
   autoFocusInput();
-
-  document.getElementById("delete-chat").addEventListener("click", deleteChat);
-  document.getElementById("saveName").addEventListener("click", saveChat);
-  document.getElementById("chat-select").addEventListener("change", loadSelectedChat);
 }
 
-function deleteChat() {
-  const selectedChat = document.getElementById("chat-select").value;
-  localStorage.removeItem(selectedChat);
-  updateChatList();
-}
 
-// Function to save chat with a unique name
-function saveChat() {
-  const chatName = document.getElementById('userName').value;
-
-  // Close the modal
-  const bootstrapModal = bootstrap.Modal.getInstance(document.getElementById('nameModal'));
-  bootstrapModal.hide();
-
-  if (chatName === null || chatName.trim() === "") return;
-  const history = document.getElementById("chat-history").innerHTML;
-  const context = document.getElementById('chat-history').context;
-  localStorage.setItem(chatName, JSON.stringify({"history":history, "context":context}));
-  updateChatList();
-}
-
-// Function to load selected chat from dropdown
-function loadSelectedChat() {
-  const selectedChat = document.getElementById("chat-select").value;
-  const obj = JSON.parse(localStorage.getItem(selectedChat));
-  document.getElementById("chat-history").innerHTML = obj.history;
-  document.getElementById("chat-history").context = obj.context;
-  document.getElementById('chat-container').style.display = 'block';
-}
-
-// Function to update chat list dropdown
-function updateChatList() {
-  const chatList = document.getElementById("chat-select");
-  chatList.innerHTML = '<option value="" disabled selected>Select a chat</option>';
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key === "host-address") continue;
-    const option = document.createElement("option");
-    option.value = key;
-    option.text = key;
-    chatList.add(option);
-  }
-}
 
