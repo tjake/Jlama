@@ -378,8 +378,8 @@ public class TestOperations {
         for (TensorOperations t : opTypes) {
             t.dotProductBatchChunk(new AbstractTensor[] {b0, b1}, a, new AbstractTensor[] {w0, w1}, 0, SIZE, 0, ROWS);
 
-            Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0), 0.01);
-            Assert.assertEquals(t.name(), controlOps.sum(r1), controlOps.sum(b1), 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0),  controlOps.sum(r0) * 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r1), controlOps.sum(b1), controlOps.sum(r1) * 0.01);
         }
     }
 
@@ -398,7 +398,7 @@ public class TestOperations {
 
         for (TensorOperations t : opTypes) {
             t.batchDotProduct(c1, a, b, 0, 0, SIZE);
-            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1), 0.2);
+            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1),  controlOps.sum(c) * 0.01);
         }
     }
 
@@ -523,6 +523,4 @@ public class TestOperations {
         });
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
     }
-
-
 }

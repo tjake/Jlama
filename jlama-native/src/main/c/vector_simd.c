@@ -151,7 +151,7 @@ void __attribute__((noinline)) gemm(int m0, int m, int n0, int n, void (*gemmPtr
     mp = m0 + (m - m0) / mc * mc;
     np = n0 + (n - n0) / nc * nc;
     gemm(mp, m, n0, np, gemmPtr, params);
-    gemm(m0, m, np, n, gemmPtr, params);
+    gemm(m0, mp, np, n, gemmPtr, params);
 }
 
 #if defined(__ARM_NEON__)
@@ -223,7 +223,7 @@ void __attribute__((noinline)) gemm_q8_q4_128_arm(int m0, int m, int n0, int n, 
 
         for (int mi = 0; mi < RM; ++mi) {
             for (int ni = 0; ni < RN; ++ni) {
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = vaddvq_f32(sums[mi][ni]);
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = vaddvq_f32(sums[mi][ni]);
             }
         }
     }
@@ -360,7 +360,7 @@ void __attribute__((noinline)) gemm_q8_q4_128(int m0, int m, int n0, int n, int 
                     dot += result[i];
                 }
                 //fprintf(stderr, "ii: %d, ni: %d, jj: %d, mi: %d, ldc: %d\n", ii, ni, jj, mi, params.ldc);
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -436,7 +436,6 @@ void __attribute__((noinline)) gemm_q8_q4_256(int m0, int m, int n0, int n, int 
             }
         }
 
-
         for (int mi = 0; mi < RM; ++mi) {
             for (int ni = 0; ni < RN; ++ni) {
                 __attribute__((aligned(16))) float result[8];
@@ -446,8 +445,10 @@ void __attribute__((noinline)) gemm_q8_q4_256(int m0, int m, int n0, int n, int 
                 for(int i = 0; i < 8; ++i) {
                     dot += result[i];
                 }
-                //fprintf(stderr, "ii: %d, ni: %d, jj: %d, mi: %d, ldc: %d\n", ii, ni, jj, mi, params.ldc);
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                //int idx = (params.ldc * (ii + mi)) + (jj + ni);
+                //if (idx > params.roffset)
+                //    fprintf(stderr, "ii: %d, ni: %d, jj: %d, mi: %d, ldc: %d, idx: %d, lim: %d\n", ii, ni, jj, mi, params.ldc,  idx, params.roffset);
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -533,7 +534,7 @@ void __attribute__((noinline)) gemm_q8_q4_512(int m0, int m, int n0, int n, int 
             for (int ni = 0; ni < RN; ++ni) {
                 // Horizontal sum of the vector to get dot product
                 float dot = _mm512_reduce_add_ps(_mm512_castps256_ps512(sums[mi][ni]));
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -565,6 +566,8 @@ void gemm_q8_q4(int flags, const float * restrict af, const char * restrict a, i
                         .ldb = ldb,
                         .ldc = ldc
     };
+
+    //fprintf(stderr, "m: %d, n0: %d, n: %d, k: %d, lda: %d, ldaf: %d, ldb: %d, ldbf: %d, ldc: %d\n", m, n0, n, k, lda, ldaf, ldb, ldbf, ldc);
 
 #if !defined(__ARM_NEON__)
     ((flags & HAS_AVX2) != 0)
@@ -628,7 +631,7 @@ void gemm_f32_128(int m0, int m, int n0, int n, int RM, int RN, struct gemm_para
                 for(int i = 0; i < 4; ++i) {
                     dot += result[i];
                 }
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -681,7 +684,7 @@ void gemm_f32_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_para
                 for(int i = 0; i < 8; ++i) {
                     dot += result[i];
                 }
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -727,7 +730,7 @@ void gemm_f32_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_para
             for (int ni = 0; ni < RN; ++ni) {
                 // Horizontal sum of the vector to get dot product
                 float r = _mm512_reduce_add_ps(sums[mi][ni]);
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = r;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = r;
             }
         }
     }
@@ -912,7 +915,7 @@ void gemm_f32_q4_128(int m0, int m, int n0, int n, int RM, int RN, struct gemm_p
                 for(int i = 0; i < 4; ++i) {
                     dot += result[i];
                 }
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -1023,7 +1026,7 @@ void gemm_f32_q4_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_p
                 }
                 //if (params.roffset > 0)
                 //    fprintf(stderr, "ii: %d, ni: %d, jj: %d, mi: %d, ldc: %d, roffset: %d\n", ii, ni, jj, mi, params.ldc, params.roffset);
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = dot;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -1106,7 +1109,7 @@ void gemm_f32_q4_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_p
             for (int ni = 0; ni < RN; ++ni) {
                 // Horizontal sum of the vector to get dot product
                 float r = _mm512_reduce_add_ps(sums[mi][ni]);
-                params.r[(params.ldc * (ii + mi)) + (jj + ni)] = r;
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = r;
             }
         }
    }

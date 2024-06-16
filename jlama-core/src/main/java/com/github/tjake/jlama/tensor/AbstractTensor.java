@@ -58,7 +58,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         this.shape = shape;
         this.requiresOffHeapTensor = TensorOperationsProvider.get().requiresOffHeapTensor();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
-        this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, 0) : 0;
+        this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, shape.sparseOffset()) : 0;
     }
 
     /** Create a new tensor with the given shape of the same Tensor implementation */

@@ -76,7 +76,7 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     private void checkLib() {
-        NativeSimd.dot_product_f32$MH();
+        NativeSimd.gemm_f32$MH();
     }
 
     @Override
@@ -107,14 +107,14 @@ public class NativeTensorOperations implements TensorOperations {
                                 bt.getMemorySegment(),
                                 bt.getOffset(0, bColumnOffset),
                                 result.getMemorySegment(),
-                                result.getOffset(0, aColumnOffset),
+                                result.shape().sparseOffset(),
                                 M,
                                 bRowOffset,
                                 N,
                                 K,
-                                at.getOffset(1, 0),
-                                bt.getOffset(1, 0),
-                                result.getOffset(1, 0));
+                                at.getStride(),
+                                bt.getStride(),
+                                result.getStride());
                         break;
                     case Q4:
                         Q4ByteBufferTensor b = (Q4ByteBufferTensor) bt;
@@ -126,15 +126,15 @@ public class NativeTensorOperations implements TensorOperations {
                                 b.getMemorySegment(),
                                 b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
                                 result.getMemorySegment(),
-                                result.getOffset(0, aColumnOffset),
+                                result.shape().sparseOffset(),
                                 M,
                                 bRowOffset,
                                 N,
                                 K,
-                                at.getOffset(1, 0),
-                                b.getMemorySegmentOffset(b.getOffset(1, 0)),
-                                b.getBlockF().getOffset(1, 0),
-                                result.getOffset(1, 0));
+                                at.getStride(),
+                                b.getMemorySegmentOffset(b.getStride()),
+                                b.getBlockF().getStride(),
+                                result.getStride());
                         break;
                     default:
                         throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
@@ -155,7 +155,7 @@ public class NativeTensorOperations implements TensorOperations {
                                 b.getMemorySegment(),
                                 b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
                                 result.getMemorySegment(),
-                                result.getOffset(0, aColumnOffset),
+                                result.shape().sparseOffset(),
                                 M,
                                 bRowOffset,
                                 N,
@@ -214,13 +214,13 @@ public class NativeTensorOperations implements TensorOperations {
                                 rb,
                                 b[0].getOffset(0, columnOffset),
                                 ra,
-                                r[0].getOffset(0, columnOffset),
+                                r[0].shape().sparseOffset(),
                                 M,
                                 bRowOffset,
                                 N,
                                 K,
-                                a.getOffset(1, 0),
-                                b[0].getOffset(1, 0),
+                                a.getStride(),
+                                b[0].getStride(),
                                 r[0].getStride());
                         break;
                     case Q4:
@@ -239,14 +239,14 @@ public class NativeTensorOperations implements TensorOperations {
                                 rb,
                                 b[0].getMemorySegmentOffset(b[0].getOffset(0, columnOffset)),
                                 ra,
-                                r[0].getOffset(0, columnOffset),
+                                r[0].shape().sparseOffset(),
                                 M,
                                 bRowOffset,
                                 N,
                                 K,
-                                a.getOffset(1, 0),
-                                b[0].getMemorySegmentOffset(b[0].getOffset(1, 0)),
-                                bt.getBlockF().getOffset(1, 0),
+                                a.getStride(),
+                                b[0].getMemorySegmentOffset(b[0].getStride()),
+                                bt.getBlockF().getStride(),
                                 r[0].getStride());
                         break;
                     default:
@@ -275,15 +275,15 @@ public class NativeTensorOperations implements TensorOperations {
                                 rb,
                                 bt.getMemorySegmentOffset(bt.getOffset(0, columnOffset)),
                                 ra,
-                                r[0].getOffset(0, columnOffset),
+                                r[0].shape().sparseOffset(),
                                 M,
                                 bRowOffset,
                                 N,
                                 K,
-                                a.getOffset(1, 0),
-                                at.getBlockF().getOffset(1, 0),
-                                bt.getMemorySegmentOffset(bt.getOffset(1, 0)),
-                                bt.getBlockF().getOffset(1, 0),
+                                a.getStride(),
+                                at.getBlockF().getStride(),
+                                bt.getMemorySegmentOffset(bt.getStride()),
+                                bt.getBlockF().getStride(),
                                 r[0].getStride());
                         break;
                     default:
