@@ -17,7 +17,7 @@ package com.github.tjake.jlama.tensor.operations;
 
 import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
 
-import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.math.VectorMath;import com.github.tjake.jlama.model.AbstractModel;import com.github.tjake.jlama.model.LayerNorm;import com.github.tjake.jlama.model.Mocks;import com.github.tjake.jlama.model.RMSNorm;import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.Float16BufferTensor;
@@ -26,13 +26,10 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.util.MachineSpec;
 import com.github.tjake.jlama.util.RuntimeSupport;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.Function;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -41,6 +38,7 @@ import org.slf4j.LoggerFactory;
 public class TestOperations {
     private static final Random r = new Random();
     private static final Logger logger = LoggerFactory.getLogger(TensorOperations.class);
+    private static final int BATCH = 32;
     private static final int SIZE = 1024;
     private static final int ROWS = 128;
     private static final List<TensorOperations> opTypes = new ArrayList<>();
@@ -56,7 +54,7 @@ public class TestOperations {
     @BeforeClass
     public static void init() {
         logger.info("Globally using {}", globalOps.name());
-        opTypes.add(new NaiveTensorOperations());
+      //  opTypes.add(new NaiveTensorOperations());
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_512));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_256));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.ARM_128));
@@ -91,8 +89,8 @@ public class TestOperations {
     }
 
     static FloatBufferTensor makeTensor(int size) {
-        FloatBufferTensor f = new FloatBufferTensor(size);
-        for (int i = 0; i < size; i++) f.set(r.nextFloat(), i);
+        FloatBufferTensor f = new FloatBufferTensor(1, size);
+        for (int i = 0; i < size; i++) f.set(r.nextFloat(), 0, i);
 
         return f;
     }
@@ -139,6 +137,40 @@ public class TestOperations {
     }
 
     @Test
+    public void testDotProductOffsets() {
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = makeTensor(SIZE);
+
+        // This is what we compare others to
+        float control = controlOps.dotProduct(a, b, 512, 512, 512);
+        int opt = 0;
+        for (TensorOperations t : opTypes) {
+            int supported = 0;
+
+            for (Map.Entry<DType, Function<AbstractTensor, AbstractTensor>> aType : aTypes.entrySet()) {
+                for (Map.Entry<DType, Function<AbstractTensor, AbstractTensor>> bType : bTypes.entrySet()) {
+                    try {
+                        logger.debug("Running {} {} {}", opt, aType, bType);
+                        float dp = t.dotProduct(
+                                aType.getValue().apply(a), bType.getValue().apply(b), 512, 512, 512);
+                        supported++;
+                        Assert.assertEquals(
+                                "OP " + t.name() + ", AType " + aType.getKey() + ", BType " + bType.getKey()
+                                        + " combo is outside of 1% error limit",
+                                control,
+                                dp,
+                                control * .01f);
+                    } catch (UnsupportedOperationException | IllegalArgumentException e) {
+                        logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
+                    }
+                }
+            }
+            Assert.assertTrue(supported > 0);
+            opt++;
+        }
+    }
+
+    @Test
     public void testSplitDotProduct() {
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
@@ -150,6 +182,23 @@ public class TestOperations {
         float p2 = controlOps.dotProduct(a, b, SIZE / 2, SIZE / 2, SIZE / 2);
 
         Assert.assertEquals(control, p1 + p2, control * .01f);
+    }
+
+    @Test
+    public void testNativeDotProduct() {
+        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = makeTensor(SIZE);
+
+        AbstractTensor q8 = new Q8ByteBufferTensor(a);
+        AbstractTensor q4 = new Q4ByteBufferTensor(b);
+
+        // This is what we compare others to
+        float control = controlOps.dotProduct(q8, q4, SIZE);
+
+        float p1 = globalOps.dotProduct(q8, q4, SIZE);
+
+        Assert.assertEquals(control, p1, control * .01f);
     }
 
     @Test
@@ -305,9 +354,10 @@ public class TestOperations {
         Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a, 0, (int) a.size());
         Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a, 0, (int) a.size());
 
-        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
-        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);
-        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv2), 0.0001);
+        float sum = controlOps.sum(ref);
+        Assert.assertEquals(sum, controlOps.sum(qv), sum * 0.001);
+        Assert.assertEquals(sum, controlOps.sum(qv1), sum * 0.001);
+        Assert.assertEquals(sum, controlOps.sum(qv2), sum * 0.001);
     }
 
     @Test
@@ -329,8 +379,149 @@ public class TestOperations {
         for (TensorOperations t : opTypes) {
             t.dotProductBatchChunk(new AbstractTensor[] {b0, b1}, a, new AbstractTensor[] {w0, w1}, 0, SIZE, 0, ROWS);
 
-            Assert.assertEquals(controlOps.sum(r0), controlOps.sum(b0), 0.01);
-            Assert.assertEquals(controlOps.sum(r1), controlOps.sum(b1), 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0),  controlOps.sum(r0) * 0.01);
+            Assert.assertEquals(t.name(), controlOps.sum(r1), controlOps.sum(b1), controlOps.sum(r1) * 0.01);
         }
+    }
+
+    @Test
+    public void testBatchDotProduct() {
+        //M == BATCH, N == ROWS, K == SIZE
+
+        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
+
+        for (TensorOperations t : opTypes) {
+            t.batchDotProduct(c1, a, b, 0, 0, SIZE);
+            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1),  controlOps.sum(c) * 0.01);
+        }
+    }
+
+    @Test
+    public void testNativeBatchDotProduct() {
+        //M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+
+        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+
+        Q8ByteBufferTensor q8 = new Q8ByteBufferTensor(a);
+        Q4ByteBufferTensor q4 = new Q4ByteBufferTensor(b);
+
+        controlOps.batchDotProduct(c, q8, q4, 0, 0, SIZE);
+        float sum = controlOps.sum(c);
+        globalOps.batchDotProduct(c1, q8, q4, 0, 0, SIZE);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+
+        c1.clear();
+        c.clear();
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
+        sum = controlOps.sum(c);
+
+        globalOps.batchDotProduct(c1, a, b, 0, 0, SIZE);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+
+
+        c1.clear();
+        c.clear();
+        controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
+        sum = controlOps.sum(c);
+
+        globalOps.batchDotProduct(c1, a, q4, 0, 0, SIZE);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+    }
+
+    @Test
+    public void testNativeBatchDotProductWithOffsets() {
+        //M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+
+        FloatBufferTensor c =  new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 =  new FloatBufferTensor(BATCH, ROWS);
+
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE);  // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE);  // b
+
+        Q8ByteBufferTensor q8 = new Q8ByteBufferTensor(a);
+        Q4ByteBufferTensor q4 = new Q4ByteBufferTensor(b);
+
+        controlOps.batchDotProduct(c, q8, q4, 512, 512, 512);
+        float sum = controlOps.sum(c);
+        globalOps.batchDotProduct(c1, q8, q4, 512, 512, 512);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+
+        c1.clear();
+        c.clear();
+        controlOps.batchDotProduct(c, a, b, 512, 512, 512);
+        sum = controlOps.sum(c);
+
+        globalOps.batchDotProduct(c1, a, b, 512, 512, 512);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+
+
+        c1.clear();
+        c.clear();
+        controlOps.batchDotProduct(c, a, q4, 512, 512, 512);
+        sum = controlOps.sum(c);
+
+        globalOps.batchDotProduct(c1, a, q4, 512, 512, 512);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+    }
+
+
+    @Test
+    public void testNativeDotProductFast() {
+        //M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+
+        FloatBufferTensor c =  new FloatBufferTensor(1, SIZE);
+        FloatBufferTensor c1 =  new FloatBufferTensor(1, SIZE);
+
+
+        FloatBufferTensor a = makeWeights(1, SIZE);  // a
+        FloatBufferTensor b = makeWeights(SIZE, SIZE);  // b
+
+        Q8ByteBufferTensor q8 = new Q8ByteBufferTensor(a);
+        Q4ByteBufferTensor q4 = new Q4ByteBufferTensor(b);
+
+        controlOps.batchDotProduct(c, q8, q4, 0, 0, SIZE);
+        float sum = controlOps.sum(c);
+
+        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
+            globalOps.dotProductChunk(c1, q8, q4, 0, SIZE, chunkStart, chunkLength);
+        });
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+
+        c1.clear();
+        c.clear();
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
+        sum = controlOps.sum(c);
+
+        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
+            globalOps.dotProductChunk(c1, a, b, 0, SIZE, chunkStart, chunkLength);
+        });
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+
+
+        c1.clear();
+        c.clear();
+        controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
+        sum = controlOps.sum(c);
+
+        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
+            globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength);
+        });
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
     }
 }

@@ -81,7 +81,6 @@ public class TransformerBlock {
         try (AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
             postAttention = attention.forward(qlnemb, position, kvBuffer, tensorReducer);
         }
-
         // residual connection
         TensorOperationsProvider.get()
                 .accumulate(

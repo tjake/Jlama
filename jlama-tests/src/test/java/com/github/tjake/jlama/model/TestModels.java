@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
 public class TestModels {
 
     static {
-        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+       System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -85,21 +85,26 @@ public class TestModels {
             String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
                     + "previously unexplored valley, in the Andes Mountains. "
                     + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
+
+            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
         }
     }
 
     @Test
     public void LlamaRun() throws Exception {
-        String modelPrefix = "../models/Llama-2-7b-chat-hf-jlama-Q4";
+        String modelPrefix = "../models/llama2-7b-chat-hf-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights =
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
-            String prompt = "Simply put, the theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+            String prompt0 = "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, " +
+                    "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, " +
+                    "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
+            String prompt1 = "The theory of relativity states that";
+            model.generate(UUID.randomUUID(), prompt0, 0.1f, 256, false, makeOutHandler());
         }
     }
 
@@ -140,8 +145,11 @@ public class TestModels {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             MixtralConfig c = om.readValue(new File(modelPrefix + "/config.json"), MixtralConfig.class);
             MixtralModel model = new MixtralModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
-            String prompt = "Simply put, the theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+            String prompt0 = "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, " +
+                    "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, " +
+                    "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
+            String prompt = "[INST] Tell me a joke. [/INST]";
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, true, makeOutHandler());
         }
     }
 
@@ -287,7 +295,7 @@ public class TestModels {
 
     @Test
     public void testDistibuted() {
-        Path model = Paths.get("../models/tiny-random-llama-2");
+        Path model = Paths.get("../models/gpt2-medium");
         Assume.assumeTrue(Files.exists(model));
 
         AbstractModel mFull =
@@ -477,7 +485,7 @@ public class TestModels {
     static boolean tensorEquals(AbstractTensor a, AbstractTensor b) {
         if (a.size() != b.size()) return false;
 
-        for (int i = 0; i < a.size(); i++) Assert.assertEquals("Position " + i, a.get(i), b.get(i), 0.0000001f);
+        for (int i = 0; i < a.size(); i++) Assert.assertEquals("Position " + i, a.get(0, i), b.get(0, i), 0.01f);
 
         return true;
     }

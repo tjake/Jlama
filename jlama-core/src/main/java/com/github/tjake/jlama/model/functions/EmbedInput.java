@@ -15,8 +15,38 @@
  */
 package com.github.tjake.jlama.model.functions;
 
+import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.TensorCache;
+import com.github.tjake.jlama.tensor.TensorShape;
+import com.google.common.base.Preconditions;
 
 public interface EmbedInput {
     AbstractTensor inputTokenToEmbedding(int inputToken, int position);
+
+    default AbstractTensor batchInputsToEmbeddings(int[] inputTokens, int startPos) {
+        Preconditions.checkArgument(inputTokens.length > 0);
+
+        AbstractTensor t = inputTokenToEmbedding(inputTokens[0], startPos);
+        if (inputTokens.length == 1)
+            return t;
+
+        TensorShape tbs = TensorShape.of(inputTokens.length, t.shape().last());
+        if (t.shape().isSparse())
+            tbs = tbs.sparsify(t.shape().sparseOffset(), t.shape().sparseLength());
+
+        AbstractTensor tb = TensorCache.instance.get(t.dType(), tbs);
+        tb.copyFrom(t, 0, 0, t.shape().sparseLength());
+        t.close();
+
+        VectorMath.pfor(1, inputTokens.length, i -> {
+            AbstractTensor ti = inputTokenToEmbedding(inputTokens[i], startPos + i);
+
+            tb.copyFrom(ti, 0, i * ti.shape().sparseLength(), ti.shape().sparseLength());
+
+            ti.close();
+        });
+
+        return tb;
+    }
 }

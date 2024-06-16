@@ -263,7 +263,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 FloatBuffer f =
                         v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
                 for (int i = 0; i < r.getLength(); i++) {
-                    output.set(f.get(), r.getOffset() + i);
+                    output.set(f.get(), 0, r.getOffset() + i);
                 }
             }
 

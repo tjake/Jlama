@@ -72,16 +72,16 @@ public class TestParser {
         AbstractTensor s1 = t.slice(0);
         logger.debug("s1 = {}", s1);
 
-        Assert.assertEquals(1, s1.dims());
-        Assert.assertEquals(1.0, s1.get(0), 0.0001);
-        Assert.assertEquals(2.0, s1.get(1), 0.0001);
+        Assert.assertEquals(2, s1.dims());
+        Assert.assertEquals(1.0, s1.get(0, 0), 0.0001);
+        Assert.assertEquals(2.0, s1.get(0, 1), 0.0001);
 
         AbstractTensor s2 = t.slice(1);
         logger.debug("s2 = {}", s2);
 
-        Assert.assertEquals(1, s2.dims());
-        Assert.assertEquals(3.0, s2.get(0), 0.0001);
-        Assert.assertEquals(4.0, s2.get(1), 0.0001);
+        Assert.assertEquals(2, s2.dims());
+        Assert.assertEquals(3.0, s2.get(0, 0), 0.0001);
+        Assert.assertEquals(4.0, s2.get(0, 1), 0.0001);
 
         int[] cursor = new int[t.dims()];
         int i = 0;

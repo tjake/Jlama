@@ -32,10 +32,15 @@ public class NaiveTensorOperations implements TensorOperations {
     // a[0..n] += b[0..n]
     @Override
     public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
-        Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
+        Preconditions.checkArgument(a.dims() == b.dims());
 
-        for (int i = offset; i < offset + length; ++i) {
-            a.set(a.get(i) + b.get(i), i);
+        boolean isBatch = b.shape().first() > 1;
+        for (int ai = 0; ai < a.shape().first(); ai++) {
+            AbstractTensor as = a.slice(ai);
+            AbstractTensor bs = isBatch ? b.slice(ai) : b;
+            for (int i = offset; i < offset + length; ++i) {
+                as.set(as.get(0, i) + bs.get(0, i), 0, i);
+            }
         }
     }
 
@@ -43,7 +48,6 @@ public class NaiveTensorOperations implements TensorOperations {
     @Override
     public void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
         Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
-
         for (int i = offset; i < offset + length; ++i) {
             a.set(a.get(i) * b.get(i), i);
         }
@@ -58,37 +62,52 @@ public class NaiveTensorOperations implements TensorOperations {
 
         float s = 0;
         for (; aoffset < alen && boffset < blen; aoffset++, boffset++) {
-            s += a.get(aoffset) * b.get(boffset);
+            s += a.get(0, aoffset) * b.get(0, boffset);
         }
 
         return s;
+    }
+
+    @Override
+    public void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLength, int bRowOffset, int rowChunkSize) {
+        Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
+
+        int bRowLimit = bRowOffset + rowChunkSize;
+
+        for (int i = 0; i < a.shape().first(); i++) {
+            for (int j = bRowOffset; j < bRowLimit; j++) {
+                float d = dotProduct(a.slice(i), b.slice(j), aColumnOffset, bColumnOffset, columnLength);
+                result.set(d, i, j);
+            }
+        }
     }
 
     // Computes a constant times a vector plus a vector (single-precision).
     // On return, the contents of vector Y are replaced with the result. The value computed is (alpha * X[i]) + Y[i].
     @Override
     public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.dims() == y.dims());
+        Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
         for (int xo = xoffset, yo = yoffset; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = (alpha * x.get(xo)) + y.get(yo);
-            y.set(v, yo);
+            float v = (alpha * x.get(0, xo)) + y.get(0, yo);
+            y.set(v, 0, yo);
         }
     }
 
     // y = x + b*y variant
     @Override
     public void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.dims() == y.dims());
+        Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
 
         for (int xo = xoffset, yo = yoffset; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(xo) + (beta * y.get(yo));
-            y.set(v, yo);
+            float v = x.get(0, xo) + (beta * y.get(0, yo));
+            y.set(v, 0, yo);
         }
     }
 
     @Override
     public void scale(float factor, AbstractTensor x, int offset, int length) {
+        Preconditions.checkArgument(x.shape().first() == 1);
         int limit = offset + length;
-        for (; offset < limit; ++offset) x.set(x.get(offset) * factor, offset);
+        for (; offset < limit; ++offset) x.set(x.get(0, offset) * factor, 0, offset);
     }
 }

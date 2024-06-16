@@ -160,10 +160,10 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         return blockF;
     }
 
-    public final float getFactorForIndex(int i) {
+    public final float getFactorForIndex(int d, int i) {
         int ix = (int) (i * I_BLOCK_SIZE);
         if (ix >= blockF.size()) throw new RuntimeException();
-        return blockF.get(ix);
+        return blockF.get(d, ix);
     }
 
     @Override
@@ -194,9 +194,9 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public ByteVector getVector(VectorSpecies<Byte> species, int offset) {
-        offset = getOffset(offset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+    public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
+        int offset = getOffset(voffset);
+        if (!requiresOffHeapTensor)
             return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
         else
             return ByteVector.fromMemorySegment(
@@ -204,19 +204,19 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public void intoTensor(ByteVector vector, int offset) {
+    public void intoTensor(ByteVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
-        offset = getOffset(offset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+        int offset = getOffset(aoffset);
+        if (!requiresOffHeapTensor)
             vector.intoArray(getArray(), getArrayOffset(offset));
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
-    public void intoTensor(ByteVector vector, int offset, VectorMask<Byte> msk) {
+    public void intoTensor(ByteVector vector, VectorMask<Byte> msk, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
-        offset = getOffset(offset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
+        int offset = getOffset(aoffset);
+        if (!requiresOffHeapTensor)
             vector.intoArray(getArray(), getArrayOffset(offset), msk);
         else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN, msk);
     }

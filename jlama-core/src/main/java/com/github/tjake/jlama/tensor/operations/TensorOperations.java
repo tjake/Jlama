@@ -17,10 +17,15 @@ package com.github.tjake.jlama.tensor.operations;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.TensorCache;
+import com.github.tjake.jlama.tensor.TensorShape;
+
 import com.google.common.base.Preconditions;
 
 public interface TensorOperations {
+    ThreadLocal<FloatBufferTensor> scratch = ThreadLocal.withInitial(() -> new FloatBufferTensor(TensorShape.one));
+
     String name();
 
     boolean requiresOffHeapTensor();
@@ -33,21 +38,27 @@ public interface TensorOperations {
         return dotProduct(a, b, 0, 0, limit);
     }
 
-    float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit);
+    default float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
+        FloatBufferTensor r = scratch.get();
+        batchDotProduct(r, a, b, aoffset, boffset, limit);
+        return r.get(0, 0);
+    }
+
+    default void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLimit) {
+        batchDotProduct(result, a, b, aColumnOffset, bColumnOffset, columnLimit, 0, b.shape().first());
+    }
+
+    void batchDotProduct(AbstractTensor result, AbstractTensor a, AbstractTensor b, int aColumnOffset, int bColumnOffset, int columnLimit, int bRowOffset, int rowChunkSize);
 
     default void dotProductChunk(
             AbstractTensor result,
             AbstractTensor a,
             AbstractTensor b,
-            int offset,
-            int limit,
-            int chunkStart,
-            int chunkSize) {
-        Preconditions.checkArgument(b.dims() == 2);
-        for (int i = chunkStart; i < chunkStart + chunkSize; i++) {
-            float d = dotProduct(a, b.slice(i), offset, offset, limit);
-            result.set(d, i);
-        }
+            int columnOffset,
+            int columnLimit,
+            int rowOffset,
+            int rowChunkSize) {
+        batchDotProduct(result, a, b, columnOffset, columnOffset, columnLimit, rowOffset, rowChunkSize);
     }
 
     default void dotProductBatchChunk(
@@ -75,9 +86,21 @@ public interface TensorOperations {
     void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length);
 
     /**
-     * The value computed is (alpha * X[i]) + Y[i]
+     * The value computed is Y[i] = (alpha * X[i]) + Y[i]
      */
     void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit);
+
+    /**
+     * The value computed is Y[i] = (alpha[j] * X[j, i]) + Y[i]
+     */
+    default void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+        Preconditions.checkArgument(alpha.shape().first() == x.shape().first());
+
+        for (int i = 0; i < batchSize; i++) {
+            saxpy(alpha.get(i), x.slice(i), y, xoffset, yoffset, limit);
+        }
+    }
+
 
     /**
      * The value computed is Y[i] = X[i] + (beta * Y[i])
@@ -102,9 +125,9 @@ public interface TensorOperations {
      * Collects the total sum of each position in the tensor.  (For testing purposes)
      */
     default float sum(AbstractTensor a) {
-        Preconditions.checkArgument(a.dims() == 1);
         float sum = 0f;
-        for (int i = 0; i < a.size(); i++) sum += a.get(i);
+        int[] cursor = new int[a.dims()];
+        while (a.iterate(cursor)) sum += a.get(cursor);
         return sum;
     }
 }

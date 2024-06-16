@@ -38,41 +38,45 @@ public class VectorMath {
     public static void pchunk(int offset, int length, BiIntConsumer action) {
         int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
         int chunkSize = length / splits;
+        int remainder = 0;
 
         // Non optimal case, just run in parallel
-        if (splits == 1 || splits % length != 0) {
+        if (splits == 1) {
             splits = length;
             chunkSize = 1;
+        } else if (length % chunkSize != 0) {
+            remainder = length % chunkSize;
         }
 
         int fsplits = splits;
         int fchunkSize = chunkSize;
+        int fremainder = remainder;
 
         PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(0, fsplits)
                 .parallel()
-                .forEach(i -> action.accept(offset + (i * fchunkSize), fchunkSize)));
+                .forEach(i -> action.accept(offset + (i * fchunkSize), fremainder > 0 ? fchunkSize + fremainder : fchunkSize)));
+        
     }
 
-    public static void softMax(FloatBufferTensor x) {
-        int offset = 0;
-        long size = x.size();
+    public static void softMax(AbstractTensor x, int offset, int length) {
+        long size = offset + length;
 
         // find max value (for numerical stability)
-        float max_val = x.get(offset);
+        float max_val = x.get(0, offset);
         for (int i = offset + 1; i < size; i++) {
-            if (x.get(i) > max_val) {
-                max_val = x.get(i);
+            if (x.get(0, i) > max_val) {
+                max_val = x.get(0, i);
             }
         }
         // exp and sum
         float sum = 0.0f;
         for (int i = offset; i < size; i++) {
-            x.set((float) StrictMath.exp(x.get(i) - max_val), i);
-            sum += x.get(i);
+            x.set((float) StrictMath.exp(x.get(0, i) - max_val), 0, i);
+            sum += x.get(0, i);
         }
         // normalize
         for (int i = 0; i < size; i++) {
-            x.set(x.get(i) / sum, i);
+            x.set(x.get(0, i) / sum, 0, i);
         }
     }
 

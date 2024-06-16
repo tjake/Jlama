@@ -29,12 +29,9 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 import io.grpc.Channel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.ManagedChannel;import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-import java.io.File;
-import java.io.IOError;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
@@ -52,7 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 
-public class Worker {
+public class Worker implements Closeable  {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(Worker.class);
     private final UUID workerId;
     private final ByteString workerIdBytes;
@@ -97,6 +94,11 @@ public class Worker {
                 modelQuantization,
                 Optional.empty(),
                 Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength())));
+    }
+
+    @Override
+    public void close() {
+        ((ManagedChannel)client.getChannel()).shutdown();
     }
 
     class CombineObserver implements StreamObserver<CombineResponse> {
@@ -169,8 +171,8 @@ public class Worker {
             // FIXME: Max size should be configurable
             int[] rawShape = new int[] {
                 model.getConfig().getNumberOfLayers(),
-                Math.min(2048, model.getConfig().contextLength),
                 2,
+                Math.min(256, model.getConfig().contextLength),
                 model.getConfig().kvLength
             };
 
@@ -218,7 +220,7 @@ public class Worker {
         }
 
         private ByteString getTensorBytes(AbstractTensor tensor) {
-            Preconditions.checkArgument(tensor.dims() == 1 && tensor.dType() == DType.F32);
+            Preconditions.checkArgument(tensor.dims() == 2 && tensor.dType() == DType.F32);
             return TensorOperationsProvider.get().requiresOffHeapTensor()
                     ? UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer())
                     : UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().toArray(ValueLayout.JAVA_BYTE));

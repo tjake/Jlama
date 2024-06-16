@@ -53,61 +53,70 @@ public class DistributedServiceTest {
 
         Coordinator coordinator =
                 new Coordinator(modelPath.toFile(), com.google.common.io.Files.createTempDir(), 8888, 1);
-        new Thread(() -> {
-                    try {
-                        coordinator.start();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                })
-                .start();
+        try {
+            new Thread(() -> {
+                        try {
+                            coordinator.start();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .start();
 
-        startWorker(modelPath);
+            startWorker(modelPath);
 
-        coordinator.generate(
-                UUID.randomUUID(),
-                "Simply put, the theory of relativity states that",
-                null,
-                0.7f,
-                256,
-                false,
-                makeOutHandler());
+            coordinator.generate(
+                    UUID.randomUUID(),
+                    "Simply put, the theory of relativity states that",
+                    null,
+                    0.7f,
+                    256,
+                    false,
+                    makeOutHandler());
+
+        } finally {
+            coordinator.stop();
+        }
     }
 
     @Test
     void manyWorkerTestLLama() throws Exception {
-        Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
-        // Path modelRoot = Paths.get("../models/Mistral-7B-v0.1-jlama-Q4");
+        //Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
+        Path modelRoot = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelRoot));
 
         Coordinator coordinator = new Coordinator(modelRoot.toFile(), null, 8888, 4);
-        new Thread(() -> {
-                    try {
-                        coordinator.start();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                })
-                .start();
+        try {
+            new Thread(() -> {
+                        try {
+                            coordinator.start();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .start();
 
-        startWorker(modelRoot);
-        startWorker(modelRoot);
-        startWorker(modelRoot);
-        startWorker(modelRoot);
+            startWorker(modelRoot);
+            startWorker(modelRoot);
+            startWorker(modelRoot);
+            startWorker(modelRoot);
 
-        // startWorker(modelRoot);
-        // startWorker(modelRoot);
-        // startWorker(modelRoot);
-        // startWorker(modelRoot);
+            // startWorker(modelRoot);
+            // startWorker(modelRoot);
+            // startWorker(modelRoot);
+            // startWorker(modelRoot);
 
-        coordinator.generate(
-                UUID.randomUUID(),
-                "Simply put, the theory of relativity states that",
-                null,
-                0.7f,
-                256,
-                false,
-                makeOutHandler());
+            coordinator.generate(
+                    UUID.randomUUID(),
+                    "Simply put, the theory of relativity states that",
+                    null,
+                    0.7f,
+                    256,
+                    false,
+                    makeOutHandler());
+        } finally {
+            coordinator.stop();
+        }
     }
 
     private void startWorker(Path modelRoot) throws Exception {
@@ -118,6 +127,8 @@ public class DistributedServiceTest {
                         worker.run();
                     } catch (Exception e) {
                         e.printStackTrace();
+                    } finally{
+                        worker.close();
                     }
                 })
                 .start();

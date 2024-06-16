@@ -25,7 +25,13 @@ import java.util.Optional;
  *
  */
 public class TensorShape {
+    public static TensorShape one = of(1, 1);
+
     public static TensorShape of(int... shape) {
+        //Special case for vectors
+        if (shape.length == 1)
+            shape = new int[]{1, shape[0]};
+
         return new TensorShape(shape, Optional.empty());
     }
 
@@ -41,6 +47,8 @@ public class TensorShape {
     private final int sparseLength;
 
     private TensorShape(int[] shape, Optional<Pair<Integer, Integer>> sparseRange) {
+        Preconditions.checkArgument(shape.length > 1, "Shape must have at least two dimensions, even if first is 1 (to represent a vector)");
+
         this.tshape = shape;
         this.sparseRange = sparseRange;
         this.isSparse = sparseRange.isPresent();
@@ -67,12 +75,44 @@ public class TensorShape {
         return tshape[i];
     }
 
+    public final int getOffset(int... pdims)
+    {
+        //Preconditions.checkArgument(pdims.length == dims(), "Method requires all dimensions specified");
+        switch (pdims.length)
+        {
+            case 1:
+                return sparseLength * pdims[0] - sparseOffset;
+            case 2:
+                return sparseLength * pdims[0] + pdims[1] - sparseOffset;  //Most common case
+            case 3:
+                return (sparseLength * tshape[1] * pdims[0]) + (sparseLength * pdims[1]) + pdims[2] - sparseOffset;
+            default:
+                int totalOffset = 0;
+                for (int d = 0; d < pdims.length - 1; ++d)
+                { // Stop before last dimension
+                    int offset = sparseLength;
+                    for (int i = tshape.length - 2; i > d; --i)
+                    { // factor scaling of each dim shape
+                        offset *= tshape[i];
+                    }
+
+                    totalOffset += pdims[d] * offset;
+                }
+
+                return totalOffset + pdims[pdims.length - 1] - sparseOffset;
+        }
+    }
+
     public int sparseLength() {
         return sparseLength;
     }
 
+    public int sparseOffset() {
+        return sparseOffset;
+    }
+
     public int sparseAdjustment(int offset) {
-        Preconditions.checkArgument(sparseOffset <= offset, "Offset is outside of sparse range");
+        //Preconditions.checkArgument(sparseOffset <= offset, "Offset is outside of sparse range");
         return offset - sparseOffset;
     }
 
@@ -111,6 +151,10 @@ public class TensorShape {
 
     public TensorShape slice(int numDims) {
         Preconditions.checkArgument(numDims < tshape.length, "Too many dimensions specified for tensor");
+        int newLength = tshape.length - numDims;
+        if (newLength == 1)
+            return new TensorShape(new int[]{1, tshape[tshape.length - 1]}, sparseRange);
+
         return new TensorShape(Arrays.copyOfRange(tshape, numDims, tshape.length), sparseRange);
     }
 

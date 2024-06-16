@@ -39,26 +39,31 @@ public class RMSNorm extends LayerNorm {
             int offset,
             int length,
             Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
-        Preconditions.checkArgument(input.shape().dims() == 1);
-        int limit = offset + length;
-        float ss = 0.0f;
-        for (int j = offset; j < limit; j++) {
-            float v = input.get(j);
-            ss += v * v;
-        }
 
-        if (reducer.isPresent()) {
-            Pair<Float, Float> p = reducer.get().apply(ss, 0f);
-            ss = p.left;
-        }
-
-        ss /= m.c.embeddingLength;
-        ss += m.c.layerNormEps;
-        ss = (float) (1.0 / StrictMath.sqrt(ss));
-        // normalize and scale
+        int batchSize = input.shape().first();
         AbstractTensor output = input.copyShape();
-        for (int j = offset; j < limit; j++) {
-            output.set((weightAdjustment + weights.get(j)) * (ss * input.get(j)), j);
+
+        int limit = offset + length;
+        for (int b = 0; b < batchSize; b++) {
+            float ss = 0.0f;
+            for (int j = offset; j < limit; j++) {
+                float v = input.get(b, j);
+                ss += v * v;
+            }
+
+            if (reducer.isPresent())
+            {
+                Pair<Float, Float> p = reducer.get().apply(ss, 0f);
+                ss = p.left;
+            }
+
+            ss /= m.c.embeddingLength;
+            ss += m.c.layerNormEps;
+            ss = (float) (1.0 / StrictMath.sqrt(ss));
+            // normalize and scale
+            for (int j = offset; j < limit; j++) {
+                output.set((weightAdjustment + weights.get(0, j)) * (ss * input.get(b, j)), b, j);
+            }
         }
         return output;
     }
