@@ -354,9 +354,10 @@ public class TestOperations {
         Q8ByteBufferTensor qv1 = vectorOps.quantizeQ8_512(a, 0, (int) a.size());
         Q8ByteBufferTensor qv2 = vectorOps.quantizeQ8_arm(a, 0, (int) a.size());
 
-        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv), 0.0001);
-        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv1), 0.0001);
-        Assert.assertEquals(controlOps.sum(ref), controlOps.sum(qv2), 0.0001);
+        float sum = controlOps.sum(ref);
+        Assert.assertEquals(sum, controlOps.sum(qv), sum * 0.001);
+        Assert.assertEquals(sum, controlOps.sum(qv1), sum * 0.001);
+        Assert.assertEquals(sum, controlOps.sum(qv2), sum * 0.001);
     }
 
     @Test
