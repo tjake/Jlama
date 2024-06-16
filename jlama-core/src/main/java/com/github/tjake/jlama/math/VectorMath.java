@@ -54,7 +54,7 @@ public class VectorMath {
         PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(0, fsplits)
                 .parallel()
                 .forEach(i -> action.accept(
-                        offset + (i * fchunkSize), fremainder > 0 ? fchunkSize + fremainder : fchunkSize)));
+                        offset + (i * fchunkSize), fremainder > 0 && i == fsplits - 1 ? fchunkSize + fremainder : fchunkSize)));
     }
 
     public static void softMax(AbstractTensor x, int offset, int length) {

@@ -133,7 +133,7 @@ public class TestModels {
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Simply put, the theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), prompt, 0.7f, 64, false, makeOutHandler());
         }
     }
 

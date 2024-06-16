@@ -68,8 +68,13 @@ public class KvBufferCache {
         } else {
             s = TensorShape.of(rawShape);
         }
-        Preconditions.checkArgument(model.getConfig().workingDirectory().isPresent());
 
+        // If we don't have a working directory, just use a FloatBufferTensor
+        if (model.getConfig().workingDirectory().isEmpty()) {
+            return Pair.create(null, new FloatBufferTensor(s));
+        }
+
+        // Otherwise, create a file-backed tensor
         try {
             RandomAccessFile raf = new RandomAccessFile(
                     Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString())
