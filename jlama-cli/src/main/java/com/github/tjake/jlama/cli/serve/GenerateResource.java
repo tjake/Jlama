@@ -17,16 +17,20 @@ package com.github.tjake.jlama.cli.serve;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.model.functions.Generator;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
-import javax.validation.constraints.NotNull;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Path("/generate")
 @Consumes(MediaType.APPLICATION_JSON)

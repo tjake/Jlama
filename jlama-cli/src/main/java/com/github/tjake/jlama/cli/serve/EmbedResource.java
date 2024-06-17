@@ -15,10 +15,8 @@
  */
 package com.github.tjake.jlama.cli.serve;
 
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 
 @Path("/embed")
 @Produces(MediaType.APPLICATION_JSON)

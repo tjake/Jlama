@@ -13,7 +13,7 @@
   <name>Jlama Cli</name>
 
   <properties>
-    <resteasy.version>3.15.6.Final</resteasy.version>
+    <resteasy.version>6.2.7.Final</resteasy.version>
   </properties>
 
   <dependencies>
@@ -28,9 +28,9 @@
       <version>0.10.0</version>
     </dependency>
     <dependency>
-      <groupId>org.jboss.resteasy</groupId>
-      <artifactId>resteasy-jaxrs</artifactId>
-      <version>${resteasy.version}</version>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
+      <version>3.1.0</version>
     </dependency>
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
@@ -52,14 +52,30 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>io.swagger</groupId>
+      <artifactId>swagger-annotations</artifactId>
+      <version>1.6.13</version>
+    </dependency>
+    <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-undertow</artifactId>
       <version>${resteasy.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>32.0.1-jre</version>
+    </dependency>
+    <dependency>
       <groupId>me.dinowernli</groupId>
       <artifactId>java-grpc-prometheus</artifactId>
       <version>0.6.0</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>guava</artifactId>
+          <groupId>com.google.guava</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.github.tjake</groupId>
@@ -76,6 +92,12 @@
       <groupId>com.github.tjake</groupId>
       <artifactId>jlama-net</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>guava</artifactId>
+          <groupId>com.google.guava</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
   <build>
