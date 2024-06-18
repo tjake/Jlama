@@ -36,7 +36,7 @@ public abstract class BPETokenizer implements Tokenizer {
 
     protected BPETokenizer(Path modelRoot) {
         Preconditions.checkArgument(
-                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.jsom found in " + modelRoot);
+                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.json found in " + modelRoot);
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);

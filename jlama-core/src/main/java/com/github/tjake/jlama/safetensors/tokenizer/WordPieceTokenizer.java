@@ -42,7 +42,7 @@ public class WordPieceTokenizer implements Tokenizer {
 
     public WordPieceTokenizer(Path modelRoot) {
         Preconditions.checkArgument(
-                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.jsom found in " + modelRoot);
+                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.json found in " + modelRoot);
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);
