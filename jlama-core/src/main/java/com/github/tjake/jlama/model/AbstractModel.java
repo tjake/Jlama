@@ -104,6 +104,11 @@ public abstract class AbstractModel implements Generator {
         this.modelQType = modelQType;
         this.kvBufferCache = new KvBufferCache(this);
 
+        // FIXME: This is a hack to support Avoid Q8F32 evals
+        if (modelDType == DType.F32 && workingMemoryQType != DType.F32) {
+            workingMemoryQType = DType.F32;
+        }
+
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;
             AbstractTensor tmp = makeTensor(Q8ByteBufferTensor.BLOCK_SIZE);
@@ -275,7 +280,7 @@ public abstract class AbstractModel implements Generator {
         Integer startPos = (Integer) kvmem.getMetadata(KvBufferCache.TOKEN_COUNT); // Number of tokens in the buffer
         if (startPos == null) startPos = 0;
 
-        logger.info("Starting at token {} for session {}", startPos, sessionId);
+        logger.debug("Starting at token {} for session {}", startPos, sessionId);
 
         if (ntokens > c.contextLength) ntokens = c.contextLength;
 
@@ -293,8 +298,6 @@ public abstract class AbstractModel implements Generator {
                 promptLength++;
             }
 
-            String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
-            onTokenWithTimings.accept(clientPrompt, 0f);
             long start = System.currentTimeMillis();
             // Batch Process Prompt
             AbstractTensor last = batchForward(promptTokens, startPos, kvmem);
@@ -327,8 +330,10 @@ public abstract class AbstractModel implements Generator {
 
                 if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
                 output.close();
+
                 // Model may tell us it's done
                 if (next == c.eosToken) break;
+
                 kvmem.setMetadata(KvBufferCache.TOKEN_COUNT, i);
 
                 try {

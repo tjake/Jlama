@@ -17,18 +17,42 @@ package com.github.tjake.jlama.cli.commands;
 
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
+import com.diogonunes.jcolor.AnsiFormat;
+import com.diogonunes.jcolor.Attribute;
 import com.github.tjake.jlama.model.AbstractModel;
+
+import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.util.Optional;
+import java.util.Scanner;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+
 import picocli.CommandLine.*;
 
 @Command(name = "chat", description = "Interact with the specified model")
-public class ChatCommand extends ModelBaseCommand {
+public class ChatCommand extends BaseCommand {
+    private static final AnsiFormat chatText = new AnsiFormat(Attribute.CYAN_TEXT());
+    private static final AnsiFormat statsColor = new AnsiFormat(Attribute.BLUE_TEXT());
+
     @Option(
             names = {"-s", "--system-prompt"},
             description = "Change the default system prompt for this model")
-    String systemPrompt =
-            "You are a happy demo app of a project called jlama.  You answer any question then add \"Jlama is awesome!\" after.";
+    String systemPrompt = null;
+
+    @Option(
+            names = {"-t", "--temperature"},
+            description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})",
+            defaultValue = "0.6")
+    protected Float temperature;
+
+    @Option(
+            names = {"--top-p"},
+            description =
+                    "Controls how many different words the model considers per token [0,1] (default: ${DEFAULT-VALUE})",
+            defaultValue = ".9")
+    protected Float topp;
 
     @Override
     public void run() {
@@ -40,13 +64,50 @@ public class ChatCommand extends ModelBaseCommand {
                 Optional.ofNullable(modelQuantization),
                 Optional.ofNullable(threadCount));
 
-        m.generate(
-                UUID.randomUUID(),
-                m.wrapPrompt(prompt, Optional.of(systemPrompt)),
-                prompt,
-                temperature,
-                tokens,
-                true,
-                makeOutHandler());
+        UUID session = UUID.randomUUID();
+        PrintWriter out = System.console().writer();
+
+        out.println("Chatting with " + model + "...\n\n");
+        out.flush();
+        Scanner sc = new Scanner(System.in);
+        boolean first = true;
+        while (true) {
+            out.print("You: ");
+            out.flush();
+            String prompt = sc.nextLine();
+            out.println();
+            out.flush();
+            if (prompt.isEmpty()) {
+                break;
+            }
+            String wrappedPrompt = m.wrapPrompt(prompt, first ? Optional.ofNullable(systemPrompt) : Optional.empty());
+            m.generate(
+                    session,
+                    wrappedPrompt,
+                    prompt,
+                    temperature,
+                    Integer.MAX_VALUE,
+                    true,
+                    makeOutHandler());
+
+            first = false;
+        }
     }
+
+    protected BiConsumer<String, Float> makeOutHandler()
+    {
+        PrintWriter out;
+        BiConsumer<String, Float> outCallback;
+
+        out = System.console().writer();
+        out.print(chatText.format("Jlama: "));
+        out.flush();
+        outCallback = (w, t) -> {
+            out.print(chatText.format(w));
+            out.flush();
+        };
+
+        return outCallback;
+    }
+
 }
