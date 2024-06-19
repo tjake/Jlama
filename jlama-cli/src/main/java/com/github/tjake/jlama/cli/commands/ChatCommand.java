@@ -54,6 +54,16 @@ public class ChatCommand extends BaseCommand {
             defaultValue = ".9")
     protected Float topp;
 
+    @Option(
+            names = {"--override-prompt-start"},
+            description = "Override of prompt instruction format before the prompt (example: [INST] )")
+    protected String promptStart;
+
+    @Option(
+            names = {"--override-prompt-end"},
+            description = "Override of prompt instruction format after the prompt (example: [/INST] )")
+    protected String promptEnd;
+
     @Override
     public void run() {
         AbstractModel m = loadModel(
@@ -67,12 +77,12 @@ public class ChatCommand extends BaseCommand {
         UUID session = UUID.randomUUID();
         PrintWriter out = System.console().writer();
 
-        out.println("Chatting with " + model + "...\n\n");
+        out.println("Chatting with " + model + "...\n");
         out.flush();
         Scanner sc = new Scanner(System.in);
         boolean first = true;
         while (true) {
-            out.print("You: ");
+            out.print("\nYou: ");
             out.flush();
             String prompt = sc.nextLine();
             out.println();
@@ -80,7 +90,8 @@ public class ChatCommand extends BaseCommand {
             if (prompt.isEmpty()) {
                 break;
             }
-            String wrappedPrompt = m.wrapPrompt(prompt, first ? Optional.ofNullable(systemPrompt) : Optional.empty());
+
+            String wrappedPrompt = wrap(m, prompt, first ? Optional.ofNullable(systemPrompt) : Optional.empty());
             m.generate(
                     session,
                     wrappedPrompt,
@@ -108,6 +119,14 @@ public class ChatCommand extends BaseCommand {
         };
 
         return outCallback;
+    }
+
+    protected String wrap(AbstractModel model, String prompt, Optional<String> systemPrompt) {
+        if (promptStart == null && promptEnd == null) {
+            return model.wrapPrompt(prompt, systemPrompt);
+        }
+
+        return promptStart + prompt + promptEnd;
     }
 
 }

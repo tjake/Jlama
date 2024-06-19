@@ -26,7 +26,11 @@ import com.github.tjake.jlama.safetensors.Weights;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
+
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 public class BertModel extends AbstractModel {
 
@@ -37,7 +41,7 @@ public class BertModel extends AbstractModel {
             DType workingDType,
             DType workingQType,
             Optional<DType> modelQType) {
-        super(InferenceType.FULL_GENERATION, c, w, tokenizer, workingDType, workingQType, modelQType);
+        super(InferenceType.FORWARD_PASS, c, w, tokenizer, workingDType, workingQType, modelQType);
     }
 
     public BertModel(
@@ -65,7 +69,7 @@ public class BertModel extends AbstractModel {
 
             for (int i = 0; i < c.embeddingLength; i++) {
                 float v = we.get(inputToken, i) + wte.get(0, i) + wpe.get(position, i);
-                embedding.set(v, i);
+                embedding.set(v, 0, i);
             }
 
             AbstractTensor lnemb = inputLayerNorm.forward(embedding);
@@ -124,29 +128,26 @@ public class BertModel extends AbstractModel {
     }
 
     public float[] embed(String input) {
-        long[] encoded = tokenizer.encode(input);
+        int[] encoded = Arrays.stream(tokenizer.encode(input)).mapToInt(Ints::checkedCast).toArray();
         Preconditions.checkArgument(encoded.length < c.contextLength);
-
-        AbstractTensor kvmem =
-                makeTensor(c.getNumberOfLayers(), encoded.length, 2, c.embeddingLength); // 2 for key and value
-
-        int promptLength = encoded.length;
-        float avgp = 1.0f / promptLength;
-
         float[] outputEmbedding = new float[c.embeddingLength];
 
-        for (int i = 0; i < promptLength; i++) {
-            int next = (int) encoded[i];
-            AbstractTensor output = forward(next, i, kvmem);
+        try (AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), 2, encoded.length, c.embeddingLength)) { // 2 for key and value
 
-            // Average Pooling
-            for (int ii = 0; ii < c.embeddingLength; ii++) outputEmbedding[ii] += output.get(ii) * avgp;
+            int promptLength = encoded.length;
+            float avgp = 1.0f / promptLength;
 
-            output.close();
+            AbstractTensor r = batchForward(encoded, 0, kvmem);
+            for (int i = 0; i < promptLength; i++) {
+                AbstractTensor output = r.slice(i);
+
+                // Average Pooling
+                for (int ii = 0; ii < c.embeddingLength; ii++)
+                    outputEmbedding[ii] += output.get(0, ii) * avgp;
+            }
+            r.close();
+            VectorMath.l2normalize(outputEmbedding);
         }
-
-        VectorMath.l2normalize(outputEmbedding);
-        kvmem.close();
         return outputEmbedding;
     }
 }

@@ -105,7 +105,7 @@ public abstract class AbstractModel implements Generator {
         this.kvBufferCache = new KvBufferCache(this);
 
         // FIXME: This is a hack to support Avoid Q8F32 evals
-        if (modelDType == DType.F32 && workingMemoryQType != DType.F32) {
+        if (modelDType == DType.F32 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.F32;
         }
 

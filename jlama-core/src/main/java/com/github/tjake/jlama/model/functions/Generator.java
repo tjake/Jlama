@@ -19,6 +19,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
+/**
+ * Used to define a function that generates tokens from a prompt
+ */
 public interface Generator {
     default void generate(
             UUID session,

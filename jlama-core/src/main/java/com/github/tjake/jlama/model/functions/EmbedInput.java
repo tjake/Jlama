@@ -21,6 +21,9 @@ import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.google.common.base.Preconditions;
 
+/**
+ * Used to define a function that maps input tokens to embeddings
+ */
 public interface EmbedInput {
     AbstractTensor inputTokenToEmbedding(int inputToken, int position);
 

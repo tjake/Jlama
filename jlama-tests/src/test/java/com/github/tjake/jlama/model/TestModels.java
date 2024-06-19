@@ -227,7 +227,7 @@ public class TestModels {
 
     @Test
     public void BertRun() throws Exception {
-        String modelPrefix = "models/e5-small-v2";
+        String modelPrefix = "../models/e5-small-v2";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         try (RandomAccessFile sc = new RandomAccessFile(modelPrefix + "/model.safetensors", "r")) {
