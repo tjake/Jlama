@@ -27,6 +27,7 @@ import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.TensorInfo;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
@@ -192,6 +193,11 @@ public class JlamaServiceTest {
         @Override
         public String decode(long[] ids) {
             return "null";
+        }
+
+        @Override
+        public Optional<PromptSupport> promptSupport() {
+            return Optional.empty();
         }
     }
 

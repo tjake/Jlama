@@ -23,6 +23,7 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.WordPieceTokenizer;
 import com.google.common.io.Resources;
@@ -60,7 +61,7 @@ public class TestCorrectness {
 
     @Test
     public void TestLLamaTokenizer() throws IOException {
-        String modelPrefix = "../models/Llama-2-7b-chat-hf";
+        String modelPrefix = "../models/Llama-2-7b-chat-hf-2";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
@@ -282,5 +283,63 @@ public class TestCorrectness {
 
         Assert.assertArrayEquals(expected, actual);
         Assert.assertEquals(p, d);
+    }
+
+    @Test
+    public void testPromptSupport() {
+        String modelPrefix = "../models/zephyr-7b-beta";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().newBuilder();
+        builder.addSystemMessage("You are a friendly chatbot who always responds in the style of a pirate");
+        builder.addUserMessage("How many helicopters can a human eat in one sitting?");
+
+        String prompt = builder.build();
+        Assert.assertEquals(
+                "<|system|>\nYou are a friendly chatbot who always responds in the style of a pirate</s>\n<|user|>\nHow many helicopters can a human eat in one sitting?</s>\n<|assistant|>\n",
+                prompt);
+
+        long[] encoded = tokenizer.encode(prompt);
+        long[] expected = new long[]{523, 28766,  6574, 28766, 28767,    13,  1976,   460,   264, 10131,
+                10706, 10093,   693,  1743,  2603,  3673,   297,   272,  3238,   302,
+                264, 17368,   380,     2, 28705,    13, 28789, 28766,  1838, 28766,
+                28767,    13,  5660,  1287, 19624,   410,  1532,   541,   264,  2930,
+                5310,   297,   624,  6398, 28804,     2, 28705,    13, 28789, 28766,
+                489, 11143, 28766, 28767,    13};
+
+        String out = tokenizer.decode(encoded);
+        Assert.assertEquals(prompt, out);
+        Assert.assertArrayEquals(expected, encoded);
+    }
+
+
+    @Test
+    public void testPromptSupport2() {
+        String modelPrefix = "../models/Meta-Llama-3-8B-Instruct-jlama-Q4";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().newBuilder();
+        builder.addSystemMessage("You are a friendly chatbot who always responds in the style of a pirate.");
+        builder.addUserMessage("How many helicopters can a human eat in one sitting?");
+
+        String prompt = builder.build();
+        Assert.assertEquals(
+                "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+                        + "You are a friendly chatbot who always responds in the style of a pirate.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
+                        + "How many helicopters can a human eat in one sitting?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+                prompt);
+
+        long[] encoded = tokenizer.encode(prompt);
+        long[] expected = new long[]{128000, 128006,   9125, 128007,    271,   2675,    527,    264,  11919,
+                6369,   6465,    889,   2744,  31680,    304,    279,   1742,    315,
+                264,  55066, 128009, 128006,    882, 128007,    271,   4438,   1690,
+                59432,    649,    264,   3823,   8343,    304,    832,  11961,     30,
+                128009, 128006,  78191, 128007,    271};
+
+        String out = tokenizer.decode(encoded);
+        Assert.assertEquals(prompt, out);
+        Assert.assertArrayEquals(expected, encoded);
     }
 }

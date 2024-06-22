@@ -22,6 +22,7 @@ import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
@@ -150,8 +151,8 @@ public abstract class AbstractModel implements Generator {
         return tokenizer;
     }
 
-    public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
-        return prompt;
+    public Optional<PromptSupport> promptSupport() {
+        return tokenizer.promptSupport();
     }
 
     public AbstractTensor makeTensor(int... shape) {
@@ -268,12 +269,12 @@ public abstract class AbstractModel implements Generator {
     public void generate(
             UUID sessionId,
             String prompt,
-            String cleanPrompt,
             float temperature,
             int ntokens,
             boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
+        System.out.println("COPY: " + tokenizer.decode(encoded));
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
         AbstractTensor kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window
@@ -285,12 +286,9 @@ public abstract class AbstractModel implements Generator {
         if (ntokens > c.contextLength) ntokens = c.contextLength;
 
         try (AbstractTensor logits = makeTensor(c.vocabularySize)) {
-
             int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
-
             promptTokens[0] = c.bosToken;
             for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
-
             int promptLength = encoded.length;
 
             if (useEOS) {
@@ -322,7 +320,7 @@ public abstract class AbstractModel implements Generator {
             }
 
             start = System.currentTimeMillis();
-            for (int i = startPos + promptTokens.length - 1; i < ntokens; i++) {
+            for (int i = startPos + promptTokens.length; i < ntokens; i++) {
                 AbstractTensor output = forward(next, i, kvmem);
                 tokensGenerated++;
 

@@ -23,6 +23,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableBiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +36,24 @@ import org.slf4j.LoggerFactory;
 public abstract class BPETokenizer implements Tokenizer {
     protected static final Logger logger = LoggerFactory.getLogger(BPETokenizer.class);
     protected final TokenizerModel model;
+    protected final PromptSupport promptSupport;
     protected final ByteBuffer decodeBuffer = ByteBuffer.allocate(4);
+
+    public static BiMap<Integer, Integer> alteredBytes; // Codepoint and Token mapping needed for legacy mode
+
+    static {
+        // https://github.com/openai/gpt-2/blob/master/src/encoder.py#L19
+        BiMap<Integer, Integer> tmpAlteredBytes = HashBiMap.create();
+        int i = 0;
+        for (int c = 0; c < 256; c++) {
+            if ((c < '!' || c > '~') && (c < '¡' || c > '¬') && (c < '®' || c > 'ÿ')) {
+                int codepoint = (i++ + 256);
+                tmpAlteredBytes.put(c, codepoint);
+            }
+        }
+
+        alteredBytes = ImmutableBiMap.copyOf(tmpAlteredBytes);
+    }
 
     protected BPETokenizer(Path modelRoot) {
         Preconditions.checkArgument(
@@ -40,6 +61,7 @@ public abstract class BPETokenizer implements Tokenizer {
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);
+            this.promptSupport = new PromptSupport(model);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -50,9 +72,31 @@ public abstract class BPETokenizer implements Tokenizer {
 
         if (sentence.isEmpty()) return Collections.emptyList();
 
-        if (model.preTokenizer() != null) return model.preTokenizer().pretokenize(sentence);
+        if (model.preTokenizer() == null && model.addedTokenPattern() == null)
+            Collections.singletonList(sentence);
 
-        return Collections.singletonList(sentence);
+        List<String> sentencePieces = new ArrayList<>();
+        if (model.addedTokenPattern() != null) {
+            // Split the sentence into pieces using the added token pattern
+            // Any non-added token is split into pieces using the pre-tokenizer
+            String[] pieces = model.addedTokenPattern().splitWithDelimiters(sentence, 0);
+            for (String piece : pieces) {
+                if (!piece.isEmpty()) {
+                    if (model.addedTokens().containsKey(piece))
+                        sentencePieces.add(piece);
+                    else if (model.preTokenizer() != null)
+                        sentencePieces.addAll(model.preTokenizer().pretokenize(piece));
+                    else
+                        sentencePieces.add(piece);
+                }
+            }
+        } else if (model.preTokenizer() != null){
+            sentencePieces.addAll(model.preTokenizer().pretokenize(sentence));
+        } else {
+            sentencePieces.add(sentence);
+        }
+
+        return sentencePieces;
     }
 
     protected String preProcess(String sentence) {
@@ -66,6 +110,10 @@ public abstract class BPETokenizer implements Tokenizer {
         List<Long> allTokens = new ArrayList<>();
 
         for (String sentence : sentencePieces) {
+            if (model.addedTokens() != null && model.addedTokens().containsKey(sentence)) {
+                allTokens.add(model.addedTokens().get(sentence));
+                continue;
+            }
             List<Long> tokens = new ArrayList<>();
             sentence = preProcess(sentence);
             int[] codes = sentence.codePoints().toArray();
@@ -94,32 +142,39 @@ public abstract class BPETokenizer implements Tokenizer {
                 }
             }
 
-            // merge the best consecutive pair each iteration
-            while (true) {
-                long bestId = -1;
-                long bestIdx = -1;
+            // merge the best consecutive tuple each iteration,
+            for (int n = 1; n <= 3; n++) {
+                while (true) {
+                    long bestId = -1;
+                    long bestIdx = -1;
 
-                for (int i = 0; i < tokens.size() - 1; i++) {
-                    // check if we can merge the pair (tokens[i], tokens[i+1])
-                    String merge =
-                            String.format("%s%s", decodeInternal(tokens.get(i)), decodeInternal(tokens.get(i + 1)));
-                    Long id = model.vocabLookup.get(merge);
-                    if (id != null) {
-                        // this merge pair exists in vocab! record its position
-                        bestId = id;
-                        bestIdx = i;
-                        break;
+                    for (int i = 0; i < tokens.size() - n; i++) {
+                        // check if we can merge the pair (tokens[i], tokens[i+1])
+
+                        String merge = "";
+                        for (int j = 0; j <= n; j++) {
+                            merge = String.format("%s%s", merge, decodeInternal(tokens.get(i + j)));
+                        }
+
+                        Long id = model.vocabLookup.get(merge);
+                        if (id != null) {
+                            // this merge pair exists in vocab! record its position
+                            bestId = id;
+                            bestIdx = i;
+                            break;
+                        }
                     }
-                }
 
-                if (bestIdx == -1) {
-                    break; // we couldn't find any more pairs to merge, so we're done
-                }
+                    if (bestIdx == -1) {
+                        break; // we couldn't find any more pairs to merge, so we're done
+                    }
 
-                // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
-                tokens.set((int) bestIdx, bestId);
-                // delete token at position best_idx+1, shift the entire sequence back 1
-                tokens.remove((int) bestIdx + 1);
+                    // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
+                    tokens.set((int) bestIdx, bestId);
+                    // delete token at position best_idx+1, shift the entire sequence back 1
+                    for (int j = n; j > 0; j--)
+                        tokens.remove((int) bestIdx + j);
+                }
             }
 
             allTokens.addAll(tokens);
@@ -177,5 +232,10 @@ public abstract class BPETokenizer implements Tokenizer {
     @Override
     public String decode(long[] ids) {
         return postProcess(Arrays.stream(ids).mapToObj(this::decode).collect(Collectors.joining()));
+    }
+
+    @Override
+    public Optional<PromptSupport> promptSupport() {
+        return promptSupport.hasPromptTemplates() ? Optional.of(promptSupport) : Optional.empty();
     }
 }

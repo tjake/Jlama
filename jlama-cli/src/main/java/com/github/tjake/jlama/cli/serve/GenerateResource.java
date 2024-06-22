@@ -46,8 +46,7 @@ public class GenerateResource {
         UUID sessionId = params.sessionId == null ? UUID.randomUUID() : params.sessionId;
         StreamingOutput so = os -> model.generate(
                 sessionId,
-                model.wrapPrompt(params.prompt, Optional.empty()),
-                "",
+                params.prompt,
                 0.7f,
                 Integer.MAX_VALUE,
                 false,

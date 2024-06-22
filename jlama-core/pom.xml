@@ -30,5 +30,11 @@
             <artifactId>jctools-core</artifactId>
             <version>4.0.1</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.hubspot.jinjava</groupId>
+            <artifactId>jinjava</artifactId>
+            <version>2.7.2</version>
+        </dependency>
   </dependencies>
 </project>

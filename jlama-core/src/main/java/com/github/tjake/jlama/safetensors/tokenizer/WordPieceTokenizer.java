@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,6 +33,7 @@ import java.util.stream.Stream;
 public class WordPieceTokenizer implements Tokenizer {
 
     protected final TokenizerModel model;
+    protected final PromptSupport promptSupport;
     protected final long sepToken;
     protected final long clsToken;
     protected final long unkToken;
@@ -49,6 +51,8 @@ public class WordPieceTokenizer implements Tokenizer {
             Preconditions.checkArgument(
                     model.type == null || model.type.equalsIgnoreCase("WordPiece"),
                     "Invalid model type: " + model.type);
+
+            this.promptSupport = new PromptSupport(model);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -199,5 +203,10 @@ public class WordPieceTokenizer implements Tokenizer {
     @Override
     public String decode(long[] ids) {
         return postProcess(Arrays.stream(ids).mapToObj(this::decode).collect(Collectors.joining()));
+    }
+
+    @Override
+    public Optional<PromptSupport> promptSupport() {
+        return promptSupport.hasPromptTemplates() ? Optional.of(promptSupport) : Optional.empty();
     }
 }

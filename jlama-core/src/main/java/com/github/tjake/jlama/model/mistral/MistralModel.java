@@ -44,17 +44,4 @@ public class MistralModel extends LlamaModel {
             Optional<DType> modelQType) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
-
-    @Override
-    public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
-        StringBuilder b = new StringBuilder();
-
-        if (systemPrompt.isPresent()) {
-            b.append(systemPrompt.get()).append("\n\n");
-        }
-
-        b.append("[INST] ").append(prompt).append(" [/INST]");
-
-        return b.toString();
-    }
 }

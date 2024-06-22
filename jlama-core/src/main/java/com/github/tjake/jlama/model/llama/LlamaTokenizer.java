@@ -25,25 +25,10 @@ import java.util.stream.Collectors;
 public class LlamaTokenizer extends BPETokenizer {
     static final String SPIECE_UNDERLINE = "▁";
 
-    private static BiMap<Integer, Integer> alteredBytes; // Codepoint and Token mapping needed for legacy mode
-
-    static {
-        // https://github.com/openai/gpt-2/blob/master/src/encoder.py#L19
-        alteredBytes = HashBiMap.create();
-        int i = 0;
-        for (int c = 0; c < 256; c++) {
-            if ((c < '!' || c > '~') && (c < '¡' || c > '¬') && (c < '®' || c > 'ÿ')) {
-                int codepoint = (i++ + 256);
-                alteredBytes.put(c, codepoint);
-            }
-        }
-    }
-
     private final int byteFallbackEncodingOffset;
 
     public LlamaTokenizer(Path modelRoot) {
         super(modelRoot);
-
         this.byteFallbackEncodingOffset = 3;
     }
 
@@ -65,17 +50,17 @@ public class LlamaTokenizer extends BPETokenizer {
 
     @Override
     protected String preProcess(String sentence) {
-        if (!model.isLegacy()) {
-            if (!sentence.isEmpty() && !sentence.startsWith(" ")) {
-                sentence = " " + sentence;
-            }
-            return sentence.replace(" ", SPIECE_UNDERLINE);
-        } else {
-            return sentence.codePoints()
+        if (model.normalizer() != null)
+           sentence = model.normalizer().normalize(sentence);
+
+        if (model.isLegacy() && !model.byteFallback) {
+            sentence =  sentence.codePoints()
                     .map(c -> alteredBytes.getOrDefault(c, c))
                     .mapToObj(Character::toString)
                     .collect(Collectors.joining());
         }
+
+        return sentence;
     }
 
     @Override
@@ -90,8 +75,8 @@ public class LlamaTokenizer extends BPETokenizer {
         decoded = decoded.replaceAll("</?s>", "");
         decoded = decoded.replaceAll(SPIECE_UNDERLINE, " ");
 
-        if (model.isLegacy()) {
-            return decoded.codePoints()
+        if (model.isLegacy() && !model.byteFallback) {
+            decoded = decoded.codePoints()
                     .map(c -> alteredBytes.inverse().getOrDefault(c, c))
                     .mapToObj(Character::toString)
                     .collect(Collectors.joining());

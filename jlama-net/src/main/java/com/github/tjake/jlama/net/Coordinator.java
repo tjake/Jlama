@@ -88,7 +88,6 @@ public class Coordinator implements Generator {
     public void generate(
             UUID session,
             String prompt,
-            String cleanPrompt,
             float temperature,
             int ntokens,
             boolean useEOS,
@@ -113,8 +112,6 @@ public class Coordinator implements Generator {
                 promptLength++;
             }
 
-            String clientPrompt = cleanPrompt == null ? prompt : cleanPrompt;
-            onTokenWithTimings.accept(clientPrompt, 0f);
             long start = System.currentTimeMillis();
 
             AbstractTensor output = null;
@@ -144,10 +141,5 @@ public class Coordinator implements Generator {
         } catch (Throwable t) {
             logger.warn("Error generating tokens for session {}", session, t);
         }
-    }
-
-    @Override
-    public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
-        return model.wrapPrompt(prompt, systemPrompt);
     }
 }

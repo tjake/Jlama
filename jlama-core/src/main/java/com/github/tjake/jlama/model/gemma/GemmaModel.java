@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 public class GemmaModel extends LlamaModel {
     private static final Logger logger = LoggerFactory.getLogger(GemmaModel.class);
 
+    private final float embeddingScalingFactor;
+
     public GemmaModel(
             Config config,
             WeightLoader weights,
@@ -44,7 +46,7 @@ public class GemmaModel extends LlamaModel {
             DType workingDType,
             DType workingQType,
             Optional<DType> modelQType) {
-        super(config, weights, tokenizer, workingDType, workingQType, modelQType);
+        this(InferenceType.FULL_GENERATION, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
     public GemmaModel(
@@ -56,6 +58,7 @@ public class GemmaModel extends LlamaModel {
             DType workingQType,
             Optional<DType> modelQType) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
+        this.embeddingScalingFactor = (float) Math.pow(c.embeddingLength, 0.5);
     }
 
     private AbstractTensor wte;
@@ -125,7 +128,7 @@ public class GemmaModel extends LlamaModel {
             // This is important for Gemma, but not for Llama
             TensorOperationsProvider.get()
                     .scale(
-                            (float) Math.pow(c.embeddingLength, 0.5),
+                            embeddingScalingFactor,
                             embedding,
                             c.embeddingSegmentStart(),
                             c.embeddingSegmentLength());

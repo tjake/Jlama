@@ -29,6 +29,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import picocli.CommandLine.*;
 
 @Command(name = "chat", description = "Interact with the specified model")
@@ -54,16 +55,6 @@ public class ChatCommand extends BaseCommand {
             defaultValue = ".9")
     protected Float topp;
 
-    @Option(
-            names = {"--override-prompt-start"},
-            description = "Override of prompt instruction format before the prompt (example: [INST] )")
-    protected String promptStart;
-
-    @Option(
-            names = {"--override-prompt-end"},
-            description = "Override of prompt instruction format after the prompt (example: [/INST] )")
-    protected String promptEnd;
-
     @Override
     public void run() {
         AbstractModel m = loadModel(
@@ -74,7 +65,13 @@ public class ChatCommand extends BaseCommand {
                 Optional.ofNullable(modelQuantization),
                 Optional.ofNullable(threadCount));
 
+        if (m.promptSupport().isEmpty()) {
+            System.err.println("This model does not support chat prompting");
+            System.exit(1);
+        }
+
         UUID session = UUID.randomUUID();
+        PromptSupport promptSupport = m.promptSupport().get();
         PrintWriter out = System.console().writer();
 
         out.println("Chatting with " + model + "...\n");
@@ -91,14 +88,19 @@ public class ChatCommand extends BaseCommand {
                 break;
             }
 
-            String wrappedPrompt = wrap(m, prompt, first ? Optional.ofNullable(systemPrompt) : Optional.empty());
+            PromptSupport.Builder builder = promptSupport.newBuilder();
+            if (first && systemPrompt != null) {
+                builder.addSystemMessage(systemPrompt);
+            }
+            builder.addUserMessage(prompt);
+            String builtPrompt = builder.build();
+
             m.generate(
                     session,
-                    wrappedPrompt,
-                    prompt,
+                    builtPrompt,
                     temperature,
                     Integer.MAX_VALUE,
-                    true,
+                    false,
                     makeOutHandler());
 
             first = false;
@@ -120,13 +122,4 @@ public class ChatCommand extends BaseCommand {
 
         return outCallback;
     }
-
-    protected String wrap(AbstractModel model, String prompt, Optional<String> systemPrompt) {
-        if (promptStart == null && promptEnd == null) {
-            return model.wrapPrompt(prompt, systemPrompt);
-        }
-
-        return promptStart + prompt + promptEnd;
-    }
-
 }

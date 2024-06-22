@@ -68,7 +68,6 @@ public class DistributedServiceTest {
             coordinator.generate(
                     UUID.randomUUID(),
                     "Simply put, the theory of relativity states that",
-                    null,
                     0.7f,
                     256,
                     false,
@@ -109,7 +108,6 @@ public class DistributedServiceTest {
             coordinator.generate(
                     UUID.randomUUID(),
                     "Simply put, the theory of relativity states that",
-                    null,
                     0.7f,
                     256,
                     false,

@@ -117,14 +117,51 @@ public class SafeTensorSupport {
 
         TokenizerModel model = om.treeToValue(rootNode.get("model"), TokenizerModel.class);
 
+        if (rootNode.has("added_tokens") && rootNode.get("added_tokens") != null) {
+            List<Map<String, Object>> addedTokens = om.convertValue(rootNode.get("added_tokens"), List.class);
+            model.setAddedTokens(addedTokens);
+        }
+
         if (rootNode.has("pre_tokenizer") && rootNode.get("pre_tokenizer") != null)
             model.setPreTokenizer(om.treeToValue(rootNode.get("pre_tokenizer"), TokenizerModel.PreTokenizer.class));
+
+        if (rootNode.has("normalizer") && rootNode.get("normalizer") != null)
+            model.setNormalizer(om.treeToValue(rootNode.get("normalizer"), TokenizerModel.Normalizer.class));
 
         File tokenizerConfigJson = modelRoot.resolve("tokenizer_config.json").toFile();
         if (tokenizerConfigJson.exists()) {
             JsonNode configNode = om.readTree(tokenizerConfigJson);
             if (configNode.has("legacy"))
                 model.setLegacy(configNode.get("legacy").asBoolean());
+
+            if (configNode.has("chat_template")) {
+                JsonNode chatTemplateNode = configNode.get("chat_template");
+                Map<String, String> promptTemplates = new HashMap<>();
+                if (chatTemplateNode.isTextual()) {
+                    promptTemplates.put("default", chatTemplateNode.asText());
+                } else if (chatTemplateNode.isArray()){
+                    List<Map<String, String>> chatTemplates = om.convertValue(chatTemplateNode, List.class);
+                    for (Map<String, String> chatTemplate : chatTemplates) {
+                        if (chatTemplate.containsKey("name") && chatTemplate.containsKey("template")) {
+                            promptTemplates.put(chatTemplate.get("name"), chatTemplate.get("template"));
+                        } else {
+                            throw new IllegalArgumentException("Invalid chat_template format");
+                        }
+                    }
+                } else {
+                    throw new IllegalArgumentException("Invalid chat_template format");
+                }
+
+                model.setPromptTemplates(promptTemplates);
+            }
+
+            if (configNode.has("eos_token")) {
+                model.setEosToken(configNode.get("eos_token").asText());
+            }
+
+            if (configNode.has("bos_token")) {
+                model.setBosToken(configNode.get("bos_token").asText());
+            }
         }
 
         return model;
@@ -217,6 +254,9 @@ public class SafeTensorSupport {
         // Copy config.json and tokenizer.json
         Files.copy(modelRoot.resolve("config.json"), qPath.resolve("config.json"));
         Files.copy(modelRoot.resolve("tokenizer.json"), qPath.resolve("tokenizer.json"));
+
+        if (Files.exists(modelRoot.resolve("tokenizer_config.json")))
+            Files.copy(modelRoot.resolve("tokenizer_config.json"), qPath.resolve("tokenizer_config.json"));
 
         try (RandomAccessFile raf =
                 new RandomAccessFile(qPath.resolve("model.safetensors").toFile(), "rw")) {

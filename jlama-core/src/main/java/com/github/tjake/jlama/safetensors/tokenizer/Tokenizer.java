@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.safetensors.tokenizer;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Tokenizer interface
@@ -49,4 +50,10 @@ public interface Tokenizer {
      * @return list of token strings
      */
     String decode(long[] ids);
+
+    /**
+     * Get the prompt support for this tokenizer model if it exists
+     * @return prompt support
+     */
+    Optional<PromptSupport> promptSupport();
 }

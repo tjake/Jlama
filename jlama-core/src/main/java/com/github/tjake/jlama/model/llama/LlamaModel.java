@@ -140,18 +140,6 @@ public class LlamaModel extends AbstractModel {
     }
 
     @Override
-    public String wrapPrompt(String prompt, Optional<String> systemPrompt) {
-        StringBuilder b = new StringBuilder();
-        b.append("[INST] ");
-        if (systemPrompt.isPresent()) {
-            b.append("<<SYS>> \n").append(systemPrompt.get()).append("\n<</SYS>> \n\n");
-        }
-        b.append(prompt).append(" [/INST]");
-
-        return b.toString();
-    }
-
-    @Override
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
         Preconditions.checkArgument(t.dims() == 2, "Unexpected shape");
         if (t.dType() == workingQType) return super.maybeQuantize(t);
