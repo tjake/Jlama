@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.cli.serve;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import java.io.IOException;
 import java.util.Optional;
@@ -25,6 +26,8 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +47,23 @@ public class GenerateResource {
     public Response generate(@NotNull GenerateParams params) {
         logger.debug("Sending generate request: {}", params);
         UUID sessionId = params.sessionId == null ? UUID.randomUUID() : params.sessionId;
+
+        if (params.prompt == null) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("prompt is required").build();
+        }
+
+        String prompt = params.prompt;
+        if (model.getTokenizer().promptSupport().isPresent()) {
+            PromptSupport.Builder builder = model.getTokenizer().promptSupport().get().newBuilder();
+            builder.addUserMessage(prompt);
+            prompt = builder.build();
+        }
+
+        final String finalPrompt = prompt;
+
         StreamingOutput so = os -> model.generate(
                 sessionId,
-                params.prompt,
+                finalPrompt,
                 0.7f,
                 Integer.MAX_VALUE,
                 false,

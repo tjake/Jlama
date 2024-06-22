@@ -15,6 +15,8 @@
  */
 package com.github.tjake.jlama.model.functions;
 
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -30,4 +32,6 @@ public interface Generator {
             int ntokens,
             boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings);
+
+    Tokenizer getTokenizer();
 }

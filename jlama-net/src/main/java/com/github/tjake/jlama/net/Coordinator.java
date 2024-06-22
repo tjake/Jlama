@@ -21,6 +21,7 @@ import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.grpc.JlamaService;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -59,6 +60,10 @@ public class Coordinator implements Generator {
         this.workerCount = workerCount;
         this.service = new JlamaService(model, workerCount);
         this.server = ServerBuilder.forPort(port).addService(service).build();
+    }
+
+    public Tokenizer getTokenizer() {
+        return model.getTokenizer();
     }
 
     public void start() throws IOException {
