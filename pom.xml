@@ -42,7 +42,7 @@
   <!-- Build property abstractions: versions, etc -->
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <revision>0.2.0-SNAPSHOT</revision>
+    <revision>0.2.0</revision>
 
     <osmaven.version>1.7.1</osmaven.version>
     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
