@@ -1,4 +1,4 @@
-# 🦙 Jlama: A modern Java inference engine for LLMs
+# 🦙 Jlama: A modern LLM inference engine for Java
 
 <p align="center">
   <img src="docs/jlama.jpg" width="300" height="300" alt="Cute Jlama">
@@ -150,7 +150,7 @@ elapsed: 11s, prompt 26.0ms per token, gen 148.4ms per token
 
 ## 🗺️ Roadmap
 
-* Support more models
+* Support more and more models
 * <s>Add pure java tokenizers</s>
 * <s>Support Quantization (e.g. k-quantization)</s>
 * Add LoRA support

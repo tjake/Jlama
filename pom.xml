@@ -12,7 +12,7 @@
   <url>https://github.com/tjake/jlama</url>
   <packaging>pom</packaging>
 
-  <description>Jlama: A fast java inference engine for LLMs</description>
+  <description>Jlama: A modern LLM inference engine for Java</description>
   <scm child.scm.connection.inherit.append.path="false"
       child.scm.developerConnection.inherit.append.path="false"
       child.scm.url.inherit.append.path="false">
