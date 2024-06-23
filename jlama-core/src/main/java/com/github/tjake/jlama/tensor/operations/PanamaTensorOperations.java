@@ -752,8 +752,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                     final var scales = ablock.mul(bblock);
                     // Now for each scalar fetch the corresponding block of data and dot product them
                     for (int k = 0;
-                         k < FloatVector.SPECIES_128.length();
-                         k++, aoffset += blockSize, boffset += blockSize) {
+                            k < FloatVector.SPECIES_128.length();
+                            k++, aoffset += blockSize, boffset += blockSize) {
                         var scale = FloatVector.broadcast(FloatVector.SPECIES_128, scales.lane(k));
 
                         var ab0 = a.getVector(ByteVector.SPECIES_128, i, aoffset);
@@ -769,7 +769,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                         var bf1 = b.getVector(ByteVector.SPECIES_64, j, boffset + 16);
 
                         // Convert the first 4 bits into bytes
-                        var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
+                        var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                                .sub(Q4_BYTE_SUB_64);
                         var high = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
                                 .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64);
@@ -777,7 +778,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                         var low0 = low.castShape(ShortVector.SPECIES_128, 0);
                         var high0 = high.castShape(ShortVector.SPECIES_128, 0);
 
-                        var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
+                        var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                                .sub(Q4_BYTE_SUB_64);
                         var nhigh = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
                                 .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64);
@@ -792,8 +794,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                         tacc = tacc.add(af2.mul(high0));
                         tacc = tacc.add(af3.mul(high2));
 
-                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0).mul(scale));
-                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1).mul(scale));
+                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0)
+                                .mul(scale));
+                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1)
+                                .mul(scale));
                     }
                 }
 
@@ -801,7 +805,6 @@ public final class PanamaTensorOperations implements TensorOperations {
             };
         }
     }
-
 
     private class GemmerI8Q4_256 extends Gemmer {
         final BiIntConsumer matmul1x1;

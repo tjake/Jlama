@@ -127,11 +127,7 @@ public class GemmaModel extends LlamaModel {
 
             // This is important for Gemma, but not for Llama
             TensorOperationsProvider.get()
-                    .scale(
-                            embeddingScalingFactor,
-                            embedding,
-                            c.embeddingSegmentStart(),
-                            c.embeddingSegmentLength());
+                    .scale(embeddingScalingFactor, embedding, c.embeddingSegmentStart(), c.embeddingSegmentLength());
 
             return embedding;
         };

@@ -20,16 +20,12 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.diogonunes.jcolor.AnsiFormat;
 import com.diogonunes.jcolor.Attribute;
 import com.github.tjake.jlama.model.AbstractModel;
-
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import java.io.PrintWriter;
-import java.nio.charset.Charset;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import picocli.CommandLine.*;
 
 @Command(name = "chat", description = "Interact with the specified model")
@@ -95,20 +91,13 @@ public class ChatCommand extends BaseCommand {
             builder.addUserMessage(prompt);
             String builtPrompt = builder.build();
 
-            m.generate(
-                    session,
-                    builtPrompt,
-                    temperature,
-                    Integer.MAX_VALUE,
-                    false,
-                    makeOutHandler());
+            m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, false, makeOutHandler());
 
             first = false;
         }
     }
 
-    protected BiConsumer<String, Float> makeOutHandler()
-    {
+    protected BiConsumer<String, Float> makeOutHandler() {
         PrintWriter out;
         BiConsumer<String, Float> outCallback;
 

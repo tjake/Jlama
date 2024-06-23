@@ -17,16 +17,15 @@ package com.github.tjake.jlama.safetensors.tokenizer;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableBiMap;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableBiMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,8 +71,7 @@ public abstract class BPETokenizer implements Tokenizer {
 
         if (sentence.isEmpty()) return Collections.emptyList();
 
-        if (model.preTokenizer() == null && model.addedTokenPattern() == null)
-            Collections.singletonList(sentence);
+        if (model.preTokenizer() == null && model.addedTokenPattern() == null) Collections.singletonList(sentence);
 
         List<String> sentencePieces = new ArrayList<>();
         if (model.addedTokenPattern() != null) {
@@ -82,15 +80,13 @@ public abstract class BPETokenizer implements Tokenizer {
             String[] pieces = model.addedTokenPattern().splitWithDelimiters(sentence, 0);
             for (String piece : pieces) {
                 if (!piece.isEmpty()) {
-                    if (model.addedTokens().containsKey(piece))
-                        sentencePieces.add(piece);
+                    if (model.addedTokens().containsKey(piece)) sentencePieces.add(piece);
                     else if (model.preTokenizer() != null)
                         sentencePieces.addAll(model.preTokenizer().pretokenize(piece));
-                    else
-                        sentencePieces.add(piece);
+                    else sentencePieces.add(piece);
                 }
             }
-        } else if (model.preTokenizer() != null){
+        } else if (model.preTokenizer() != null) {
             sentencePieces.addAll(model.preTokenizer().pretokenize(sentence));
         } else {
             sentencePieces.add(sentence);
@@ -172,8 +168,7 @@ public abstract class BPETokenizer implements Tokenizer {
                     // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
                     tokens.set((int) bestIdx, bestId);
                     // delete token at position best_idx+1, shift the entire sequence back 1
-                    for (int j = n; j > 0; j--)
-                        tokens.remove((int) bestIdx + j);
+                    for (int j = n; j > 0; j--) tokens.remove((int) bestIdx + j);
                 }
             }
 

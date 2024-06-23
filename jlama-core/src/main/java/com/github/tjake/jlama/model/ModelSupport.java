@@ -73,17 +73,8 @@ public class ModelSupport {
         }
     }
 
-    public static AbstractModel loadModel(
-            File model,
-            DType workingMemoryType,
-            DType workingQuantizationType) {
-        return loadModel(
-                model,
-                null,
-                workingMemoryType,
-                workingQuantizationType,
-                Optional.empty(),
-                Optional.empty());
+    public static AbstractModel loadModel(File model, DType workingMemoryType, DType workingQuantizationType) {
+        return loadModel(model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty());
     }
 
     public static AbstractModel loadModel(

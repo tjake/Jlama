@@ -139,7 +139,7 @@ public class SafeTensorSupport {
                 Map<String, String> promptTemplates = new HashMap<>();
                 if (chatTemplateNode.isTextual()) {
                     promptTemplates.put("default", chatTemplateNode.asText());
-                } else if (chatTemplateNode.isArray()){
+                } else if (chatTemplateNode.isArray()) {
                     List<Map<String, String>> chatTemplates = om.convertValue(chatTemplateNode, List.class);
                     for (Map<String, String> chatTemplate : chatTemplates) {
                         if (chatTemplate.containsKey("name") && chatTemplate.containsKey("template")) {
@@ -309,7 +309,8 @@ public class SafeTensorSupport {
             name = parts[1];
         }
 
-        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
+        return maybeDownloadModel(
+                modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     /**

@@ -243,7 +243,9 @@ public class NativeTensorOperations implements TensorOperations {
                                     rc.setAtIndex(
                                             ValueLayout.ADDRESS,
                                             i,
-                                            ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment());
+                                            ((Q4ByteBufferTensor) b[i])
+                                                    .getBlockF()
+                                                    .getMemorySegment());
                                 NativeSimd.gemm_f32_q4_batch(
                                         flags,
                                         r.length,

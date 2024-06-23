@@ -17,7 +17,6 @@ package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.util.Pair;
-import com.google.common.base.Preconditions;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.RandomAccessFile;

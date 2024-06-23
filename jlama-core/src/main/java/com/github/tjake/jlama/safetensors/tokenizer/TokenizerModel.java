@@ -15,19 +15,18 @@
  */
 package com.github.tjake.jlama.safetensors.tokenizer;
 
+import static com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer.alteredBytes;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer.alteredBytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tokenizer model, loosely based on Huggingface's Tokenizer format
@@ -67,7 +66,6 @@ public class TokenizerModel {
     private Optional<Map<String, String>> promptTemplates = Optional.empty();
     private String eosToken = "";
     private String bosToken = "";
-
 
     @JsonCreator
     public TokenizerModel(
@@ -174,10 +172,10 @@ public class TokenizerModel {
 
         @JsonCreator
         public Normalizer(
-                @JsonProperty("type") String type,
-                @JsonProperty("normalizers") List<NormalizerItem> normalizerItems) {
+                @JsonProperty("type") String type, @JsonProperty("normalizers") List<NormalizerItem> normalizerItems) {
             this.type = type;
-            this.normalizerItems = normalizerItems == null ? Collections.emptyList() : ImmutableList.copyOf(normalizerItems);
+            this.normalizerItems =
+                    normalizerItems == null ? Collections.emptyList() : ImmutableList.copyOf(normalizerItems);
         }
 
         public String normalize(String sentence) {
@@ -308,7 +306,8 @@ public class TokenizerModel {
                 case "Digits":
                     return splitDigits(sentence);
                 case "ByteLevel":
-                    //Rather than deal with this, we'll just force byte fallback (only difference is how unk is handled)
+                    // Rather than deal with this, we'll just force byte fallback (only difference is how unk is
+                    // handled)
                     return Collections.singletonList(sentence);
                 default:
                     throw new IllegalArgumentException("Invalid pre-tokenizer type: " + type);

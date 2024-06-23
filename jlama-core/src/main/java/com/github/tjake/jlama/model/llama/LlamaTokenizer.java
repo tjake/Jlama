@@ -16,8 +16,6 @@
 package com.github.tjake.jlama.model.llama;
 
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -50,11 +48,10 @@ public class LlamaTokenizer extends BPETokenizer {
 
     @Override
     protected String preProcess(String sentence) {
-        if (model.normalizer() != null)
-           sentence = model.normalizer().normalize(sentence);
+        if (model.normalizer() != null) sentence = model.normalizer().normalize(sentence);
 
         if (model.isLegacy() && !model.byteFallback) {
-            sentence =  sentence.codePoints()
+            sentence = sentence.codePoints()
                     .map(c -> alteredBytes.getOrDefault(c, c))
                     .mapToObj(Character::toString)
                     .collect(Collectors.joining());

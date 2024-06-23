@@ -27,10 +27,8 @@ import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.stream.StreamSupport;
 
 public class BertModel extends AbstractModel {
 
@@ -128,11 +126,14 @@ public class BertModel extends AbstractModel {
     }
 
     public float[] embed(String input) {
-        int[] encoded = Arrays.stream(tokenizer.encode(input)).mapToInt(Ints::checkedCast).toArray();
+        int[] encoded = Arrays.stream(tokenizer.encode(input))
+                .mapToInt(Ints::checkedCast)
+                .toArray();
         Preconditions.checkArgument(encoded.length < c.contextLength);
         float[] outputEmbedding = new float[c.embeddingLength];
 
-        try (AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), 2, encoded.length, c.embeddingLength)) { // 2 for key and value
+        try (AbstractTensor kvmem =
+                makeTensor(c.getNumberOfLayers(), 2, encoded.length, c.embeddingLength)) { // 2 for key and value
 
             int promptLength = encoded.length;
             float avgp = 1.0f / promptLength;
@@ -142,8 +143,7 @@ public class BertModel extends AbstractModel {
                 AbstractTensor output = r.slice(i);
 
                 // Average Pooling
-                for (int ii = 0; ii < c.embeddingLength; ii++)
-                    outputEmbedding[ii] += output.get(0, ii) * avgp;
+                for (int ii = 0; ii < c.embeddingLength; ii++) outputEmbedding[ii] += output.get(0, ii) * avgp;
             }
             r.close();
             VectorMath.l2normalize(outputEmbedding);
