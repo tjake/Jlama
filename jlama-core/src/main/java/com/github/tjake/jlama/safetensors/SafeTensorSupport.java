@@ -292,7 +292,39 @@ public class SafeTensorSupport {
         return qPath;
     }
 
-    public static void maybeDownloadModel(
+    public static File maybeDownloadModel(String modelDir, String fullModelName) throws IOException {
+        String[] parts = fullModelName.split("/");
+        if (parts.length == 0 || parts.length > 2) {
+            throw new IllegalArgumentException("Model must be in the form owner/name");
+        }
+
+        String owner;
+        String name;
+
+        if (parts.length == 1) {
+            owner = null;
+            name = fullModelName;
+        } else {
+            owner = parts[0];
+            name = parts[1];
+        }
+
+        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    /**
+     * Download a model from HuggingFace and return the path to the model directory
+     *
+     * @param modelDir The directory to save the model to
+     * @param modelOwner The owner of the HF model (if any)
+     * @param modelName The name of the HF model
+     * @param optionalBranch The branch of the model to download
+     * @param optionalAuthHeader The authorization header to use for the request
+     * @param optionalProgressReporter A consumer to report download progress
+     * @return The path to the downloaded model directory
+     * @throws IOException
+     */
+    public static File maybeDownloadModel(
             String modelDir,
             Optional<String> modelOwner,
             String modelName,
@@ -350,6 +382,8 @@ public class SafeTensorSupport {
                     localModelDir.resolve(currFile),
                     optionalProgressReporter);
         }
+
+        return localModelDir.toFile();
     }
 
     private static List<String> parseFileList(String modelInfo) throws IOException {

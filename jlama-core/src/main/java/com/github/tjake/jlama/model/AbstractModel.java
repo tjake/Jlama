@@ -274,7 +274,6 @@ public abstract class AbstractModel implements Generator {
             boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
-        System.out.println("COPY: " + tokenizer.decode(encoded));
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
         AbstractTensor kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window

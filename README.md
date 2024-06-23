@@ -10,20 +10,20 @@
 
 Model Support:
   * Gemma Models
-  * Llama & Llama2 Models
+  * Llama & Llama2 & Llama3 Models
   * Mistral & Mixtral Models
   * GPT-2 Models
   * BERT Models
   * BPE Tokenizers
   * WordPiece Tokenizers
 
-
 Implements:
   * Flash Attention
   * Mixture of Experts
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model and tokenizer format
   * Support for F32, F16, BF16 models
-  * Support for Q8, Q4, Q5 model quantization
+  * Support for Q8, Q4 model quantization
+  * Fast GEMM operations
   * Distributed Inference!
 
 Jlama is built with Java 21 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
@@ -52,7 +52,59 @@ open browser to http://localhost:8080/ui/index.html
   <img src="docs/demo.png" alt="Demo chat">
 </p>
 
-## 🕵️‍♀️ How to use
+## 👨‍💻 How to use in your Java project
+
+Add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
+
+```xml
+
+<dependency>
+  <groupId>com.github.tjake</groupId>
+  <artifactId>jlama-core</artifactId>
+  <version>${jlama.version}</version>
+</dependency>
+
+<dependency>
+  <groupId>com.github.tjake</groupId>
+  <artifactId>jlama-native</artifactId>
+  <!-- supports linux-x86_64, macos-x86_64/aarch_64, windows-x86_64 -->
+  <classifier>${os.name}-${os.arch}</classifier>
+  <version>${jlama.version}</version>
+</dependency>
+```
+
+Then you can use the Model classes to run models:
+
+```java
+ public void sample() throws IOException {
+    String model = "tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4";
+    String workingDirectory = "./models";
+
+    String prompt = "What is the best season to plant avocados?";
+
+    // Downloads the model or just returns the local path if it's already downloaded
+    File localModelPath = SafeTensorSupport.maybeDownloadModel(workingDirectory, model);
+
+    // Loads the quantized model and specified use of quantized memory
+    AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
+
+    // Checks if the model supports chat prompting and adds prompt in the expected format for this model
+    if (m.promptSupport().isPresent()) {
+        prompt = m.promptSupport().get().newBuilder()
+                .addSystemMessage("You are a helpful chatbot who writes short responses.")
+                .addUserMessage(prompt)
+                .build();
+    }
+
+    System.out.println("Prompt: " + prompt + "\n");
+    // Generates a response to the prompt and prints it
+    // The response is generated with a temperature of 0.7 and a max token length of 256
+    m.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, (s, f) -> System.out.print(s));
+    System.out.println();
+ }
+```
+
+## 🕵️‍♀️ How to use as a local client
 Jlama includes a cli tool to run models via the `run-cli.sh` command. 
 Before you do that first download one or more models from huggingface.
 
@@ -65,52 +117,35 @@ Use the `./run-cli.sh download` command to download models from huggingface.
 ```
 
 Then run the cli tool to chat with the model or complete a prompt.
+Quanitzation is supported with the `-q` flag. Or you can use pre-quantized models
+located in my [huggingface repo](https://huggingface.co/tjake).
 
 ```shell
 ./run-cli.sh complete -p "The best part of waking up is " -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
-./run-cli.sh chat -p "Tell me a joke about cats." -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
+./run-cli.sh chat -s "You are a professional comedian" models/llama2-7b-chat-hf-jlama-Q4
 ```
 
 ## 🧪 Examples
 ### Llama 2 7B
 
 ```
-Here is a poem about cats, incluing emojis: 
-This poem uses emojis to add an extra layer of meaning and fun to the text.
-Cat, cat, so soft and sweet,
-Purring, cuddling, can't be beat. 🐈💕
-Fur so soft, eyes so bright,
-Playful, curious, such a delight. 😺🔍
-Laps so warm, naps so long,
-Sleepy, happy, never wrong. 😴😍
-Pouncing, chasing, always fun,
-Kitty's joy, never done. 🐾🎉
-Whiskers twitch, ears so bright,
-Cat's magic, pure delight. 🔮💫
-With a mew and a purr,
-Cat's love, forever sure. 💕🐈
-So here's to cats, so dear,
-Purrfect, adorable, always near. 💕🐈
+You: Tell me a joke about cats. Include emojis.
 
-elapsed: 37s, 159.518982ms per token
-```
+Jlama:   Sure, here's a joke for you:
+Why did the cat join a band? 🎸🐱
+Because he wanted to be the purr-fect drummer! 😹🐾
+I hope you found that purr-fectly amusing! 😸🐱
 
-### GPT-2 (355M parameters)
+elapsed: 11s, prompt 38.0ms per token, gen 146.2ms per token
 
-```
-In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, 
-in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.
-a long and diverse and interesting story is told in this book. The author writes:
-...
-the stories of the unicornes seem to be based on the most vivid and vivid imagination; they are the stories of animals that are a kind of 'spirit animal' , a partly-human spiritual animal that speaks in perfect English , and that often keep their language under mysterious and inaccessible circumstances.
-...
-While the unicorn stories are mostly about animals, they tell us about animals from other animal species. The unicorn stories are remarkable because they tell us about animals that are not animals at all . They speak and sing in perfect English , and they are very much human beings.
-...
-This book is not about the unicorn. It is not about anything in particular . It is about a brief and distinct group of animal beings who have been called into existence in a particular remote and unexplored valley in the Andes Mountains. They speak perfect English , and they are very human beings.
-...
-The most surprising thing about the tales of the unicorn
+You: Another one
 
-elapsed: 10s, 49.437500ms per token
+Jlama:   Of course! Here's another one:
+Why did the cat bring a ball of yarn to the party? 🎉🧶
+Because he wanted to have a paw-ty! 😹🎉
+I hope that one made you smile! 😊🐱
+
+elapsed: 11s, prompt 26.0ms per token, gen 148.4ms per token
 ```
 
 ## 🗺️ Roadmap
