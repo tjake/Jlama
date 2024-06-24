@@ -296,6 +296,7 @@ public abstract class AbstractModel implements Generator {
             }
 
             long start = System.currentTimeMillis();
+            long promptStart = start;
             // Batch Process Prompt
             AbstractTensor last = batchForward(promptTokens, startPos, kvmem);
 
@@ -345,7 +346,7 @@ public abstract class AbstractModel implements Generator {
             long end = System.currentTimeMillis();
             System.out.printf(
                     "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
-                    TimeUnit.MILLISECONDS.toSeconds(end - start), batchMsPerToken, genMsPerToken);
+                    TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken);
         }
     }
 }

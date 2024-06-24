@@ -1,3 +1,11 @@
+/**
+ * @file vector_simd.c
+ * @brief SIMD accelerated matrix multiplication
+ *
+ * SIMD accelerated matrix multiplication.  Derived from the work of
+ *  J. Tunney, ‘LLaMA Now Goes Faster on CPUs’, Mar. 2024. [Online].
+ *  Available: https://justine.lol/matmul/. [Accessed: 29-Mar-2024].
+ */
 #include <stdio.h>
 #if defined(__ARM_NEON__)
 #include <arm_neon.h>
