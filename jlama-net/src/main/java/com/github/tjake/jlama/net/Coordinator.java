@@ -90,7 +90,7 @@ public class Coordinator implements Generator {
         }
     }
 
-    public void generate(
+    public Generator.Response generate(
             UUID session,
             String prompt,
             float temperature,
@@ -99,7 +99,8 @@ public class Coordinator implements Generator {
             BiConsumer<String, Float> onTokenWithTimings) {
         try {
             service.waitForReady();
-
+            StringBuilder sb = new StringBuilder();
+            FinishReason finishReason = FinishReason.MAX_TOKENS;
             long[] encoded = model.getTokenizer().encode(prompt);
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
 
@@ -126,25 +127,43 @@ public class Coordinator implements Generator {
                 output = service.generateNextOutput(session, promptTokens[i], i);
             }
 
+            long promptTime = System.currentTimeMillis();
+            int tokensGenerated = 0;
+
             for (int i = promptLength; i < ntokens; i++) {
                 int next = model.sample(
                         output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
                 output.close();
 
+                tokensGenerated++;
+
                 // Model may tell us it's done
-                if (next == model.getConfig().eosToken) break;
+                if (next == model.getConfig().eosToken) {
+                    finishReason = FinishReason.STOP_TOKEN;
+                    break;
+                }
 
                 try {
                     String c = model.getTokenizer().decode(next);
                     onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (i + 1));
+                    sb.append(c);
                 } catch (Exception e) {
                     logger.error("Failed to decode token {}", next, e);
                 }
 
                 output = service.generateNextOutput(session, next, i);
             }
+
+            return new Generator.Response(
+                    sb.toString(),
+                    finishReason,
+                    promptTokens.length,
+                    tokensGenerated,
+                    promptTime - start,
+                    System.currentTimeMillis() - promptTime);
         } catch (Throwable t) {
             logger.warn("Error generating tokens for session {}", session, t);
+            return new Generator.Response("", FinishReason.ERROR, 0, 0, 0, 0);
         }
     }
 }

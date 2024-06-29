@@ -355,10 +355,10 @@ public abstract class AbstractModel implements Generator {
 
             long end = System.currentTimeMillis();
 
-            Response response = new Response(
-                    sb.toString(), reason, promptLength, tokensGenerated, promptBatchTime, end - start);
-            logger.debug(
-                    String.format("\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
+            Response response =
+                    new Response(sb.toString(), reason, promptLength, tokensGenerated, promptBatchTime, end - start);
+            logger.debug(String.format(
+                    "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
                     TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken));
 
             return response;

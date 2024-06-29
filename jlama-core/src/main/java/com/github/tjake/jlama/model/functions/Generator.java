@@ -27,6 +27,7 @@ public interface Generator {
     enum FinishReason {
         MAX_TOKENS,
         STOP_TOKEN,
+        ERROR
     }
 
     class Response {
@@ -37,7 +38,13 @@ public interface Generator {
         public final long promptTimeMs;
         public final long generateTimeMs;
 
-        public Response(String text, FinishReason finishReason, int promptTokens, int generatedTokens, long promptTimeMs, long generateTimeMs) {
+        public Response(
+                String text,
+                FinishReason finishReason,
+                int promptTokens,
+                int generatedTokens,
+                long promptTimeMs,
+                long generateTimeMs) {
             this.text = text;
             this.finishReason = finishReason;
             this.promptTokens = promptTokens;
@@ -48,14 +55,13 @@ public interface Generator {
 
         @Override
         public String toString() {
-            return "GenerateResponse{" +
-                    "text='" + text + '\'' +
-                    ", finishReason=" + finishReason +
-                    ", promptTokens=" + promptTokens +
-                    ", generatedTokens=" + generatedTokens +
-                    ", promptTimeMs=" + promptTimeMs +
-                    ", generateTimeMs=" + generateTimeMs +
-                    '}';
+            return "GenerateResponse{" + "text='"
+                    + text + '\'' + ", finishReason="
+                    + finishReason + ", promptTokens="
+                    + promptTokens + ", generatedTokens="
+                    + generatedTokens + ", promptTimeMs="
+                    + promptTimeMs + ", generateTimeMs="
+                    + generateTimeMs + '}';
         }
     }
 
