@@ -67,10 +67,12 @@ Add the following [maven](https://central.sonatype.com/artifact/com.github.tjake
 <dependency>
   <groupId>com.github.tjake</groupId>
   <artifactId>jlama-native</artifactId>
-  <!-- supports linux-x86_64, macos-x86_64/aarch_64, windows-x86_64 -->
-  <classifier>${os.name}-${os.arch}</classifier>
+  <!-- supports linux-x86_64, macos-x86_64/aarch_64, windows-x86_64 
+       Use https://github.com/trustin/os-maven-plugin to detect os and arch -->
+  <classifier>${os.detected.name}-${os.detected.arch}</classifier>
   <version>${jlama.version}</version>
 </dependency>
+
 ```
 
 Then you can use the Model classes to run models:
@@ -98,9 +100,10 @@ Then you can use the Model classes to run models:
 
     System.out.println("Prompt: " + prompt + "\n");
     // Generates a response to the prompt and prints it
+    // The api allows for streaming or non-streaming responses
     // The response is generated with a temperature of 0.7 and a max token length of 256
-    m.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, (s, f) -> System.out.print(s));
-    System.out.println();
+    GenerateResponse r = m.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, (s, f) -> System.out.print(s));
+    System.out.println(r.toString());
  }
 ```
 

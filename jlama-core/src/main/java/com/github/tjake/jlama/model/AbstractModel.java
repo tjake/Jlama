@@ -266,7 +266,7 @@ public abstract class AbstractModel implements Generator {
         }
     }
 
-    public void generate(
+    public Response generate(
             UUID sessionId,
             String prompt,
             float temperature,
@@ -284,11 +284,17 @@ public abstract class AbstractModel implements Generator {
 
         if (ntokens > c.contextLength) ntokens = c.contextLength;
 
+        FinishReason reason = FinishReason.MAX_TOKENS;
+        int promptLength;
+        long promptBatchTime;
+        int tokensGenerated;
+        StringBuilder sb = new StringBuilder();
+
         try (AbstractTensor logits = makeTensor(c.vocabularySize)) {
             int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
             promptTokens[0] = c.bosToken;
             for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
-            int promptLength = encoded.length;
+            promptLength = encoded.length;
 
             if (useEOS) {
                 promptTokens[promptTokens.length - 1] = c.eosToken; // Add EOS
@@ -300,12 +306,12 @@ public abstract class AbstractModel implements Generator {
             // Batch Process Prompt
             AbstractTensor last = batchForward(promptTokens, startPos, kvmem);
 
-            long promptBatchTime = System.currentTimeMillis() - start;
+            promptBatchTime = System.currentTimeMillis() - start;
             float batchMsPerToken = Math.round((((double) promptBatchTime) / (double) promptLength));
             logger.debug("{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, batchMsPerToken);
 
             float genMsPerToken = 0;
-            int tokensGenerated = 0;
+            tokensGenerated = 0;
             int next = sample(
                     last.slice(promptTokens.length - 1),
                     temperature,
@@ -330,7 +336,10 @@ public abstract class AbstractModel implements Generator {
                 output.close();
 
                 // Model may tell us it's done
-                if (next == c.eosToken) break;
+                if (next == c.eosToken) {
+                    reason = FinishReason.STOP_TOKEN;
+                    break;
+                }
 
                 kvmem.setMetadata(KvBufferCache.TOKEN_COUNT, i);
 
@@ -338,15 +347,21 @@ public abstract class AbstractModel implements Generator {
                     String c = tokenizer.decode(next);
                     genMsPerToken = (System.currentTimeMillis() - start) / (float) (tokensGenerated);
                     onTokenWithTimings.accept(c, genMsPerToken);
+                    sb.append(c);
                 } catch (Exception e) {
                     logger.error("Failed to decode token {}", next, e);
                 }
             }
 
             long end = System.currentTimeMillis();
-            System.out.printf(
-                    "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
-                    TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken);
+
+            Response response = new Response(
+                    sb.toString(), reason, promptLength, tokensGenerated, promptBatchTime, end - start);
+            logger.debug(
+                    String.format("\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
+                    TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken));
+
+            return response;
         }
     }
 }

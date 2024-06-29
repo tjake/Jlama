@@ -22,6 +22,7 @@ import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.Weights;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
@@ -34,7 +35,7 @@ public class BertModel extends AbstractModel {
 
     public BertModel(
             Config c,
-            Weights w,
+            WeightLoader w,
             Tokenizer tokenizer,
             DType workingDType,
             DType workingQType,
@@ -45,7 +46,7 @@ public class BertModel extends AbstractModel {
     public BertModel(
             InferenceType inferenceType,
             Config c,
-            Weights w,
+            WeightLoader w,
             Tokenizer tokenizer,
             DType workingDType,
             DType workingQType,

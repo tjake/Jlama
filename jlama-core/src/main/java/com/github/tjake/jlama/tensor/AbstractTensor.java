@@ -171,8 +171,8 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         AbstractTensor[] chunks = new AbstractTensor[numChunks];
         int innerLength = this.shape.dim(dim) / numChunks;
 
-        if (Integer.bitCount(innerLength) != 1) {
-            throw new IllegalStateException("Chunks must be power of 2");
+        if (innerLength * numChunks != this.shape.dim(dim)) {
+            throw new IllegalStateException("Chunks must be of equal size");
         }
 
         TensorShape newShape = shape.setDimValue(dim, innerLength);

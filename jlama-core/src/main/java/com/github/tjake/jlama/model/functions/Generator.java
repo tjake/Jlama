@@ -23,7 +23,43 @@ import java.util.function.BiConsumer;
  * Used to define a function that generates tokens from a prompt
  */
 public interface Generator {
-    void generate(
+
+    enum FinishReason {
+        MAX_TOKENS,
+        STOP_TOKEN,
+    }
+
+    class Response {
+        public final String text;
+        public final FinishReason finishReason;
+        public final int promptTokens;
+        public final int generatedTokens;
+        public final long promptTimeMs;
+        public final long generateTimeMs;
+
+        public Response(String text, FinishReason finishReason, int promptTokens, int generatedTokens, long promptTimeMs, long generateTimeMs) {
+            this.text = text;
+            this.finishReason = finishReason;
+            this.promptTokens = promptTokens;
+            this.generatedTokens = generatedTokens;
+            this.promptTimeMs = promptTimeMs;
+            this.generateTimeMs = generateTimeMs;
+        }
+
+        @Override
+        public String toString() {
+            return "GenerateResponse{" +
+                    "text='" + text + '\'' +
+                    ", finishReason=" + finishReason +
+                    ", promptTokens=" + promptTokens +
+                    ", generatedTokens=" + generatedTokens +
+                    ", promptTimeMs=" + promptTimeMs +
+                    ", generateTimeMs=" + generateTimeMs +
+                    '}';
+        }
+    }
+
+    Response generate(
             UUID session,
             String prompt,
             float temperature,
