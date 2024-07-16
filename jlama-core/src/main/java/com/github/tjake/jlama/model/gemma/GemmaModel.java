@@ -15,6 +15,8 @@
  */
 package com.github.tjake.jlama.model.gemma;
 
+import com.github.tjake.jlama.math.ActivationFunction;
+import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.model.CausalSelfAttention;
 import com.github.tjake.jlama.model.LayerNorm;
 import com.github.tjake.jlama.model.MLPBlock;
@@ -28,6 +30,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import java.util.Optional;
 import java.util.stream.IntStream;
@@ -58,7 +61,9 @@ public class GemmaModel extends LlamaModel {
             DType workingQType,
             Optional<DType> modelQType) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
-        this.embeddingScalingFactor = (float) Math.pow(c.embeddingLength, 0.5);
+        // https://github.com/huggingface/transformers/blob/1082361a1978d30db5c3932d1ee08914d74d9697/src/transformers/models/gemma/modeling_gemma.py#L898
+        // This is the scaling factor for the embedding layer but google's implementation is a is rounded to 16 bits
+        this.embeddingScalingFactor = FloatConversions.bFloat16ToFloat32(FloatConversions.float32ToBFloat16((float) Math.pow(c.embeddingLength, 0.5)));
     }
 
     private AbstractTensor wte;
@@ -86,7 +91,7 @@ public class GemmaModel extends LlamaModel {
 
             MLPBlock mlp = new MLPBlock(
                     this,
-                    c.activationFunction,
+                    ActivationFunction.Type.GELU,
                     weights.load(prefix + "gate_proj.weight", c.offset()).quantize(qType), // w1
                     weights.load(prefix + "down_proj.weight").quantize(qType), // w2
                     weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType)); // w3
@@ -119,15 +124,18 @@ public class GemmaModel extends LlamaModel {
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeTensor(c.embeddingLength);
+            AbstractTensor at = wte.slice(true, inputToken);
+            if (wte.dType() != embedding.dType())
+                at = TensorOperationsProvider.get().quantize(at, embedding.dType(), c.embeddingSegmentStart(), c.embeddingSegmentLength());
+
             embedding.copyFrom(
-                    wte,
-                    wte.getOffset(inputToken, c.embeddingSegmentStart()),
+                    at,
+                    at.getOffset(0, c.embeddingSegmentStart()),
                     embedding.getOffset(c.embeddingSegmentStart()),
                     c.embeddingSegmentLength());
 
             // This is important for Gemma, but not for Llama
-            TensorOperationsProvider.get()
-                    .scale(embeddingScalingFactor, embedding, c.embeddingSegmentStart(), c.embeddingSegmentLength());
+            TensorOperationsProvider.get().scale(embeddingScalingFactor, embedding, c.embeddingSegmentStart(), c.embeddingSegmentLength());
 
             return embedding;
         };

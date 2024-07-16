@@ -122,17 +122,12 @@ public interface TensorOperations {
             int yoffset,
             int limit,
             int batchSize) {
-        Preconditions.checkArgument(alpha.shape().first() == x.shape().first());
+        Preconditions.checkArgument(alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
 
         for (int i = 0; i < batchSize; i++) {
-            saxpy(alpha.get(i), x.slice(i), y, xoffset, yoffset, limit);
+            saxpy(alpha.get(0, i), x.slice(i), y, xoffset, yoffset, limit);
         }
     }
-
-    /**
-     * The value computed is Y[i] = X[i] + (beta * Y[i])
-     */
-    void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit);
 
     /**
      * For each position multiply value by the scale factor

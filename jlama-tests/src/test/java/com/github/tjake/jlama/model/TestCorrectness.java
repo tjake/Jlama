@@ -268,7 +268,7 @@ public class TestCorrectness {
 
     @Test
     public void testGemmaTokenizer() throws IOException {
-        String modelPrefix = "../models/gemma-2b";
+        String modelPrefix = "../models/gemma-7b";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));

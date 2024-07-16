@@ -48,7 +48,9 @@ public class GemmaTokenizer extends BPETokenizer {
 
     @Override
     protected String preProcess(String sentence) {
-        return sentence.replace(" ", SPIECE_UNDERLINE);
+        sentence =  sentence.replace(" ", SPIECE_UNDERLINE);
+
+        return sentence;
     }
 
     @Override

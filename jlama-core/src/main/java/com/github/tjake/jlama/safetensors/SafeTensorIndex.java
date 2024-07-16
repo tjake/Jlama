@@ -90,8 +90,8 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     List<String> tensors = split.getValue();
 
                     ByteBuffer buf = raf.getChannel()
-                            .map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset))
-                            .load();
+                            .map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset));
+
                     Map<String, TensorInfo> mmapTensorInfoMap = tensorInfoMap.entrySet().stream()
                             .filter(x -> tensors.contains(x.getKey()))
                             .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));

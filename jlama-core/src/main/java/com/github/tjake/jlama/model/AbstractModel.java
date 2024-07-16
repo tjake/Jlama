@@ -32,6 +32,8 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -143,6 +145,10 @@ public abstract class AbstractModel implements Generator {
 
     protected abstract SampleOutput loadOutputWeights();
 
+    public DType getWorkingDType() {
+        return workingDType;
+    }
+
     public Config getConfig() {
         return c;
     }
@@ -206,6 +212,17 @@ public abstract class AbstractModel implements Generator {
         return embedding;
     }
 
+    protected AbstractTensor batchForwardSlow(int[] token_ids, int startPos, AbstractTensor kvbuf) {
+        AbstractTensor last = null;
+        for (int i = 0; i < token_ids.length; i++) {
+            if (last != null) last.close();
+
+            last = forward(token_ids[i], startPos + i, kvbuf);
+        }
+
+        return last;
+    }
+
     protected AbstractTensor batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
 
         AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
@@ -238,6 +255,8 @@ public abstract class AbstractModel implements Generator {
             double maxv = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < c.vocabularySize; i++) {
                 float v = logits.get(0, i);
+                //v = (float) (30.0f * Math.tanh(v / 30.0f));
+                //logits.set(v, 0, i);
                 if (v > maxv) {
                     maxi = i;
                     maxv = v;
@@ -274,6 +293,12 @@ public abstract class AbstractModel implements Generator {
             boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings) {
         long[] encoded = tokenizer.encode(prompt);
+
+        // Remove BOS token if it's the first token, we explicitly add it below
+        if (encoded.length > 0 && encoded[0] == c.bosToken) {
+            encoded = Arrays.copyOfRange(encoded, 1, encoded.length - 1);
+        }
+
         Preconditions.checkArgument(encoded.length < c.contextLength);
 
         AbstractTensor kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window
@@ -292,6 +317,7 @@ public abstract class AbstractModel implements Generator {
 
         try (AbstractTensor logits = makeTensor(c.vocabularySize)) {
             int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
+
             promptTokens[0] = c.bosToken;
             for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
             promptLength = encoded.length;
@@ -313,7 +339,7 @@ public abstract class AbstractModel implements Generator {
             float genMsPerToken = 0;
             tokensGenerated = 0;
             int next = sample(
-                    last.slice(promptTokens.length - 1),
+                    last.slice(last.shape().first() - 1),
                     temperature,
                     ThreadLocalRandom.current().nextFloat(),
                     logits);
@@ -321,6 +347,7 @@ public abstract class AbstractModel implements Generator {
             try {
                 String c = tokenizer.decode(next);
                 onTokenWithTimings.accept(c, batchMsPerToken);
+                sb.append(c);
             } catch (Exception e) {
                 logger.error("Failed to decode token {}", next, e);
             }
