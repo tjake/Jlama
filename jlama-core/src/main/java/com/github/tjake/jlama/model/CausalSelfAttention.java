@@ -40,7 +40,6 @@ public class CausalSelfAttention {
 
     private final AbstractTensor outputProjectionWeights;
 
-    private final Optional<Float> preAttentionScale;
     private final float attentionScale;
 
     private final AbstractTensor[] qkvResults;
@@ -109,7 +108,6 @@ public class CausalSelfAttention {
         this.outputProjectionWeights = outputProjectionWeights;
 
         this.attentionScale = (float) (1.0 / StrictMath.sqrt(c.headSize));
-        this.preAttentionScale = Optional.of((float)Math.pow(c.headSize, -0.5));
 
         this.qkvResults = new AbstractTensor[3];
         this.qkvWeights = new AbstractTensor[] {queryAttnWeights, keyAttnWeights, valueAttnWeights};
