@@ -924,15 +924,28 @@ void gemm_bf16_128_arm(int m0, int m, int n0, int n, int RM, int RN, struct gemm
         for (int ni = 0; ni < RN; ++ni) {
             int ao = params.aoffset;
             int bo = params.boffset;
-            for(int j = 0; j < params.k; j += 4, ao += 4, bo += 4) { // 128bits == 4floats
-                // Load float32
-                float32x4_t vb = vld1q_f32(params.bf + params.ldb * (jj + ni) + bo);
+            for(int j = 0; j < params.k; j += 8, ao += 8, bo += 8) { // 128bits == 8bfloats
+                // Load shorts
+                uint16x8_t vb = vld1q_u16((const uint16_t*)(params.bs + params.ldb * (jj + ni) + bo));
+
+                // Extract and convert to float
+                uint32x4_t vb0i = vmovl_u16(vget_low_u16(vb));
+                uint32x4_t vb1i = vmovl_u16(vget_high_u16(vb));
+                float32x4_t vb0 = vreinterpretq_f32_u32(vshlq_n_u32(vb0i, 16));
+                float32x4_t vb1 = vreinterpretq_f32_u32(vshlq_n_u32(vb1i, 16));
 
                 for (int mi = 0; mi < RM; ++mi) {
-                    float32x4_t va = vld1q_f32(params.af + params.lda * (ii + mi) + ao);
+                    uint16x8_t va = vld1q_u16((const uint16_t*)(params.as + params.lda * (ii + mi) + ao));
+
+                    // Extract and convert to float
+                    uint32x4_t va0i = vmovl_u16(vget_low_u16(va));
+                    uint32x4_t va1i = vmovl_u16(vget_high_u16(va));
+                    float32x4_t va0 = vreinterpretq_f32_u32(vshlq_n_u32(va0i, 16));
+                    float32x4_t va1 = vreinterpretq_f32_u32(vshlq_n_u32(va1i, 16));
 
                     // Multiply and accumulate
-                    sums[mi][ni] = vmlaq_f32(sums[mi][ni], va, vb);
+                    sums[ni][mi] = vmlaq_f32(sums[ni][mi], va0, vb0);
+                    sums[ni][mi] = vmlaq_f32(sums[ni][mi], va1, vb1);
                 }
             }
         }
@@ -940,7 +953,12 @@ void gemm_bf16_128_arm(int m0, int m, int n0, int n, int RM, int RN, struct gemm
         for (int mi = 0; mi < RM; ++mi) {
             for (int ni = 0; ni < RN; ++ni) {
                 // Horizontal sum of the vector to get dot product
-                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = vaddvq_f32(sums[mi][ni]);
+                float dot = vaddvq_f32(sums[mi][ni]);
+
+                if (params.rs != NULL)
+                    params.rs[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = fp32_to_bf16(dot);
+                else
+                    params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }
@@ -1163,15 +1181,23 @@ void gemm_f32_bf16_128_arm(int m0, int m, int n0, int n, int RM, int RN, struct 
         for (int ni = 0; ni < RN; ++ni) {
             int ao = params.aoffset;
             int bo = params.boffset;
-            for(int j = 0; j < params.k; j += 4, ao += 4, bo += 4) { // 128bits == 4floats
-                // Load float32
-                float32x4_t vb = vld1q_f32(params.bf + params.ldb * (jj + ni) + bo);
+            for(int j = 0; j < params.k; j += 8, ao += 8, bo += 8) { // 128bits == 8bfloats
+                // Load shorts
+                uint16x8_t vb = vld1q_u16((const uint16_t*)(params.bs + params.ldb * (jj + ni) + bo));
+
+                // Extract and convert to float
+                uint32x4_t vb0i = vmovl_u16(vget_low_u16(vb));
+                uint32x4_t vb1i = vmovl_u16(vget_high_u16(vb));
+                float32x4_t vb0 = vreinterpretq_f32_u32(vshlq_n_u32(vb0i, 16));
+                float32x4_t vb1 = vreinterpretq_f32_u32(vshlq_n_u32(vb1i, 16));
 
                 for (int mi = 0; mi < RM; ++mi) {
-                    float32x4_t va = vld1q_f32(params.af + params.lda * (ii + mi) + ao);
+                    float32x4_t va0 = vld1q_f32(params.af + params.lda * (ii + mi) + ao);
+                    float32x4_t va1 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 4);
 
                     // Multiply and accumulate
-                    sums[mi][ni] = vmlaq_f32(sums[mi][ni], va, vb);
+                    sums[mi][ni] = vmlaq_f32(sums[mi][ni], va0, vb0);
+                    sums[mi][ni] = vmlaq_f32(sums[mi][ni], va1, vb1);
                 }
             }
         }
@@ -1179,7 +1205,12 @@ void gemm_f32_bf16_128_arm(int m0, int m, int n0, int n, int RM, int RN, struct 
         for (int mi = 0; mi < RM; ++mi) {
             for (int ni = 0; ni < RN; ++ni) {
                 // Horizontal sum of the vector to get dot product
-                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = vaddvq_f32(sums[mi][ni]);
+
+                float dot = vaddvq_f32(sums[mi][ni]);
+                if (params.rs != NULL)
+                    params.rs[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = fp32_to_bf16(dot);
+                else
+                    params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = dot;
             }
         }
     }

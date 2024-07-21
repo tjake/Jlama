@@ -90,7 +90,7 @@ public class TestOperations {
 
     static AbstractTensor makeTensor(int size) {
         AbstractTensor f = new FloatBufferTensor(1, size);
-        for (int i = 0; i < size; i++) f.set(r.nextFloat(-10, 100), 0, i);
+        for (int i = 0; i < size; i++) f.set(r.nextFloat(-1, 100), 0, i);
 
         return f;
     }
