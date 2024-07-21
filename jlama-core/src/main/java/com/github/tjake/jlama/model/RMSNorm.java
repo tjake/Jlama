@@ -44,23 +44,23 @@ public class RMSNorm extends LayerNorm {
 
         int limit = offset + length;
         for (int b = 0; b < batchSize; b++) {
-            float ss = 0.0f;
+            double ss = 0.0f;
             for (int j = offset; j < limit; j++) {
                 float v = input.get(b, j);
                 ss += v * v;
             }
 
             if (reducer.isPresent()) {
-                Pair<Float, Float> p = reducer.get().apply(ss, 0f);
+                Pair<Float, Float> p = reducer.get().apply((float) ss, 0f);
                 ss = p.left;
             }
 
             ss /= m.c.embeddingLength;
             ss += m.c.layerNormEps;
-            ss = (float) (1.0 / StrictMath.sqrt(ss));
+            ss = (1.0 / StrictMath.sqrt(ss));
             // normalize and scale
             for (int j = offset; j < limit; j++) {
-                output.set((weightAdjustment + weights.get(0, j)) * (ss * input.get(b, j)), b, j);
+                output.set((weightAdjustment + weights.get(0, j)) * ((float) ss * input.get(b, j)), b, j);
             }
         }
         return output;

@@ -273,4 +273,134 @@ public class NativeSimd {
             throw new AssertionError("should not reach here", ex$);
         }
     }
+
+    public static MethodHandle gemm_bf16$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$1, "gemm_bf16");
+    }
+    /**
+     * {@snippet :
+     * void gemm_bf16(int flags, short* a, int aoffset, short* b, int boffset, short* cr, float* r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * }
+     */
+    public static void gemm_bf16(
+            int flags,
+            MemorySegment a,
+            int aoffset,
+            MemorySegment b,
+            int boffset,
+            MemorySegment cr,
+            MemorySegment r,
+            int roffset,
+            int m,
+            int n0,
+            int n,
+            int k,
+            int lda,
+            int ldb,
+            int ldc) {
+        var mh$ = gemm_bf16$MH();
+        try {
+            mh$.invokeExact(flags, a, aoffset, b, boffset, cr, r, roffset, m, n0, n, k, lda, ldb, ldc);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    public static MethodHandle gemm_bf16_batch$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$3, "gemm_bf16_batch");
+    }
+    /**
+     * {@snippet :
+     * void gemm_bf16_batch(int flags, int batch_num, short* a, int aoffset, short** b, int boffset, short** cr, float** r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * }
+     */
+    public static void gemm_bf16_batch(
+            int flags,
+            int batch_num,
+            MemorySegment a,
+            int aoffset,
+            MemorySegment b,
+            int boffset,
+            MemorySegment cr,
+            MemorySegment r,
+            int roffset,
+            int m,
+            int n0,
+            int n,
+            int k,
+            int lda,
+            int ldb,
+            int ldc) {
+        var mh$ = gemm_bf16_batch$MH();
+        try {
+            mh$.invokeExact(flags, batch_num, a, aoffset, b, boffset, cr, r, roffset, m, n0, n, k, lda, ldb, ldc);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    public static MethodHandle gemm_f32_bf16$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$4, "gemm_f32_bf16");
+    }
+    /**
+     * {@snippet :
+     * void gemm_f32_bf16(int flags, float* a, int aoffset, short* b, int boffset, short* cr, float* r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * }
+     */
+    public static void gemm_f32_bf16(
+            int flags,
+            MemorySegment a,
+            int aoffset,
+            MemorySegment b,
+            int boffset,
+            MemorySegment cr,
+            MemorySegment r,
+            int roffset,
+            int m,
+            int n0,
+            int n,
+            int k,
+            int lda,
+            int ldb,
+            int ldc) {
+        var mh$ = gemm_f32_bf16$MH();
+        try {
+            mh$.invokeExact(flags, a, aoffset, b, boffset, cr, r, roffset, m, n0, n, k, lda, ldb, ldc);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
+
+    public static MethodHandle gemm_f32_bf16_batch$MH() {
+        return RuntimeHelper.requireNonNull(constants$2.const$5, "gemm_f32_bf16_batch");
+    }
+    /**
+     * {@snippet :
+     * void gemm_f32_bf16_batch(int flags, int batch_num, float* a, int aoffset, short** b, int boffset, short** cr, float** r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * }
+     */
+    public static void gemm_f32_bf16_batch(
+            int flags,
+            int batch_num,
+            MemorySegment a,
+            int aoffset,
+            MemorySegment b,
+            int boffset,
+            MemorySegment cr,
+            MemorySegment r,
+            int roffset,
+            int m,
+            int n0,
+            int n,
+            int k,
+            int lda,
+            int ldb,
+            int ldc) {
+        var mh$ = gemm_f32_bf16_batch$MH();
+        try {
+            mh$.invokeExact(flags, batch_num, a, aoffset, b, boffset, cr, r, roffset, m, n0, n, k, lda, ldb, ldc);
+        } catch (Throwable ex$) {
+            throw new AssertionError("should not reach here", ex$);
+        }
+    }
 }

@@ -66,6 +66,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+        // System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -150,22 +151,34 @@ public class TestModels {
                     "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, "
                             + "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, "
                             + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
-            String prompt = "[INST] Tell me a joke. [/INST]";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, true, makeOutHandler());
+
+            String prompt = "Tell me a joke.";
+            String p = model.promptSupport()
+                    .get()
+                    .newBuilder()
+                    .addUserMessage(prompt)
+                    .build();
+
+            model.generate(UUID.randomUUID(), p, 0.7f, 256, true, makeOutHandler());
         }
     }
 
     @Test
     public void GemmaRun() throws Exception {
-        String modelPrefix = "../models/gemma-2b";
+        String modelPrefix = "../models/gemma-7b-it";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights =
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             GemmaTokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
             GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
             GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
-            String prompt = "Simply put, the theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt, 0.9f, 256, false, makeOutHandler());
+            String prompt = "Tell me a joke.";
+            String p = model.promptSupport()
+                    .get()
+                    .newBuilder()
+                    .addUserMessage(prompt)
+                    .build();
+            model.generate(UUID.randomUUID(), p, 0.7f, 256, false, makeOutHandler());
         }
     }
 

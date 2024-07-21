@@ -64,6 +64,15 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, shape.sparseOffset()) : 0;
     }
 
+    public static AbstractTensor make(DType dType, TensorShape shape) {
+        return switch (dType) {
+            case F32 -> new FloatBufferTensor(shape);
+            case BF16 -> new BFloat16BufferTensor(shape);
+            case I8 -> new Q8ByteBufferTensor(shape);
+            default -> throw new RuntimeException("Unsupported tensor type: " + dType);
+        };
+    }
+
     public void setMetadata(String key, Object value) {
         metadata.put(key, value);
     }
@@ -274,8 +283,13 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     }
 
     public AbstractTensor quantize(DType dType) {
+        return quantize(dType, false);
+    }
 
-        if (this.shape().first() == 1 || this.dType == dType) return this;
+    public AbstractTensor quantize(DType dType, boolean force) {
+
+        if (!force && (this.shape().first() == 1 || this.dType == dType || this.dType.size() < dType.size()))
+            return this;
 
         if (shape.isSparse()) {
             logger.info("Quantizing sparse tensor is not supported");

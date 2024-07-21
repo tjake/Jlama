@@ -25,7 +25,7 @@ import java.util.function.Supplier;
  */
 public class PhysicalCoreExecutor {
     private static volatile int physicalCoreCount =
-            Math.max(1, Runtime.getRuntime().availableProcessors());
+            Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
     private static final AtomicBoolean started = new AtomicBoolean(false);
 
     /**

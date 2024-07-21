@@ -21,7 +21,7 @@ Implements:
   * Flash Attention
   * Mixture of Experts
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model and tokenizer format
-  * Support for F32, F16, BF16 models
+  * Support for F32, F16, BF16 types
   * Support for Q8, Q4 model quantization
   * Fast GEMM operations
   * Distributed Inference!

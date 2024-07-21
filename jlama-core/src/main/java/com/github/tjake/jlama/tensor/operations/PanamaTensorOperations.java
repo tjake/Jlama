@@ -40,12 +40,15 @@ public final class PanamaTensorOperations implements TensorOperations {
     static final ByteVector Q4_BYTE_MASK_64 = ByteVector.broadcast(ByteVector.SPECIES_64, 0xF);
     static final ByteVector Q4_BYTE_SHIFT_64 = ByteVector.broadcast(ByteVector.SPECIES_64, 4);
 
+    static final IntVector BF16_BYTE_SHIFT = IntVector.broadcast(IntVector.SPECIES_PREFERRED, 16);
+
     static final IntVector BF16_BYTE_SHIFT_512 = IntVector.broadcast(IntVector.SPECIES_512, 16);
     static final FloatVector F32_ROUND_UP_512 = FloatVector.broadcast(FloatVector.SPECIES_512, 0.5f);
 
     static final IntVector BF16_BYTE_SHIFT_256 = IntVector.broadcast(IntVector.SPECIES_256, 16);
     static final FloatVector F32_ROUND_UP_256 = FloatVector.broadcast(FloatVector.SPECIES_256, 0.5f);
 
+    static final IntVector BF16_BYTE_SHIFT_128 = IntVector.broadcast(IntVector.SPECIES_128, 16);
     static final FloatVector F32_ROUND_UP_128 = FloatVector.broadcast(FloatVector.SPECIES_128, 0.5f);
 
     static final VectorMask<Byte> BYTE_MASK_32 =
@@ -96,7 +99,7 @@ public final class PanamaTensorOperations implements TensorOperations {
             int rowChunkSize) {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
         Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
-        Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
+        // Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
         // Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K");
 
         int M = a.shape().dim(0);
@@ -107,6 +110,7 @@ public final class PanamaTensorOperations implements TensorOperations {
                 switch (a.dType()) {
                     case F32 -> switch (b.dType()) {
                         case F32 -> new GemmerF32(K, a, b, result, aColumnOffset, bColumnOffset);
+                        case BF16 -> new GemmerF32BF16(K, a, b, result, aColumnOffset, bColumnOffset);
                         case Q4 -> switch (vectorType) {
                             case AVX_256 -> new GemmerF32Q4_256(K, a, b, result, aColumnOffset, bColumnOffset);
                             case AVX_512 -> new GemmerF32Q4_512(K, a, b, result, aColumnOffset, bColumnOffset);
@@ -125,7 +129,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                         default -> throw new UnsupportedOperationException(
                                 b.dType().name());
                     };
-                    default -> throw new UnsupportedOperationException(a.dType().name());
+                    case BF16 -> switch (b.dType()) {
+                        case BF16 -> new GemmerBF16(K, a, b, result, aColumnOffset, bColumnOffset);
+                        default -> throw new UnsupportedOperationException(
+                                b.dType().name());
+                    };
+                    default -> throw new UnsupportedOperationException(
+                            a.dType().name() + " " + b.dType().name());
                 };
 
         gemm.matmul(0, M, bRowOffset, bRowOffset + N);
@@ -1419,6 +1429,315 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
+    private class GemmerBF16 extends Gemmer {
+
+        final BiIntConsumer matmul1x1;
+        /*final BiIntConsumer matmul1x4;
+        final BiIntConsumer matmul3x4;
+        final BiIntConsumer matmul4x1;*/
+
+        final BFloat16BufferTensor a;
+        final BFloat16BufferTensor b;
+
+        GemmerBF16(int k, AbstractTensor ta, AbstractTensor tb, AbstractTensor c, int ith, int nth) {
+            super(k, ta, tb, c, ith, nth);
+
+            this.matmul1x1 = initMatmul1x1();
+            /*this.matmul1x4 = initMatmul1x4();
+            this.matmul3x4 = initMatmul3x4();
+            this.matmul4x1 = initMatmul4x1();*/
+
+            this.a = (BFloat16BufferTensor) ta;
+            this.b = (BFloat16BufferTensor) tb;
+        }
+
+        @Override
+        protected int pickKernel(int m0, int m, int n0, int n) {
+            short mc, nc;
+            /*if (m - m0 >= 3 && n - n0 >= 4) {
+                mc = 3;
+                nc = 4;
+                kernel(m0, m, 3, n0, n, 4, matmul3x4);
+            } else if (m - m0 >= 4 && n - n0 >= 1) {
+                mc = 4;
+                nc = 1;
+                kernel(m0, m, 4, n0, n, 1, matmul4x1);
+            } else if (m - m0 >= 1 && n - n0 >= 4) {
+                mc = 1;
+                nc = 4;
+                kernel(m0, m, 1, n0, n, 4, matmul1x4);
+            } else {*/
+            mc = 1;
+            nc = 1;
+            kernel(m0, m, 1, n0, n, 1, matmul1x1);
+            // }
+
+            return (mc << 4) | nc;
+        }
+
+        protected BiIntConsumer initMatmul1x1() {
+            return (i, j) -> {
+                FloatVector vc = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                int aoffset = aColumnOffset;
+                int boffset = bColumnOffset;
+                int alim = aColumnOffset + k;
+                int blim = bColumnOffset + k;
+                int slen = ShortVector.SPECIES_PREFERRED.length();
+                for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
+                    ShortVector sa = a.getVector(ShortVector.SPECIES_PREFERRED, i, aoffset);
+                    FloatVector va0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                            .reinterpretAsFloats();
+
+                    FloatVector va1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                            .reinterpretAsFloats();
+
+                    ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
+                    FloatVector vb0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                            .reinterpretAsFloats();
+
+                    FloatVector vb1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                            .reinterpretAsFloats();
+
+                    vc = va0.fma(vb0, vc);
+                    vc = va1.fma(vb1, vc);
+                }
+                float res = vc.reduceLanes(VectorOperators.ADD);
+                c.set(res, i, j);
+            };
+        }
+
+        /*protected BiIntConsumer initMatmul1x4() {
+            return (i, j) -> {
+                FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc2 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc3 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+
+                int aoffset = aColumnOffset;
+                int boffset = bColumnOffset;
+                int alim = aColumnOffset + k;
+                int blim = bColumnOffset + k;
+
+                for (;
+                     aoffset < alim || boffset < blim;
+                     aoffset += FloatVector.SPECIES_PREFERRED.length(),
+                             boffset += FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 0, boffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 1, boffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 2, boffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset)
+                            .reinterpretAsFloats();
+                    vc0 = va.fma(vb0, vc0);
+                    vc1 = va.fma(vb1, vc1);
+                    vc2 = va.fma(vb2, vc2);
+                    vc3 = va.fma(vb3, vc3);
+                }
+
+                c.set(vc0.reduceLanes(VectorOperators.ADD), i, j + 0);
+                c.set(vc1.reduceLanes(VectorOperators.ADD), i, j + 1);
+                c.set(vc2.reduceLanes(VectorOperators.ADD), i, j + 2);
+                c.set(vc3.reduceLanes(VectorOperators.ADD), i, j + 3);
+            };
+        }
+
+        protected BiIntConsumer initMatmul3x4() {
+            return (i, j) -> {
+                FloatVector vc00 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc01 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc02 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc03 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc10 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc11 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc12 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc13 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc20 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc21 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc22 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc23 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+
+                int aoffset = aColumnOffset;
+                int boffset = bColumnOffset;
+                int alim = aColumnOffset + k;
+                int blim = bColumnOffset + k;
+
+                for (;
+                     aoffset < alim || boffset < blim;
+                     aoffset += FloatVector.SPECIES_PREFERRED.length(),
+                             boffset += FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 0, boffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 1, boffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 2, boffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset)
+                            .reinterpretAsFloats();
+
+                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset)
+                            .reinterpretAsFloats();
+                    vc00 = va.fma(vb0, vc00);
+                    vc01 = va.fma(vb1, vc01);
+                    vc02 = va.fma(vb2, vc02);
+                    vc03 = va.fma(vb3, vc03);
+
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset)
+                            .reinterpretAsFloats();
+                    vc10 = va1.fma(vb0, vc10);
+                    vc11 = va1.fma(vb1, vc11);
+                    vc12 = va1.fma(vb2, vc12);
+                    vc13 = va1.fma(vb3, vc13);
+
+                    FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset)
+                            .reinterpretAsFloats();
+                    vc20 = va2.fma(vb0, vc20);
+                    vc21 = va2.fma(vb1, vc21);
+                    vc22 = va2.fma(vb2, vc22);
+                    vc23 = va2.fma(vb3, vc23);
+                }
+
+                c.set(vc00.reduceLanes(VectorOperators.ADD), i + 0, j + 0);
+                c.set(vc01.reduceLanes(VectorOperators.ADD), i + 0, j + 1);
+                c.set(vc02.reduceLanes(VectorOperators.ADD), i + 0, j + 2);
+                c.set(vc03.reduceLanes(VectorOperators.ADD), i + 0, j + 3);
+
+                c.set(vc10.reduceLanes(VectorOperators.ADD), i + 1, j + 0);
+                c.set(vc11.reduceLanes(VectorOperators.ADD), i + 1, j + 1);
+                c.set(vc12.reduceLanes(VectorOperators.ADD), i + 1, j + 2);
+                c.set(vc13.reduceLanes(VectorOperators.ADD), i + 1, j + 3);
+
+                c.set(vc20.reduceLanes(VectorOperators.ADD), i + 2, j + 0);
+                c.set(vc21.reduceLanes(VectorOperators.ADD), i + 2, j + 1);
+                c.set(vc22.reduceLanes(VectorOperators.ADD), i + 2, j + 2);
+                c.set(vc23.reduceLanes(VectorOperators.ADD), i + 2, j + 3);
+            };
+        }
+
+        protected BiIntConsumer initMatmul4x1() {
+            return (i, j) -> {
+                FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc2 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                FloatVector vc3 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+
+                int aoffset = aColumnOffset;
+                int boffset = bColumnOffset;
+                int alim = aColumnOffset + k;
+                int blim = bColumnOffset + k;
+
+                for (;
+                     aoffset < alim || boffset < blim;
+                     aoffset += FloatVector.SPECIES_PREFERRED.length(),
+                             boffset += FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector va0 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset)
+                            .reinterpretAsFloats();
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset)
+                            .reinterpretAsFloats();
+                    FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset)
+                            .reinterpretAsFloats();
+                    FloatVector va3 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 3, aoffset)
+                            .reinterpretAsFloats();
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j, boffset)
+                            .reinterpretAsFloats();
+
+                    vc0 = va0.fma(vb0, vc0);
+                    vc1 = va1.fma(vb0, vc1);
+                    vc2 = va2.fma(vb0, vc2);
+                    vc3 = va3.fma(vb0, vc3);
+                }
+
+                c.set(vc0.reduceLanes(VectorOperators.ADD), i + 0, j);
+                c.set(vc1.reduceLanes(VectorOperators.ADD), i + 1, j);
+                c.set(vc2.reduceLanes(VectorOperators.ADD), i + 2, j);
+                c.set(vc3.reduceLanes(VectorOperators.ADD), i + 3, j);
+            };
+        }*/
+    }
+
+    private class GemmerF32BF16 extends Gemmer {
+
+        final BiIntConsumer matmul1x1;
+        /*final BiIntConsumer matmul1x4;
+        final BiIntConsumer matmul3x4;
+        final BiIntConsumer matmul4x1;*/
+
+        final FloatBufferTensor a;
+        final BFloat16BufferTensor b;
+
+        GemmerF32BF16(int k, AbstractTensor ta, AbstractTensor tb, AbstractTensor c, int ith, int nth) {
+            super(k, ta, tb, c, ith, nth);
+
+            this.matmul1x1 = initMatmul1x1();
+            /*this.matmul1x4 = initMatmul1x4();
+            this.matmul3x4 = initMatmul3x4();
+            this.matmul4x1 = initMatmul4x1();*/
+            this.a = (FloatBufferTensor) ta;
+            this.b = (BFloat16BufferTensor) tb;
+        }
+
+        @Override
+        protected int pickKernel(int m0, int m, int n0, int n) {
+            short mc, nc;
+            /*if (m - m0 >= 3 && n - n0 >= 4) {
+                mc = 3;
+                nc = 4;
+                kernel(m0, m, 3, n0, n, 4, matmul3x4);
+            } else if (m - m0 >= 4 && n - n0 >= 1) {
+                mc = 4;
+                nc = 1;
+                kernel(m0, m, 4, n0, n, 1, matmul4x1);
+            } else if (m - m0 >= 1 && n - n0 >= 4) {
+                mc = 1;
+                nc = 4;
+                kernel(m0, m, 1, n0, n, 4, matmul1x4);
+            } else {*/
+            mc = 1;
+            nc = 1;
+            kernel(m0, m, 1, n0, n, 1, matmul1x1);
+            // }
+
+            return (mc << 4) | nc;
+        }
+
+        protected BiIntConsumer initMatmul1x1() {
+            return (i, j) -> {
+                FloatVector vc = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
+                int aoffset = aColumnOffset;
+                int boffset = bColumnOffset;
+                int alim = aColumnOffset + k;
+                int blim = bColumnOffset + k;
+                int slen = ShortVector.SPECIES_PREFERRED.length();
+                for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
+                    FloatVector va0 = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset);
+                    FloatVector va1 = a.getVector(
+                            FloatVector.SPECIES_PREFERRED, i, aoffset + FloatVector.SPECIES_PREFERRED.length());
+
+                    ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
+                    FloatVector vb0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                            .reinterpretAsFloats();
+
+                    FloatVector vb1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                            .reinterpretAsFloats();
+
+                    vc = va0.fma(vb0, vc);
+                    vc = va1.fma(vb1, vc);
+                }
+                float res = vc.reduceLanes(VectorOperators.ADD);
+                c.set(res, i, j);
+            };
+        }
+    }
+
     private abstract class Gemmer {
         final int k;
         final AbstractTensor a;
@@ -1483,10 +1802,75 @@ public final class PanamaTensorOperations implements TensorOperations {
                     case ARM_128 -> quantizeQ8_arm((FloatBufferTensor) t, offset, length);
                     default -> throw new UnsupportedOperationException();
                 };
+                case BF16 -> quantizeBF16((FloatBufferTensor) t, offset, length);
+                default -> throw new UnsupportedOperationException();
+            };
+            case BF16 -> switch (qtype) {
+                case I8 -> switch (vectorType) {
+                    case AVX_512 -> quantizeBF16_Q8_512((BFloat16BufferTensor) t, offset, length);
+                    case AVX_256 -> quantizeBF16_Q8_256((BFloat16BufferTensor) t, offset, length);
+                    case ARM_128 -> quantizeBF16_Q8_arm((BFloat16BufferTensor) t, offset, length);
+                    default -> throw new UnsupportedOperationException();
+                };
+                case F32 -> quantizeBF16_F32((BFloat16BufferTensor) t, offset, length);
                 default -> throw new UnsupportedOperationException();
             };
             default -> throw new UnsupportedOperationException();
         };
+    }
+
+    public BFloat16BufferTensor quantizeBF16(FloatBufferTensor ft, final int offset, int length) {
+
+        // Up to caller to release
+        BFloat16BufferTensor qft = (BFloat16BufferTensor) TensorCache.instance.get(DType.BF16, ft.shape());
+        int batchSize = ft.shape().first();
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = offset; i < offset + length; i += ShortVector.SPECIES_PREFERRED.length()) {
+                var r0 = ft.getVector(FloatVector.SPECIES_PREFERRED, b, i)
+                        .reinterpretAsInts()
+                        .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                        .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
+
+                var r1 = ft.getVector(FloatVector.SPECIES_PREFERRED, b, i + FloatVector.SPECIES_PREFERRED.length())
+                        .reinterpretAsInts()
+                        .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                        .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
+
+                VectorMask<Short> mask = VectorMask.fromLong(
+                        ShortVector.SPECIES_PREFERRED, (1L << FloatVector.SPECIES_PREFERRED.length()) - 1);
+                mask = mask.not(); // Invert the mask to select the second half
+
+                var r = r0.blend(r1, mask);
+
+                qft.intoTensor((ShortVector) r, b, i);
+            }
+        }
+
+        return qft;
+    }
+
+    public FloatBufferTensor quantizeBF16_F32(BFloat16BufferTensor ft, final int offset, int length) {
+
+        // Up to caller to release
+        FloatBufferTensor qft = (FloatBufferTensor) TensorCache.instance.get(DType.F32, ft.shape());
+        int batchSize = ft.shape().first();
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = offset; i < offset + length; i += ShortVector.SPECIES_PREFERRED.length()) {
+                var sa = ft.getVector(ShortVector.SPECIES_PREFERRED, b, i);
+                var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
+
+                var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
+
+                qft.intoTensor(af0, b, i);
+                qft.intoTensor(af1, b, i + FloatVector.SPECIES_PREFERRED.length());
+            }
+        }
+
+        return qft;
     }
 
     public Q8ByteBufferTensor quantizeQ8_512(FloatBufferTensor ft, final int offset, int length) {
@@ -1672,6 +2056,228 @@ public final class PanamaTensorOperations implements TensorOperations {
         return qft;
     }
 
+    public Q8ByteBufferTensor quantizeBF16_Q8_512(BFloat16BufferTensor ft, final int offset, int length) {
+
+        // Up to caller to release
+        Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
+        int batchSize = ft.shape().first();
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
+                ShortVector sv = ft.getVector(ShortVector.SPECIES_512, b, i);
+                FloatVector fv0 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                        .reinterpretAsFloats();
+                FloatVector fv1 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                        .reinterpretAsFloats();
+
+                // Compute max abs
+                var maxAbs0 = fv0.abs();
+                var maxAbs1 = fv1.abs();
+
+                float maxScalar = maxAbs0.max(maxAbs1).reduceLanes(VectorOperators.MAX);
+
+                // Quantize these floats
+                float d = maxScalar / 127f;
+                float id = (maxScalar != 0.0f) ? 127.f / maxScalar : 0.0f;
+
+                var vid = FloatVector.broadcast(FloatVector.SPECIES_512, id);
+                var fvq0 = fv0.mul(vid).add(F32_ROUND_UP_512); // rounding
+                var fvq1 = fv1.mul(vid).add(F32_ROUND_UP_512); // rounding
+
+                // Squash to bytes (rounds internally)
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
+                        .reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
+                        .reinterpretAsBytes();
+
+                qft.intoTensor(bvq0, b, i);
+                qft.intoTensor(bvq1, b, i + 16);
+                try {
+                    qft.getBlockF().set(d, b, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        return qft;
+    }
+
+    public Q8ByteBufferTensor quantizeBF16_Q8_256(BFloat16BufferTensor ft, int offset, int length) {
+
+        // Up to caller to release
+        Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
+
+        int batchSize = ft.shape().first();
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
+                ShortVector sv = ft.getVector(ShortVector.SPECIES_256, b, i);
+                FloatVector fv0 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                        .reinterpretAsFloats();
+                FloatVector fv1 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                        .reinterpretAsFloats();
+
+                sv = ft.getVector(ShortVector.SPECIES_256, b, i + 16);
+                FloatVector fv2 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                        .reinterpretAsFloats();
+                FloatVector fv3 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                        .reinterpretAsFloats();
+
+                // Compute max abs
+                var maxAbs0 = fv0.abs();
+                var maxAbs1 = fv1.abs();
+                var maxAbs2 = fv2.abs();
+                var maxAbs3 = fv3.abs();
+
+                var m0 = maxAbs0.max(maxAbs1);
+                var m1 = maxAbs2.max(maxAbs3);
+                float maxScalar = m0.max(m1).reduceLanes(VectorOperators.MAX);
+
+                // Quantize these floats
+                float d = maxScalar / 127f;
+                float id = (maxScalar != 0.0f) ? 127.f / maxScalar : 0.0f;
+
+                var vid = FloatVector.broadcast(FloatVector.SPECIES_256, id);
+                var fvq0 = fv0.mul(vid).add(F32_ROUND_UP_256); // rounding
+                var fvq1 = fv1.mul(vid).add(F32_ROUND_UP_256); // rounding
+                var fvq2 = fv2.mul(vid).add(F32_ROUND_UP_256); // rounding
+                var fvq3 = fv3.mul(vid).add(F32_ROUND_UP_256); // rounding
+
+                // Squash to bytes (rounds internally)
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+
+                qft.intoTensor(bvq0, b, i);
+                qft.intoTensor(bvq1, b, i + 8);
+                qft.intoTensor(bvq2, b, i + 16);
+                qft.intoTensor(bvq3, b, i + 24);
+
+                qft.getBlockF().set(d, b, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+            }
+        }
+
+        return qft;
+    }
+
+    public Q8ByteBufferTensor quantizeBF16_Q8_arm(BFloat16BufferTensor ft, int offset, int length) {
+
+        // Up to caller to release
+        Q8ByteBufferTensor qft = (Q8ByteBufferTensor) TensorCache.instance.get(DType.I8, ft.shape());
+
+        int batchSize = ft.shape().first();
+        for (int b = 0; b < batchSize; b++) {
+            for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
+                ShortVector sv = ft.getVector(ShortVector.SPECIES_128, b, i);
+                FloatVector fv0 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+                FloatVector fv1 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+
+                sv = ft.getVector(ShortVector.SPECIES_128, b, i + 8);
+                FloatVector fv2 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+                FloatVector fv3 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+
+                sv = ft.getVector(ShortVector.SPECIES_128, b, i + 16);
+                FloatVector fv4 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+                FloatVector fv5 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+
+                sv = ft.getVector(ShortVector.SPECIES_128, b, i + 24);
+                FloatVector fv6 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+                FloatVector fv7 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                        .reinterpretAsFloats();
+
+                // Compute max abs
+                var maxAbs0 = fv0.abs();
+                var maxAbs1 = fv1.abs();
+                var maxAbs2 = fv2.abs();
+                var maxAbs3 = fv3.abs();
+                var maxAbs4 = fv4.abs();
+                var maxAbs5 = fv5.abs();
+                var maxAbs6 = fv6.abs();
+                var maxAbs7 = fv7.abs();
+
+                var m0 = maxAbs0.max(maxAbs1);
+                var m1 = maxAbs2.max(maxAbs3);
+                var m2 = maxAbs4.max(maxAbs5);
+                var m3 = maxAbs6.max(maxAbs7);
+
+                var m4 = m0.max(m1);
+                var m5 = m2.max(m3);
+
+                float maxScalar = m4.max(m5).reduceLanes(VectorOperators.MAX);
+
+                // Quantize these floats
+                float d = maxScalar / 127f;
+                float id = (maxScalar != 0.0f) ? 127.f / maxScalar : 0.0f;
+
+                var vid = FloatVector.broadcast(FloatVector.SPECIES_128, id);
+                var fvq0 = fv0.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq1 = fv1.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq2 = fv2.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq3 = fv3.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq4 = fv4.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq5 = fv5.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq6 = fv6.mul(vid).add(F32_ROUND_UP_128); // rounding
+                var fvq7 = fv7.mul(vid).add(F32_ROUND_UP_128); // rounding
+
+                // Squash to bytes (rounds internally)
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq4 = fvq4.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq5 = fvq5.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq6 = fvq6.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+                var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
+                        .reinterpretAsBytes();
+
+                qft.intoTensor(bvq0, BYTE_MASK_32, b, i + 0);
+                qft.intoTensor(bvq1, BYTE_MASK_32, b, i + 4);
+                qft.intoTensor(bvq2, BYTE_MASK_32, b, i + 8);
+                qft.intoTensor(bvq3, BYTE_MASK_32, b, i + 12);
+                qft.intoTensor(bvq4, BYTE_MASK_32, b, i + 16);
+                qft.intoTensor(bvq5, BYTE_MASK_32, b, i + 20);
+                qft.intoTensor(bvq6, BYTE_MASK_32, b, i + 24);
+                qft.intoTensor(bvq7, BYTE_MASK_32, b, i + 28);
+
+                qft.getBlockF().set(d, b, (int) (i * Q8ByteBufferTensor.I_BLOCK_SIZE));
+            }
+        }
+
+        return qft;
+    }
+
     @Override
     public void maccumulate(AbstractTensor aBatch, AbstractTensor bBatch, int offset, int limit) {
         Preconditions.checkArgument(aBatch.dType() == bBatch.dType());
@@ -1685,8 +2291,11 @@ public final class PanamaTensorOperations implements TensorOperations {
                 case F32:
                     maccumulateF32((FloatBufferTensor) a, (FloatBufferTensor) b, offset, limit);
                     break;
+                case BF16:
+                    maccumulateBF16((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                    break;
                 default:
-                    throw new UnsupportedOperationException();
+                    throw new UnsupportedOperationException(a.dType().name());
             }
         }
     }
@@ -1699,6 +2308,57 @@ public final class PanamaTensorOperations implements TensorOperations {
             FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, 0, i);
             FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, 0, i);
             a.intoTensor(va.mul(vb), 0, i);
+        }
+
+        // tail
+        for (; i < offset + limit; i++) {
+            a.set(a.get(0, i) * b.get(0, i), 0, i);
+        }
+    }
+
+    void maccumulateBF16(BFloat16BufferTensor a, BFloat16BufferTensor b, int offset, int limit) {
+        int upperBound = offset + ShortVector.SPECIES_PREFERRED.loopBound(limit);
+        int i = offset;
+
+        int half = ShortVector.SPECIES_PREFERRED.length() / 2;
+
+        for (; i < upperBound; i += ShortVector.SPECIES_PREFERRED.length()) {
+            // Convert BF16 to F32
+            var sa = a.getVector(ShortVector.SPECIES_PREFERRED, 0, i);
+            var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            // Convert BF16 to F32
+            var sb = b.getVector(ShortVector.SPECIES_PREFERRED, 0, i);
+            var bf0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            var bf1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            var r0 = af0.mul(bf0)
+                    .reinterpretAsInts()
+                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
+
+            var r1 = af1.mul(bf1)
+                    .reinterpretAsInts()
+                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
+
+            VectorMask<Short> mask = VectorMask.fromLong(ShortVector.SPECIES_PREFERRED, (1L << half) - 1);
+            mask = mask.not(); // Invert the mask to select the second half
+
+            var r = r0.blend(r1, mask);
+
+            a.intoTensor((ShortVector) r, 0, i);
         }
 
         // tail
@@ -1879,7 +2539,7 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         // tail
         for (; i < (offset + length); i++) {
-            a.set(a.get(0, i) + factor, 0, i);
+            a.set(a.get(0, i) * factor, 0, i);
         }
     }
 
@@ -1904,14 +2564,14 @@ public final class PanamaTensorOperations implements TensorOperations {
 
         // tail
         for (; i < (offset + length); i++) {
-            a.set(a.get(0, i) + factor, 0, i);
+            a.set(a.get(0, i) * factor, 0, i);
         }
     }
 
     @Override
     public void saxpy(float alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        // Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
-        Preconditions.checkArgument(x.dType() == y.dType());
+        Preconditions.checkArgument(y.shape().first() == 1);
+        Preconditions.checkArgument(x.dType() == y.dType() || x.dType() == DType.BF16 && y.dType() == DType.F32);
         Preconditions.checkArgument(limit % 2 == 0);
 
         switch (x.dType()) {
@@ -1919,14 +2579,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                 saxpyF32(alpha, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit);
                 break;
             case BF16:
-                switch (vectorType) {
-                    case AVX_512:
-                        saxpyBF16_512(
-                                alpha, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
+                switch (y.dType()) {
+                    case F32:
+                        saxpyBF16F32(alpha, (BFloat16BufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit);
                         break;
-                    case AVX_256:
-                        saxpyBF16_256(
-                                alpha, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
+                    case BF16:
+                        saxpyBF16(alpha, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
                         break;
                     default:
                         throw new UnsupportedOperationException();
@@ -1961,16 +2619,43 @@ public final class PanamaTensorOperations implements TensorOperations {
     @Override
     public void saxpy(
             AbstractTensor alpha,
-            AbstractTensor xt,
-            AbstractTensor yt,
+            AbstractTensor x,
+            AbstractTensor y,
             int xoffset,
             int yoffset,
             int limit,
             int batchSize) {
-        Preconditions.checkArgument(xt.dType() == yt.dType() && xt.dType() == DType.F32, "F32 support only!");
+        Preconditions.checkArgument(limit % 2 == 0);
 
-        FloatBufferTensor x = (FloatBufferTensor) xt;
-        FloatBufferTensor y = (FloatBufferTensor) yt;
+        switch (x.dType()) {
+            case F32:
+                saxpyF32(alpha, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit, batchSize);
+                break;
+            case BF16:
+                switch (y.dType()) {
+                    case F32:
+                        saxpyBF16F32(alpha, x, y, xoffset, yoffset, limit, batchSize);
+                        break;
+                    case BF16:
+                        saxpyBF16(alpha, x, y, xoffset, yoffset, limit, batchSize);
+                        break;
+                    default:
+                        throw new UnsupportedOperationException();
+                }
+                break;
+            default:
+                throw new UnsupportedOperationException();
+        }
+    }
+
+    public void saxpyF32(
+            AbstractTensor alpha,
+            FloatBufferTensor x,
+            FloatBufferTensor y,
+            int xoffset,
+            int yoffset,
+            int limit,
+            int batchSize) {
 
         int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
 
@@ -2012,207 +2697,117 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
-    void saxpyBF16_256(
-            float alpha, BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit) {
-        int upperBound = FloatVector.SPECIES_256.loopBound(limit);
+    public void saxpyBF16(
+            AbstractTensor alpha,
+            AbstractTensor xt,
+            AbstractTensor yt,
+            int xoffset,
+            int yoffset,
+            int limit,
+            int batchSize) {
+
+        BFloat16BufferTensor x = (BFloat16BufferTensor) xt;
+        BFloat16BufferTensor y = (BFloat16BufferTensor) yt;
+
+        for (int a = 0; a < batchSize; a++) {
+            saxpyBF16(alpha.get(0, a), (BFloat16BufferTensor) x.slice(a), y, xoffset, yoffset, limit);
+        }
+    }
+
+    public void saxpyBF16F32(
+            AbstractTensor alpha,
+            AbstractTensor xt,
+            AbstractTensor yt,
+            int xoffset,
+            int yoffset,
+            int limit,
+            int batchSize) {
+
+        BFloat16BufferTensor x = (BFloat16BufferTensor) xt;
+        FloatBufferTensor y = (FloatBufferTensor) yt;
+
+        for (int a = 0; a < batchSize; a++) {
+            saxpyBF16F32(alpha.get(0, a), (BFloat16BufferTensor) x.slice(a), y, xoffset, yoffset, limit);
+        }
+    }
+
+    void saxpyBF16(float alpha, BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit) {
+        int upperBound = ShortVector.SPECIES_PREFERRED.loopBound(limit);
         Preconditions.checkArgument(upperBound == limit);
 
         int ao = aoffset;
         int bo = boffset;
-        int len = FloatVector.SPECIES_256.length();
+        int len = ShortVector.SPECIES_PREFERRED.length();
+        int half = ShortVector.SPECIES_PREFERRED.length() / 2;
 
         for (; ao < (aoffset + upperBound) && bo < (boffset + upperBound); ao += len, bo += len) {
             // Convert BF16 to F32
-            var af = a.getVector(ShortVector.SPECIES_128, 0, ao)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+            var sa = a.getVector(ShortVector.SPECIES_PREFERRED, 0, ao);
+            var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var bf = b.getVector(ShortVector.SPECIES_128, 0, bo)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+            var sb = b.getVector(ShortVector.SPECIES_PREFERRED, 0, bo);
+            var bf0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
                     .reinterpretAsFloats();
 
-            var r = bf.add(af.mul(alpha))
+            var bf1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            var r0 = bf0.add(af0.mul(alpha))
                     .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
+                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
+
+            var r1 = bf1.add(af1.mul(alpha))
+                    .reinterpretAsInts()
+                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
+
+            VectorMask<Short> mask = VectorMask.fromLong(ShortVector.SPECIES_PREFERRED, (1L << half) - 1);
+            mask = mask.not(); // Invert the mask to select the second half
+
+            var r = r0.blend(r1, mask);
 
             b.intoTensor((ShortVector) r, 0, bo);
         }
-
-        // tail
-        for (; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
-            float v = a.get(0, ao) + alpha * b.get(0, bo);
-            b.set(v, 0, bo);
-        }
     }
 
-    void saxpyBF16_512(
-            float alpha, BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit) {
-        int upperBound = FloatVector.SPECIES_512.loopBound(limit);
+    void saxpyBF16F32(float alpha, BFloat16BufferTensor a, FloatBufferTensor b, int aoffset, int boffset, int limit) {
+        int upperBound = ShortVector.SPECIES_PREFERRED.loopBound(limit);
         Preconditions.checkArgument(upperBound == limit);
 
         int ao = aoffset;
         int bo = boffset;
-        int len = FloatVector.SPECIES_512.length();
+        int len = ShortVector.SPECIES_PREFERRED.length();
 
         for (; ao < (aoffset + upperBound) && bo < (boffset + upperBound); ao += len, bo += len) {
             // Convert BF16 to F32
-            var af = a.getVector(ShortVector.SPECIES_256, 0, ao)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+            var sa = a.getVector(ShortVector.SPECIES_PREFERRED, 0, ao);
+            var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
+
+            var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
                     .reinterpretAsFloats();
 
             // Convert BF16 to F32
-            var bf = b.getVector(ShortVector.SPECIES_256, 0, bo)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                    .reinterpretAsFloats();
+            var bf0 = b.getVector(FloatVector.SPECIES_PREFERRED, 0, bo);
+            var bf1 = b.getVector(FloatVector.SPECIES_PREFERRED, 0, bo + FloatVector.SPECIES_PREFERRED.length());
 
-            var r = bf.add(af.mul(alpha))
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
+            var r0 = bf0.add(af0.mul(alpha));
+            var r1 = bf1.add(af1.mul(alpha));
 
-            b.intoTensor((ShortVector) r, 0, bo);
-        }
-
-        // tail
-        for (; ao < (aoffset + limit) && bo < (boffset + limit); ao++, bo++) {
-            float v = a.get(0, ao) + alpha * b.get(0, bo);
-            b.set(v, 0, bo);
-        }
-    }
-
-    @Override
-    public void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.dType() == y.dType());
-        Preconditions.checkArgument(limit % 2 == 0);
-
-        switch (x.dType()) {
-            case F32:
-                sxpbyF32(beta, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit);
-                break;
-            case BF16:
-                switch (vectorType) {
-                    case AVX_512:
-                        sxpbyBF16_512(
-                                beta, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
-                        break;
-                    case AVX_256:
-                        sxpbyBF16_256(
-                                beta, (BFloat16BufferTensor) x, (BFloat16BufferTensor) y, xoffset, yoffset, limit);
-                        break;
-                    default:
-                        throw new UnsupportedOperationException();
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException();
-        }
-    }
-
-    void sxpbyF32(float beta, FloatBufferTensor x, FloatBufferTensor y, int xoffset, int yoffset, int limit) {
-        int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
-        int xo = xoffset;
-        int yo = yoffset;
-
-        FloatVector bv = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, beta);
-
-        for (;
-                xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
-                xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
-            FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, 0, xo);
-            FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
-            y.intoTensor(vx.add(vy.mul(bv)), 0, yo);
-        }
-
-        // tail
-        for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(0, xo) + beta * y.get(0, yo);
-            y.set(v, 0, yo);
-        }
-    }
-
-    void sxpbyBF16_256(
-            float beta, BFloat16BufferTensor x, BFloat16BufferTensor y, int xoffset, int yoffset, int limit) {
-        int upperBound = FloatVector.SPECIES_256.loopBound(limit);
-        Preconditions.checkArgument(upperBound == limit);
-
-        int xo = xoffset;
-        int yo = yoffset;
-
-        int len = FloatVector.SPECIES_256.length();
-
-        for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += len, yo += len) {
-            // Convert BF16 to F32
-            var xv = x.getVector(ShortVector.SPECIES_128, 0, xo)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                    .reinterpretAsFloats();
-
-            // Convert BF16 to F32
-            var yv = y.getVector(ShortVector.SPECIES_128, 0, yo)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                    .reinterpretAsFloats();
-
-            var res = xv.add(yv.mul(beta));
-
-            // Turn back into BF16 and save
-            y.intoTensor(
-                    (ShortVector) res.reinterpretAsInts()
-                            .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
-                            .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0),
-                    0,
-                    yo);
-        }
-
-        for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(0, xo) + beta * y.get(0, yo);
-            y.set(v, 0, yo);
-        }
-    }
-
-    void sxpbyBF16_512(
-            float beta, BFloat16BufferTensor x, BFloat16BufferTensor y, int xoffset, int yoffset, int limit) {
-        int upperBound = FloatVector.SPECIES_512.loopBound(limit);
-        Preconditions.checkArgument(upperBound == limit);
-
-        int xo = xoffset;
-        int yo = yoffset;
-
-        int len = FloatVector.SPECIES_512.length();
-
-        for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += len, yo += len) {
-            // Convert BF16 to F32
-            var xv = x.getVector(ShortVector.SPECIES_256, 0, xo)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                    .reinterpretAsFloats();
-
-            // Convert BF16 to F32
-            var yv = y.getVector(ShortVector.SPECIES_256, 0, yo)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                    .reinterpretAsFloats();
-
-            var res = xv.add(yv.mul(beta));
-
-            // Turn back into BF16 and save
-            y.intoTensor(
-                    (ShortVector) res.reinterpretAsInts()
-                            .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
-                            .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0),
-                    0,
-                    yo);
-        }
-
-        for (; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(0, xo) + beta * y.get(0, yo);
-            y.set(v, 0, yo);
+            b.intoTensor(r0, 0, bo);
+            b.intoTensor(r1, 0, bo + FloatVector.SPECIES_PREFERRED.length());
         }
     }
 }

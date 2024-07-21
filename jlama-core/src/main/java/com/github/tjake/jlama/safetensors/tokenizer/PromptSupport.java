@@ -17,20 +17,31 @@ package com.github.tjake.jlama.safetensors.tokenizer;
 
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.JinjavaConfig;
+import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class also renders the prompt templates of the huggingface model format (using jinja templates)
  * @see <a href="https://huggingface.co/docs/transformers/main/en/chat_templating#templates-for-chat-models">Chat Templating</a>
  */
 public class PromptSupport {
+    private static final Logger logger = LoggerFactory.getLogger(PromptSupport.class);
+
     // This matches the jinja config in huggingface
     private static final Jinjava jinjava = new Jinjava(JinjavaConfig.newBuilder()
             .withLstripBlocks(true)
             .withTrimBlocks(true)
             .build());
+
+    static {
+        jinjava.getGlobalContext()
+                .registerFunction(new ELFunctionDefinition(
+                        "", "raise_exception", PromptSupport.class, "raiseException", String.class));
+    }
 
     private final TokenizerModel m;
 
@@ -44,6 +55,10 @@ public class PromptSupport {
 
     public boolean hasPromptTemplates() {
         return !m.promptTemplates().isEmpty();
+    }
+
+    public static void raiseException(String message) {
+        logger.warn("Prompt template error: " + message);
     }
 
     private enum PromptType {
@@ -87,7 +102,7 @@ public class PromptSupport {
             this.m = m;
         }
 
-        public Builder type(PromptType type) {
+        public Builder usePromptType(PromptType type) {
             this.type = type;
             return this;
         }

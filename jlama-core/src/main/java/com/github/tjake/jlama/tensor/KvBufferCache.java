@@ -16,12 +16,14 @@
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.util.Pair;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.util.UUID;
@@ -70,7 +72,7 @@ public class KvBufferCache {
 
         // If we don't have a working directory, just use a FloatBufferTensor
         if (model.getConfig().workingDirectory().isEmpty()) {
-            return Pair.create(null, new FloatBufferTensor(s));
+            return Pair.create(null, AbstractTensor.make(model.getWorkingDType(), s));
         }
 
         // Otherwise, create a file-backed tensor
@@ -79,17 +81,29 @@ public class KvBufferCache {
                     Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString())
                             .toFile(),
                     "rw");
-            long bytes = s.size() * Float.BYTES;
+            long bytes = s.size() * model.getWorkingDType().size();
             raf.setLength(bytes);
 
-            FloatBuffer fb = raf.getChannel()
-                    .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                    .order(ByteOrder.LITTLE_ENDIAN)
-                    .asFloatBuffer();
+            AbstractTensor t;
+            if (model.getWorkingDType() == DType.F32) {
+                FloatBuffer fb = raf.getChannel()
+                        .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                        .order(ByteOrder.LITTLE_ENDIAN)
+                        .asFloatBuffer();
 
-            FloatBufferTensor fbt = new FloatBufferTensor(fb, s, true);
+                t = new FloatBufferTensor(fb, s, true);
+            } else if (model.getWorkingDType() == DType.BF16) {
+                ShortBuffer sb = raf.getChannel()
+                        .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                        .order(ByteOrder.LITTLE_ENDIAN)
+                        .asShortBuffer();
 
-            return Pair.create(raf, fbt);
+                t = new BFloat16BufferTensor("kvmem", sb, s, true);
+            } else {
+                throw new UnsupportedOperationException("Only F32/BF16 is supported for now");
+            }
+
+            return Pair.create(raf, t);
 
         } catch (IOException e) {
             throw new IOError(e);

@@ -61,11 +61,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public BFloat16BufferTensor(ShortBuffer b, TensorShape shape, boolean cacheSlices, boolean mmapped) {
-        this("none", b, shape, cacheSlices);
-    }
-
-    private BFloat16BufferTensor(String name, ShortBuffer b, TensorShape shape, boolean cacheSlices) {
+    public BFloat16BufferTensor(String name, ShortBuffer b, TensorShape shape, boolean cacheSlices) {
         super(DType.BF16, shape, cacheSlices);
         this.name = name;
         this.b = b;
@@ -84,8 +80,8 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
 
     @Override
     public float get(int... dims) {
-        Preconditions.checkArgument(dims.length <= shape.size(), "Too many dimensions specified");
-        Preconditions.checkArgument(dims.length == shape.size(), "Must specify all dimensions");
+        Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified");
+        Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
         return FloatConversions.bFloat16ToFloat32(b.get(getOffset(dims)));
     }
 
@@ -153,8 +149,10 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
 
     @Override
     public String toString() {
-        short[] sample = new short[Math.min(10, b.remaining())];
-        b.duplicate().get(sample);
+        float[] sample = new float[Math.min(100, b.remaining())];
+        for (int i = 0; i < sample.length; i++) {
+            sample[i] = FloatConversions.bFloat16ToFloat32(b.get(i));
+        }
         return "BFloat16BufferTensor{" + "name='"
                 + name + '\'' + ", shape="
                 + shape + ", b="

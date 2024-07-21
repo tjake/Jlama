@@ -19,6 +19,7 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
+import com.google.common.base.Preconditions;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
@@ -59,6 +60,7 @@ public class VectorMath {
     }
 
     public static void softMax(AbstractTensor x, int offset, int length) {
+        Preconditions.checkArgument(x.shape().first() == 1);
         long size = offset + length;
 
         // find max value (for numerical stability)
@@ -148,7 +150,7 @@ public class VectorMath {
         float[] freqs = new float[dim / 2];
         float step = 0.0f;
         for (int i = 0; i < freqs.length; i++, step += 2.0)
-            freqs[i] = (float) ((1.0 / StrictMath.pow(theta, step / dim)) / scaling_factor);
+            freqs[i] = (float) ((1.0 / Math.pow(theta, step / dim)) / scaling_factor);
 
         float[] t = new float[end];
         for (int i = 0; i < end; i++) t[i] = i;
@@ -157,7 +159,7 @@ public class VectorMath {
 
         float[][] r = new float[freqs_cis.length][];
         for (int i = 0; i < freqs_cis.length; i++)
-            r[i] = new float[] {(float) StrictMath.cos(freqs_cis[i]), (float) StrictMath.sin(freqs_cis[i])};
+            r[i] = new float[] {(float) Math.cos(freqs_cis[i]), (float) Math.sin(freqs_cis[i])};
 
         return r;
     }

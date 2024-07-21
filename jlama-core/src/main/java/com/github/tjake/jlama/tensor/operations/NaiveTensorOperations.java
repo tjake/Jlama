@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.tensor.operations;
 
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
 
@@ -26,7 +27,7 @@ public class NaiveTensorOperations implements TensorOperations {
 
     @Override
     public boolean requiresOffHeapTensor() {
-        return false;
+        return true;
     }
 
     // a[0..n] += b[0..n]
@@ -47,15 +48,21 @@ public class NaiveTensorOperations implements TensorOperations {
     // a[0..n] *= b[0..n]
     @Override
     public void maccumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {
-        Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims() && a.dims() == 1);
-        for (int i = offset; i < offset + length; ++i) {
-            a.set(a.get(i) * b.get(i), i);
+        Preconditions.checkArgument(a.size() == b.size() && a.dims() == b.dims());
+
+        boolean isBatch = b.shape().first() > 1;
+        for (int ai = 0; ai < a.shape().first(); ai++) {
+            AbstractTensor as = a.slice(ai);
+            AbstractTensor bs = isBatch ? b.slice(ai) : b;
+            for (int i = offset; i < offset + length; ++i) {
+                as.set(as.get(0, i) * bs.get(0, i), 0, i);
+            }
         }
     }
 
     @Override
     public float dotProduct(AbstractTensor a, AbstractTensor b, int aoffset, int boffset, int limit) {
-        Preconditions.checkArgument(a.dims() == b.dims());
+        Preconditions.checkArgument(a.dims() == b.dims() && a.shape().first() == 1);
 
         int alen = aoffset + limit;
         int blen = boffset + limit;
@@ -101,21 +108,16 @@ public class NaiveTensorOperations implements TensorOperations {
         }
     }
 
-    // y = x + b*y variant
     @Override
-    public void sxpby(float beta, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit) {
-        Preconditions.checkArgument(x.shape().first() == 1 && y.shape().first() == 1);
+    public void scale(float factor, AbstractTensor x, int offset, int length) {
+        int limit = offset + length;
 
-        for (int xo = xoffset, yo = yoffset; xo < (xoffset + limit) && yo < (yoffset + limit); xo++, yo++) {
-            float v = x.get(0, xo) + (beta * y.get(0, yo));
-            y.set(v, 0, yo);
-        }
+        for (int b = 0; b < x.shape().first(); b++)
+            for (int i = offset; i < limit; ++i) x.set(x.get(b, i) * factor, b, i);
     }
 
     @Override
-    public void scale(float factor, AbstractTensor x, int offset, int length) {
-        Preconditions.checkArgument(x.shape().first() == 1);
-        int limit = offset + length;
-        for (; offset < limit; ++offset) x.set(x.get(0, offset) * factor, 0, offset);
+    public AbstractTensor quantize(AbstractTensor t, DType qtype, int offset, int length) {
+        return t.quantize(qtype, true);
     }
 }
