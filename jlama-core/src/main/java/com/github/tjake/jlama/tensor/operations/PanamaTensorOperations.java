@@ -42,7 +42,6 @@ public final class PanamaTensorOperations implements TensorOperations {
 
     static final IntVector BF16_BYTE_SHIFT = IntVector.broadcast(IntVector.SPECIES_PREFERRED, 16);
 
-
     static final IntVector BF16_BYTE_SHIFT_512 = IntVector.broadcast(IntVector.SPECIES_512, 16);
     static final FloatVector F32_ROUND_UP_512 = FloatVector.broadcast(FloatVector.SPECIES_512, 0.5f);
 
@@ -100,7 +99,7 @@ public final class PanamaTensorOperations implements TensorOperations {
             int rowChunkSize) {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
         Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
-        //Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
+        // Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
         // Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K");
 
         int M = a.shape().dim(0);
@@ -132,9 +131,11 @@ public final class PanamaTensorOperations implements TensorOperations {
                     };
                     case BF16 -> switch (b.dType()) {
                         case BF16 -> new GemmerBF16(K, a, b, result, aColumnOffset, bColumnOffset);
-                        default -> throw new UnsupportedOperationException(b.dType().name());
+                        default -> throw new UnsupportedOperationException(
+                                b.dType().name());
                     };
-                    default -> throw new UnsupportedOperationException(a.dType().name() + " " + b.dType().name());
+                    default -> throw new UnsupportedOperationException(
+                            a.dType().name() + " " + b.dType().name());
                 };
 
         gemm.matmul(0, M, bRowOffset, bRowOffset + N);
@@ -1466,10 +1467,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                 nc = 4;
                 kernel(m0, m, 1, n0, n, 4, matmul1x4);
             } else {*/
-                mc = 1;
-                nc = 1;
-                kernel(m0, m, 1, n0, n, 1, matmul1x1);
-            //}
+            mc = 1;
+            nc = 1;
+            kernel(m0, m, 1, n0, n, 1, matmul1x1);
+            // }
 
             return (mc << 4) | nc;
         }
@@ -1491,7 +1492,6 @@ public final class PanamaTensorOperations implements TensorOperations {
                     FloatVector va1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
                             .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
                             .reinterpretAsFloats();
-
 
                     ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
                     FloatVector vb0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
@@ -1717,7 +1717,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                 int slen = ShortVector.SPECIES_PREFERRED.length();
                 for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
                     FloatVector va0 = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset);
-                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset + FloatVector.SPECIES_PREFERRED.length());
+                    FloatVector va1 = a.getVector(
+                            FloatVector.SPECIES_PREFERRED, i, aoffset + FloatVector.SPECIES_PREFERRED.length());
 
                     ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
                     FloatVector vb0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
@@ -1835,7 +1836,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                         .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
                         .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
 
-                VectorMask<Short> mask = VectorMask.fromLong(ShortVector.SPECIES_PREFERRED, (1L << FloatVector.SPECIES_PREFERRED.length()) - 1);
+                VectorMask<Short> mask = VectorMask.fromLong(
+                        ShortVector.SPECIES_PREFERRED, (1L << FloatVector.SPECIES_PREFERRED.length()) - 1);
                 mask = mask.not(); // Invert the mask to select the second half
 
                 var r = r0.blend(r1, mask);
@@ -2276,7 +2278,6 @@ public final class PanamaTensorOperations implements TensorOperations {
         return qft;
     }
 
-
     @Override
     public void maccumulate(AbstractTensor aBatch, AbstractTensor bBatch, int offset, int limit) {
         Preconditions.checkArgument(aBatch.dType() == bBatch.dType());
@@ -2616,12 +2617,19 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+    public void saxpy(
+            AbstractTensor alpha,
+            AbstractTensor x,
+            AbstractTensor y,
+            int xoffset,
+            int yoffset,
+            int limit,
+            int batchSize) {
         Preconditions.checkArgument(limit % 2 == 0);
 
         switch (x.dType()) {
             case F32:
-                saxpyF32(alpha, (FloatBufferTensor) x, (FloatBufferTensor)y, xoffset, yoffset, limit, batchSize);
+                saxpyF32(alpha, (FloatBufferTensor) x, (FloatBufferTensor) y, xoffset, yoffset, limit, batchSize);
                 break;
             case BF16:
                 switch (y.dType()) {
@@ -2648,7 +2656,6 @@ public final class PanamaTensorOperations implements TensorOperations {
             int yoffset,
             int limit,
             int batchSize) {
-
 
         int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
 
@@ -2724,8 +2731,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
-    void saxpyBF16(
-            float alpha, BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit) {
+    void saxpyBF16(float alpha, BFloat16BufferTensor a, BFloat16BufferTensor b, int aoffset, int boffset, int limit) {
         int upperBound = ShortVector.SPECIES_PREFERRED.loopBound(limit);
         Preconditions.checkArgument(upperBound == limit);
 
@@ -2774,9 +2780,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
-
-    void saxpyBF16F32(
-            float alpha, BFloat16BufferTensor a, FloatBufferTensor b, int aoffset, int boffset, int limit) {
+    void saxpyBF16F32(float alpha, BFloat16BufferTensor a, FloatBufferTensor b, int aoffset, int boffset, int limit) {
         int upperBound = ShortVector.SPECIES_PREFERRED.loopBound(limit);
         Preconditions.checkArgument(upperBound == limit);
 

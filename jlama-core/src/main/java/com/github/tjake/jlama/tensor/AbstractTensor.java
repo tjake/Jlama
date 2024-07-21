@@ -288,7 +288,8 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
 
     public AbstractTensor quantize(DType dType, boolean force) {
 
-        if (!force && (this.shape().first() == 1 || this.dType == dType || this.dType.size() < dType.size())) return this;
+        if (!force && (this.shape().first() == 1 || this.dType == dType || this.dType.size() < dType.size()))
+            return this;
 
         if (shape.isSparse()) {
             logger.info("Quantizing sparse tensor is not supported");

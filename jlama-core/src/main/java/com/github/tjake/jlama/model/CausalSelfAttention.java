@@ -18,7 +18,6 @@ package com.github.tjake.jlama.model;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import java.util.*;
@@ -122,9 +121,9 @@ public class CausalSelfAttention {
         int batchSize = input.shape().first();
 
         try (AbstractTensor queryBatch = m.makeFullTensor(batchSize, c.embeddingLength);
-             AbstractTensor tmpKeyBatch = m.makeFullTensor(batchSize, c.kvLength);
-             AbstractTensor tmpValBatch = m.makeFullTensor(batchSize, c.kvLength);
-             AbstractTensor valueBatch = m.makeFullTensor(batchSize, c.embeddingLength)) {
+                AbstractTensor tmpKeyBatch = m.makeFullTensor(batchSize, c.kvLength);
+                AbstractTensor tmpValBatch = m.makeFullTensor(batchSize, c.kvLength);
+                AbstractTensor valueBatch = m.makeFullTensor(batchSize, c.embeddingLength)) {
 
             if (c.isGQA) {
                 VectorMath.pchunk(0, c.embeddingLength, (chunkStart, chunkLength) -> {
@@ -203,10 +202,10 @@ public class CausalSelfAttention {
                 AbstractTensor value = valueBatch.slice(bi);
 
                 if (key.dType() != tmpKey.dType()) {
-                    try (AbstractTensor tmpKey2 = TensorOperationsProvider.get()
-                                    .quantize(tmpKey, key.dType(), 0, c.kvLength);
-                            AbstractTensor tmpVal2 = TensorOperationsProvider.get()
-                                    .quantize(tmpVal, val.dType(), 0, c.kvLength)) {
+                    try (AbstractTensor tmpKey2 =
+                                    TensorOperationsProvider.get().quantize(tmpKey, key.dType(), 0, c.kvLength);
+                            AbstractTensor tmpVal2 =
+                                    TensorOperationsProvider.get().quantize(tmpVal, val.dType(), 0, c.kvLength)) {
                         key.copyFrom(
                                 tmpKey2,
                                 tmpKey2.getOffset(0, c.kvSegmentStart()),
@@ -292,7 +291,7 @@ public class CausalSelfAttention {
                     }
                 });
 
-                //Attention
+                // Attention
                 VectorMath.pfor(c.headStart(), c.headEnd(), h -> {
                     try (AbstractTensor attn = m.makeFullTensor(1, kvp.shape().first())) {
                         int xoffset = c.maybeMapToGroupHead(h) * c.headSize;

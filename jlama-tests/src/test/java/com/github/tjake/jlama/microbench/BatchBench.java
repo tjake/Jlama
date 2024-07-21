@@ -19,7 +19,6 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-
 import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +35,11 @@ import org.openjdk.jmh.runner.options.TimeValue;
 @Fork(
         warmups = 1,
         value = 1,
-        jvmArgsPrepend = {"--add-modules=jdk.incubator.vector", "--enable-preview", "-Djlama.force_panama_tensor_operations=true"})
+        jvmArgsPrepend = {
+            "--add-modules=jdk.incubator.vector",
+            "--enable-preview",
+            "-Djlama.force_panama_tensor_operations=true"
+        })
 public class BatchBench {
     private static final TensorOperations ops = TensorOperationsProvider.get();
 
@@ -175,7 +178,10 @@ public class BatchBench {
                 .warmupTime(TimeValue.seconds(5))
                 .measurementTime(TimeValue.seconds(5))
                 .threads(1)
-                .jvmArgs("--add-modules=jdk.incubator.vector", "--enable-preview", "-Djava.library.path=jlama-native/target/native-lib-only")
+                .jvmArgs(
+                        "--add-modules=jdk.incubator.vector",
+                        "--enable-preview",
+                        "-Djava.library.path=jlama-native/target/native-lib-only")
                 .build();
 
         Collection<RunResult> results = new Runner(opt).run();
@@ -184,7 +190,8 @@ public class BatchBench {
 
         for (RunResult r : results) {
             for (var b : r.getBenchmarkResults()) {
-                double elapsedTime = TimeUnit.MILLISECONDS.toSeconds(b.getMetadata().getStopTime() - b.getMetadata().getMeasurementTime());
+                double elapsedTime = TimeUnit.MILLISECONDS.toSeconds(
+                        b.getMetadata().getStopTime() - b.getMetadata().getMeasurementTime());
 
                 // Calculate total number of floating-point operations
                 double totalFlops = flopsPerIteration * b.getMetadata().getMeasurementOps();

@@ -32,7 +32,6 @@ import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -255,8 +254,6 @@ public abstract class AbstractModel implements Generator {
             double maxv = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < c.vocabularySize; i++) {
                 float v = logits.get(0, i);
-                //v = (float) (30.0f * Math.tanh(v / 30.0f));
-                //logits.set(v, 0, i);
                 if (v > maxv) {
                     maxi = i;
                     maxv = v;

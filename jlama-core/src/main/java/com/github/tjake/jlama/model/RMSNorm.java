@@ -51,7 +51,7 @@ public class RMSNorm extends LayerNorm {
             }
 
             if (reducer.isPresent()) {
-                Pair<Float, Float> p = reducer.get().apply((float)ss, 0f);
+                Pair<Float, Float> p = reducer.get().apply((float) ss, 0f);
                 ss = p.left;
             }
 
@@ -60,7 +60,7 @@ public class RMSNorm extends LayerNorm {
             ss = (1.0 / StrictMath.sqrt(ss));
             // normalize and scale
             for (int j = offset; j < limit; j++) {
-                output.set((weightAdjustment + weights.get(0, j)) * ((float)ss * input.get(b, j)), b, j);
+                output.set((weightAdjustment + weights.get(0, j)) * ((float) ss * input.get(b, j)), b, j);
             }
         }
         return output;

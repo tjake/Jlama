@@ -299,7 +299,10 @@ public class TestOperations {
                     Assert.assertEquals(
                             "AType " + aType.getKey() + " is outside of 1% error limit", control, dp, control * .01f);
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
-                    logger.debug("No support for AType {} {}", aType.getKey(), t.getClass().getSimpleName());
+                    logger.debug(
+                            "No support for AType {} {}",
+                            aType.getKey(),
+                            t.getClass().getSimpleName());
                 }
             }
             Assert.assertTrue(supported > 0);
@@ -359,15 +362,21 @@ public class TestOperations {
                     AbstractTensor qv = t.quantize(at, DType.I8, 0, SIZE);
                     supported++;
                     Assert.assertEquals(
-                            "AType " + aType.getKey() + " is outside of 1% error limit " + t.getClass().getSimpleName(), control, controlOps.sum(qv), control * .01f);
+                            "AType " + aType.getKey() + " is outside of 1% error limit "
+                                    + t.getClass().getSimpleName(),
+                            control,
+                            controlOps.sum(qv),
+                            control * .01f);
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
-                    logger.debug("No support for AType {} {}", aType.getKey(), t.getClass().getSimpleName());
+                    logger.debug(
+                            "No support for AType {} {}",
+                            aType.getKey(),
+                            t.getClass().getSimpleName());
                 }
             }
             Assert.assertTrue(supported > 0);
         }
     }
-
 
     @Test
     public void testQBF16Vectorized() {
@@ -383,9 +392,15 @@ public class TestOperations {
                     AbstractTensor qv = t.quantize(at, DType.BF16, 0, (int) a.size());
                     supported++;
                     Assert.assertEquals(
-                            "AType " + aType.getKey() + " is outside of 1% error limit", control, controlOps.sum(qv), control * .01f);
+                            "AType " + aType.getKey() + " is outside of 1% error limit",
+                            control,
+                            controlOps.sum(qv),
+                            control * .01f);
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
-                    logger.debug("No support for AType {} {}", aType.getKey(), t.getClass().getSimpleName());
+                    logger.debug(
+                            "No support for AType {} {}",
+                            aType.getKey(),
+                            t.getClass().getSimpleName());
                 }
             }
             Assert.assertTrue(supported > 0);

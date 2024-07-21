@@ -91,7 +91,7 @@ public class KvBufferCache {
                         .order(ByteOrder.LITTLE_ENDIAN)
                         .asFloatBuffer();
 
-               t = new FloatBufferTensor(fb, s, true);
+                t = new FloatBufferTensor(fb, s, true);
             } else if (model.getWorkingDType() == DType.BF16) {
                 ShortBuffer sb = raf.getChannel()
                         .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
@@ -102,7 +102,6 @@ public class KvBufferCache {
             } else {
                 throw new UnsupportedOperationException("Only F32/BF16 is supported for now");
             }
-
 
             return Pair.create(raf, t);
 

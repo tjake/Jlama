@@ -66,7 +66,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        //System.setProperty("jlama.force_panama_tensor_operations", "true");
+        // System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -153,8 +153,11 @@ public class TestModels {
                             + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
 
             String prompt = "Tell me a joke.";
-            String p = model.promptSupport().get().newBuilder()
-                    .addUserMessage(prompt).build();
+            String p = model.promptSupport()
+                    .get()
+                    .newBuilder()
+                    .addUserMessage(prompt)
+                    .build();
 
             model.generate(UUID.randomUUID(), p, 0.7f, 256, true, makeOutHandler());
         }
@@ -170,7 +173,9 @@ public class TestModels {
             GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
             GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
             String prompt = "Tell me a joke.";
-            String p = model.promptSupport().get().newBuilder()
+            String p = model.promptSupport()
+                    .get()
+                    .newBuilder()
                     .addUserMessage(prompt)
                     .build();
             model.generate(UUID.randomUUID(), p, 0.7f, 256, false, makeOutHandler());

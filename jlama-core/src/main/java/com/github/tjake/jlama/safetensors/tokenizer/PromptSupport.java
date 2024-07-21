@@ -18,12 +18,11 @@ package com.github.tjake.jlama.safetensors.tokenizer;
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.JinjavaConfig;
 import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class also renders the prompt templates of the huggingface model format (using jinja templates)
@@ -39,7 +38,9 @@ public class PromptSupport {
             .build());
 
     static {
-        jinjava.getGlobalContext().registerFunction(new ELFunctionDefinition("", "raise_exception", PromptSupport.class, "raiseException", String.class));
+        jinjava.getGlobalContext()
+                .registerFunction(new ELFunctionDefinition(
+                        "", "raise_exception", PromptSupport.class, "raiseException", String.class));
     }
 
     private final TokenizerModel m;
@@ -150,8 +151,7 @@ public class PromptSupport {
                             "eos_token",
                             m.eosToken(),
                             "bos_token",
-                            m.bosToken()
-                            ));
+                            m.bosToken()));
         }
     }
 }

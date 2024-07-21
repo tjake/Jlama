@@ -33,7 +33,7 @@ public class FloatConversions {
     }
 
     public static short float32ToBFloat16(float n) {
-        //if (true)
+        // if (true)
         //  return (short) ((Float.floatToRawIntBits(n) >> 16) & 0xffff);
         int nbits = Float.floatToRawIntBits(n);
         // 32 bits has 1 sign bit, 8 exponent bits, 23 mantissa bits

@@ -113,8 +113,7 @@ public class NaiveTensorOperations implements TensorOperations {
         int limit = offset + length;
 
         for (int b = 0; b < x.shape().first(); b++)
-            for (int i = offset; i < limit; ++i)
-                x.set(x.get(b, i) * factor, b, i);
+            for (int i = offset; i < limit; ++i) x.set(x.get(b, i) * factor, b, i);
     }
 
     @Override

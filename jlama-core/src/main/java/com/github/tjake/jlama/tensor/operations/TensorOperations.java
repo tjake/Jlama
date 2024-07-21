@@ -122,7 +122,8 @@ public interface TensorOperations {
             int yoffset,
             int limit,
             int batchSize) {
-        Preconditions.checkArgument(alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
+        Preconditions.checkArgument(
+                alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
 
         for (int i = 0; i < batchSize; i++) {
             saxpy(alpha.get(0, i), x.slice(i), y, xoffset, yoffset, limit);

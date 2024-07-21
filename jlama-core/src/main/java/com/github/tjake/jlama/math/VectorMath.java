@@ -19,10 +19,9 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.BiIntConsumer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
+import com.google.common.base.Preconditions;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
-
-import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,9 +32,7 @@ public class VectorMath {
     public static void pfor(int start, int end, IntConsumer action) {
         PhysicalCoreExecutor.instance
                 .get()
-                .execute(() -> IntStream.range(start, end)
-                        .parallel()
-                        .forEach(action));
+                .execute(() -> IntStream.range(start, end).parallel().forEach(action));
     }
 
     public static void pchunk(int offset, int length, BiIntConsumer action) {
