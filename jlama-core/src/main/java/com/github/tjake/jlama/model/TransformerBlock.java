@@ -19,12 +19,18 @@ import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class TransformerBlock {
+
+    private static final Logger logger = LoggerFactory.getLogger(TransformerBlock.class);
+
     private final AbstractModel model;
     final Optional<LayerNorm> preAttentionNorm;
     final CausalSelfAttention attention;
@@ -75,12 +81,23 @@ public class TransformerBlock {
             Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
             Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
 
+        if (AbstractModel.DEBUG)
+            logger.debug("embedding: {}" + embedding);
+
         AbstractTensor lnemb =
                 preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
+
+        if (AbstractModel.DEBUG)
+            logger.debug("lnemb: {}" + lnemb);
+
         AbstractTensor postAttention;
         try (AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
             postAttention = attention.forward(qlnemb, position, kvBuffer, tensorReducer);
         }
+
+        if (AbstractModel.DEBUG)
+            logger.debug("postAttention: {}" + postAttention);
+
         // residual connection
         TensorOperationsProvider.get()
                 .accumulate(

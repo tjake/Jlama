@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
 
+    static final boolean DEBUG = false;
+
     public enum InferenceType {
         INPUT_TO_EMBEDDING(true, false, false),
         OUTPUT_TO_TOKEN(false, true, false),
@@ -327,7 +329,9 @@ public abstract class AbstractModel implements Generator {
             long start = System.currentTimeMillis();
             long promptStart = start;
             // Batch Process Prompt
-            AbstractTensor last = batchForward(promptTokens, startPos, kvmem);
+            AbstractTensor last = DEBUG
+                    ? batchForwardSlow(promptTokens, startPos, kvmem)
+                    : batchForward(promptTokens, startPos, kvmem);
 
             promptBatchTime = System.currentTimeMillis() - start;
             float batchMsPerToken = Math.round((((double) promptBatchTime) / (double) promptLength));

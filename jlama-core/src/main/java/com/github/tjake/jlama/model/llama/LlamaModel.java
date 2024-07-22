@@ -63,10 +63,18 @@ public class LlamaModel extends AbstractModel {
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeTensor(1, c.embeddingLength);
+
+            AbstractTensor at = wte.slice(true, inputToken);
+
+            if (wte.dType() != embedding.dType())
+                at = TensorOperationsProvider.get()
+                        .quantize(at, embedding.dType(), c.embeddingSegmentStart(), c.embeddingSegmentLength());
+
+
             embedding.copyFrom(
-                    wte,
-                    wte.getOffset(inputToken, c.embeddingSegmentStart()),
-                    embedding.getOffset(0, c.embeddingSegmentStart()),
+                    at,
+                    at.getOffset(0, c.embeddingSegmentStart()),
+                    embedding.getOffset(c.embeddingSegmentStart()),
                     c.embeddingSegmentLength());
 
             return embedding;
