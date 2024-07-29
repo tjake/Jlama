@@ -17,11 +17,17 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
+import com.github.tjake.jlama.tensor.FloatBufferTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import java.util.*;
 import java.util.function.Consumer;
+
+import static com.github.tjake.jlama.util.DebugSupport.debug;
 
 public class CausalSelfAttention {
     private final AbstractModel m;
@@ -40,6 +46,8 @@ public class CausalSelfAttention {
     private final AbstractTensor outputProjectionWeights;
 
     private final float attentionScale;
+    private final int attentionLength;
+    private final boolean attentionQVSizeMismatch;
 
     private final AbstractTensor[] qkvResults;
     private final AbstractTensor[] qkvWeights;
@@ -105,7 +113,9 @@ public class CausalSelfAttention {
 
         this.outputProjectionBias = outputProjectionBias;
         this.outputProjectionWeights = outputProjectionWeights;
+        this.attentionLength = c.numberOfHeads * c.headSize;
 
+        this.attentionQVSizeMismatch = c.embeddingLength != attentionLength;
         this.attentionScale = (float) (1.0 / StrictMath.sqrt(c.headSize));
 
         this.qkvResults = new AbstractTensor[3];
@@ -120,13 +130,13 @@ public class CausalSelfAttention {
         Preconditions.checkArgument(input.dims() == 2 && input.shape().last() == c.embeddingLength);
         int batchSize = input.shape().first();
 
-        try (AbstractTensor queryBatch = m.makeFullTensor(batchSize, c.embeddingLength);
+        try (AbstractTensor queryBatch = m.makeFullTensor(batchSize, attentionLength);
                 AbstractTensor tmpKeyBatch = m.makeFullTensor(batchSize, c.kvLength);
                 AbstractTensor tmpValBatch = m.makeFullTensor(batchSize, c.kvLength);
-                AbstractTensor valueBatch = m.makeFullTensor(batchSize, c.embeddingLength)) {
+                AbstractTensor valueBatch = m.makeFullTensor(batchSize, attentionLength)) {
 
             if (c.isGQA) {
-                VectorMath.pchunk(0, c.embeddingLength, (chunkStart, chunkLength) -> {
+                VectorMath.pchunk(0, attentionLength, (chunkStart, chunkLength) -> {
                     TensorOperationsProvider.get()
                             .dotProductChunk(
                                     queryBatch,
@@ -186,6 +196,10 @@ public class CausalSelfAttention {
             valueAttnBias.ifPresent(bias -> TensorOperationsProvider.get()
                     .accumulate(tmpValBatch, bias, c.kvSegmentStart(), c.kvSegmentLength()));
 
+            debug("query", queryBatch, 0);
+            debug("key", tmpKeyBatch, 0);
+            debug("value", tmpValBatch, 0);
+
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
                 int finalPostion = position;
@@ -222,12 +236,12 @@ public class CausalSelfAttention {
                             tmpKey,
                             tmpKey.getOffset(0, c.kvSegmentStart()),
                             key.getOffset(0, c.kvSegmentStart()),
-                            c.kvSegmentLength());
+                            c.kvLength);
                     val.copyFrom(
                             tmpVal,
                             tmpVal.getOffset(0, c.kvSegmentStart()),
                             val.getOffset(0, c.kvSegmentStart()),
-                            c.kvSegmentLength());
+                            c.kvLength);
                 }
 
                 // apply RoPE if present (accounting for huggingface permutation)
@@ -241,6 +255,11 @@ public class CausalSelfAttention {
                         for (int h = c.headStart(); h < c.headEnd(); h++) {
                             // get the q vectors for this head
                             int offset = h * c.headSize;
+
+                            // skip if we are out of bounds
+                            if (offset >= query.shape().last())
+                                break;
+
                             int goffset = c.maybeMapToGroupHead(h) * c.headSize;
                             // rotate q by the freq theta and freq r
                             for (int i = offset, g = goffset; i < (offset + headPiece); i++, g++) {
@@ -257,6 +276,8 @@ public class CausalSelfAttention {
                         for (int h = c.groupHeadStart(); h < c.groupHeadEnd(); h++) {
                             // get the k vectors for this head
                             int offset = h * c.headSize;
+                            if (offset >= key.shape().last())
+                                break;
                             // rotate k by the freq theta and freq r
                             for (int i = offset; i < (offset + headPiece); i++) {
                                 float k00 = key.get(0, i);
@@ -289,13 +310,19 @@ public class CausalSelfAttention {
                             }
                         }
                     }
+                    debug("query+rope", query, finalPostion);
+                    debug("key+rope", key, finalPostion);
                 });
+
 
                 // Attention
                 VectorMath.pfor(c.headStart(), c.headEnd(), h -> {
                     try (AbstractTensor attn = m.makeFullTensor(1, kvp.shape().first())) {
                         int xoffset = c.maybeMapToGroupHead(h) * c.headSize;
                         int yoffset = h * c.headSize;
+
+                        if (yoffset >= query.shape().last())
+                            return;
 
                         // compute attention scores by multiplying query and key for every position
                         TensorOperationsProvider.get()
@@ -312,6 +339,8 @@ public class CausalSelfAttention {
                 });
             }
 
+            debug("after_attention", valueBatch, 0);
+
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias
             AbstractTensor result = m.makeFullTensor(batchSize, c.embeddingLength);
@@ -323,7 +352,7 @@ public class CausalSelfAttention {
                                     vq,
                                     outputProjectionWeights,
                                     c.embeddingSegmentStart(),
-                                    c.embeddingSegmentLength(),
+                                    attentionQVSizeMismatch ? attentionLength : c.embeddingSegmentLength(),
                                     chunkStart,
                                     chunkSize);
                 });

@@ -114,7 +114,7 @@ public class BertModel extends AbstractModel {
             LayerNorm postMlpNorm = new LayerNorm(
                     this, weights.load(b + "output.LayerNorm.bias"), weights.load(b + "output.LayerNorm.weight"));
 
-            transformerBlocks[i] = new TransformerBlock(this, attention, postAttentionNorm, mlpBlock, postMlpNorm);
+            transformerBlocks[i] = new TransformerBlock(this, i, attention, postAttentionNorm, mlpBlock, postMlpNorm);
         }
 
         return transformerBlocks;

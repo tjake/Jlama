@@ -226,6 +226,25 @@ public class TestCorrectness {
     }
 
     @Test
+    public void testNemoTokenizer() throws IOException {
+        String modelPrefix = "../models/Mistral-Nemo-Instruct-2407";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
+
+        String p = "Hello!";
+
+        long[] actual = tokenizer.encode(p);
+        long[] expected = new long[] {22177, 1033};
+
+        String d = tokenizer.decode(actual);
+        System.out.println(d);
+
+        Assert.assertArrayEquals(expected, actual);
+        Assert.assertEquals(p, d);
+    }
+
+    @Test
     public void testNeoTokenizer() throws IOException {
         String modelPrefix = "../models/deepseek-coder-1.3b-base";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));

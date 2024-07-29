@@ -18,6 +18,7 @@ package com.github.tjake.jlama.model;
 import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,11 +28,14 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
+import static com.github.tjake.jlama.util.DebugSupport.debug;
+
 public class TransformerBlock {
 
     private static final Logger logger = LoggerFactory.getLogger(TransformerBlock.class);
 
     private final AbstractModel model;
+    final int layerIndex;
     final Optional<LayerNorm> preAttentionNorm;
     final CausalSelfAttention attention;
     final LayerNorm postAttentionNorm;
@@ -40,11 +44,13 @@ public class TransformerBlock {
 
     public TransformerBlock(
             AbstractModel model,
+            int layerIndex,
             LayerNorm preAttentionNorm,
             CausalSelfAttention attention,
             LayerNorm postAttentionNorm,
             FeedForward ffBlock) {
         this.model = model;
+        this.layerIndex = layerIndex;
         this.preAttentionNorm = Optional.of(preAttentionNorm);
         this.attention = attention;
 
@@ -56,11 +62,13 @@ public class TransformerBlock {
 
     public TransformerBlock(
             AbstractModel model,
+            int layerIndex,
             CausalSelfAttention attention,
             LayerNorm postAttentionNorm,
             FeedForward ffBlock,
             LayerNorm postFFNorm) {
         this.model = model;
+        this.layerIndex = layerIndex;
         this.preAttentionNorm = Optional.empty();
         this.attention = attention;
 
@@ -81,37 +89,43 @@ public class TransformerBlock {
             Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
             Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
 
-        if (AbstractModel.DEBUG)
-            logger.debug("embedding: {}" + embedding);
+        debug("input_emb", embedding, layerIndex);
 
         AbstractTensor lnemb =
                 preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
 
-        if (AbstractModel.DEBUG)
-            logger.debug("lnemb: {}" + lnemb);
+
+        debug("ln_emb", lnemb, layerIndex);
 
         AbstractTensor postAttention;
         try (AbstractTensor qlnemb = model.maybeQuantize(lnemb)) {
             postAttention = attention.forward(qlnemb, position, kvBuffer, tensorReducer);
         }
 
-        if (AbstractModel.DEBUG)
-            logger.debug("postAttention: {}" + postAttention);
+        debug("post_attn", postAttention, layerIndex);
 
         // residual connection
         TensorOperationsProvider.get()
                 .accumulate(
                         postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
 
+        debug("post_attn_res", postAttention, layerIndex);
+
         AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention, normReducer);
+
+        debug("ln_emb2", lnemb2, layerIndex);
+
         AbstractTensor postFF;
         try (AbstractTensor qlnemb2 = model.maybeQuantize(lnemb2)) {
             postFF = ffBlock.forward(qlnemb2, tensorReducer);
+            debug("post_ff", postFF, layerIndex);
         }
 
         // residual connection
         TensorOperationsProvider.get()
                 .accumulate(postFF, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+
+        debug("post_ff_res", postFF, layerIndex);
 
         // Release any tmp buffers
         if (lnemb != embedding) lnemb.close();
@@ -122,6 +136,7 @@ public class TransformerBlock {
         return postFFNorm
                 .map(ln -> {
                     AbstractTensor lnout = ln.forward(postFF, normReducer);
+                    debug("ln_out", lnout, layerIndex);
                     postFF.close();
                     return lnout;
                 })

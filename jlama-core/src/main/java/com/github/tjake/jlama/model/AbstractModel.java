@@ -29,6 +29,7 @@ import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -44,10 +45,10 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.github.tjake.jlama.util.DebugSupport.debug;
+
 public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
-
-    static final boolean DEBUG = false;
 
     public enum InferenceType {
         INPUT_TO_EMBEDDING(true, false, false),
@@ -111,6 +112,11 @@ public abstract class AbstractModel implements Generator {
         // FIXME: This is a hack to support Avoid Q8F32 evals
         if (modelDType == DType.F32 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.F32;
+        }
+
+        // FIXME: This is a hack to support Avoid Q8BF16 evals
+        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && modelQType.isEmpty()) {
+            workingMemoryQType = DType.BF16;
         }
 
         if (workingMemoryQType != workingMemoryDType) {
@@ -203,6 +209,9 @@ public abstract class AbstractModel implements Generator {
             Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         AbstractTensor embedding = embedInput.inputTokenToEmbedding(token_id, pos);
 
+        debug("EMBEDDING TOKEN", token_id);
+        debug("TOKEN POSITION", pos);
+
         for (int i = c.layerStart(); i < c.layerEnd(); i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; // reference so we can free
@@ -217,7 +226,6 @@ public abstract class AbstractModel implements Generator {
         AbstractTensor last = null;
         for (int i = 0; i < token_ids.length; i++) {
             if (last != null) last.close();
-
             last = forward(token_ids[i], startPos + i, kvbuf);
         }
 
@@ -329,7 +337,7 @@ public abstract class AbstractModel implements Generator {
             long start = System.currentTimeMillis();
             long promptStart = start;
             // Batch Process Prompt
-            AbstractTensor last = DEBUG
+            AbstractTensor last = DebugSupport.isDebug()
                     ? batchForwardSlow(promptTokens, startPos, kvmem)
                     : batchForward(promptTokens, startPos, kvmem);
 

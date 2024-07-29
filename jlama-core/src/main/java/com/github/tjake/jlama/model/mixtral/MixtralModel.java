@@ -98,7 +98,7 @@ public class MixtralModel extends MistralModel {
                     expertUpWeights); // w3
 
             transformerBlocks[i] = new TransformerBlock(
-                    this,
+                    this, i,
                     new RMSNorm(
                             this,
                             weights.load(base + "input_layernorm.weight", c.offset())

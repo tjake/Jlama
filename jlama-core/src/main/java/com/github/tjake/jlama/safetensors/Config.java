@@ -58,6 +58,7 @@ public class Config {
 
     public final TensorCache tensorCache;
 
+
     public Config(
             int contextLength,
             int embeddingLength,
@@ -72,6 +73,38 @@ public class Config {
             ActivationFunction.Type activationFunction,
             Double ropeFreqsTheta,
             Double ropeScalingFactor) {
+        this(
+                contextLength,
+                embeddingLength,
+                hiddenLength,
+                numberOfHeads,
+                numberOfKeyValueHeads,
+                numberOfLayers,
+                layerNormEps,
+                vocabularySize,
+                bosToken,
+                eosToken,
+                activationFunction,
+                ropeFreqsTheta,
+                ropeScalingFactor,
+                embeddingLength / numberOfHeads);
+    }
+
+    public Config(
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfKeyValueHeads,
+            int numberOfLayers,
+            float layerNormEps,
+            int vocabularySize,
+            int bosToken,
+            int eosToken,
+            ActivationFunction.Type activationFunction,
+            Double ropeFreqsTheta,
+            Double ropeScalingFactor,
+            Integer headSize) {
         this.contextLength = contextLength;
         this.embeddingLength = embeddingLength;
         this.hiddenLength = hiddenLength;
@@ -83,7 +116,7 @@ public class Config {
         this.bosToken = bosToken;
         this.eosToken = eosToken;
         this.tensorCache = TensorCache.instance;
-        this.headSize = embeddingLength / numberOfHeads;
+        this.headSize = headSize;
         this.headGroupSize = numberOfHeads / numberOfKeyValueHeads;
         this.kvLength = numberOfKeyValueHeads * headSize;
         this.isGQA = numberOfKeyValueHeads < numberOfHeads;
@@ -91,7 +124,7 @@ public class Config {
         this.ropeFreqs = ropeFreqsTheta == null
                 ? Optional.empty()
                 : Optional.of(VectorMath.precomputeFreqsCis(
-                        embeddingLength / numberOfHeads,
+                        headSize,
                         contextLength,
                         ropeFreqsTheta,
                         ropeScalingFactor == null ? 1.0 : ropeScalingFactor));

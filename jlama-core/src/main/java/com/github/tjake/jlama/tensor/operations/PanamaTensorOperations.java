@@ -100,7 +100,8 @@ public final class PanamaTensorOperations implements TensorOperations {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
         Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
         // Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
-        // Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K");
+        // This check breaks for GQA
+        // Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K" + a.shape() + " " + b.shape() + " " + columnLength);
 
         int M = a.shape().dim(0);
         int N = rowChunkSize; // b.shape().dim(0);
@@ -1721,11 +1722,11 @@ public final class PanamaTensorOperations implements TensorOperations {
                             FloatVector.SPECIES_PREFERRED, i, aoffset + FloatVector.SPECIES_PREFERRED.length());
 
                     ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
-                    FloatVector vb0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
+                    FloatVector vb0 = sb.convertShape(VectorOperators.ZERO_EXTEND_S2I, IntVector.SPECIES_PREFERRED, 0)
                             .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
                             .reinterpretAsFloats();
 
-                    FloatVector vb1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
+                    FloatVector vb1 = sb.convertShape(VectorOperators.ZERO_EXTEND_S2I, IntVector.SPECIES_PREFERRED, 1)
                             .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
                             .reinterpretAsFloats();
 
@@ -1820,6 +1821,11 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     public BFloat16BufferTensor quantizeBF16(FloatBufferTensor ft, final int offset, int length) {
+
+        //Need this till we have a proper quantization
+        https://github.com/pytorch/pytorch/blob/7c1fbc7fe9cb8ddd5c913b4b3a9e94d00cb055ee/aten/src/ATen/cpu/vec/vec256/vec256_bfloat16.h#L47
+        if (true)
+            return new BFloat16BufferTensor(ft);
 
         // Up to caller to release
         BFloat16BufferTensor qft = (BFloat16BufferTensor) TensorCache.instance.get(DType.BF16, ft.shape());

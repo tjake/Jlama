@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
+
+import java.util.List;
 import java.util.Map;
 
 public class LlamaConfig extends Config {
@@ -34,7 +36,7 @@ public class LlamaConfig extends Config {
             @JsonProperty("rms_norm_eps") float layerNormEps,
             @JsonProperty("vocab_size") int vocabularySize,
             @JsonProperty("bos_token_id") int bosToken,
-            @JsonProperty("eos_token_id") int eosToken,
+            @JsonProperty("eos_token_id") Object eosToken,
             @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
             @JsonProperty("rope_theta") Double ropeFreqsTheta,
             @JsonProperty("rope_scaling") Map<String, String> ropeScaling) {
@@ -48,9 +50,9 @@ public class LlamaConfig extends Config {
                 layerNormEps,
                 vocabularySize,
                 bosToken,
-                eosToken,
+                eosToken instanceof List ? ((List<Integer>)eosToken).get(((List<Integer>)eosToken).size() - 1) : (Integer) eosToken, //for llama3.1
                 activationFunction,
                 ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
-                ropeScaling == null ? 1.0 : Double.parseDouble(ropeScaling.get("factor")));
+                ropeScaling == null || !("linear".equals(ropeScaling.get("rope_type"))) ? 1.0 : Double.parseDouble(ropeScaling.get("factor")));
     }
 }

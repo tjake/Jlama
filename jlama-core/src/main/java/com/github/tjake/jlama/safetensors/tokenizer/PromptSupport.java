@@ -151,7 +151,7 @@ public class PromptSupport {
                             "eos_token",
                             m.eosToken(),
                             "bos_token",
-                            m.bosToken()));
+                            ""));   // We add the BOS ourselves
         }
     }
 }

@@ -97,7 +97,7 @@ public class GPT2Model extends AbstractModel {
             LayerNorm layerNorm1 = new LayerNorm(this, weights.load(b + "ln_1.bias"), weights.load(b + "ln_1.weight"));
             LayerNorm layerNorm2 = new LayerNorm(this, weights.load(b + "ln_2.bias"), weights.load(b + "ln_2.weight"));
 
-            transformerBlocks[i] = new TransformerBlock(this, layerNorm1, attention, layerNorm2, mlpBlock);
+            transformerBlocks[i] = new TransformerBlock(this, i, layerNorm1, attention, layerNorm2, mlpBlock);
         }
 
         return transformerBlocks;

@@ -17,6 +17,7 @@ package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -24,6 +25,8 @@ import java.lang.foreign.MemorySegment;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
+import java.util.List;
+
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
@@ -182,11 +185,19 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
 
     @Override
     public String toString() {
-        float[] sample = new float[Math.min(10, b.remaining())];
+        float[] sample = new float[DebugSupport.isDebug() ? b.remaining() : Math.min(10, b.remaining())];
         b.duplicate().get(sample);
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < sample.length; i++) {
+            sb.append(String.format("%8.4f", sample[i]));
+            if (i < sample.length - 1) {
+                sb.append(", ");
+            }
+        }
+
         return "FloatBufferTensor{" + "name='"
                 + name + '\'' + " shape="
-                + shape + ", b="
-                + Arrays.toString(sample) + "...}";
+                + shape + ",\nb={"
+                + sb + "...}";
     }
 }

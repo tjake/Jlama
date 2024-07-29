@@ -30,9 +30,13 @@ import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
+import com.github.tjake.jlama.model.mistral.MistralConfig;
+import com.github.tjake.jlama.model.mistral.MistralModel;
 import com.github.tjake.jlama.model.mixtral.MixtralConfig;
 import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.safetensors.*;
+import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
@@ -66,7 +70,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        // System.setProperty("jlama.force_panama_tensor_operations", "true");
+        //System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -94,19 +98,16 @@ public class TestModels {
 
     @Test
     public void LlamaRun() throws Exception {
-        String modelPrefix = "../models/Llama-2-7b-chat-hf-jlama-Q4";
+        String modelPrefix = "../models/Meta-Llama-3.1-8B-Instruct";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights =
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
-            String prompt0 =
-                    "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, "
-                            + "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, "
-                            + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
-            String prompt1 = "The theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt0, 0.7f, 256, false, makeOutHandler());
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
+
+            String p = model.promptSupport().get().newBuilder().addUserMessage("Tell me a joke.").build();
+            model.generate(UUID.randomUUID(), p, 0.3f, 256, false, makeOutHandler());
         }
     }
 
@@ -126,15 +127,21 @@ public class TestModels {
 
     @Test
     public void MistralRun() throws Exception {
-        String modelPrefix = "../models/Mistral-7B-v0.1";
+        String modelPrefix = "../models/Mistral-Nemo-Instruct-2407";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights =
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
-            LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
-            Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
-            String prompt = "Simply put, the theory of relativity states that";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 64, false, makeOutHandler());
+            BPETokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
+            Config c = om.readValue(new File(modelPrefix + "/config.json"), MistralConfig.class);
+            MistralModel model = new MistralModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
+            String prompt = "Tell me a joke.";
+            String p = model.promptSupport().isEmpty() ? prompt :
+                    model.promptSupport()
+                    .get()
+                    .newBuilder()
+                    .addUserMessage(prompt)
+                    .build();
+            model.generate(UUID.randomUUID(), "[INST] Tell me a joke. [/INST]Assistant", 0.0f, 64, false, makeOutHandler());
         }
     }
 
@@ -171,14 +178,14 @@ public class TestModels {
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             GemmaTokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
             GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
-            GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
+            GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
             String prompt = "Tell me a joke.";
             String p = model.promptSupport()
                     .get()
                     .newBuilder()
                     .addUserMessage(prompt)
                     .build();
-            model.generate(UUID.randomUUID(), p, 0.7f, 256, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), p, 0.3f, 256, false, makeOutHandler());
         }
     }
 

@@ -34,7 +34,8 @@ public class MistralConfig extends Config {
             @JsonProperty("bos_token_id") int bosToken,
             @JsonProperty("eos_token_id") int eosToken,
             @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
-            @JsonProperty("rope_theta") Double ropeTheta) {
+            @JsonProperty("rope_theta") Double ropeTheta,
+            @JsonProperty("head_dim") Integer headSize) {
         super(
                 contextLength,
                 embeddingLength,
@@ -48,6 +49,7 @@ public class MistralConfig extends Config {
                 eosToken,
                 activationFunction,
                 ropeTheta,
-                1.0);
+                1.0,
+                headSize == null ? embeddingLength / numberOfHeads : headSize);
     }
 }

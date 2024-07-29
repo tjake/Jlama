@@ -149,13 +149,35 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
 
     @Override
     public String toString() {
-        float[] sample = new float[Math.min(100, b.remaining())];
+        float[] sample = new float[Math.min(10, b.remaining())];
         for (int i = 0; i < sample.length; i++) {
             sample[i] = FloatConversions.bFloat16ToFloat32(b.get(i));
         }
+
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < sample.length; i++) {
+            sb.append(String.format("%8.4f", sample[i]));
+            if (i < sample.length - 1) {
+                sb.append(", ");
+            }
+        }
+
+        for (int i = 0; i < sample.length; i++) {
+            sample[i] = FloatConversions.bFloat16ToFloat32(b.get(i + (shape.first()/2)));
+        }
+
+        StringBuffer sb2 = new StringBuffer();
+        for (int i = 0; i < sample.length; i++) {
+            sb2.append(String.format("%8.4f", sample[i]));
+            if (i < sample.length - 1) {
+                sb2.append(", ");
+            }
+        }
+
+
         return "BFloat16BufferTensor{" + "name='"
                 + name + '\'' + ", shape="
-                + shape + ", b="
-                + Arrays.toString(sample) + "...}";
+                + shape + ",\n b="
+                + sb + "..." + sb2 + "}";
     }
 }
