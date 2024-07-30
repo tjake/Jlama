@@ -54,7 +54,9 @@ open browser to http://localhost:8080/ui/index.html
 
 ## 👨‍💻 How to use in your Java project
 
-Add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
+The simplest way to use Jlama is with the [Langchain4j Integration](https://github.com/langchain4j/langchain4j-examples/tree/main/jlama-examples).  
+
+If you would like to use Jlama directly, add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
 
 ```xml
 
