@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.github.tjake.jlama.tensor.operations.cnative;
+package com.github.tjake.jlama.tensor.operations.util;
 
 import com.github.tjake.jlama.util.RuntimeSupport;
 import java.io.BufferedOutputStream;
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 public class JarSupport {
     private static final Logger logger = LoggerFactory.getLogger(JarSupport.class);
 
-    static boolean maybeLoadLibrary() {
+    public static boolean maybeLoadLibrary() {
         String ext = RuntimeSupport.isMac() ? ".dylib" : RuntimeSupport.isWin() ? ".dll" : ".so";
         URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/libjlama" + ext);
 

@@ -43,13 +43,12 @@ import org.slf4j.LoggerFactory;
  * This class is abstract because there are multiple implementations
  * for different types of data.
  **/
-public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> implements AutoCloseable {
+public abstract class AbstractTensor<V extends Vector<?>, T extends Number> implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(AbstractTensor.class);
 
     protected final TensorShape shape;
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
-    protected final boolean requiresOffHeapTensor;
     protected final Map<String, Object> metadata;
     private final int stride;
     private volatile TensorCache originCache = null;
@@ -58,7 +57,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
         Preconditions.checkArgument(shape != null && shape.dims() > 0);
         this.dType = dType;
         this.shape = shape;
-        this.requiresOffHeapTensor = TensorOperationsProvider.get().requiresOffHeapTensor();
         this.metadata = new HashMap<>();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
         this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, shape.sparseOffset()) : 0;
@@ -151,12 +149,12 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
      * Creates a sparse tensor that acts like a dense one but is missing the data outside
      * the range of in last dimension.
      */
-    public AbstractTensor<V, T, A> sparsify(int offset, int length) {
+    public AbstractTensor<V, T> sparsify(int offset, int length) {
         if (shape.isSparse()) return this;
 
         if (length == shape.last()) return this;
 
-        AbstractTensor<V, T, A> sparseT = this.make(shape.sparsify(offset, length));
+        AbstractTensor<V, T> sparseT = this.make(shape.sparsify(offset, length));
         int originalLength = shape.last();
 
         int[] cursor = new int[shape.dims()];
@@ -252,10 +250,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number, A> i
     public final DType dType() {
         return dType;
     }
-
-    public abstract A getArray();
-
-    public abstract int getArrayOffset(int offset);
 
     public abstract V getVector(VectorSpecies<T> species, int... offset);
 

@@ -171,9 +171,7 @@ public class Worker implements Closeable {
 
         private ByteString getTensorBytes(AbstractTensor tensor) {
             Preconditions.checkArgument(tensor.dims() == 2 && tensor.dType() == DType.F32);
-            return TensorOperationsProvider.get().requiresOffHeapTensor()
-                    ? UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer())
-                    : UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().toArray(ValueLayout.JAVA_BYTE));
+            return UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer());
         }
 
         @Override

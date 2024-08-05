@@ -36,5 +36,11 @@
             <artifactId>jinjava</artifactId>
             <version>2.7.2</version>
         </dependency>
+
+        <dependency>
+            <groupId>net.fellbaum</groupId>
+            <artifactId>jemoji</artifactId>
+            <version>1.4.1</version>
+        </dependency>
   </dependencies>
 </project>

@@ -65,11 +65,6 @@ public final class PanamaTensorOperations implements TensorOperations {
         return "Panama Vector Operations";
     }
 
-    @Override
-    public boolean requiresOffHeapTensor() {
-        return true;
-    }
-
     public int parallelSplitSize() {
         return PhysicalCoreExecutor.instance.get().getCoreCount();
     }

@@ -28,7 +28,7 @@ import java.util.Arrays;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
-public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, short[]> {
+public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short> {
 
     private final ShortBuffer b;
     private final String name;
@@ -51,13 +51,10 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     public BFloat16BufferTensor(TensorShape shape) {
         super(DType.BF16, shape, true);
         this.name = "tmp";
-        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                            Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                    .asShortBuffer();
-        } else {
-            this.b = ShortBuffer.allocate(Ints.checkedCast(size()));
-        }
+        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                        Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                .asShortBuffer();
+
         this.segment = MemorySegment.ofBuffer(b);
     }
 
@@ -94,33 +91,16 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short, sho
     }
 
     @Override
-    public short[] getArray() {
-        if (b.hasArray()) return b.array();
-        else throw new UnsupportedOperationException("Can't get array from direct buffer");
-    }
-
-    @Override
-    public int getArrayOffset(int offset) {
-        return b.arrayOffset() + offset;
-    }
-
-    @Override
     public ShortVector getVector(VectorSpecies<Short> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
-            return ShortVector.fromArray(species, getArray(), getArrayOffset(offset));
-        else
-            return ShortVector.fromMemorySegment(
-                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        return ShortVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void intoTensor(ShortVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
-            vector.intoArray(getArray(), getArrayOffset(offset));
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override

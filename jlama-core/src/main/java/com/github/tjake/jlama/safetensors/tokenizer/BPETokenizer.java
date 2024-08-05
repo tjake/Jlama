@@ -25,6 +25,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +79,7 @@ public abstract class BPETokenizer implements Tokenizer {
         if (model.addedTokenPattern() != null) {
             // Split the sentence into pieces using the added token pattern
             // Any non-added token is split into pieces using the pre-tokenizer
-            String[] pieces = model.addedTokenPattern().splitWithDelimiters(sentence, 0);
+            String[] pieces = split(model.addedTokenPattern(), sentence, 0, true);
             for (String piece : pieces) {
                 if (!piece.isEmpty()) {
                     if (model.addedTokens().containsKey(piece)) sentencePieces.add(piece);
@@ -232,5 +234,56 @@ public abstract class BPETokenizer implements Tokenizer {
     @Override
     public Optional<PromptSupport> promptSupport() {
         return promptSupport.hasPromptTemplates() ? Optional.of(promptSupport) : Optional.empty();
+    }
+
+
+    // Splitter for added token pattern (optionally with delimiters)
+    private String[] split(Pattern p, CharSequence input, int limit, boolean withDelimiters) {
+        int matchCount = 0;
+        int index = 0;
+        boolean matchLimited = limit > 0;
+        ArrayList<String> matchList = new ArrayList<>();
+        Matcher m = p.matcher(input);
+
+        // Add segments before each match found
+        while(m.find()) {
+            if (!matchLimited || matchCount < limit - 1) {
+                if (index == 0 && index == m.start() && m.start() == m.end()) {
+                    // no empty leading substring included for zero-width match
+                    // at the beginning of the input char sequence.
+                    continue;
+                }
+                String match = input.subSequence(index, m.start()).toString();
+                matchList.add(match);
+                index = m.end();
+                if (withDelimiters) {
+                    matchList.add(input.subSequence(m.start(), index).toString());
+                }
+                ++matchCount;
+            } else if (matchCount == limit - 1) { // last one
+                String match = input.subSequence(index, input.length()).toString();
+                matchList.add(match);
+                index = m.end();
+                ++matchCount;
+            }
+        }
+
+        // If no match was found, return this
+        if (index == 0)
+            return new String[] {input.toString()};
+
+        // Add remaining segment
+        if (!matchLimited || matchCount < limit)
+            matchList.add(input.subSequence(index, input.length()).toString());
+
+        // Construct result
+        int resultSize = matchList.size();
+        if (limit == 0) {
+            while (resultSize > 0 && matchList.get(resultSize-1).isEmpty()) {
+                resultSize--;
+            }
+        }
+        String[] result = new String[resultSize];
+        return matchList.subList(0, resultSize).toArray(result);
     }
 }

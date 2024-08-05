@@ -32,7 +32,7 @@ import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
+public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
     private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);
     ;
     public static final int BLOCK_SIZE = 32;
@@ -141,13 +141,9 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         Preconditions.checkArgument(this.size() % BLOCK_SIZE == 0, "Tensor must be a multiple of BLOCK_SIZE");
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
-        if (requiresOffHeapTensor) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                            Ints.checkedCast(this.size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                    .order(ByteOrder.LITTLE_ENDIAN);
-        } else {
-            this.b = ByteBuffer.allocate(Ints.checkedCast(this.size() / 2)).order(ByteOrder.LITTLE_ENDIAN);
-        }
+        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                        Ints.checkedCast(this.size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                .order(ByteOrder.LITTLE_ENDIAN);
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -157,20 +153,11 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
         super(DType.Q4, shape, cacheSlices);
         this.blockF = blockF;
         this.name = name;
-        if (requiresOffHeapTensor) {
-            if (b.isDirect()) {
-                this.b = b;
-            } else {
-                this.b = ByteBuffer.allocateDirect(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
-                this.b.duplicate().put(b);
-            }
+        if (b.isDirect()) {
+            this.b = b;
         } else {
-            if (!b.isDirect()) {
-                this.b = b;
-            } else {
-                this.b = ByteBuffer.allocate(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
-                this.b.duplicate().put(b);
-            }
+            this.b = ByteBuffer.allocateDirect(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+            this.b.duplicate().put(b);
         }
 
         this.segment = MemorySegment.ofBuffer(this.b);
@@ -224,32 +211,16 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte, b
     }
 
     @Override
-    public byte[] getArray() {
-        if (b.hasArray()) return b.array();
-        else throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getArrayOffset(int i) {
-        return b.arrayOffset() + i / 2;
-    }
-
-    @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!requiresOffHeapTensor) return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
-        else
-            return ByteVector.fromMemorySegment(
-                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        return ByteVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void intoTensor(ByteVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
-            vector.intoArray(getArray(), getArrayOffset(offset));
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
