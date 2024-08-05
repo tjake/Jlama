@@ -24,8 +24,7 @@
       <artifactId>jlama-native</artifactId>
       <version>${project.version}</version>
       <classifier>${jni.classifier}</classifier>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/../jlama-native/target/jlama-native-${project.version}-${jni.classifier}.jar</systemPath>
+      <type>jar</type>
     </dependency>
 
     <dependency>
