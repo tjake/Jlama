@@ -20,24 +20,24 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.cnative.NativeSimd;
+import com.github.tjake.jlama.tensor.operations.util.JarSupport;
+import com.github.tjake.jlama.tensor.operations.util.MemorySegmentSupport;
 import com.github.tjake.jlama.util.MachineSpec;
 import com.github.tjake.jlama.util.RuntimeSupport;
-import java.lang.foreign.Arena;
+
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NativeTensorOperations implements TensorOperations {
-
-    private static final int MAX_BATCH_SIZE = 4;
-    private static final ThreadLocal<MemorySegment[]> tmpArr = ThreadLocal.withInitial(() -> new MemorySegment[] {
-        Arena.global().allocateArray(ValueLayout.ADDRESS, MAX_BATCH_SIZE),
-        Arena.global().allocateArray(ValueLayout.ADDRESS, MAX_BATCH_SIZE),
-        Arena.global().allocateArray(ValueLayout.ADDRESS, MAX_BATCH_SIZE),
-    });
-
     private static final Logger logger = LoggerFactory.getLogger(NativeTensorOperations.class);
+
+    static {
+        if (!JarSupport.maybeLoadLibrary())
+            System.loadLibrary("jlama");
+    }
+
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
     public static final int HAS_AVX2 = NativeSimd.HAS_AVX2();
 
@@ -76,12 +76,7 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     private void checkLib() {
-        NativeSimd.gemm_f32$MH();
-    }
-
-    @Override
-    public boolean requiresOffHeapTensor() {
-        return true;
+        // Check if the native library is loaded
     }
 
     public int parallelSplitSize() {
@@ -241,15 +236,14 @@ public class NativeTensorOperations implements TensorOperations {
             int bRowOffset,
             int rowChunkSize) {
 
-        MemorySegment[] tmp = tmpArr.get();
+        MemorySegment[] tmp = MemorySegmentSupport.setupBatch(
+                i -> r[i].getMemorySegment(),
+                i -> b[i].getMemorySegment(),
+                i -> b[i] instanceof Q4ByteBufferTensor ? ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment() : MemorySegment.NULL,
+                r.length);
         MemorySegment ra = tmp[0];
         MemorySegment rb = tmp[1];
         MemorySegment rc = tmp[2];
-
-        for (int i = 0; i < r.length; i++) {
-            ra.setAtIndex(ValueLayout.ADDRESS, i, r[i].getMemorySegment());
-            rb.setAtIndex(ValueLayout.ADDRESS, i, b[i].getMemorySegment());
-        }
 
         int M = a.shape().dim(0);
         int N = rowChunkSize; // b.shape().dim(0);
@@ -327,13 +321,6 @@ public class NativeTensorOperations implements TensorOperations {
                                 throw new UnsupportedOperationException("F32 Q4 Unsupported on Arm");
                             default:
                                 Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
-                                for (int i = 0; i < r.length; i++)
-                                    rc.setAtIndex(
-                                            ValueLayout.ADDRESS,
-                                            i,
-                                            ((Q4ByteBufferTensor) b[i])
-                                                    .getBlockF()
-                                                    .getMemorySegment());
                                 NativeSimd.gemm_f32_q4_batch(
                                         flags,
                                         r.length,
@@ -362,12 +349,6 @@ public class NativeTensorOperations implements TensorOperations {
             case I8:
                 switch (b[0].dType()) {
                     case Q4:
-                        for (int i = 0; i < r.length; i++)
-                            rc.setAtIndex(
-                                    ValueLayout.ADDRESS,
-                                    i,
-                                    ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment());
-
                         Q8ByteBufferTensor at = (Q8ByteBufferTensor) a;
                         Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
                         NativeSimd.gemm_q8_q4_batch(

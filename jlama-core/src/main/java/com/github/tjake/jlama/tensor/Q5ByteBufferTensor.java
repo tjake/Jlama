@@ -34,7 +34,7 @@ import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
+public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
     private static final Logger logger = LoggerFactory.getLogger(Q5ByteBufferTensor.class);
     public static final int BLOCK_SIZE = 32;
     private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
@@ -116,14 +116,9 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.b5 = new int[Ints.checkedCast(makeBlockShape(shape).size())];
         this.name = "tmp";
-
-        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                            Ints.checkedCast(size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                    .order(ByteOrder.LITTLE_ENDIAN);
-        } else {
-            this.b = ByteBuffer.allocate(Ints.checkedCast(this.size() / 2)).order(ByteOrder.LITTLE_ENDIAN);
-        }
+        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                        Ints.checkedCast(size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                .order(ByteOrder.LITTLE_ENDIAN);
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -190,17 +185,6 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public byte[] getArray() {
-        if (b.hasArray()) return b.array();
-        else throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getArrayOffset(int i) {
-        return b.arrayOffset() + i;
-    }
-
-    @Override
     public MemorySegment getMemorySegment() {
         return segment;
     }
@@ -221,20 +205,14 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
-            return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
-        else
-            return ByteVector.fromMemorySegment(
-                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        return ByteVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void intoTensor(ByteVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!TensorOperationsProvider.get().requiresOffHeapTensor())
-            vector.intoArray(getArray(), getArrayOffset(offset));
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override

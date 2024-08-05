@@ -37,8 +37,81 @@
 
   <build>
   <plugins>
+
+    <plugin>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <version>3.8.0</version>
+      <executions>
+        <execution>
+          <id>compile-jdk20</id>
+          <phase>compile</phase>
+          <goals>
+            <goal>compile</goal>
+          </goals>
+          <configuration>
+            <release>20</release>
+            <compilerArgs>
+              <arg>--add-modules=jdk.incubator.vector</arg>
+              <arg>--enable-preview</arg>
+            </compilerArgs>
+            <jdkToolchain>
+              <version>20</version>
+            </jdkToolchain>
+
+            <compileSourceRoots>
+              <compileSourceRoot>${project.basedir}/src/main/java20</compileSourceRoot>
+            </compileSourceRoots>
+            <multiReleaseOutput>true</multiReleaseOutput>
+          </configuration>
+        </execution>
+        <execution>
+          <id>compile-jdk21</id>
+          <phase>compile</phase>
+          <goals>
+            <goal>compile</goal>
+          </goals>
+          <configuration>
+            <release>21</release>
+            <compilerArgs>
+              <arg>--add-modules=jdk.incubator.vector</arg>
+              <arg>--enable-preview</arg>
+            </compilerArgs>
+            <jdkToolchain>
+              <version>21</version>
+            </jdkToolchain>
+            <compileSourceRoots>
+              <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
+            </compileSourceRoots>
+            <multiReleaseOutput>true</multiReleaseOutput>
+          </configuration>
+        </execution>
+        <execution>
+          <id>compile-jdk22</id>
+          <phase>compile</phase>
+          <goals>
+            <goal>compile</goal>
+          </goals>
+          <configuration>
+            <release>22</release>
+            <compilerArgs>
+              <arg>--add-modules=jdk.incubator.vector</arg>
+              <arg>--enable-preview</arg>
+            </compilerArgs>
+            <jdkToolchain>
+              <version>22</version>
+            </jdkToolchain>
+            <compileSourceRoots>
+              <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
+            </compileSourceRoots>
+            <multiReleaseOutput>true</multiReleaseOutput>
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+
     <plugin>
       <artifactId>maven-jar-plugin</artifactId>
+      <version>3.4.2</version>
       <!-- All other configuration information is in the parent pom -->
       <executions>
         <execution>
@@ -48,6 +121,11 @@
           </goals>
           <configuration>
             <classifier>${jni.classifier}</classifier>
+            <archive>
+              <manifestEntries>
+                <Multi-Release>true</Multi-Release>
+              </manifestEntries>
+            </archive>
           </configuration>
         </execution>
         <execution>
@@ -56,6 +134,12 @@
           <goals>
             <goal>jar</goal>
           </goals>
+          <configuration>
+            <excludes>
+              <exclude>com/github/tjake/jlama/tensor/operations/util/MemorySegment.class</exclude>
+              <exclude>com/github/tjake/jlama/tensor/operations/cnative/*.*</exclude>
+            </excludes>
+          </configuration>
         </execution>
       </executions>
     </plugin>

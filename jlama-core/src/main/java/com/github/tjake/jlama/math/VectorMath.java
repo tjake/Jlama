@@ -112,29 +112,6 @@ public class VectorMath {
         return (float) (dotProduct / (Math.sqrt(aMagnitude) * Math.sqrt(bMagnitude)));
     }
 
-    public static void l1normalize(AbstractTensor t) {
-        float[] x = (float[]) t.getArray();
-        int offset = t.getArrayOffset(0);
-        long size = t.size();
-
-        float sum = 0.0f;
-        for (int i = offset; i < size; i++) sum += Math.abs(x[i]);
-
-        for (int i = offset; i < size; i++) x[i] /= sum;
-    }
-
-    public static void l2normalize(AbstractTensor t) {
-        float[] x = (float[]) t.getArray();
-        int offset = t.getArrayOffset(0);
-        long size = t.size();
-
-        float sum = 0.0f;
-        for (int i = offset; i < size; i++) sum += x[i] * x[i];
-
-        double magnitude = Math.sqrt(sum);
-        for (int i = offset; i < size; i++) x[i] /= magnitude;
-    }
-
     public static float[] outerProduct(float[] xs, float[] ys) {
         int n = xs.length;
         int m = ys.length;

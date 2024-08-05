@@ -24,6 +24,7 @@
       <artifactId>jlama-native</artifactId>
       <version>${project.version}</version>
       <classifier>${jni.classifier}</classifier>
+      <type>jar</type>
     </dependency>
 
     <dependency>

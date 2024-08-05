@@ -15,18 +15,18 @@ get_java_major_version() {
   echo ${version%%.*}
 }
 
-# Verify Java version is JDK 21
+# Verify Java version is JDK 20/21/22
 JAVA=$(get_java_exec)
 JAVA_MAJOR_VERSION=$(get_java_major_version $JAVA)
-if [[ "$JAVA_MAJOR_VERSION" != "21" ]]; then
-  echo "Error: JDK 21 is required to run this application."
+if [[ "$JAVA_MAJOR_VERSION" != "20" ]] && [[ "$JAVA_MAJOR_VERSION" != "21" ]] && [[ "$JAVA_MAJOR_VERSION" != "22" ]]; then
+  echo "Error: JDK 20/21/22 is required to run this application."
   exit 1
 fi
 
 # Define the path of the relative JAR
 JLAMA_RELATIVE_JAR="./jlama-cli/target/jlama-cli.jar"
 # Path to the logback.xml
-LOGBACK_CONFIG="./conf/logback.xml"
+LOGBACK_CONFIG="./conf/logback2.xml"
 
 JLAMA_JVM_ARGS="$JLAMA_JVM_ARGS -server -Dstdout.encoding=UTF-8 -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0 --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
  -XX:+UnlockDiagnosticVMOptions -XX:CompilerDirectivesFile=./inlinerules.json -XX:+AlignVector -XX:+UseStringDeduplication \

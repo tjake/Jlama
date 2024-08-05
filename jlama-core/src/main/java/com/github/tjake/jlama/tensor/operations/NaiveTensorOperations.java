@@ -25,11 +25,6 @@ public class NaiveTensorOperations implements TensorOperations {
         return "Naive Java Operations";
     }
 
-    @Override
-    public boolean requiresOffHeapTensor() {
-        return true;
-    }
-
     // a[0..n] += b[0..n]
     @Override
     public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {

@@ -26,7 +26,7 @@ Implements:
   * Fast GEMM operations
   * Distributed Inference!
 
-Jlama is built with Java 21 and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
+Jlama is requires Java 20 or later and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
 
 ## ⭐ Give us a star!

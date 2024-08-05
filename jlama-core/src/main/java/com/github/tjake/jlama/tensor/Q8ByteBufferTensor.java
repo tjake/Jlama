@@ -35,7 +35,7 @@ import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]> {
+public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
     private static final Logger logger = LoggerFactory.getLogger(Q8ByteBufferTensor.class);
     ;
     public static final int BLOCK_SIZE = 32;
@@ -101,13 +101,9 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.name = "tmp";
 
-        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                            Ints.checkedCast(size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                    .order(ByteOrder.LITTLE_ENDIAN);
-        } else {
-            this.b = ByteBuffer.allocate(Ints.checkedCast(size())).order(ByteOrder.LITTLE_ENDIAN);
-        }
+        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                        Ints.checkedCast(size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                .order(ByteOrder.LITTLE_ENDIAN);
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -117,21 +113,13 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
         super(DType.I8, shape, cacheSlices);
         this.name = name;
         this.blockF = blockF;
-        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            if (b.isDirect()) {
-                this.b = b;
-            } else {
-                this.b = ByteBuffer.allocateDirect(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
-                this.b.duplicate().put(b);
-            }
+        if (b.isDirect()) {
+            this.b = b;
         } else {
-            if (!b.isDirect()) {
-                this.b = b;
-            } else {
-                this.b = ByteBuffer.allocate(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
-                this.b.duplicate().put(b);
-            }
+            this.b = ByteBuffer.allocateDirect(b.remaining()).order(ByteOrder.LITTLE_ENDIAN);
+            this.b.duplicate().put(b);
         }
+
         this.segment = MemorySegment.ofBuffer(this.b);
     }
 
@@ -183,39 +171,23 @@ public class Q8ByteBufferTensor extends AbstractTensor<ByteVector, Byte, byte[]>
     }
 
     @Override
-    public byte[] getArray() {
-        if (b.hasArray()) return b.array();
-        else throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int getArrayOffset(int i) {
-        return b.arrayOffset() + i;
-    }
-
-    @Override
     public ByteVector getVector(VectorSpecies<Byte> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!requiresOffHeapTensor) return ByteVector.fromArray(species, getArray(), getArrayOffset(offset));
-        else
-            return ByteVector.fromMemorySegment(
-                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        return ByteVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void intoTensor(ByteVector vector, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!requiresOffHeapTensor) vector.intoArray(getArray(), getArrayOffset(offset));
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void intoTensor(ByteVector vector, VectorMask<Byte> msk, int... aoffset) {
         Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!requiresOffHeapTensor) vector.intoArray(getArray(), getArrayOffset(offset), msk);
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN, msk);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN, msk);
     }
 
     @Override

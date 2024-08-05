@@ -18,6 +18,8 @@ package com.github.tjake.jlama.model.gpt2;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import net.fellbaum.jemoji.EmojiManager;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
@@ -43,7 +45,7 @@ public class GPT2Tokenizer extends BPETokenizer {
         // Represent emojis as their badly tokenized strings
         codePointsToByteStrings = HashBiMap.create();
         for (int j = 9000; j <= 128512; j++) {
-            if (Character.isEmoji(j)) {
+            if (EmojiManager.isEmoji(Character.toString(j))) {
                 byte[] b = Character.toString(j).getBytes(StandardCharsets.UTF_8);
                 StringBuilder sb = new StringBuilder();
                 for (int k = 0; k < b.length; k++) {

@@ -26,9 +26,7 @@ public interface TensorOperations {
     ThreadLocal<FloatBufferTensor> scratch = ThreadLocal.withInitial(() -> new FloatBufferTensor(TensorShape.one));
 
     String name();
-
-    boolean requiresOffHeapTensor();
-
+    
     default int parallelSplitSize() {
         return 1;
     }

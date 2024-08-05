@@ -101,7 +101,10 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>com.github.tjake.jlama.cli.JlamaCli</mainClass>
+                  <manifestEntries>
+                    <Main-Class>com.github.tjake.jlama.cli.JlamaCli</Main-Class>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
                 </transformer>
               </transformers>
               <filters>

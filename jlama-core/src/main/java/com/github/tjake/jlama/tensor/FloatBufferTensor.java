@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  *
  * The Tensor is thread safe for read operations, but not for write operations.
  */
-public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, float[]> {
+public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> {
     private static final Logger logger = LoggerFactory.getLogger(FloatBufferTensor.class);
     private final FloatBuffer b;
     private final String name;
@@ -66,13 +66,10 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     public FloatBufferTensor(TensorShape shape) {
         super(DType.F32, shape, true);
         this.name = "tmp";
-        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                            Ints.checkedCast(shape.size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                    .asFloatBuffer();
-        } else {
-            this.b = FloatBuffer.allocate(Ints.checkedCast(shape.size()));
-        }
+        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                        Ints.checkedCast(shape.size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                .asFloatBuffer();
+
         this.segment = MemorySegment.ofBuffer(b);
     }
 
@@ -83,22 +80,13 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     public FloatBufferTensor(String name, FloatBuffer b, TensorShape shape, boolean cacheSlices) {
         super(DType.F32, shape, cacheSlices);
         this.name = name;
-        if (TensorOperationsProvider.get().requiresOffHeapTensor()) {
-            if (b.isDirect()) {
-                this.b = b;
-            } else {
-                this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                                Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                        .asFloatBuffer();
-                this.b.duplicate().put(b);
-            }
+        if (b.isDirect()) {
+            this.b = b;
         } else {
-            if (!b.isDirect()) {
-                this.b = b;
-            } else {
-                this.b = FloatBuffer.allocate(Ints.checkedCast(size()));
-                this.b.duplicate().put(b);
-            }
+            this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
+                            Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+                    .asFloatBuffer();
+            this.b.duplicate().put(b);
         }
 
         this.segment = MemorySegment.ofBuffer(this.b);
@@ -130,16 +118,6 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     }
 
     @Override
-    public float[] getArray() {
-        Preconditions.checkArgument(b.hasArray());
-        return b.array();
-    }
-
-    public int getArrayOffset(int offset) {
-        return (b.hasArray() ? b.arrayOffset() : 0) + offset;
-    }
-
-    @Override
     public MemorySegment getMemorySegment() {
         return segment;
     }
@@ -160,27 +138,20 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float, 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (!requiresOffHeapTensor) return FloatVector.fromArray(species, getArray(), getArrayOffset(offset));
-        else
-            return FloatVector.fromMemorySegment(
-                    species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        return FloatVector.fromMemorySegment(
+                species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void intoTensor(FloatVector vector, int... aoffset) {
         // Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-        if (!requiresOffHeapTensor) vector.intoArray(getArray(), getArrayOffset(offset));
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
     public void clear() {
-        if (b.hasArray()) {
-            Arrays.fill(b.array(), getArrayOffset(0), getArrayOffset(Ints.checkedCast(size())), 0);
-        } else {
-            segment.fill((byte) 0);
-        }
+        segment.fill((byte) 0);
     }
 
     @Override
