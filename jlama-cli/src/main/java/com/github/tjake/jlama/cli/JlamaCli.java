@@ -45,7 +45,7 @@ public class JlamaCli implements Runnable {
         cli.addSubcommand("quantize", new QuantizeCommand());
         cli.addSubcommand("chat", new ChatCommand());
         cli.addSubcommand("complete", new CompleteCommand());
-        cli.addSubcommand("serve", new ServeCommand());
+        cli.addSubcommand("restapi", new ApiServiceCommand());
         cli.addSubcommand("cluster-coordinator", new ClusterCoordinatorCommand());
         cli.addSubcommand("cluster-worker", new ClusterWorkerCommand());
 

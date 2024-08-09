@@ -46,7 +46,7 @@
 
     <osmaven.version>1.7.1</osmaven.version>
     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
-
+    <resteasy.version>6.2.7.Final</resteasy.version>
     <spotless.version>2.43.0</spotless.version>
     <junit.version>4.13.2</junit.version>
     <assertj.version>3.21.0</assertj.version>
@@ -59,7 +59,12 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.4.14</version>
+      <version>1.5.6</version>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-core</artifactId>
+      <version>1.5.6</version>
     </dependency>
 
     <dependency>
@@ -117,12 +122,12 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.8.0</version>
 
+                <!-- We compile with highest jdk to lowest supported target, this is the best compatibility -->
                 <configuration>
                   <source>20</source>
                   <target>20</target>
                   <compilerArgs>
                     <arg>--add-modules=jdk.incubator.vector</arg>
-
                   </compilerArgs>
                   <jdkToolchain>
                     <version>22</version>
