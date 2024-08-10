@@ -49,14 +49,13 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
 
     @Bean
     public AbstractModel getModelBean() {
-        logger.info("Here! {}", m);
         return m;
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/ui/**")
-                .addResourceLocations("/resources/");
+                .addResourceLocations("classpath:/static/ui/");
     }
 
     @Override
@@ -70,13 +69,13 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
                     Optional.ofNullable(modelQuantization),
                     Optional.ofNullable(threadCount));
 
-            logger.info("m = {}", m);
-
-            System.out.println("Chat UI: http://localhost:" + port + "/ui/index.html");
+            System.out.println("Chat UI: http://localhost:" + port);
 
             new SpringApplicationBuilder(ApiServiceCommand.class)
                     .lazyInitialization(true)
-                    .properties("server.port", ""+port, "logging.level.org.springframework.web", "debug")
+                    .properties(
+                            "server.port", ""+port,
+                            "logging.level.org.springframework.web", "debug")
                     .build()
                     .run();
         } catch (Exception e) {

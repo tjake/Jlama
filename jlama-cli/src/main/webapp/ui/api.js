@@ -1,13 +1,14 @@
 
 // Function to send a POST request to the API
-function postRequest(data, signal) {
-  const URL = `/api/generate`;
+function postRequest(input, session, signal) {
+  const URL = `/v1/chat/completions`;
   return fetch(URL, {
     method: 'POST',
     headers: {
+      'X-Jlama-Session': session,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({"model": "jlama", "messages": [{"role": "user", "content": input}], "stream": true }),
     signal: signal
   });
 }
@@ -29,8 +30,13 @@ async function getResponse(response, callback) {
 
     for (const line of lines) {
       if (line.trim() === '') continue;
-      const parsedResponse = JSON.parse(line);
-      callback(parsedResponse); // Process each response word
+      if (line.startsWith('data:')) {
+        const parsedResponse = JSON.parse(line.slice(5));
+        callback(parsedResponse); // Process each response word
+      } else {
+        const parsedResponse = JSON.parse(line);
+        callback(parsedResponse); // Process each response word
+      }
     }
   }
 

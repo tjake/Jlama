@@ -8,16 +8,14 @@ import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,6 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RestController
 @Validated
 public class OpenAIChatService {
+
+    private static final String JLAMA_SESSION_HEADER = "X-Jlama-Session";
 
     @Autowired
     private AbstractModel model;
@@ -37,11 +37,12 @@ public class OpenAIChatService {
      */
     @RequestMapping(
             method = RequestMethod.POST,
-            value = "/chat/completions",
+            value = "/v1/chat/completions",
             produces = { "application/json", "text/event-stream" },
             consumes = { "application/json" }
     )
     Object createChatCompletion(
+            @RequestHeader Map<String, String> headers,
             @Valid @RequestBody CreateChatCompletionRequest request
     ) {
 
@@ -52,6 +53,17 @@ public class OpenAIChatService {
         }
 
         UUID id = UUID.randomUUID();
+
+        if (headers.containsKey(JLAMA_SESSION_HEADER)) {
+            try {
+                id = UUID.fromString(headers.get(JLAMA_SESSION_HEADER));
+            } catch (IllegalArgumentException e) {
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+        }
+
+        UUID sessionId = id;
+
         PromptSupport.Builder builder = model.promptSupport().get().newBuilder();
 
         for (ChatCompletionRequestMessage m : messages) {
@@ -86,12 +98,12 @@ public class OpenAIChatService {
         AtomicInteger index = new AtomicInteger(0);
         if (request.getStream() != null && request.getStream()) {
             SseEmitter emitter = new SseEmitter();
-            CompletableFuture.supplyAsync( () -> model.generate(id, builder.build(), temperature, maxTokens, false,
+            CompletableFuture.supplyAsync( () -> model.generate(sessionId, builder.build(), temperature, maxTokens, false,
                     (t, f) -> {
                         try {
                             emitter.send(
                                     new CreateChatCompletionStreamResponse()
-                                            .id(id.toString())
+                                            .id(sessionId.toString())
                                             .choices(List.of(new CreateChatCompletionStreamResponseChoicesInner()
                                                             .index(index.getAndIncrement())
                                                     .delta(new ChatCompletionStreamResponseDelta()
@@ -104,7 +116,7 @@ public class OpenAIChatService {
                     .handle((r, ex) -> {
                         try {
                             emitter.send(new CreateChatCompletionStreamResponse()
-                                    .id(id.toString())
+                                    .id(sessionId.toString())
                                     .choices(List.of(new CreateChatCompletionStreamResponseChoicesInner()
                                             .finishReason(CreateChatCompletionStreamResponseChoicesInner.FinishReasonEnum.STOP)))
                                     );
@@ -121,10 +133,10 @@ public class OpenAIChatService {
         }
         else
         {
-            Generator.Response r = model.generate(id, builder.build(), temperature, maxTokens, false, (s, f) -> {});
+            Generator.Response r = model.generate(sessionId, builder.build(), temperature, maxTokens, false, (s, f) -> {});
 
             CreateChatCompletionResponse out = new CreateChatCompletionResponse()
-                    .id(id.toString())
+                    .id(sessionId.toString())
                     .choices(List.of(new CreateChatCompletionResponseChoicesInner()
                             .finishReason(CreateChatCompletionResponseChoicesInner.FinishReasonEnum.STOP)
                             .message(new ChatCompletionResponseMessage().content(r.text))));
