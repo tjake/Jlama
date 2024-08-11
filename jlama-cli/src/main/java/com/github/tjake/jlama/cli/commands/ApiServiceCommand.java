@@ -70,6 +70,7 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
                     Optional.ofNullable(threadCount));
 
             System.out.println("Chat UI: http://localhost:" + port);
+            System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
 
             new SpringApplicationBuilder(ApiServiceCommand.class)
                     .lazyInitialization(true)

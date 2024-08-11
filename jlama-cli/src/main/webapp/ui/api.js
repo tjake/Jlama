@@ -1,7 +1,7 @@
 
 // Function to send a POST request to the API
 function postRequest(input, session, signal) {
-  const URL = `/v1/chat/completions`;
+  const URL = `/chat/completions`;
   return fetch(URL, {
     method: 'POST',
     headers: {
