@@ -84,7 +84,6 @@ async function submitRequest() {
 
   const input = document.getElementById('user-input').value;
   const context = document.getElementById('chat-history').context;
-  const data = { prompt: input, session: session };
 
   // Create user message element and append to chat history
   let chatHistory = document.getElementById('chat-history');
@@ -117,13 +116,13 @@ async function submitRequest() {
   sendButton.insertAdjacentElement('beforebegin', stopButton);
 
   // change autoScroller to keep track of our new responseDiv
+  // change autoScroller to keep track of our new responseDiv
   autoScroller.observe(responseDiv);
 
-  postRequest(data, interrupt.signal)
+  postRequest(input, session, interrupt.signal)
     .then(async response => {
       await getResponse(response, parsedResponse => {
-        let word = parsedResponse.response;
-        if (parsedResponse.done) {
+        if (parsedResponse.choices[0].finish_reason !== null) {
           chatHistory.context = parsedResponse.context;
           // Copy button
           let copyButton = document.createElement('button');
@@ -137,14 +136,17 @@ async function submitRequest() {
             });
           };
           responseDiv.appendChild(copyButton);
-        }
-        // add word to response
-        if (word != undefined) {
-          if (responseDiv.hidden_text == undefined){
-            responseDiv.hidden_text = "";
+        } else {
+          let word = parsedResponse.choices[0].delta.content;
+
+          // add word to response
+          if (word != undefined) {
+            if (responseDiv.hidden_text == undefined) {
+              responseDiv.hidden_text = "";
+            }
+            responseDiv.hidden_text += word;
+            responseDiv.innerHTML = DOMPurify.sanitize(marked.parse(responseDiv.hidden_text)); // Append word to response container
           }
-          responseDiv.hidden_text += word;
-          responseDiv.innerHTML = DOMPurify.sanitize(marked.parse(responseDiv.hidden_text)); // Append word to response container
         }
       });
     })

@@ -123,7 +123,7 @@ public class JlamaServiceTest {
         assertThat(response4.resultNow().getSumSq()).isEqualTo(40);*/
     }
 
-    class MockConfig extends Config {
+    public static class MockConfig extends Config {
         public MockConfig(
                 int contextLength,
                 int embeddingLength,
@@ -148,7 +148,7 @@ public class JlamaServiceTest {
         }
     }
 
-    class MockWeightLoader implements WeightLoader {
+    public static class MockWeightLoader implements WeightLoader {
         @Override
         public Map<String, String> metadata() {
             return Collections.emptyMap();
@@ -173,7 +173,7 @@ public class JlamaServiceTest {
         public void close() throws Exception {}
     }
 
-    class MockTokenizer implements Tokenizer {
+    public static class MockTokenizer implements Tokenizer {
 
         @Override
         public List<String> tokenize(String sentence) {
@@ -201,8 +201,8 @@ public class JlamaServiceTest {
         }
     }
 
-    class MockModel extends AbstractModel {
-        protected MockModel(Config c) {
+    public static class MockModel extends AbstractModel {
+        public MockModel(Config c) {
             super(
                     InferenceType.INPUT_TO_EMBEDDING,
                     c,

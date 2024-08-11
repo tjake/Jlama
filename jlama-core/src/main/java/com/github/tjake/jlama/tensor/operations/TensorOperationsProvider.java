@@ -66,7 +66,7 @@ public class TensorOperationsProvider {
                     ? new NaiveTensorOperations()
                     : new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
-        logger.debug("Using {} ({})", pick.name(), "OffHeap");
+        logger.info("Using {} ({})", pick.name(), "OffHeap");
         return pick;
     }
 }

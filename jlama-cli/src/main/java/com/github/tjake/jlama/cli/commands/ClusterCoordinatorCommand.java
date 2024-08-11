@@ -15,14 +15,9 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-import static com.github.tjake.jlama.cli.commands.ServeCommand.APPLICATION_PATH;
-import static io.undertow.Handlers.resource;
 
-import com.github.tjake.jlama.cli.serve.JlamaRestApi;
+
 import com.github.tjake.jlama.net.Coordinator;
-import io.undertow.Undertow;
-import io.undertow.server.handlers.resource.ClassPathResourceManager;
-import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -62,7 +57,7 @@ public class ClusterCoordinatorCommand extends BaseCommand {
                     })
                     .start();
 
-            UndertowJaxrsServer ut = new UndertowJaxrsServer();
+            /*UndertowJaxrsServer ut = new UndertowJaxrsServer();
             ut.deploy(new JlamaRestApi(c), APPLICATION_PATH);
             ut.addResourcePrefixPath(
                     "/ui",
@@ -71,7 +66,7 @@ public class ClusterCoordinatorCommand extends BaseCommand {
                             .addWelcomeFiles("index.html"));
 
             System.out.println("Chat UI: http://localhost:" + port + "/ui/index.html");
-            ut.start(Undertow.builder().addHttpListener(port, "0.0.0.0"));
+            ut.start(Undertow.builder().addHttpListener(port, "0.0.0.0"));*/
 
         } catch (Exception e) {
             e.printStackTrace();
