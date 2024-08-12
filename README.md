@@ -43,10 +43,10 @@ Jlama includes a simple UI if you just want to chat with an llm.
 
 ```
 ./run-cli.sh download tjake/llama2-7b-chat-hf-jlama-Q4
-./run-cli.sh serve models/llama2-7b-chat-hf-jlama-Q4
+./run-cli.sh restapi models/llama2-7b-chat-hf-jlama-Q4
 
 ```
-open browser to http://localhost:8080/ui/index.html
+open browser to http://localhost:8080/
 
 <p align="center">
   <img src="docs/demo.png" alt="Demo chat">
@@ -56,7 +56,13 @@ open browser to http://localhost:8080/ui/index.html
 
 The simplest way to use Jlama is with the [Langchain4j Integration](https://github.com/langchain4j/langchain4j-examples/tree/main/jlama-examples).  
 
-If you would like to use Jlama directly, add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
+Jlama also includes an [OpenAI chat completion api](https://platform.openai.com/docs/guides/chat-completions/overview) that can be used with many tools in the AI ecosystem.
+
+```shell
+./run-cli.sh restapi tjake/llama2-7b-chat-hf-jlama-Q4
+```
+
+If you would like to embed Jlama directly, add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
 
 ```xml
 
