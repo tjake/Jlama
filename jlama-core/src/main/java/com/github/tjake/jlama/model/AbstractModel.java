@@ -22,7 +22,7 @@ import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
@@ -330,7 +330,7 @@ public abstract class AbstractModel implements Generator {
             promptLength = encoded.length;
 
             if (useEOS) {
-                promptTokens[promptTokens.length - 1] = c.eosToken; // Add EOS
+                promptTokens[promptTokens.length - 1] = getConfig().eosTokens.getLast(); // Add EOS
                 promptLength++;
             }
 
@@ -371,13 +371,13 @@ public abstract class AbstractModel implements Generator {
                 if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
                 output.close();
 
+                kvmem.setMetadata(KvBufferCache.TOKEN_COUNT, i);
+
                 // Model may tell us it's done
-                if (next == c.eosToken) {
+                if (c.eosTokens.contains(next)) {
                     reason = FinishReason.STOP_TOKEN;
                     break;
                 }
-
-                kvmem.setMetadata(KvBufferCache.TOKEN_COUNT, i);
 
                 try {
                     String c = tokenizer.decode(next);

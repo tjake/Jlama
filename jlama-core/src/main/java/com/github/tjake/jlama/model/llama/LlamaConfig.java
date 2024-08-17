@@ -50,7 +50,7 @@ public class LlamaConfig extends Config {
                 layerNormEps,
                 vocabularySize,
                 bosToken,
-                eosToken instanceof List ? ((List<Integer>)eosToken).get(((List<Integer>)eosToken).size() - 1) : (Integer) eosToken, //for llama3.1
+                eosToken instanceof List<?> ? (List<Integer>) eosToken : List.of((Integer) eosToken),
                 activationFunction,
                 ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
                 ropeScaling == null || !("linear".equals(ropeScaling.get("rope_type"))) ? 1.0 : Double.parseDouble(ropeScaling.get("factor")));

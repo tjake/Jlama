@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.safetensors.tokenizer;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -60,6 +61,11 @@ public class WordPieceTokenizer implements Tokenizer {
         this.sepToken = model.vocabLookup.get(sepString);
         this.clsToken = model.vocabLookup.get(clsString);
         this.unkToken = model.vocabLookup.get(unkString);
+    }
+
+    @Override
+    public TokenizerModel getModel() {
+        return model;
     }
 
     @Override

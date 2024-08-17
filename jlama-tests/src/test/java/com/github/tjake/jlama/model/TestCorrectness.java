@@ -23,7 +23,7 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
+import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.WordPieceTokenizer;
 import com.google.common.io.Resources;
@@ -32,7 +32,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -310,7 +312,7 @@ public class TestCorrectness {
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
-        PromptSupport.Builder builder = tokenizer.promptSupport().get().newBuilder();
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().builder();
         builder.addSystemMessage("You are a friendly chatbot who always responds in the style of a pirate");
         builder.addUserMessage("How many helicopters can a human eat in one sitting?");
 
@@ -337,13 +339,13 @@ public class TestCorrectness {
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
-        PromptSupport.Builder builder = tokenizer.promptSupport().get().newBuilder();
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().builder();
         builder.addSystemMessage("You are a friendly chatbot who always responds in the style of a pirate.");
         builder.addUserMessage("How many helicopters can a human eat in one sitting?");
 
         String prompt = builder.build();
         Assert.assertEquals(
-                "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+                "<|start_header_id|>system<|end_header_id|>\n\n"
                         + "You are a friendly chatbot who always responds in the style of a pirate.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
                         + "How many helicopters can a human eat in one sitting?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
                 prompt);
@@ -359,4 +361,82 @@ public class TestCorrectness {
         Assert.assertEquals(prompt, out);
         Assert.assertArrayEquals(expected, encoded);
     }
+
+    @Test
+    public void testPromptSupportWithTools() {
+        String modelPrefix = "../models/Meta-Llama-3.1-8B-Instruct";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().builder();
+        builder.addSystemMessage("You always respond as a pirate");
+        builder.addUserMessage("What is the weather in paris right now?");
+        builder.addGenerationPrompt(true);
+
+        Tool t = Tool.from(Function.builder()
+                        .name("get_temperature")
+                        .description("Simulates getting the current temperature at a location.")
+                        .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                        .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                        .build());
+
+        builder.addTools(t);
+
+        builder.addToolCall(new ToolCall("get_temperature", Map.of("location", "paris, france", "unit", "celsius")));
+
+        builder.addToolResult(Result.from(Map.of("temperature", 25.0, "unit", "celsius")));
+
+        String prompt = builder.build();
+        Assert.assertEquals(
+                "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n" + "\n"
+                        + "Environment: ipython\n"
+                        + "Cutting Knowledge Date: December 2023\n"
+                        + "Today Date: 26 Jul 2024\n"
+                        + "\n"
+                        + "You always respond as a pirate<|eot_id|><|start_header_id|>user<|end_header_id|>\n"
+                        + "\n"
+                        + "Given the following functions, please respond with a JSON for a function call with its proper arguments that best answers the given prompt.\n"
+                        + "\n"
+                        + "Respond in the format {\"name\": function name, \"parameters\": dictionary of argument name and its value}.Do not use variables.\n"
+                        + "\n"
+                        + "{\n"
+                        + "    \"type\": \"function\",\n"
+                        + "    \"function\": {\n"
+                        + "        \"name\": \"get_current_temperature\",\n"
+                        + "        \"description\": \"Simulates getting the current temperature at a location.\",\n"
+                        + "        \"parameters\": {\n"
+                        + "            \"type\": \"object\",\n"
+                        + "            \"properties\": {\n"
+                        + "                \"location\": {\n"
+                        + "                    \"type\": \"string\",\n"
+                        + "                    \"description\": \"The location to get the temperature for, in the format \\\"City, Country\\\".\"\n"
+                        + "                },\n"
+                        + "                \"unit\": {\n"
+                        + "                    \"type\": \"string\",\n"
+                        + "                    \"description\": \"The unit to return the temperature in (e.g., \\\"celsius\\\", \\\"fahrenheit\\\").\"\n"
+                        + "                }\n"
+                        + "            },\n"
+                        + "            \"required\": [\n"
+                        + "                \"location\",\n"
+                        + "                \"unit\"\n"
+                        + "            ]\n"
+                        + "        }\n"
+                        + "    }\n"
+                        + "}\n"
+                        + "\n"
+                        + "What is the weather in paris right now?<|eot_id|>",
+                prompt);
+
+        long[] encoded = tokenizer.encode(prompt);
+        long[] expected = new long[] {
+                128000, 128006, 9125, 128007, 271, 2675, 527, 264, 11919, 6369, 6465, 889, 2744, 31680, 304, 279, 1742, 315,
+                264, 55066, 128009, 128006, 882, 128007, 271, 4438, 1690, 59432, 649, 264, 3823, 8343, 304, 832, 11961, 30,
+                128009, 128006, 78191, 128007, 271
+        };
+
+        String out = tokenizer.decode(encoded);
+        Assert.assertEquals(prompt, out);
+        Assert.assertArrayEquals(expected, encoded);
+    }
+
 }

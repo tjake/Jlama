@@ -114,7 +114,7 @@ public class Coordinator implements Generator {
             int promptLength = encoded.length;
 
             if (useEOS) {
-                promptTokens[promptTokens.length - 1] = model.getConfig().eosToken; // Add EOS
+                promptTokens[promptTokens.length - 1] = model.getConfig().eosTokens.getLast(); // Add EOS
                 promptLength++;
             }
 
@@ -138,7 +138,7 @@ public class Coordinator implements Generator {
                 tokensGenerated++;
 
                 // Model may tell us it's done
-                if (next == model.getConfig().eosToken) {
+                if (model.getConfig().eosTokens.contains(next)) {
                     finishReason = FinishReason.STOP_TOKEN;
                     break;
                 }

@@ -20,6 +20,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 
+import java.util.List;
+
 public class BertConfig extends Config {
     @JsonCreator
     public BertConfig(
@@ -41,7 +43,7 @@ public class BertConfig extends Config {
                 layerNormEps,
                 vocabularySize,
                 0,
-                0,
+                List.of(0),
                 activationFunction,
                 null,
                 null);

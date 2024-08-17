@@ -42,7 +42,7 @@ public class TestSample {
         if (m.promptSupport().isPresent()) {
             prompt = m.promptSupport()
                     .get()
-                    .newBuilder()
+                    .builder()
                     .addSystemMessage("You are a helpful chatbot who writes short responses.")
                     .addUserMessage(prompt)
                     .build();

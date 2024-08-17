@@ -4,15 +4,12 @@ import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.openai.model.*;
 
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -67,7 +64,7 @@ public class OpenAIChatService {
 
         UUID sessionId = id;
 
-        PromptSupport.Builder builder = model.promptSupport().get().newBuilder();
+        PromptSupport.Builder builder = model.promptSupport().get().builder();
 
         for (ChatCompletionRequestMessage m : messages) {
 

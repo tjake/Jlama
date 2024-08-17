@@ -19,11 +19,11 @@ import static com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer.alteredB
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import java.util.*;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,7 +141,7 @@ public class TokenizerModel {
         this.legacy = legacy;
     }
 
-    Optional<Map<String, String>> promptTemplates() {
+    public Optional<Map<String, String>> promptTemplates() {
         return promptTemplates;
     }
 

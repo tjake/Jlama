@@ -40,6 +40,7 @@
       <version>1.35</version>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 
   <build>

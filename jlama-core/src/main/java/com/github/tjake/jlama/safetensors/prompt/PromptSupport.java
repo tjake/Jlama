@@ -13,14 +13,20 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.github.tjake.jlama.safetensors.tokenizer;
+package com.github.tjake.jlama.safetensors.prompt;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.JinjavaConfig;
+import com.hubspot.jinjava.LegacyOverrides;
+import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +39,13 @@ public class PromptSupport {
 
     // This matches the jinja config in huggingface
     private static final Jinjava jinjava = new Jinjava(JinjavaConfig.newBuilder()
-            .withLstripBlocks(true)
             .withTrimBlocks(true)
+            .withLstripBlocks(true)
+            .withLegacyOverrides(LegacyOverrides.newBuilder()
+                    .withParseWhitespaceControlStrictly(true)
+                    .withUseTrimmingForNotesAndExpressions(true)
+                    .withUseSnakeCasePropertyNaming(true)
+                    .build())
             .build());
 
     static {
@@ -49,7 +60,7 @@ public class PromptSupport {
         this.m = model;
     }
 
-    public Builder newBuilder() {
+    public Builder builder() {
         return new Builder(this.m);
     }
 
@@ -70,24 +81,89 @@ public class PromptSupport {
     private enum PromptRole {
         USER,
         SYSTEM,
-        ASSISTANT
+        ASSISTANT,
+        TOOL,
+        TOOL_CALL
     }
 
     static class Message {
-        private final String content;
+        private final Object content;
         private final PromptRole role;
+        private final ToolCallFunction toolCalls;
 
-        public Message(String content, PromptRole role) {
+        private Message(Object content, PromptRole role) {
             this.content = content;
             this.role = role;
+            this.toolCalls = null;
         }
 
-        public String getContent() {
+        private Message(ToolCall toolCall) {
+            this.content = null;
+            this.role = PromptRole.TOOL_CALL;
+            this.toolCalls = new ToolCallFunction(toolCall);
+        }
+
+        public Object getContent() {
             return content;
+        }
+
+        public Map toMap() {
+            Map map = new HashMap();
+            map.put("role", role.name().toLowerCase());
+
+            if (content != null) {
+                map.put("content", content);
+            }
+
+            if (toolCalls != null) {
+                map.put("tool_calls", List.of(toolCalls.toMap()));
+            }
+
+            return map;
         }
 
         public String getRole() {
             return role.name().toLowerCase();
+        }
+
+        public List<ToolCallFunction> toolCalls() {
+            if (toolCalls == null) {
+                return null;
+            }
+
+            return List.of(toolCalls);
+        }
+    }
+
+    static class ToolCallFunction {
+        private final ToolCall call;
+
+        private ToolCallFunction(ToolCall call) {
+            this.call = call;
+        }
+
+        public InnerToolCall function() {
+            return new InnerToolCall(call);
+        }
+
+        public Map toMap() {
+            return Map.of("function", Map.of("name", call.getName(), "arguments", call.getParameters()));
+        }
+    }
+
+    static class InnerToolCall {
+        private final ToolCall call;
+
+        private InnerToolCall(ToolCall call) {
+            this.call = call;
+        }
+
+        public Map<String, Object> arguments() {
+            return call.getParameters();
+        }
+
+        public String name() {
+            return call.getName();
         }
     }
 
@@ -97,6 +173,7 @@ public class PromptSupport {
         private boolean addGenerationPrompt = true;
 
         private List<Message> messages = new ArrayList<>(2);
+        private List<Tool> tools = null;
 
         private Builder(TokenizerModel m) {
             this.m = m;
@@ -117,6 +194,16 @@ public class PromptSupport {
             return this;
         }
 
+        public Builder addToolResult(Result result) {
+            messages.add(new Message(result.toJson(), PromptRole.TOOL));
+            return this;
+        }
+
+        public Builder addToolCall(ToolCall call) {
+            messages.add(new Message(call));
+            return this;
+        }
+
         public Builder addSystemMessage(String content) {
             messages.add(new Message(content, PromptRole.SYSTEM));
             return this;
@@ -125,6 +212,32 @@ public class PromptSupport {
         public Builder addAssistantMessage(String content) {
             messages.add(new Message(content, PromptRole.ASSISTANT));
             return this;
+        }
+
+        public Builder addTools(List<Tool> tools) {
+            if (this.tools == null) {
+                this.tools = new ArrayList<>(tools);
+            } else {
+                throw new IllegalArgumentException("Tools already set");
+            }
+            return this;
+        }
+
+        public Builder addTools(Tool... tools) {
+            if (this.tools == null) {
+                this.tools = Arrays.asList(tools);
+            } else {
+                throw new IllegalArgumentException("Tools already set");
+            }
+            return this;
+        }
+
+        public boolean hasTools() {
+            return tools != null && !tools.isEmpty();
+        }
+
+        public List<Tool> getTools() {
+            return tools;
         }
 
         public String build() {
@@ -141,17 +254,28 @@ public class PromptSupport {
                     .orElseThrow(
                             () -> new UnsupportedOperationException("Prompt template not available for type: " + type));
 
-            return jinjava.render(
-                    template,
-                    Map.of(
+            Map args = new HashMap();
+
+            args.putAll(Map.of(
                             "messages",
-                            messages,
+                            messages.stream().map(Message::toMap).toList(),
                             "add_generation_prompt",
                             addGenerationPrompt,
                             "eos_token",
                             m.eosToken(),
                             "bos_token",
-                            ""));   // We add the BOS ourselves
+                            "")); // We add the BOS ourselves
+
+            if (tools != null) {
+                args.put("tools", tools);
+            }
+
+            RenderResult r =  jinjava.renderForResult(template, args);
+
+            if (r.hasErrors())
+                logger.warn("Prompt template errors: " + r.getErrors());
+
+            return r.getOutput();
         }
     }
 }
