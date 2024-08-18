@@ -27,8 +27,9 @@ import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.TensorInfo;
 import com.github.tjake.jlama.safetensors.WeightLoader;
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
 import com.google.protobuf.ByteString;
@@ -141,7 +142,7 @@ public class JlamaServiceTest {
                     layerNormEps,
                     32000,
                     1,
-                    2,
+                    List.of(2),
                     ActivationFunction.Type.SILU,
                     10000.0,
                     1.0);
@@ -198,6 +199,11 @@ public class JlamaServiceTest {
         @Override
         public Optional<PromptSupport> promptSupport() {
             return Optional.empty();
+        }
+
+        @Override
+        public TokenizerModel getModel() {
+            return null;
         }
     }
 

@@ -22,6 +22,7 @@ import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 import java.io.File;
+import java.util.List;
 import java.util.Optional;
 
 public class Config {
@@ -39,7 +40,7 @@ public class Config {
     public final float layerNormEps;
     public final int vocabularySize;
     public final int bosToken;
-    public final int eosToken;
+    public final List<Integer> eosTokens;
     public final Optional<float[][]> ropeFreqs;
     private volatile Optional<Pair<Integer, Integer>> offset;
     private volatile File workingDirectory;
@@ -69,7 +70,7 @@ public class Config {
             float layerNormEps,
             int vocabularySize,
             int bosToken,
-            int eosToken,
+            List<Integer> eosToken,
             ActivationFunction.Type activationFunction,
             Double ropeFreqsTheta,
             Double ropeScalingFactor) {
@@ -100,7 +101,7 @@ public class Config {
             float layerNormEps,
             int vocabularySize,
             int bosToken,
-            int eosToken,
+            List<Integer> eosTokens,
             ActivationFunction.Type activationFunction,
             Double ropeFreqsTheta,
             Double ropeScalingFactor,
@@ -114,7 +115,7 @@ public class Config {
         this.layerNormEps = layerNormEps;
         this.vocabularySize = vocabularySize;
         this.bosToken = bosToken;
-        this.eosToken = eosToken;
+        this.eosTokens = eosTokens;
         this.tensorCache = TensorCache.instance;
         this.headSize = headSize;
         this.headGroupSize = numberOfHeads / numberOfKeyValueHeads;

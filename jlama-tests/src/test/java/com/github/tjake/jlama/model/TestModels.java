@@ -21,6 +21,7 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
 import com.github.tjake.jlama.model.bert.BertTokenizer;
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.model.gemma.GemmaConfig;
 import com.github.tjake.jlama.model.gemma.GemmaModel;
 import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
@@ -35,11 +36,12 @@ import com.github.tjake.jlama.model.mistral.MistralModel;
 import com.github.tjake.jlama.model.mixtral.MixtralConfig;
 import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.safetensors.*;
+import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.util.JsonSupport;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -98,16 +100,55 @@ public class TestModels {
 
     @Test
     public void LlamaRun() throws Exception {
-        String modelPrefix = "../models/Meta-Llama-3.1-8B-Instruct";
+        String modelPrefix = "../models/Meta-Llama-3.1-8B-Instruct-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights =
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
 
-            String p = model.promptSupport().get().newBuilder().addUserMessage("Tell me a joke.").build();
-            model.generate(UUID.randomUUID(), p, 0.3f, 256, false, makeOutHandler());
+            PromptSupport.Builder builder = model.promptSupport().get().builder();
+
+            builder.addSystemMessage("You are a helpful assistant with tool calling capabilities. When you receive a tool call response, use the output to format an answer to the original question.");
+            builder.addUserMessage("What is the temp in paris right now?");
+            builder.addGenerationPrompt(true);
+
+            Tool t = Tool.from(Function.builder()
+                            .name("get_current_temperature")
+                            .description("Simulates getting the current temperature at a location.")
+                            .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                            .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                            .build());
+
+            builder.addTools(t);
+
+            logger.info("First prompt \n{}", builder.build());
+            Generator.Response r =
+                    model.generate(UUID.randomUUID(), builder.build(), 0.3f, 1024, false, (l,f) ->{});
+
+            if (r.finishReason == Generator.FinishReason.STOP_TOKEN) {
+
+                if (builder.hasTools()) {
+                    if (r.text.trim().startsWith("{") || r.text.startsWith("<|python_tag|>")) {
+                        // Call the tool
+                        // This is where you would call the tool function
+                        // and then call generate again with the result
+                        // of the tool function
+
+                        ToolCall f = JsonSupport.om.readValue(r.text.replace("<|python_tag|>", ""), ToolCall.class);
+                        logger.info("Calling tool: {}", f.getName());
+
+                        builder.addToolCall(f);
+
+                        builder.addToolResult(Result.from(20f));
+                        logger.info("Second prompt {}", builder.build());
+                        Generator.Response r2 = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l,p) ->{});
+
+                        System.err.println(r2.text);
+                    }
+                }
+            }
         }
     }
 
@@ -138,7 +179,7 @@ public class TestModels {
             String p = model.promptSupport().isEmpty() ? prompt :
                     model.promptSupport()
                     .get()
-                    .newBuilder()
+                    .builder()
                     .addUserMessage(prompt)
                     .build();
             model.generate(UUID.randomUUID(), "[INST] Tell me a joke. [/INST]Assistant", 0.0f, 64, false, makeOutHandler());
@@ -162,7 +203,7 @@ public class TestModels {
             String prompt = "Tell me a joke.";
             String p = model.promptSupport()
                     .get()
-                    .newBuilder()
+                    .builder()
                     .addUserMessage(prompt)
                     .build();
 
@@ -182,7 +223,7 @@ public class TestModels {
             String prompt = "Tell me a joke.";
             String p = model.promptSupport()
                     .get()
-                    .newBuilder()
+                    .builder()
                     .addUserMessage(prompt)
                     .build();
             model.generate(UUID.randomUUID(), p, 0.3f, 256, false, makeOutHandler());

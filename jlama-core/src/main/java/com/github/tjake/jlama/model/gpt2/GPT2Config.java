@@ -20,6 +20,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 
+import java.util.List;
+
 public class GPT2Config extends Config {
 
     @JsonCreator
@@ -42,7 +44,7 @@ public class GPT2Config extends Config {
                 layerNormEps,
                 vocabularySize,
                 bosToken,
-                eosToken,
+                List.of(eosToken),
                 ActivationFunction.Type.GELU,
                 null,
                 null);

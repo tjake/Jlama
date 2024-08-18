@@ -15,6 +15,8 @@
  */
 package com.github.tjake.jlama.safetensors.tokenizer;
 
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -56,4 +58,11 @@ public interface Tokenizer {
      * @return prompt support
      */
     Optional<PromptSupport> promptSupport();
+
+
+    /**
+     * Get the model for this tokenizer (expert mode)
+     * @return tokenizer model
+     */
+    TokenizerModel getModel();
 }

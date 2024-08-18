@@ -20,6 +20,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 
+import java.util.List;
+
 public class MistralConfig extends Config {
     @JsonCreator
     public MistralConfig(
@@ -46,7 +48,7 @@ public class MistralConfig extends Config {
                 layerNormEps,
                 vocabularySize,
                 bosToken,
-                eosToken,
+                List.of(eosToken),
                 activationFunction,
                 ropeTheta,
                 1.0,

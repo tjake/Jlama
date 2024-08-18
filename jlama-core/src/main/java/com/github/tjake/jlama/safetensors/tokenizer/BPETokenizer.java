@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.safetensors.tokenizer;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -66,6 +67,11 @@ public abstract class BPETokenizer implements Tokenizer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public TokenizerModel getModel() {
+        return model;
     }
 
     @Override

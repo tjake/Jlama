@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
+
+import java.util.List;
 import java.util.Map;
 
 public class GemmaConfig extends Config {
@@ -47,7 +49,7 @@ public class GemmaConfig extends Config {
                 layerNormEps,
                 vocabularySize,
                 bosToken,
-                eosToken,
+                List.of(eosToken),
                 activationFunction,
                 ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
                 ropeScaling == null ? 1.0 : Double.parseDouble(ropeScaling.get("factor")));

@@ -20,7 +20,7 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.diogonunes.jcolor.AnsiFormat;
 import com.diogonunes.jcolor.Attribute;
 import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.safetensors.tokenizer.PromptSupport;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import java.io.PrintWriter;
 import java.util.Optional;
 import java.util.Scanner;
@@ -84,7 +84,7 @@ public class ChatCommand extends BaseCommand {
                 break;
             }
 
-            PromptSupport.Builder builder = promptSupport.newBuilder();
+            PromptSupport.Builder builder = promptSupport.builder();
             if (first && systemPrompt != null) {
                 builder.addSystemMessage(systemPrompt);
             }
