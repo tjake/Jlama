@@ -20,6 +20,7 @@ Model Support:
 Implements:
   * Flash Attention
   * Mixture of Experts
+  * Tool Calling
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model and tokenizer format
   * Support for F32, F16, BF16 types
   * Support for Q8, Q4 model quantization
