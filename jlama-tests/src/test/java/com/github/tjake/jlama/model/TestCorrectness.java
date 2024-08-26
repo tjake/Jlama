@@ -32,9 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -374,17 +372,25 @@ public class TestCorrectness {
         builder.addGenerationPrompt(true);
 
         Tool t = Tool.from(Function.builder()
-                        .name("get_temperature")
-                        .description("Simulates getting the current temperature at a location.")
-                        .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
-                        .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
-                        .build());
+                .name("get_temperature")
+                .description("Simulates getting the current temperature at a location.")
+                .addParameter(
+                        "location",
+                        "string",
+                        "The location to get the temperature for, in the format \"City, Country\".",
+                        true)
+                .addParameter(
+                        "unit",
+                        "string",
+                        "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").",
+                        true)
+                .build());
 
         builder.addTools(t);
 
-        //builder.addToolCall(new ToolCall("get_temperature", Map.of("location", "paris, france", "unit", "celsius")));
+        // builder.addToolCall(new ToolCall("get_temperature", Map.of("location", "paris, france", "unit", "celsius")));
 
-        //builder.addToolResult(Result.from("get_temperature", "", Map.of("temperature", 25.0, "unit", "celsius")));
+        // builder.addToolResult(Result.from("get_temperature", "", Map.of("temperature", 25.0, "unit", "celsius")));
 
         String prompt = builder.build();
 
@@ -392,20 +398,18 @@ public class TestCorrectness {
 
         long[] encoded = tokenizer.encode(prompt);
         long[] expected = new long[] {
-                128006, 9125, 128007, 271, 13013, 25, 6125, 27993, 198, 38766, 1303, 33025, 2696, 25, 6790,
-                220, 2366, 18, 198, 15724, 2696, 25, 220, 1627, 10263, 220, 2366, 19, 271, 2675, 2744, 6013,
-                439, 264, 55066, 128009, 128006, 882, 128007, 271, 22818, 279, 2768, 5865, 11, 4587, 6013,
-                449, 264, 4823, 369, 264, 734, 1650, 449, 1202, 6300, 6105, 430, 1888, 11503, 279, 2728, 10137,
-                382, 66454, 304, 279, 3645, 5324, 609, 794, 734, 836, 11, 330, 14105, 794, 11240, 315, 5811,
-                836, 323, 1202, 907, 7966, 5519, 539, 1005, 7482, 382, 5018, 1337, 794, 330, 1723, 498, 330,
-                1723, 794, 5324, 609, 794, 330, 456, 54625, 498, 330, 4789, 794, 330, 14354, 24031, 3794, 279,
-                1510, 9499, 520, 264, 3813, 10684, 330, 14105, 794, 5324, 1337, 794, 330, 1735, 498, 330, 13495,
-                794, 5324, 2588, 794, 5324, 1337, 794, 330, 928, 498, 330, 4789, 794, 330, 791, 3813, 311, 636,
-                279, 9499, 369, 11, 304, 279, 3645, 330, 13020, 11, 14438, 66820, 2186, 330, 3928, 794, 5324,
-                1337, 794, 330, 928, 498, 330, 4789, 794, 330, 791, 5089, 311, 471, 279, 9499, 304, 320, 68, 1326,
-                2637, 330, 66, 41347, 498, 330, 69, 49010, 1865, 9388, 2186, 330, 6413, 794, 4482, 2588, 498, 330,
-                3928, 1365, 3500, 633, 3923, 374, 279, 9282, 304, 41958, 1314, 1457, 30, 128009, 128006, 78191,
-                128007, 271
+            128006, 9125, 128007, 271, 13013, 25, 6125, 27993, 198, 38766, 1303, 33025, 2696, 25, 6790, 220, 2366, 18,
+            198, 15724, 2696, 25, 220, 1627, 10263, 220, 2366, 19, 271, 2675, 2744, 6013, 439, 264, 55066, 128009,
+            128006, 882, 128007, 271, 22818, 279, 2768, 5865, 11, 4587, 6013, 449, 264, 4823, 369, 264, 734, 1650, 449,
+            1202, 6300, 6105, 430, 1888, 11503, 279, 2728, 10137, 382, 66454, 304, 279, 3645, 5324, 609, 794, 734, 836,
+            11, 330, 14105, 794, 11240, 315, 5811, 836, 323, 1202, 907, 7966, 5519, 539, 1005, 7482, 382, 5018, 1337,
+            794, 330, 1723, 498, 330, 1723, 794, 5324, 609, 794, 330, 456, 54625, 498, 330, 4789, 794, 330, 14354,
+            24031, 3794, 279, 1510, 9499, 520, 264, 3813, 10684, 330, 14105, 794, 5324, 1337, 794, 330, 1735, 498, 330,
+            13495, 794, 5324, 2588, 794, 5324, 1337, 794, 330, 928, 498, 330, 4789, 794, 330, 791, 3813, 311, 636, 279,
+            9499, 369, 11, 304, 279, 3645, 330, 13020, 11, 14438, 66820, 2186, 330, 3928, 794, 5324, 1337, 794, 330,
+            928, 498, 330, 4789, 794, 330, 791, 5089, 311, 471, 279, 9499, 304, 320, 68, 1326, 2637, 330, 66, 41347,
+            498, 330, 69, 49010, 1865, 9388, 2186, 330, 6413, 794, 4482, 2588, 498, 330, 3928, 1365, 3500, 633, 3923,
+            374, 279, 9282, 304, 41958, 1314, 1457, 30, 128009, 128006, 78191, 128007, 271
         };
 
         String out = tokenizer.decode(encoded);
@@ -416,59 +420,59 @@ public class TestCorrectness {
     @Test
     public void testMistralTools() {
 
-            String modelPrefix = "../models/Mistral-7B-Instruct-v0.3";
-            Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+        String modelPrefix = "../models/Mistral-7B-Instruct-v0.3";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
-            Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
-            PromptSupport.Builder builder = tokenizer.promptSupport().get().builder();
-            builder.addSystemMessage("You always respond as a pirate");
-            builder.addUserMessage("What is the weather in paris right now?");
-            builder.addGenerationPrompt(true);
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().builder();
+        builder.addSystemMessage("You always respond as a pirate");
+        builder.addUserMessage("What is the weather in paris right now?");
+        builder.addGenerationPrompt(true);
 
-            Tool t = Tool.from(Function.builder()
-                    .name("get_current_temperature")
-                    .description("Simulates getting the current temperature at a location.")
-                    .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
-                    .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
-                    .build());
+        Tool t = Tool.from(Function.builder()
+                .name("get_current_temperature")
+                .description("Simulates getting the current temperature at a location.")
+                .addParameter(
+                        "location",
+                        "string",
+                        "The location to get the temperature for, in the format \"City, Country\".",
+                        true)
+                .addParameter(
+                        "unit",
+                        "string",
+                        "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").",
+                        true)
+                .build());
 
-            builder.addTools(t);
+        builder.addTools(t);
 
         String prompt = builder.build();
         long[] encoded = tokenizer.encode(prompt);
 
-        long[] official = new long[]{
-                6,  1501,  7567,  1891,  2032,  1113,  3396,  1316,  1113,
-                3396,  2032, 10598,  1629,  2032,  1113,  1295, 29498,  3790, 29498,
-                29475, 17329,  1316,  1113,  7286,  2032,  1113,  8322, 27653,  3487,
-                1040,  2636,  8409,  1206,  1032,  5491,  9959,  1113, 12206,  2032,
-                10598,  1891,  2032,  1113,  3582,  1316,  1113, 11491,  2032, 10598,
-                3501,  2032, 10598,  1891,  2032,  1113,  2195,  1316,  1113,  7286,
-                2032,  1113,  1782,  5491,  1066,  1393,  1040,  8409,  1122, 29493,
-                1065,  1040,  5800, 12547, 22781, 29493, 13776,  5651,  1379,  1649,
-                1113,  6074,  2032, 10598,  1891,  2032,  1113,  2195,  1316,  1113,
-                7286,  2032,  1113,  1782,  5796,  1066,  1372,  1040,  8409,  1065,
-                1093, 29474, 29491, 29489,  2831, 12547, 29485,  1958,  3938, 23102,
-                12547, 29490, 19425, 13075, 29524,  4913, 29507, 11549,  1113, 11661,
-                2032,  8135,  3501,  1316,  1113,  6074,  3010,  1743, 10925,     7,
-                3,  1763,  2511, 10189,  1158,  1032, 18136,  1148,   781,   781,
-                3963,  1117,  1040,  8854,  1065,  1708,  1046,  1871,  1823, 29572,
-                4
+        long[] official = new long[] {
+            6, 1501, 7567, 1891, 2032, 1113, 3396, 1316, 1113, 3396, 2032, 10598, 1629, 2032, 1113, 1295, 29498, 3790,
+            29498, 29475, 17329, 1316, 1113, 7286, 2032, 1113, 8322, 27653, 3487, 1040, 2636, 8409, 1206, 1032, 5491,
+            9959, 1113, 12206, 2032, 10598, 1891, 2032, 1113, 3582, 1316, 1113, 11491, 2032, 10598, 3501, 2032, 10598,
+            1891, 2032, 1113, 2195, 1316, 1113, 7286, 2032, 1113, 1782, 5491, 1066, 1393, 1040, 8409, 1122, 29493, 1065,
+            1040, 5800, 12547, 22781, 29493, 13776, 5651, 1379, 1649, 1113, 6074, 2032, 10598, 1891, 2032, 1113, 2195,
+            1316, 1113, 7286, 2032, 1113, 1782, 5796, 1066, 1372, 1040, 8409, 1065, 1093, 29474, 29491, 29489, 2831,
+            12547, 29485, 1958, 3938, 23102, 12547, 29490, 19425, 13075, 29524, 4913, 29507, 11549, 1113, 11661, 2032,
+            8135, 3501, 1316, 1113, 6074, 3010, 1743, 10925, 7, 3, 1763, 2511, 10189, 1158, 1032, 18136, 1148, 781, 781,
+            3963, 1117, 1040, 8854, 1065, 1708, 1046, 1871, 1823, 29572, 4
         };
 
         for (int i = 0; i < official.length; i++) {
             if (official[i] != encoded[i]) {
                 System.out.println(i + " " + official[i] + " " + encoded[i]);
-            }
-            else
-                System.out.println(i + " " + official[i]);
+            } else System.out.println(i + " " + official[i]);
         }
 
         Assert.assertArrayEquals(official, encoded);
 
-        String expected = "[AVAILABLE_TOOLS] [{\"type\": \"function\", \"function\": {\"name\": \"get_current_temperature\", \"description\": \"Simulates getting the current temperature at a location.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"location\": {\"type\": \"string\", \"description\": \"The location to get the temperature for, in the format \\\"City, Country\\\".\"}, \"unit\": {\"type\": \"string\", \"description\": \"The unit to return the temperature in (e.g., \\\"celsius\\\", \\\"fahrenheit\\\").\"}}, \"required\": [\"location\", \"unit\"]}}}][/AVAILABLE_TOOLS][INST] You always respond as a pirate\n" +
-                "\n" +
-                "What is the weather in paris right now?[/INST]";
+        String expected =
+                "[AVAILABLE_TOOLS] [{\"type\": \"function\", \"function\": {\"name\": \"get_current_temperature\", \"description\": \"Simulates getting the current temperature at a location.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"location\": {\"type\": \"string\", \"description\": \"The location to get the temperature for, in the format \\\"City, Country\\\".\"}, \"unit\": {\"type\": \"string\", \"description\": \"The unit to return the temperature in (e.g., \\\"celsius\\\", \\\"fahrenheit\\\").\"}}, \"required\": [\"location\", \"unit\"]}}}][/AVAILABLE_TOOLS][INST] You always respond as a pirate\n"
+                        + "\n"
+                        + "What is the weather in paris right now?[/INST]";
 
         Assert.assertEquals(expected, prompt);
     }

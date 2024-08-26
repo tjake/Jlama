@@ -59,7 +59,6 @@ public class Config {
 
     public final TensorCache tensorCache;
 
-
     public Config(
             int contextLength,
             int embeddingLength,
@@ -125,10 +124,7 @@ public class Config {
         this.ropeFreqs = ropeFreqsTheta == null
                 ? Optional.empty()
                 : Optional.of(VectorMath.precomputeFreqsCis(
-                        headSize,
-                        contextLength,
-                        ropeFreqsTheta,
-                        ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
+                        headSize, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
 
         // Set default values
         setOffset(null);

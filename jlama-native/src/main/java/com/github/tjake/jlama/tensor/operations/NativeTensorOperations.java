@@ -24,9 +24,7 @@ import com.github.tjake.jlama.tensor.operations.util.JarSupport;
 import com.github.tjake.jlama.tensor.operations.util.MemorySegmentSupport;
 import com.github.tjake.jlama.util.MachineSpec;
 import com.github.tjake.jlama.util.RuntimeSupport;
-
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +32,7 @@ public class NativeTensorOperations implements TensorOperations {
     private static final Logger logger = LoggerFactory.getLogger(NativeTensorOperations.class);
 
     static {
-        if (!JarSupport.maybeLoadLibrary())
-            System.loadLibrary("jlama");
+        if (!JarSupport.maybeLoadLibrary()) System.loadLibrary("jlama");
     }
 
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
@@ -239,7 +236,9 @@ public class NativeTensorOperations implements TensorOperations {
         MemorySegment[] tmp = MemorySegmentSupport.setupBatch(
                 i -> r[i].getMemorySegment(),
                 i -> b[i].getMemorySegment(),
-                i -> b[i] instanceof Q4ByteBufferTensor ? ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment() : MemorySegment.NULL,
+                i -> b[i] instanceof Q4ByteBufferTensor
+                        ? ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment()
+                        : MemorySegment.NULL,
                 r.length);
         MemorySegment ra = tmp[0];
         MemorySegment rb = tmp[1];

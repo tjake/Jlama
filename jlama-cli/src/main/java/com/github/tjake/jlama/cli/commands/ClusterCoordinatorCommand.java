@@ -15,8 +15,6 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-
-
 import com.github.tjake.jlama.net.Coordinator;
 import picocli.CommandLine;
 

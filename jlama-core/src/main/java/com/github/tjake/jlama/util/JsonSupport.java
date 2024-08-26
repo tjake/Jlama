@@ -20,8 +20,6 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hubspot.jinjava.objects.serialization.PyishPrettyPrinter;
-
 import java.io.IOException;
 
 /**
@@ -42,7 +40,6 @@ public class JsonSupport {
             throw new RuntimeException(e);
         }
     }
-
 
     public static class JlamaPrettyPrinter extends DefaultPrettyPrinter {
 

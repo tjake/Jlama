@@ -97,7 +97,8 @@ public class GemmaModel extends LlamaModel {
                     weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType)); // w3
 
             transformerBlocks[i] = new TransformerBlock(
-                    this, i,
+                    this,
+                    i,
                     new RMSNorm(
                             this,
                             weights.load(base + "input_layernorm.weight", c.offset())

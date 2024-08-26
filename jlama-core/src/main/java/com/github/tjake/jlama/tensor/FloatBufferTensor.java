@@ -16,7 +16,6 @@
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import com.google.common.base.Preconditions;
@@ -24,9 +23,6 @@ import com.google.common.primitives.Ints;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
-import java.util.Arrays;
-import java.util.List;
-
 import jdk.incubator.vector.FloatVector;
 import jdk.incubator.vector.VectorSpecies;
 import org.slf4j.Logger;
@@ -138,8 +134,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int... voffset) {
         int offset = getOffset(voffset);
-        return FloatVector.fromMemorySegment(
-                species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        return FloatVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override
@@ -166,9 +161,6 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
             }
         }
 
-        return "FloatBufferTensor{" + "name='"
-                + name + '\'' + " shape="
-                + shape + ",\nb={"
-                + sb + "...}";
+        return "FloatBufferTensor{" + "name='" + name + '\'' + " shape=" + shape + ",\nb={" + sb + "...}";
     }
 }

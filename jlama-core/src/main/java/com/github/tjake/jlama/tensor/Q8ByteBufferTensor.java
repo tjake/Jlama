@@ -19,7 +19,6 @@ import static com.github.tjake.jlama.tensor.Q4ByteBufferTensor.makeBlockShape;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;

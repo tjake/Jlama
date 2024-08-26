@@ -27,7 +27,8 @@ public class LlamaTokenizer extends BPETokenizer {
 
     public LlamaTokenizer(Path modelRoot) {
         super(modelRoot);
-        this.byteFallbackEncodingOffset = this.getModel().vocabLookup.getOrDefault("<0x00>", 0L).intValue();
+        this.byteFallbackEncodingOffset =
+                this.getModel().vocabLookup.getOrDefault("<0x00>", 0L).intValue();
     }
 
     @Override

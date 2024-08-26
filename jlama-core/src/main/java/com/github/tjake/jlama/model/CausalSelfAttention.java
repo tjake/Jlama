@@ -15,19 +15,15 @@
  */
 package com.github.tjake.jlama.model;
 
+import static com.github.tjake.jlama.util.DebugSupport.debug;
+
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
-import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
-import com.github.tjake.jlama.tensor.FloatBufferTensor;
-import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import java.util.*;
 import java.util.function.Consumer;
-
-import static com.github.tjake.jlama.util.DebugSupport.debug;
 
 public class CausalSelfAttention {
     private final AbstractModel m;
@@ -257,8 +253,7 @@ public class CausalSelfAttention {
                             int offset = h * c.headSize;
 
                             // skip if we are out of bounds
-                            if (offset >= query.shape().last())
-                                break;
+                            if (offset >= query.shape().last()) break;
 
                             int goffset = c.maybeMapToGroupHead(h) * c.headSize;
                             // rotate q by the freq theta and freq r
@@ -276,8 +271,7 @@ public class CausalSelfAttention {
                         for (int h = c.groupHeadStart(); h < c.groupHeadEnd(); h++) {
                             // get the k vectors for this head
                             int offset = h * c.headSize;
-                            if (offset >= key.shape().last())
-                                break;
+                            if (offset >= key.shape().last()) break;
                             // rotate k by the freq theta and freq r
                             for (int i = offset; i < (offset + headPiece); i++) {
                                 float k00 = key.get(0, i);
@@ -314,15 +308,13 @@ public class CausalSelfAttention {
                     debug("key+rope", key, finalPostion);
                 });
 
-
                 // Attention
                 VectorMath.pfor(c.headStart(), c.headEnd(), h -> {
                     try (AbstractTensor attn = m.makeFullTensor(1, kvp.shape().first())) {
                         int xoffset = c.maybeMapToGroupHead(h) * c.headSize;
                         int yoffset = h * c.headSize;
 
-                        if (yoffset >= query.shape().last())
-                            return;
+                        if (yoffset >= query.shape().last()) return;
 
                         // compute attention scores by multiplying query and key for every position
                         TensorOperationsProvider.get()

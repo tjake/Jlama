@@ -26,8 +26,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +124,7 @@ public abstract class BPETokenizer implements Tokenizer {
                 Long id = model.vocabLookup.get(c);
                 if (id != null) {
                     // we found this codepoint in vocab, add it as a token
-                    //logger.debug("{} -> {}", c, id);
+                    // logger.debug("{} -> {}", c, id);
                     tokens.add(id);
                 } else {
                     if (model.byteFallback) {
@@ -135,7 +133,7 @@ public abstract class BPETokenizer implements Tokenizer {
                         byte[] chars = code.getBytes(StandardCharsets.UTF_8);
                         for (int k = 0; k < chars.length; k++) {
                             long token = encodeCharacterAsToken(chars[k]);
-                            //logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
+                            // logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
                             tokens.add(token);
                         }
                     } else {

@@ -15,6 +15,8 @@
  */
 package com.github.tjake.jlama.model;
 
+import static com.github.tjake.jlama.util.DebugSupport.debug;
+
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.Generator;
@@ -44,8 +46,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.github.tjake.jlama.util.DebugSupport.debug;
 
 public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);

@@ -15,12 +15,14 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
+import static com.github.tjake.jlama.model.ModelSupport.loadModel;
+
 import com.github.tjake.jlama.model.AbstractModel;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,11 +30,9 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import picocli.CommandLine;
 
-import java.util.Optional;
-
-import static com.github.tjake.jlama.model.ModelSupport.loadModel;
-
-@CommandLine.Command(name = "restapi", description = "Starts a openai compatible rest api for interacting with this model")
+@CommandLine.Command(
+        name = "restapi",
+        description = "Starts a openai compatible rest api for interacting with this model")
 @SpringBootApplication(scanBasePackages = {"com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands"})
 @SpringBootConfiguration
 @Configuration
@@ -54,8 +54,7 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/ui/**")
-                .addResourceLocations("classpath:/static/ui/");
+        registry.addResourceHandler("/ui/**").addResourceLocations("classpath:/static/ui/");
     }
 
     @Override
@@ -74,9 +73,7 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
 
             new SpringApplicationBuilder(ApiServiceCommand.class)
                     .lazyInitialization(true)
-                    .properties(
-                            "server.port", ""+port,
-                            "logging.level.org.springframework.web", "debug")
+                    .properties("server.port", "" + port, "logging.level.org.springframework.web", "debug")
                     .build()
                     .run();
         } catch (Exception e) {

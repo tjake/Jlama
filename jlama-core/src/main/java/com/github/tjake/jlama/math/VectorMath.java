@@ -32,9 +32,7 @@ public class VectorMath {
     public static void pfor(int start, int end, IntConsumer action) {
         PhysicalCoreExecutor.instance
                 .get()
-                .execute(() -> IntStream.range(start, end)
-                        .parallel()
-                        .forEach(action));
+                .execute(() -> IntStream.range(start, end).parallel().forEach(action));
     }
 
     public static void pchunk(int offset, int length, BiIntConsumer action) {

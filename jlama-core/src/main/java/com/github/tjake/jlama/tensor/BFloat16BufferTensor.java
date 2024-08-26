@@ -17,14 +17,12 @@ package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
-import java.util.Arrays;
 import jdk.incubator.vector.ShortVector;
 import jdk.incubator.vector.VectorSpecies;
 
@@ -143,7 +141,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short> {
         }
 
         for (int i = 0; i < sample.length; i++) {
-            sample[i] = FloatConversions.bFloat16ToFloat32(b.get(i + (shape.first()/2)));
+            sample[i] = FloatConversions.bFloat16ToFloat32(b.get(i + (shape.first() / 2)));
         }
 
         StringBuffer sb2 = new StringBuffer();
@@ -153,7 +151,6 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short> {
                 sb2.append(", ");
             }
         }
-
 
         return "BFloat16BufferTensor{" + "name='"
                 + name + '\'' + ", shape="

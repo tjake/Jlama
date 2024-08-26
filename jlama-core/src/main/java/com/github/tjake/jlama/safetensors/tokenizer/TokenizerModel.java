@@ -190,7 +190,7 @@ public class TokenizerModel {
         Matcher m = p.matcher(input);
 
         // Add segments before each match found
-        while(m.find()) {
+        while (m.find()) {
             if (!matchLimited || matchCount < limit - 1) {
                 if (index == 0 && index == m.start() && m.start() == m.end()) {
                     // no empty leading substring included for zero-width match
@@ -213,8 +213,7 @@ public class TokenizerModel {
         }
 
         // If no match was found, return this
-        if (index == 0)
-            return new String[] {input.toString()};
+        if (index == 0) return new String[] {input.toString()};
 
         // Add remaining segment
         if (!matchLimited || matchCount < limit)
@@ -223,7 +222,7 @@ public class TokenizerModel {
         // Construct result
         int resultSize = matchList.size();
         if (limit == 0) {
-            while (resultSize > 0 && matchList.get(resultSize-1).isEmpty()) {
+            while (resultSize > 0 && matchList.get(resultSize - 1).isEmpty()) {
                 resultSize--;
             }
         }

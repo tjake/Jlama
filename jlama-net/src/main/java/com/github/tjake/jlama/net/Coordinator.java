@@ -114,7 +114,8 @@ public class Coordinator implements Generator {
             int promptLength = encoded.length;
 
             if (useEOS) {
-                promptTokens[promptTokens.length - 1] = model.getConfig().eosTokens.getLast(); // Add EOS
+                promptTokens[promptTokens.length - 1] =
+                        model.getConfig().eosTokens.getLast(); // Add EOS
                 promptLength++;
             }
 

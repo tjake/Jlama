@@ -15,8 +15,6 @@
  */
 package com.github.tjake.jlama.safetensors.prompt;
 
-import com.fasterxml.jackson.core.util.DefaultIndenter;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
@@ -26,10 +24,7 @@ import com.hubspot.jinjava.JinjavaConfig;
 import com.hubspot.jinjava.LegacyOverrides;
 import com.hubspot.jinjava.interpret.RenderResult;
 import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
-
 import java.util.*;
-
-import com.hubspot.jinjava.objects.serialization.PyishPrettyPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +45,9 @@ public class PromptSupport {
                     .withUseSnakeCasePropertyNaming(true)
                     .withKeepNullableLoopValues(true)
                     .build())
-            .withObjectMapper(new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT).setDefaultPrettyPrinter(JsonSupport.JlamaPrettyPrinter.INSTANCE))
+            .withObjectMapper(new ObjectMapper()
+                    .enable(SerializationFeature.INDENT_OUTPUT)
+                    .setDefaultPrettyPrinter(JsonSupport.JlamaPrettyPrinter.INSTANCE))
             .build());
 
     static {
@@ -267,23 +264,22 @@ public class PromptSupport {
             Map args = new HashMap();
 
             args.putAll(Map.of(
-                            "messages",
-                            messages.stream().map(Message::toMap).toList(),
-                            "add_generation_prompt",
-                            addGenerationPrompt,
-                            "eos_token",
-                            m.eosToken(),
-                            "bos_token",
-                            "")); // We add the BOS ourselves
+                    "messages",
+                    messages.stream().map(Message::toMap).toList(),
+                    "add_generation_prompt",
+                    addGenerationPrompt,
+                    "eos_token",
+                    m.eosToken(),
+                    "bos_token",
+                    "")); // We add the BOS ourselves
 
             if (tools != null) {
                 args.put("tools", tools);
             }
 
-            RenderResult r =  jinjava.renderForResult(template, args);
+            RenderResult r = jinjava.renderForResult(template, args);
 
-            if (r.hasErrors())
-                logger.warn("Prompt template errors: " + r.getErrors());
+            if (r.hasErrors()) logger.warn("Prompt template errors: " + r.getErrors());
 
             return r.getOutput();
         }

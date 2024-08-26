@@ -114,17 +114,24 @@ public class TestModels {
             builder.addGenerationPrompt(true);
 
             Tool t = Tool.from(Function.builder()
-                            .name("get_current_temperature")
-                            .description("Simulates getting the current temperature at a location.")
-                            .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
-                            .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
-                            .build());
+                    .name("get_current_temperature")
+                    .description("Simulates getting the current temperature at a location.")
+                    .addParameter(
+                            "location",
+                            "string",
+                            "The location to get the temperature for, in the format \"City, Country\".",
+                            true)
+                    .addParameter(
+                            "unit",
+                            "string",
+                            "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").",
+                            true)
+                    .build());
 
             builder.addTools(t);
 
             logger.info("First prompt \n{}", builder.build());
-            Generator.Response r =
-                    model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l,f) ->{});
+            Generator.Response r = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l, f) -> {});
             logger.info("Response: {}", r.text);
             if (r.finishReason == Generator.FinishReason.STOP_TOKEN) {
 
@@ -144,9 +151,10 @@ public class TestModels {
                         builder.addToolCall(f);
                         builder.addToolResult(Result.from(f.getName(), null, 20f));
                         logger.info("Second prompt {}", builder.build());
-                        Generator.Response r2 = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l,p) ->{});
+                        Generator.Response r2 =
+                                model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l, p) -> {});
 
-                        Assert.assertTrue( r2.text, r2.text.contains("20"));
+                        Assert.assertTrue(r2.text, r2.text.contains("20"));
                         logger.info("Response: {}", r2.text);
                     } else {
                         Assert.fail();
@@ -190,15 +198,24 @@ public class TestModels {
             Tool t = Tool.from(Function.builder()
                     .name("get_current_temperature")
                     .description("Simulates getting the current temperature at a location.")
-                    .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
-                    .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                    .addParameter(
+                            "location",
+                            "string",
+                            "The location to get the temperature for, in the format \"City, Country\".",
+                            true)
+                    .addParameter(
+                            "unit",
+                            "string",
+                            "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").",
+                            true)
                     .build());
 
             builder.addTools(t);
 
             logger.info("First prompt \n{}", builder.build());
 
-            Generator.Response r = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024,  false, makeOutHandler());
+            Generator.Response r =
+                    model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, makeOutHandler());
 
             logger.info("Response: {}", r.text);
         }
@@ -219,11 +236,8 @@ public class TestModels {
                             + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
 
             String prompt = "Tell me a joke.";
-            String p = model.promptSupport()
-                    .get()
-                    .builder()
-                    .addUserMessage(prompt)
-                    .build();
+            String p =
+                    model.promptSupport().get().builder().addUserMessage(prompt).build();
 
             model.generate(UUID.randomUUID(), p, 0.7f, 256, true, makeOutHandler());
         }
@@ -239,11 +253,8 @@ public class TestModels {
             GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
             GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
             String prompt = "Tell me a joke.";
-            String p = model.promptSupport()
-                    .get()
-                    .builder()
-                    .addUserMessage(prompt)
-                    .build();
+            String p =
+                    model.promptSupport().get().builder().addUserMessage(prompt).build();
             model.generate(UUID.randomUUID(), p, 0.3f, 256, false, makeOutHandler());
         }
     }
@@ -355,14 +366,14 @@ public class TestModels {
         PrintWriter out;
         BiConsumer<String, Float> outCallback;
 
-            AtomicInteger i = new AtomicInteger(0);
-            StringBuilder b = new StringBuilder();
-            out = new PrintWriter(System.out);
-            outCallback = (w, t) -> {
-                b.append(w);
-                out.println(String.format("%d: %s [took %.2fms])", i.getAndIncrement(), b, t));
-                out.flush();
-            };
+        AtomicInteger i = new AtomicInteger(0);
+        StringBuilder b = new StringBuilder();
+        out = new PrintWriter(System.out);
+        outCallback = (w, t) -> {
+            b.append(w);
+            out.println(String.format("%d: %s [took %.2fms])", i.getAndIncrement(), b, t));
+            out.flush();
+        };
 
         return outCallback;
     }

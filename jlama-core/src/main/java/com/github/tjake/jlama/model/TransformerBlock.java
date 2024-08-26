@@ -15,20 +15,18 @@
  */
 package com.github.tjake.jlama.model;
 
+import static com.github.tjake.jlama.util.DebugSupport.debug;
+
 import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-
-import static com.github.tjake.jlama.util.DebugSupport.debug;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TransformerBlock {
 
@@ -93,7 +91,6 @@ public class TransformerBlock {
 
         AbstractTensor lnemb =
                 preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
-
 
         debug("ln_emb", lnemb, layerIndex);
 

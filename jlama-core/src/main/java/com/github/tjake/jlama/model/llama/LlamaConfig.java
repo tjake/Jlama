@@ -19,7 +19,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
-
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +52,8 @@ public class LlamaConfig extends Config {
                 eosToken instanceof List<?> ? (List<Integer>) eosToken : List.of((Integer) eosToken),
                 activationFunction,
                 ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
-                ropeScaling == null || !("linear".equals(ropeScaling.get("rope_type"))) ? 1.0 : Double.parseDouble(ropeScaling.get("factor")));
+                ropeScaling == null || !("linear".equals(ropeScaling.get("rope_type")))
+                        ? 1.0
+                        : Double.parseDouble(ropeScaling.get("factor")));
     }
 }

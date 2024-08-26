@@ -18,13 +18,12 @@ package com.github.tjake.jlama.model.gpt2;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import net.fellbaum.jemoji.EmojiManager;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import net.fellbaum.jemoji.EmojiManager;
 
 public class GPT2Tokenizer extends BPETokenizer {
 
