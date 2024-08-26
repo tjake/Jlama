@@ -27,7 +27,7 @@ public class LlamaTokenizer extends BPETokenizer {
 
     public LlamaTokenizer(Path modelRoot) {
         super(modelRoot);
-        this.byteFallbackEncodingOffset = 3;
+        this.byteFallbackEncodingOffset = this.getModel().vocabLookup.getOrDefault("<0x00>", 0L).intValue();
     }
 
     @Override
@@ -37,7 +37,7 @@ public class LlamaTokenizer extends BPETokenizer {
 
     @Override
     protected Optional<Character> maybeDecodeTokenAsCharacter(long id) {
-        // Handle ascii codes (shifted by 3 in vocab)
+        // Handle ascii codes (shifted by N in vocab)
         if (model.byteFallback && id >= byteFallbackEncodingOffset && id < 256 + byteFallbackEncodingOffset) {
             char c = (char) (id - byteFallbackEncodingOffset);
             return Optional.of(c);

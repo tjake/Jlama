@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
 import java.util.*;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,9 @@ public class TokenizerModel {
     @JsonProperty("vocab")
     public final BiMap<String, Long> vocabLookup;
 
+    @JsonProperty("merges")
+    public final Map<String, Long> merges;
+
     private PreTokenizer preTokenizer;
     private Normalizer normalizer;
     private Map<String, Long> addedTokens = new HashMap<>();
@@ -66,6 +70,7 @@ public class TokenizerModel {
     private Optional<Map<String, String>> promptTemplates = Optional.empty();
     private String eosToken = "";
     private String bosToken = "";
+    private final boolean ignoreMerges;
 
     @JsonCreator
     public TokenizerModel(
@@ -73,12 +78,19 @@ public class TokenizerModel {
             @JsonProperty("unk_token") String unkToken,
             @JsonProperty("fuse_unk") boolean fuseUnk,
             @JsonProperty("byte_fallback") boolean byteFallback,
-            @JsonProperty("vocab") Map<String, Long> vocabLookup) {
+            @JsonProperty("vocab") Map<String, Long> vocabLookup,
+            @JsonProperty("ignore_merges") Boolean ignoreMerges,
+            @JsonProperty("merges") List<String> merges) {
         this.type = type;
         this.unkToken = unkToken;
         this.fuseUnk = fuseUnk;
         this.byteFallback = byteFallback;
         this.vocabLookup = HashBiMap.create(vocabLookup);
+        this.ignoreMerges = ignoreMerges != null && ignoreMerges;
+        this.merges = new HashMap<>();
+        for (int i = 0; i < merges.size(); i++) {
+            this.merges.put(merges.get(i), (long) i);
+        }
     }
 
     public PreTokenizer preTokenizer() {
@@ -125,6 +137,10 @@ public class TokenizerModel {
         }
     }
 
+    public boolean ignoreMerges() {
+        return ignoreMerges;
+    }
+
     public Map<String, Long> addedTokens() {
         return addedTokens;
     }
@@ -163,6 +179,56 @@ public class TokenizerModel {
 
     public String bosToken() {
         return bosToken;
+    }
+
+    // Splitter for added token pattern (optionally with delimiters)
+    static String[] split(java.util.regex.Pattern p, CharSequence input, int limit, boolean withDelimiters) {
+        int matchCount = 0;
+        int index = 0;
+        boolean matchLimited = limit > 0;
+        ArrayList<String> matchList = new ArrayList<>();
+        Matcher m = p.matcher(input);
+
+        // Add segments before each match found
+        while(m.find()) {
+            if (!matchLimited || matchCount < limit - 1) {
+                if (index == 0 && index == m.start() && m.start() == m.end()) {
+                    // no empty leading substring included for zero-width match
+                    // at the beginning of the input char sequence.
+                    continue;
+                }
+                String match = input.subSequence(index, m.start()).toString();
+                matchList.add(match);
+                index = m.end();
+                if (withDelimiters) {
+                    matchList.add(input.subSequence(m.start(), index).toString());
+                }
+                ++matchCount;
+            } else if (matchCount == limit - 1) { // last one
+                String match = input.subSequence(index, input.length()).toString();
+                matchList.add(match);
+                index = m.end();
+                ++matchCount;
+            }
+        }
+
+        // If no match was found, return this
+        if (index == 0)
+            return new String[] {input.toString()};
+
+        // Add remaining segment
+        if (!matchLimited || matchCount < limit)
+            matchList.add(input.subSequence(index, input.length()).toString());
+
+        // Construct result
+        int resultSize = matchList.size();
+        if (limit == 0) {
+            while (resultSize > 0 && matchList.get(resultSize-1).isEmpty()) {
+                resultSize--;
+            }
+        }
+        String[] result = new String[resultSize];
+        return matchList.subList(0, resultSize).toArray(result);
     }
 
     public static class Normalizer {
@@ -237,19 +303,34 @@ public class TokenizerModel {
     // PreTokenizer class
     public static class PreTokenizer {
         public final String type;
+        public final String replacement;
+        public final String prependScheme;
         public final boolean isLegacy;
         public final List<PretokenizerItem> pretokenizers;
 
         @JsonCreator
         public PreTokenizer(
                 @JsonProperty("type") String type,
+                @JsonProperty("replacement") String replacement,
+                @JsonProperty("prepend_scheme") String prependScheme,
                 @JsonProperty("pretokenizers") List<PretokenizerItem> pretokenizers) {
             this.type = type;
+            this.replacement = replacement;
+            this.prependScheme = prependScheme;
             this.pretokenizers = pretokenizers == null ? Collections.emptyList() : ImmutableList.copyOf(pretokenizers);
             this.isLegacy = this.pretokenizers.stream().map(p -> p.type).anyMatch(t -> t.equals("ByteLevel"));
         }
 
         public List<String> pretokenize(String sentence) {
+
+            if (type.equalsIgnoreCase("MetaSpace")) {
+                if (prependScheme.equalsIgnoreCase("first")) {
+                    sentence = " " + sentence;
+                }
+
+                return Collections.singletonList(sentence.replaceAll("[ \t]+", replacement));
+            }
+
             if (pretokenizers.isEmpty()) return Collections.singletonList(sentence);
 
             Preconditions.checkArgument(type.equalsIgnoreCase("Sequence"), "Invalid pre-tokenizer type: " + type);

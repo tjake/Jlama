@@ -85,7 +85,7 @@ public abstract class BPETokenizer implements Tokenizer {
         if (model.addedTokenPattern() != null) {
             // Split the sentence into pieces using the added token pattern
             // Any non-added token is split into pieces using the pre-tokenizer
-            String[] pieces = split(model.addedTokenPattern(), sentence, 0, true);
+            String[] pieces = TokenizerModel.split(model.addedTokenPattern(), sentence, 0, true);
             for (String piece : pieces) {
                 if (!piece.isEmpty()) {
                     if (model.addedTokens().containsKey(piece)) sentencePieces.add(piece);
@@ -126,7 +126,7 @@ public abstract class BPETokenizer implements Tokenizer {
                 Long id = model.vocabLookup.get(c);
                 if (id != null) {
                     // we found this codepoint in vocab, add it as a token
-                    // logger.debug("{} -> {}", c, id);
+                    //logger.debug("{} -> {}", c, id);
                     tokens.add(id);
                 } else {
                     if (model.byteFallback) {
@@ -135,7 +135,7 @@ public abstract class BPETokenizer implements Tokenizer {
                         byte[] chars = code.getBytes(StandardCharsets.UTF_8);
                         for (int k = 0; k < chars.length; k++) {
                             long token = encodeCharacterAsToken(chars[k]);
-                            // logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
+                            //logger.debug("byte {} -> {}", Byte.toUnsignedInt(chars[k]), token);
                             tokens.add(token);
                         }
                     } else {
@@ -147,37 +147,43 @@ public abstract class BPETokenizer implements Tokenizer {
             }
 
             // merge the best consecutive tuple each iteration,
-            for (int n = 1; n <= 3; n++) {
-                while (true) {
-                    long bestId = -1;
-                    long bestIdx = -1;
+            // until we can't find any more pairs to merge
+            while (true) {
+                long bestId = -1;
+                long bestIdx = -1;
+                long bestRank = Long.MAX_VALUE;
 
-                    for (int i = 0; i < tokens.size() - n; i++) {
-                        // check if we can merge the pair (tokens[i], tokens[i+1])
+                for (int i = 0; i < tokens.size() - 1; i++) {
+                    // check if we can merge the pair (tokens[i], tokens[i+1])
+                    String token1 = decodeInternal(tokens.get(i));
+                    String token2 = decodeInternal(tokens.get(i + 1));
 
-                        String merge = "";
-                        for (int j = 0; j <= n; j++) {
-                            merge = String.format("%s%s", merge, decodeInternal(tokens.get(i + j)));
-                        }
+                    String merge2 = String.format("%s %s", token1, token2);
+                    String merge3 = String.format("%s%s", token1, token2);
 
-                        Long id = model.vocabLookup.get(merge);
+                    if (model.merges.containsKey(merge2)) {
+                        Long id = model.vocabLookup.get(merge3);
                         if (id != null) {
-                            // this merge pair exists in vocab! record its position
-                            bestId = id;
-                            bestIdx = i;
-                            break;
+                            // Check if this merge has a better rank (i.e., lower rank number)
+                            long rank = model.merges.get(merge2);
+                            if (rank < bestRank) {
+                                // this merge pair exists in vocab! record its position
+                                bestId = id;
+                                bestIdx = i;
+                                bestRank = rank;
+                            }
                         }
                     }
-
-                    if (bestIdx == -1) {
-                        break; // we couldn't find any more pairs to merge, so we're done
-                    }
-
-                    // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
-                    tokens.set((int) bestIdx, bestId);
-                    // delete token at position best_idx+1, shift the entire sequence back 1
-                    for (int j = n; j > 0; j--) tokens.remove((int) bestIdx + j);
                 }
+
+                if (bestIdx == -1) {
+                    break; // we couldn't find any more pairs to merge, so we're done
+                }
+
+                // merge the consecutive pair (best_idx, best_idx+1) into new token best_id
+                tokens.set((int) bestIdx, bestId);
+                // delete token at position best_idx+1, shift the entire sequence back 1
+                tokens.remove((int) bestIdx + 1);
             }
 
             allTokens.addAll(tokens);
@@ -240,56 +246,5 @@ public abstract class BPETokenizer implements Tokenizer {
     @Override
     public Optional<PromptSupport> promptSupport() {
         return promptSupport.hasPromptTemplates() ? Optional.of(promptSupport) : Optional.empty();
-    }
-
-
-    // Splitter for added token pattern (optionally with delimiters)
-    private String[] split(Pattern p, CharSequence input, int limit, boolean withDelimiters) {
-        int matchCount = 0;
-        int index = 0;
-        boolean matchLimited = limit > 0;
-        ArrayList<String> matchList = new ArrayList<>();
-        Matcher m = p.matcher(input);
-
-        // Add segments before each match found
-        while(m.find()) {
-            if (!matchLimited || matchCount < limit - 1) {
-                if (index == 0 && index == m.start() && m.start() == m.end()) {
-                    // no empty leading substring included for zero-width match
-                    // at the beginning of the input char sequence.
-                    continue;
-                }
-                String match = input.subSequence(index, m.start()).toString();
-                matchList.add(match);
-                index = m.end();
-                if (withDelimiters) {
-                    matchList.add(input.subSequence(m.start(), index).toString());
-                }
-                ++matchCount;
-            } else if (matchCount == limit - 1) { // last one
-                String match = input.subSequence(index, input.length()).toString();
-                matchList.add(match);
-                index = m.end();
-                ++matchCount;
-            }
-        }
-
-        // If no match was found, return this
-        if (index == 0)
-            return new String[] {input.toString()};
-
-        // Add remaining segment
-        if (!matchLimited || matchCount < limit)
-            matchList.add(input.subSequence(index, input.length()).toString());
-
-        // Construct result
-        int resultSize = matchList.size();
-        if (limit == 0) {
-            while (resultSize > 0 && matchList.get(resultSize-1).isEmpty()) {
-                resultSize--;
-            }
-        }
-        String[] result = new String[resultSize];
-        return matchList.subList(0, resultSize).toArray(result);
     }
 }

@@ -303,7 +303,7 @@ public abstract class AbstractModel implements Generator {
 
         // Remove BOS token if it's the first token, we explicitly add it below
         if (encoded.length > 0 && encoded[0] == c.bosToken) {
-            encoded = Arrays.copyOfRange(encoded, 1, encoded.length - 1);
+            encoded = Arrays.copyOfRange(encoded, 1, encoded.length);
         }
 
         Preconditions.checkArgument(encoded.length < c.contextLength);

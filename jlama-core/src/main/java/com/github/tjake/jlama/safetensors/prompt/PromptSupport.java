@@ -15,10 +15,12 @@
  */
 package com.github.tjake.jlama.safetensors.prompt;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.util.DefaultIndenter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
+import com.github.tjake.jlama.util.JsonSupport;
 import com.hubspot.jinjava.Jinjava;
 import com.hubspot.jinjava.JinjavaConfig;
 import com.hubspot.jinjava.LegacyOverrides;
@@ -27,6 +29,7 @@ import com.hubspot.jinjava.lib.fn.ELFunctionDefinition;
 
 import java.util.*;
 
+import com.hubspot.jinjava.objects.serialization.PyishPrettyPrinter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +48,9 @@ public class PromptSupport {
                     .withParseWhitespaceControlStrictly(true)
                     .withUseTrimmingForNotesAndExpressions(true)
                     .withUseSnakeCasePropertyNaming(true)
+                    .withKeepNullableLoopValues(true)
                     .build())
+            .withObjectMapper(new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT).setDefaultPrettyPrinter(JsonSupport.JlamaPrettyPrinter.INSTANCE))
             .build());
 
     static {
@@ -196,6 +201,11 @@ public class PromptSupport {
 
         public Builder addToolResult(Result result) {
             messages.add(new Message(result.toJson(), PromptRole.TOOL));
+            return this;
+        }
+
+        public Builder addToolResult(String result) {
+            messages.add(new Message(result, PromptRole.TOOL));
             return this;
         }
 

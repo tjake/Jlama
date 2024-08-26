@@ -200,7 +200,8 @@ public class SafeTensorSupport {
                     boolean skipQ = false;
                     if (skipLayerPrefixes != null) {
                         for (String skipLayerPrefix : skipLayerPrefixes) {
-                            if (e.getKey().startsWith(skipLayerPrefix)) {
+                            if (e.getKey().contains(skipLayerPrefix)) {
+                                logger.info("Skipping quantization of layer: " + e.getKey());
                                 skipQ = true;
                                 break;
                             }
@@ -354,7 +355,7 @@ public class SafeTensorSupport {
         boolean hasSafetensor = false;
         for (String currFile : allFiles) {
             String f = currFile.toLowerCase();
-            if (f.contains("safetensor")
+            if ((f.contains("safetensor") && !f.contains("consolidated"))
                     || f.contains("readme")
                     || f.equals("config.json")
                     || f.contains("tokenizer")) {

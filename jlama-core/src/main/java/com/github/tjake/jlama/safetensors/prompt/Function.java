@@ -2,14 +2,18 @@ package com.github.tjake.jlama.safetensors.prompt;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.hubspot.jinjava.objects.collections.PyMap;
 
+import javax.annotation.concurrent.Immutable;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * FunctionObject
  */
 @JsonPropertyOrder({Function.JSON_PROPERTY_NAME, Function.JSON_PROPERTY_DESCRIPTION, Function.JSON_PROPERTY_PARAMETERS})
-public class Function {
+public class Function extends PyMap {
     public static final String JSON_PROPERTY_NAME = "name";
     private final String name;
 
@@ -57,6 +61,7 @@ public class Function {
     }
 
     private Function(String name, String description, Parameters parameters) {
+        super(ImmutableMap.<String,Object>builder().put(JSON_PROPERTY_NAME, name).put(JSON_PROPERTY_DESCRIPTION, description).put(JSON_PROPERTY_PARAMETERS, parameters).build());
         this.name = name;
         this.description = description;
         this.parameters = parameters;

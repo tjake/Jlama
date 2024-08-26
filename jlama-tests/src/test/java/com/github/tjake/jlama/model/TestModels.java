@@ -72,7 +72,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        //System.setProperty("jlama.force_panama_tensor_operations", "true");
+        System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -106,11 +106,10 @@ public class TestModels {
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
 
             PromptSupport.Builder builder = model.promptSupport().get().builder();
 
-            builder.addSystemMessage("You are a helpful assistant with tool calling capabilities. When you receive a tool call response, use the output to format an answer to the original question.");
             builder.addUserMessage("What is the temp in paris right now?");
             builder.addGenerationPrompt(true);
 
@@ -125,8 +124,8 @@ public class TestModels {
 
             logger.info("First prompt \n{}", builder.build());
             Generator.Response r =
-                    model.generate(UUID.randomUUID(), builder.build(), 0.3f, 1024, false, (l,f) ->{});
-
+                    model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l,f) ->{});
+            logger.info("Response: {}", r.text);
             if (r.finishReason == Generator.FinishReason.STOP_TOKEN) {
 
                 if (builder.hasTools()) {
@@ -139,15 +138,22 @@ public class TestModels {
                         ToolCall f = JsonSupport.om.readValue(r.text.replace("<|python_tag|>", ""), ToolCall.class);
                         logger.info("Calling tool: {}", f.getName());
 
+                        builder = model.promptSupport().get().builder();
+                        builder.addUserMessage("What is the temp in paris right now?");
+                        builder.addGenerationPrompt(true);
                         builder.addToolCall(f);
-
-                        builder.addToolResult(Result.from(20f));
+                        builder.addToolResult(Result.from(f.getName(), null, 20f));
                         logger.info("Second prompt {}", builder.build());
                         Generator.Response r2 = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l,p) ->{});
 
-                        System.err.println(r2.text);
+                        Assert.assertTrue( r2.text, r2.text.contains("20"));
+                        logger.info("Response: {}", r2.text);
+                    } else {
+                        Assert.fail();
                     }
                 }
+            } else {
+                Assert.fail();
             }
         }
     }
@@ -168,21 +174,33 @@ public class TestModels {
 
     @Test
     public void MistralRun() throws Exception {
-        String modelPrefix = "../models/Mistral-Nemo-Instruct-2407";
+        String modelPrefix = "../models/Mistral-7B-Instruct-v0.3-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights =
                 SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
-            BPETokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
+            BPETokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), MistralConfig.class);
-            MistralModel model = new MistralModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
-            String prompt = "Tell me a joke.";
-            String p = model.promptSupport().isEmpty() ? prompt :
-                    model.promptSupport()
-                    .get()
-                    .builder()
-                    .addUserMessage(prompt)
-                    .build();
-            model.generate(UUID.randomUUID(), "[INST] Tell me a joke. [/INST]Assistant", 0.0f, 64, false, makeOutHandler());
+            MistralModel model = new MistralModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
+
+            PromptSupport.Builder builder = model.promptSupport().get().builder();
+
+            builder.addUserMessage("What is the temperature in paris right now?");
+            builder.addGenerationPrompt(true);
+
+            Tool t = Tool.from(Function.builder()
+                    .name("get_current_temperature")
+                    .description("Simulates getting the current temperature at a location.")
+                    .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                    .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                    .build());
+
+            builder.addTools(t);
+
+            logger.info("First prompt \n{}", builder.build());
+
+            Generator.Response r = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024,  false, makeOutHandler());
+
+            logger.info("Response: {}", r.text);
         }
     }
 
@@ -336,7 +354,7 @@ public class TestModels {
     private BiConsumer<String, Float> makeOutHandler() {
         PrintWriter out;
         BiConsumer<String, Float> outCallback;
-        if (System.console() == null) {
+
             AtomicInteger i = new AtomicInteger(0);
             StringBuilder b = new StringBuilder();
             out = new PrintWriter(System.out);
@@ -345,13 +363,6 @@ public class TestModels {
                 out.println(String.format("%d: %s [took %.2fms])", i.getAndIncrement(), b, t));
                 out.flush();
             };
-        } else {
-            out = System.console().writer();
-            outCallback = (w, t) -> {
-                out.print(w);
-                out.flush();
-            };
-        }
 
         return outCallback;
     }
