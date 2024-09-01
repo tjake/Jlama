@@ -17,8 +17,12 @@ package com.github.tjake.jlama.cli;
 
 import com.github.tjake.jlama.cli.commands.*;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
+
 
 @Command(
         name = "jlama",
@@ -27,7 +31,6 @@ import picocli.CommandLine.*;
         usageHelpAutoWidth = true,
         sortOptions = true)
 public class JlamaCli implements Runnable {
-
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
         TensorOperationsProvider.get();
@@ -40,6 +43,9 @@ public class JlamaCli implements Runnable {
     boolean helpRequested = false;
 
     public static void main(String[] args) {
+        Logger root = (Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        root.setLevel(Level.INFO);
+
         CommandLine cli = new CommandLine(new JlamaCli());
         cli.addSubcommand("download", new DownloadCommand());
         cli.addSubcommand("quantize", new QuantizeCommand());

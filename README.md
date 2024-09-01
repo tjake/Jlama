@@ -95,24 +95,29 @@ Then you can use the Model classes to run models:
 
     // Downloads the model or just returns the local path if it's already downloaded
     File localModelPath = SafeTensorSupport.maybeDownloadModel(workingDirectory, model);
-
+    
     // Loads the quantized model and specified use of quantized memory
     AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
 
+    PromptContext ctx;
     // Checks if the model supports chat prompting and adds prompt in the expected format for this model
     if (m.promptSupport().isPresent()) {
-        prompt = m.promptSupport().get().newBuilder()
+        ctx = m.promptSupport()
+                .get()
+                .builder()
                 .addSystemMessage("You are a helpful chatbot who writes short responses.")
                 .addUserMessage(prompt)
                 .build();
+    } else {
+        ctx = PromptContext.of(prompt);
     }
 
-    System.out.println("Prompt: " + prompt + "\n");
+    System.out.println("Prompt: " + ctx.getPrompt() + "\n");
     // Generates a response to the prompt and prints it
     // The api allows for streaming or non-streaming responses
     // The response is generated with a temperature of 0.7 and a max token length of 256
-    GenerateResponse r = m.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, (s, f) -> System.out.print(s));
-    System.out.println(r.toString());
+    Generator.Response r = m.generate(UUID.randomUUID(), ctx, 0.0f, 256, (s, f) -> {});
+    System.out.println(r.responseText);
  }
 ```
 

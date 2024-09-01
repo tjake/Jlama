@@ -73,7 +73,7 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
 
             new SpringApplicationBuilder(ApiServiceCommand.class)
                     .lazyInitialization(true)
-                    .properties("server.port", "" + port, "logging.level.org.springframework.web", "debug")
+                    .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
                     .build()
                     .run();
         } catch (Exception e) {
