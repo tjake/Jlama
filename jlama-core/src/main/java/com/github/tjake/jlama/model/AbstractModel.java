@@ -143,7 +143,7 @@ public abstract class AbstractModel implements Generator {
             this.workingQType = workingMemoryQType;
         }
 
-        logger.info("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
+        logger.debug("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
 
         this.embedInput = inferenceType.isInput ? loadInputWeights() : null;
         this.transformerBlocks = inferenceType.isFwdPass ? loadTransformerBlockWeights() : null;
