@@ -4,7 +4,11 @@
   <img src="docs/jlama.jpg" width="300" height="300" alt="Cute Jlama">
 </p>
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.tjake/jlama-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.tjake/jlama-core)
+[![Maven Central Version](https://img.shields.io/maven-central/v/com.github.tjake/jlama-parent?style=flat-square)](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/overview)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/discord/1279855254812229642?style=flat-square&label=Discord&color=663399)](https://discord.gg/HsYXHrMu6J)
+
+
 
 ## 🚀 Features
 
