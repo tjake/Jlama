@@ -54,6 +54,11 @@ public class BertModel extends AbstractModel {
     }
 
     @Override
+    public ModelSupport.ModelType getModelType() {
+        return ModelSupport.ModelType.BERT;
+    }
+
+    @Override
     protected EmbedInput loadInputWeights() {
         AbstractTensor we = weights.load("embeddings.word_embeddings.weight");
         AbstractTensor wte = weights.load("embeddings.token_type_embeddings.weight");

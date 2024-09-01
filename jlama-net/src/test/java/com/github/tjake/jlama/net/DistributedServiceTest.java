@@ -19,6 +19,7 @@ import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,10 +68,9 @@ public class DistributedServiceTest {
 
             coordinator.generate(
                     UUID.randomUUID(),
-                    "Simply put, the theory of relativity states that",
+                    PromptContext.of("Simply put, the theory of relativity states that"),
                     0.7f,
                     256,
-                    false,
                     makeOutHandler());
 
         } finally {
@@ -107,10 +107,9 @@ public class DistributedServiceTest {
 
             coordinator.generate(
                     UUID.randomUUID(),
-                    "Simply put, the theory of relativity states that",
+                    PromptContext.of("Simply put, the theory of relativity states that"),
                     0.7f,
                     256,
-                    false,
                     makeOutHandler());
         } finally {
             coordinator.stop();

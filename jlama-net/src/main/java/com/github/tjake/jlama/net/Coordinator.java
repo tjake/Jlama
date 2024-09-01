@@ -21,6 +21,7 @@ import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.grpc.JlamaService;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
@@ -92,32 +93,27 @@ public class Coordinator implements Generator {
 
     public Generator.Response generate(
             UUID session,
-            String prompt,
+            PromptContext promptContext,
             float temperature,
             int ntokens,
-            boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings) {
         try {
             service.waitForReady();
-            StringBuilder sb = new StringBuilder();
+            StringBuilder responseBuilder = new StringBuilder();
+            StringBuilder responseWithSpecialTokens = new StringBuilder();
+
             FinishReason finishReason = FinishReason.MAX_TOKENS;
-            long[] encoded = model.getTokenizer().encode(prompt);
+            long[] encoded = model.getTokenizer().encode(promptContext.getPrompt());
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
 
             AbstractTensor logits = model.makeTensor(model.getConfig().vocabularySize);
 
-            int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
+            int[] promptTokens = new int[1 + encoded.length];
 
             promptTokens[0] = model.getConfig().bosToken;
             for (int i = 1; i < encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i]);
 
             int promptLength = encoded.length;
-
-            if (useEOS) {
-                promptTokens[promptTokens.length - 1] =
-                        model.getConfig().eosTokens.getLast(); // Add EOS
-                promptLength++;
-            }
 
             long start = System.currentTimeMillis();
 
@@ -146,8 +142,13 @@ public class Coordinator implements Generator {
 
                 try {
                     String c = model.getTokenizer().decode(next);
-                    onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (i + 1));
-                    sb.append(c);
+                    if (model.getTokenizer().getModel().isSpecialToken(next)) {
+                        responseWithSpecialTokens.append(c);
+                    } else {
+                        onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (i + 1));
+                        responseBuilder.append(c);
+                        responseWithSpecialTokens.append(c);
+                    }
                 } catch (Exception e) {
                     logger.error("Failed to decode token {}", next, e);
                 }
@@ -156,7 +157,8 @@ public class Coordinator implements Generator {
             }
 
             return new Generator.Response(
-                    sb.toString(),
+                    responseBuilder.toString(),
+                    responseWithSpecialTokens.toString(),
                     finishReason,
                     promptTokens.length,
                     tokensGenerated,
@@ -164,7 +166,7 @@ public class Coordinator implements Generator {
                     System.currentTimeMillis() - promptTime);
         } catch (Throwable t) {
             logger.warn("Error generating tokens for session {}", session, t);
-            return new Generator.Response("", FinishReason.ERROR, 0, 0, 0, 0);
+            return new Generator.Response("", "", FinishReason.ERROR, 0, 0, 0, 0);
         }
     }
 }

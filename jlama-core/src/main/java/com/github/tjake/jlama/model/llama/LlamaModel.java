@@ -56,6 +56,11 @@ public class LlamaModel extends AbstractModel {
     }
 
     @Override
+    public ModelSupport.ModelType getModelType() {
+        return ModelSupport.ModelType.LLAMA;
+    }
+
+    @Override
     protected EmbedInput loadInputWeights() {
 
         final AbstractTensor wte = weights.load("model.embed_tokens.weight", c.offset())

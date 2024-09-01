@@ -116,7 +116,7 @@ public class OpenAIChatService {
         if (request.getStream() != null && request.getStream()) {
             SseEmitter emitter = new SseEmitter();
             CompletableFuture.supplyAsync(
-                            () -> model.generate(sessionId, builder.build(), temperature, maxTokens, false, (t, f) -> {
+                            () -> model.generate(sessionId, builder.build(), temperature, maxTokens, (t, f) -> {
                                 try {
                                     emitter.send(new CreateChatCompletionStreamResponse()
                                             .id(sessionId.toString())
@@ -146,14 +146,13 @@ public class OpenAIChatService {
 
             return emitter;
         } else {
-            Generator.Response r =
-                    model.generate(sessionId, builder.build(), temperature, maxTokens, false, (s, f) -> {});
+            Generator.Response r = model.generate(sessionId, builder.build(), temperature, maxTokens, (s, f) -> {});
 
             CreateChatCompletionResponse out = new CreateChatCompletionResponse()
                     .id(sessionId.toString())
                     .choices(List.of(new CreateChatCompletionResponseChoicesInner()
                             .finishReason(CreateChatCompletionResponseChoicesInner.FinishReasonEnum.STOP)
-                            .message(new ChatCompletionResponseMessage().content(r.text))));
+                            .message(new ChatCompletionResponseMessage().content(r.responseText))));
 
             return new ResponseEntity<>(out, HttpStatus.OK);
         }

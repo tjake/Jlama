@@ -136,6 +136,11 @@ public class Mocks {
         }
 
         @Override
+        public ModelSupport.ModelType getModelType() {
+            return ModelSupport.ModelType.LLAMA;
+        }
+
+        @Override
         protected EmbedInput loadInputWeights() {
             return null;
         }

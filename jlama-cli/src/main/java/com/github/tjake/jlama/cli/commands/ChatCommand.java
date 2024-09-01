@@ -20,6 +20,7 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.diogonunes.jcolor.AnsiFormat;
 import com.diogonunes.jcolor.Attribute;
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import java.io.PrintWriter;
 import java.util.Optional;
@@ -89,9 +90,9 @@ public class ChatCommand extends BaseCommand {
                 builder.addSystemMessage(systemPrompt);
             }
             builder.addUserMessage(prompt);
-            String builtPrompt = builder.build();
+            PromptContext builtPrompt = builder.build();
 
-            m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, false, makeOutHandler());
+            m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, makeOutHandler());
 
             first = false;
         }

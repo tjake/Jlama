@@ -15,16 +15,28 @@
  */
 package com.github.tjake.jlama.safetensors.prompt;
 
+import static com.github.tjake.jlama.util.JsonSupport.om;
+
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.type.ArrayType;
 import java.util.Map;
 
 public class ToolCall {
+    public static final ArrayType toolCallListTypeReference =
+            om.getTypeFactory().constructArrayType(ToolCall.class);
+
+    @JsonProperty("name")
     private final String name;
+
+    @JsonProperty("parameters")
     private final Map<String, Object> parameters;
 
     @JsonCreator
-    public ToolCall(@JsonProperty("name") String name, @JsonProperty("parameters") Map<String, Object> parameters) {
+    public ToolCall(
+            @JsonProperty("name") String name,
+            @JsonAlias({"arguments"}) @JsonProperty("parameters") Map<String, Object> parameters) {
         this.name = name;
         this.parameters = parameters;
     }

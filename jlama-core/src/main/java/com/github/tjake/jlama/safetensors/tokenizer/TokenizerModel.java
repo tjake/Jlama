@@ -61,13 +61,16 @@ public class TokenizerModel {
 
     private PreTokenizer preTokenizer;
     private Normalizer normalizer;
-    private Map<String, Long> addedTokens = new HashMap<>();
+    private BiMap<String, Long> addedTokens = HashBiMap.create();
+    private BiMap<String, Long> specialTokens = HashBiMap.create();
+
     private java.util.regex.Pattern addedTokenPattern;
 
     // This is pretty much a hack to support the legacy tokenizer
     private boolean legacy = false;
 
     private Optional<Map<String, String>> promptTemplates = Optional.empty();
+    private boolean hasToolSupport = false;
     private String eosToken = "";
     private String bosToken = "";
     private final boolean ignoreMerges;
@@ -117,10 +120,14 @@ public class TokenizerModel {
             for (Map<String, Object> token : addedTokens) {
                 this.addedTokens.put((String) token.get("content"), ((Integer) token.get("id")).longValue());
                 this.vocabLookup.put((String) token.get("content"), ((Integer) token.get("id")).longValue());
+                if (token.containsKey("special") && (Boolean) token.get("special")) {
+                    this.specialTokens.put((String) token.get("content"), ((Integer) token.get("id")).longValue());
+                }
             }
 
             // Lock down the added tokens
-            this.addedTokens = ImmutableMap.copyOf(this.addedTokens);
+            this.addedTokens = ImmutableBiMap.copyOf(this.addedTokens);
+            this.specialTokens = ImmutableBiMap.copyOf(this.specialTokens);
 
             // Create a regular expression from the list of delimiters
             StringBuilder regex = new StringBuilder();
@@ -162,7 +169,18 @@ public class TokenizerModel {
     }
 
     public void setPromptTemplates(Map<String, String> promptTemplates) {
-        this.promptTemplates = Optional.of(promptTemplates);
+
+        if (promptTemplates != null) {
+
+            hasToolSupport = promptTemplates.values().stream()
+                    .anyMatch(s -> s.toLowerCase().contains("tools"));
+
+            this.promptTemplates = Optional.of(promptTemplates);
+        }
+    }
+
+    public boolean hasToolSupport() {
+        return hasToolSupport;
     }
 
     public void setEosToken(String eosToken) {
@@ -179,6 +197,14 @@ public class TokenizerModel {
 
     public String bosToken() {
         return bosToken;
+    }
+
+    public boolean isSpecialToken(long token) {
+        return specialTokens.containsValue(token);
+    }
+
+    public boolean isSpecialToken(String token) {
+        return specialTokens.containsKey(token);
     }
 
     // Splitter for added token pattern (optionally with delimiters)

@@ -19,10 +19,14 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.github.tjake.jlama.util.JsonSupport;
 
 /**
- * Result
+ * ToolResult
  */
-@JsonPropertyOrder({Result.JSON_PROPERTY_TOOL_NAME, Result.JSON_PROPERTY_TOOL_ID, Result.JSON_PROPERTY_RESULT})
-public class Result {
+@JsonPropertyOrder({
+    ToolResult.JSON_PROPERTY_TOOL_NAME,
+    ToolResult.JSON_PROPERTY_TOOL_ID,
+    ToolResult.JSON_PROPERTY_RESULT
+})
+public class ToolResult {
     public static final String JSON_PROPERTY_TOOL_NAME = "name";
     public final String name;
 
@@ -32,14 +36,14 @@ public class Result {
     public static final String JSON_PROPERTY_RESULT = "result";
     private final Object result;
 
-    private Result(String name, String id, Object result) {
+    private ToolResult(String name, String id, Object result) {
         this.name = name;
         this.id = id;
         this.result = result;
     }
 
-    public static Result from(String name, String id, Object result) {
-        return new Result(name, id, result);
+    public static ToolResult from(String name, String id, Object result) {
+        return new ToolResult(name, id, result);
     }
 
     public Object getResult() {

@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.model.mistral;
 
+import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
@@ -43,5 +44,10 @@ public class MistralModel extends LlamaModel {
             DType workingQType,
             Optional<DType> modelQType) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
+    }
+
+    @Override
+    public ModelSupport.ModelType getModelType() {
+        return ModelSupport.ModelType.MISTRAL;
     }
 }

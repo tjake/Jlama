@@ -47,6 +47,11 @@ public class GPT2Model extends AbstractModel {
     }
 
     @Override
+    public ModelSupport.ModelType getModelType() {
+        return ModelSupport.ModelType.GPT2;
+    }
+
+    @Override
     protected EmbedInput loadInputWeights() {
         final AbstractTensor wte = weights.load("wte.weight");
         final AbstractTensor wpe = weights.load("wpe.weight");

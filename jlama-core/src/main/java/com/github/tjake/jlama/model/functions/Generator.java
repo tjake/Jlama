@@ -15,7 +15,11 @@
  */
 package com.github.tjake.jlama.model.functions;
 
+import com.github.tjake.jlama.safetensors.prompt.PromptContext;
+import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -32,32 +36,69 @@ public interface Generator {
     }
 
     class Response {
-        public final String text;
+        public final String responseText;
+        public final String responseTextWithSpecialTokens;
         public final FinishReason finishReason;
         public final int promptTokens;
         public final int generatedTokens;
         public final long promptTimeMs;
         public final long generateTimeMs;
+        public final List<ToolCall> toolCalls;
 
         public Response(
-                String text,
+                String responseText,
+                String responseTextWithSpecialTokens,
                 FinishReason finishReason,
                 int promptTokens,
                 int generatedTokens,
                 long promptTimeMs,
                 long generateTimeMs) {
-            this.text = text;
+            this.responseText = responseText;
+            this.responseTextWithSpecialTokens = responseTextWithSpecialTokens;
             this.finishReason = finishReason;
             this.promptTokens = promptTokens;
             this.generatedTokens = generatedTokens;
             this.promptTimeMs = promptTimeMs;
             this.generateTimeMs = generateTimeMs;
+            this.toolCalls = Collections.emptyList();
+        }
+
+        private Response(
+                String responseText,
+                String responseTextWithSpecialTokens,
+                FinishReason finishReason,
+                int promptTokens,
+                int generatedTokens,
+                long promptTimeMs,
+                long generateTimeMs,
+                List<ToolCall> toolCalls) {
+            this.responseText = responseText;
+            this.responseTextWithSpecialTokens = responseTextWithSpecialTokens;
+            this.finishReason = finishReason;
+            this.promptTokens = promptTokens;
+            this.generatedTokens = generatedTokens;
+            this.promptTimeMs = promptTimeMs;
+            this.generateTimeMs = generateTimeMs;
+            this.toolCalls = toolCalls;
+        }
+
+        public Response copyWithToolCalls(List<ToolCall> toolCalls) {
+            return new Response(
+                    responseText,
+                    responseTextWithSpecialTokens,
+                    FinishReason.TOOL_CALL,
+                    promptTokens,
+                    generatedTokens,
+                    promptTimeMs,
+                    generateTimeMs,
+                    toolCalls);
         }
 
         @Override
         public String toString() {
-            return "GenerateResponse{" + "text='"
-                    + text + '\'' + ", finishReason="
+            return "Response{" + "responseText='"
+                    + responseText + '\'' + ", responseTextWithSpecialTokens='"
+                    + responseTextWithSpecialTokens + '\'' + ", finishReason="
                     + finishReason + ", promptTokens="
                     + promptTokens + ", generatedTokens="
                     + generatedTokens + ", promptTimeMs="
@@ -68,10 +109,9 @@ public interface Generator {
 
     Response generate(
             UUID session,
-            String prompt,
+            PromptContext promptContext,
             float temperature,
             int ntokens,
-            boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings);
 
     Tokenizer getTokenizer();

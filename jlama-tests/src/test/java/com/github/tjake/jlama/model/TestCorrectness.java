@@ -314,12 +314,12 @@ public class TestCorrectness {
         builder.addSystemMessage("You are a friendly chatbot who always responds in the style of a pirate");
         builder.addUserMessage("How many helicopters can a human eat in one sitting?");
 
-        String prompt = builder.build();
+        PromptContext prompt = builder.build();
         Assert.assertEquals(
                 "<|system|>\nYou are a friendly chatbot who always responds in the style of a pirate</s>\n<|user|>\nHow many helicopters can a human eat in one sitting?</s>\n<|assistant|>\n",
                 prompt);
 
-        long[] encoded = tokenizer.encode(prompt);
+        long[] encoded = tokenizer.encode(prompt.getPrompt());
         long[] expected = new long[] {
             523, 28766, 6574, 28766, 28767, 13, 1976, 460, 264, 10131, 10706, 10093, 693, 1743, 2603, 3673, 297, 272,
             3238, 302, 264, 17368, 380, 2, 28705, 13, 28789, 28766, 1838, 28766, 28767, 13, 5660, 1287, 19624, 410,
@@ -341,14 +341,14 @@ public class TestCorrectness {
         builder.addSystemMessage("You are a friendly chatbot who always responds in the style of a pirate.");
         builder.addUserMessage("How many helicopters can a human eat in one sitting?");
 
-        String prompt = builder.build();
+        PromptContext prompt = builder.build();
         Assert.assertEquals(
                 "<|start_header_id|>system<|end_header_id|>\n\n"
                         + "You are a friendly chatbot who always responds in the style of a pirate.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"
                         + "How many helicopters can a human eat in one sitting?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
-                prompt);
+                prompt.getPrompt());
 
-        long[] encoded = tokenizer.encode(prompt);
+        long[] encoded = tokenizer.encode(prompt.getPrompt());
         long[] expected = new long[] {
             128000, 128006, 9125, 128007, 271, 2675, 527, 264, 11919, 6369, 6465, 889, 2744, 31680, 304, 279, 1742, 315,
             264, 55066, 128009, 128006, 882, 128007, 271, 4438, 1690, 59432, 649, 264, 3823, 8343, 304, 832, 11961, 30,
@@ -386,17 +386,16 @@ public class TestCorrectness {
                         true)
                 .build());
 
-        builder.addTools(t);
-
         // builder.addToolCall(new ToolCall("get_temperature", Map.of("location", "paris, france", "unit", "celsius")));
 
-        // builder.addToolResult(Result.from("get_temperature", "", Map.of("temperature", 25.0, "unit", "celsius")));
+        // builder.addToolResult(ToolResult.from("get_temperature", "", Map.of("temperature", 25.0, "unit",
+        // "celsius")));
 
-        String prompt = builder.build();
+        PromptContext prompt = builder.build(t);
 
         System.err.println(prompt);
 
-        long[] encoded = tokenizer.encode(prompt);
+        long[] encoded = tokenizer.encode(prompt.getPrompt());
         long[] expected = new long[] {
             128006, 9125, 128007, 271, 13013, 25, 6125, 27993, 198, 38766, 1303, 33025, 2696, 25, 6790, 220, 2366, 18,
             198, 15724, 2696, 25, 220, 1627, 10263, 220, 2366, 19, 271, 2675, 2744, 6013, 439, 264, 55066, 128009,
@@ -444,10 +443,8 @@ public class TestCorrectness {
                         true)
                 .build());
 
-        builder.addTools(t);
-
-        String prompt = builder.build();
-        long[] encoded = tokenizer.encode(prompt);
+        PromptContext prompt = builder.build(t);
+        long[] encoded = tokenizer.encode(prompt.getPrompt());
 
         long[] official = new long[] {
             6, 1501, 7567, 1891, 2032, 1113, 3396, 1316, 1113, 3396, 2032, 10598, 1629, 2032, 1113, 1295, 29498, 3790,

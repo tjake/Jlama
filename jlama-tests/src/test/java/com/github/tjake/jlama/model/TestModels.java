@@ -41,7 +41,6 @@ import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.github.tjake.jlama.util.JsonSupport;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -72,7 +71,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        System.setProperty("jlama.force_panama_tensor_operations", "true");
+        // System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -89,12 +88,13 @@ public class TestModels {
             Config c = om.readValue(new File(modelPrefix + "/config.json"), GPT2Config.class);
             GPT2Model gpt2 = new GPT2Model(c, v, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
-            String prompt = "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
-                    + "previously unexplored valley, in the Andes Mountains. "
-                    + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.";
+            PromptContext prompt = PromptContext.of(
+                    "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
+                            + "previously unexplored valley, in the Andes Mountains. "
+                            + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.");
 
-            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
-            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, false, makeOutHandler());
+            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
+            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
         }
     }
 
@@ -128,41 +128,26 @@ public class TestModels {
                             true)
                     .build());
 
-            builder.addTools(t);
+            PromptContext promptContext = builder.build(t);
 
-            logger.info("First prompt \n{}", builder.build());
-            Generator.Response r = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l, f) -> {});
-            logger.info("Response: {}", r.text);
-            if (r.finishReason == Generator.FinishReason.STOP_TOKEN) {
+            logger.info("First prompt \n{}", promptContext);
+            Generator.Response r = model.generate(UUID.randomUUID(), promptContext, 0.0f, 1024, (l, f) -> {});
+            logger.info("Response: {}", r.responseText);
 
-                if (builder.hasTools()) {
-                    if (r.text.trim().startsWith("{") || r.text.startsWith("<|python_tag|>")) {
-                        // Call the tool
-                        // This is where you would call the tool function
-                        // and then call generate again with the result
-                        // of the tool function
+            Assert.assertEquals(Generator.FinishReason.TOOL_CALL, r.finishReason);
+            Assert.assertEquals(1, r.toolCalls.size());
+            Assert.assertEquals("get_current_temperature", r.toolCalls.get(0).getName());
 
-                        ToolCall f = JsonSupport.om.readValue(r.text.replace("<|python_tag|>", ""), ToolCall.class);
-                        logger.info("Calling tool: {}", f.getName());
+            ToolCall f = r.toolCalls.get(0);
+            logger.info("Calling tool: {}", f.getName());
 
-                        builder = model.promptSupport().get().builder();
-                        builder.addUserMessage("What is the temp in paris right now?");
-                        builder.addGenerationPrompt(true);
-                        builder.addToolCall(f);
-                        builder.addToolResult(Result.from(f.getName(), null, 20f));
-                        logger.info("Second prompt {}", builder.build());
-                        Generator.Response r2 =
-                                model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, (l, p) -> {});
+            builder.addToolCall(f);
+            builder.addToolResult(ToolResult.from(f.getName(), null, 20f));
+            logger.info("Second prompt {}", builder.build());
+            Generator.Response r2 = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, (l, p) -> {});
 
-                        Assert.assertTrue(r2.text, r2.text.contains("20"));
-                        logger.info("Response: {}", r2.text);
-                    } else {
-                        Assert.fail();
-                    }
-                }
-            } else {
-                Assert.fail();
-            }
+            Assert.assertTrue(r2.responseText, r2.responseText.contains("20"));
+            logger.info("Response: {}", r2.responseText);
         }
     }
 
@@ -176,7 +161,7 @@ public class TestModels {
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
             String prompt = "#write a quicksort algorithm in python";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 256, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), PromptContext.of(prompt), 0.7f, 256, makeOutHandler());
         }
     }
 
@@ -192,7 +177,7 @@ public class TestModels {
 
             PromptSupport.Builder builder = model.promptSupport().get().builder();
 
-            builder.addUserMessage("What is the temperature in paris right now?");
+            builder.addUserMessage("What is the temp in paris right now?");
             builder.addGenerationPrompt(true);
 
             Tool t = Tool.from(Function.builder()
@@ -210,14 +195,30 @@ public class TestModels {
                             true)
                     .build());
 
-            builder.addTools(t);
+            PromptContext promptContext = builder.build(t);
 
-            logger.info("First prompt \n{}", builder.build());
+            logger.info("First prompt \n{}", promptContext);
 
-            Generator.Response r =
-                    model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, false, makeOutHandler());
+            Generator.Response r = model.generate(UUID.randomUUID(), promptContext, 0.0f, 1024, makeOutHandler());
 
-            logger.info("Response: {}", r.text);
+            logger.info("Response: {}", r);
+            Assert.assertEquals(Generator.FinishReason.TOOL_CALL, r.finishReason);
+            Assert.assertEquals(1, r.toolCalls.size());
+            Assert.assertEquals("get_current_temperature", r.toolCalls.get(0).getName());
+
+            ToolCall f = r.toolCalls.get(0);
+
+            logger.info("Calling tool: {}", f.getName());
+
+            builder.addToolCall(f);
+            builder.addToolResult(ToolResult.from(f.getName(), null, 20f));
+
+            logger.info("Second prompt {}", builder.build());
+            Generator.Response r2 = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, makeOutHandler());
+
+            Assert.assertTrue(r2.responseText, r2.responseText.contains("20"));
+
+            logger.info("Response: {}", r2);
         }
     }
 
@@ -236,10 +237,10 @@ public class TestModels {
                             + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
 
             String prompt = "Tell me a joke.";
-            String p =
+            PromptContext p =
                     model.promptSupport().get().builder().addUserMessage(prompt).build();
 
-            model.generate(UUID.randomUUID(), p, 0.7f, 256, true, makeOutHandler());
+            model.generate(UUID.randomUUID(), p, 0.7f, 256, makeOutHandler());
         }
     }
 
@@ -253,9 +254,9 @@ public class TestModels {
             GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
             GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
             String prompt = "Tell me a joke.";
-            String p =
+            PromptContext p =
                     model.promptSupport().get().builder().addUserMessage(prompt).build();
-            model.generate(UUID.randomUUID(), p, 0.3f, 256, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), p, 0.3f, 256, makeOutHandler());
         }
     }
 
@@ -283,7 +284,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
 
             String prompt = "Lily picked up a flower and gave it to";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 128, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), PromptContext.of(prompt), 0.7f, 128, makeOutHandler());
         } finally {
             Arrays.stream(Objects.requireNonNull(tmpOut.toFile().listFiles())).forEach(f -> {
                 try {
@@ -311,7 +312,7 @@ public class TestModels {
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             String prompt = "Lily picked up a flower and gave it to";
-            model.generate(UUID.randomUUID(), prompt, 0.7f, 128, false, makeOutHandler());
+            model.generate(UUID.randomUUID(), PromptContext.of(prompt), 0.7f, 128, makeOutHandler());
         }
     }
 

@@ -18,6 +18,7 @@ package com.github.tjake.jlama.cli.commands;
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import java.util.Optional;
 import java.util.UUID;
 import picocli.CommandLine.*;
@@ -34,6 +35,6 @@ public class CompleteCommand extends ModelBaseCommand {
                 workingQuantizationType,
                 Optional.ofNullable(modelQuantization),
                 Optional.ofNullable(threadCount));
-        m.generate(UUID.randomUUID(), prompt, temperature, tokens, false, makeOutHandler());
+        m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());
     }
 }

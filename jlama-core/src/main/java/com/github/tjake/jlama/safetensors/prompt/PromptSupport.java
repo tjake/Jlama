@@ -66,10 +66,6 @@ public class PromptSupport {
         return new Builder(this.m);
     }
 
-    public boolean hasPromptTemplates() {
-        return !m.promptTemplates().isEmpty();
-    }
-
     public static void raiseException(String message) {
         logger.warn("Prompt template error: " + message);
     }
@@ -175,7 +171,6 @@ public class PromptSupport {
         private boolean addGenerationPrompt = true;
 
         private List<Message> messages = new ArrayList<>(2);
-        private List<Tool> tools = null;
 
         private Builder(TokenizerModel m) {
             this.m = m;
@@ -196,7 +191,7 @@ public class PromptSupport {
             return this;
         }
 
-        public Builder addToolResult(Result result) {
+        public Builder addToolResult(ToolResult result) {
             messages.add(new Message(result.toJson(), PromptRole.TOOL));
             return this;
         }
@@ -221,35 +216,21 @@ public class PromptSupport {
             return this;
         }
 
-        public Builder addTools(List<Tool> tools) {
-            if (this.tools == null) {
-                this.tools = new ArrayList<>(tools);
-            } else {
-                throw new IllegalArgumentException("Tools already set");
-            }
-            return this;
+        public PromptContext build() {
+            return build(Optional.empty());
         }
 
-        public Builder addTools(Tool... tools) {
-            if (this.tools == null) {
-                this.tools = Arrays.asList(tools);
-            } else {
-                throw new IllegalArgumentException("Tools already set");
-            }
-            return this;
+        public PromptContext build(List<Tool> tools) {
+            return build(Optional.of(tools));
         }
 
-        public boolean hasTools() {
-            return tools != null && !tools.isEmpty();
+        public PromptContext build(Tool... tools) {
+            return build(Optional.of(List.of(tools)));
         }
 
-        public List<Tool> getTools() {
-            return tools;
-        }
-
-        public String build() {
+        private PromptContext build(Optional<List<Tool>> optionalTools) {
             if (messages.isEmpty()) {
-                return "";
+                throw new IllegalArgumentException("No messages to generate prompt");
             }
 
             if (m.promptTemplates().isEmpty()) {
@@ -261,7 +242,10 @@ public class PromptSupport {
                     .orElseThrow(
                             () -> new UnsupportedOperationException("Prompt template not available for type: " + type));
 
-            Map args = new HashMap();
+            if (optionalTools.isPresent() && !m.hasToolSupport())
+                logger.warn("This model does not support tools, but tools are specified");
+
+            Map<String, Object> args = new HashMap<>();
 
             args.putAll(Map.of(
                     "messages",
@@ -273,15 +257,13 @@ public class PromptSupport {
                     "bos_token",
                     "")); // We add the BOS ourselves
 
-            if (tools != null) {
-                args.put("tools", tools);
-            }
+            optionalTools.ifPresent(tools -> args.put("tools", tools));
 
             RenderResult r = jinjava.renderForResult(template, args);
 
             if (r.hasErrors()) logger.warn("Prompt template errors: " + r.getErrors());
 
-            return r.getOutput();
+            return new PromptContext(r.getOutput(), optionalTools);
         }
     }
 }

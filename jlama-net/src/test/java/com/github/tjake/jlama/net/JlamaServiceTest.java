@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.model.TransformerBlock;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
@@ -217,6 +218,11 @@ public class JlamaServiceTest {
                     DType.F32,
                     DType.F32,
                     Optional.empty());
+        }
+
+        @Override
+        public ModelSupport.ModelType getModelType() {
+            return ModelSupport.ModelType.LLAMA;
         }
 
         @Override

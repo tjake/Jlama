@@ -21,11 +21,18 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Helper class for Jackson JSON support
  */
 public class JsonSupport {
+    private static final String JSON_REGEX =
+            "\\{\\s*\"name\"\\s*:\\s*\"[^\"]+\"\\s*(,\\s*\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\]))*\\s*\\}";
+    private static final Pattern JSON_PATTERN = Pattern.compile(JSON_REGEX);
     public static final ObjectMapper om = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
             .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
@@ -39,6 +46,17 @@ public class JsonSupport {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static List<String> extractJsonFromString(String s) {
+        Matcher matcher = JSON_PATTERN.matcher(s);
+        List<String> extractedJson = new ArrayList<>();
+        while (matcher.find()) {
+            String json = matcher.group();
+            extractedJson.add(json);
+        }
+
+        return extractedJson;
     }
 
     public static class JlamaPrettyPrinter extends DefaultPrettyPrinter {

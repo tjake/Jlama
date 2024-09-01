@@ -17,6 +17,7 @@ package com.github.tjake.jlama.model;
 
 import static com.github.tjake.jlama.util.DebugSupport.debug;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.Generator;
@@ -24,7 +25,10 @@ import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
+import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
+import com.github.tjake.jlama.safetensors.prompt.Tool;
+import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
@@ -32,13 +36,11 @@ import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
+import com.github.tjake.jlama.util.JsonSupport;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -151,6 +153,12 @@ public abstract class AbstractModel implements Generator {
     protected abstract TransformerBlock[] loadTransformerBlockWeights();
 
     protected abstract SampleOutput loadOutputWeights();
+
+    public abstract ModelSupport.ModelType getModelType();
+
+    public InferenceType getInferenceType() {
+        return inferenceType;
+    }
 
     public DType getWorkingDType() {
         return workingDType;
@@ -294,12 +302,11 @@ public abstract class AbstractModel implements Generator {
 
     public Response generate(
             UUID sessionId,
-            String prompt,
+            PromptContext promptContext,
             float temperature,
             int ntokens,
-            boolean useEOS,
             BiConsumer<String, Float> onTokenWithTimings) {
-        long[] encoded = tokenizer.encode(prompt);
+        long[] encoded = tokenizer.encode(promptContext.getPrompt());
 
         // Remove BOS token if it's the first token, we explicitly add it below
         if (encoded.length > 0 && encoded[0] == c.bosToken) {
@@ -320,19 +327,15 @@ public abstract class AbstractModel implements Generator {
         int promptLength;
         long promptBatchTime;
         int tokensGenerated;
-        StringBuilder sb = new StringBuilder();
+        StringBuilder responseText = new StringBuilder();
+        StringBuilder responseTextWithSpecialTokens = new StringBuilder();
 
         try (AbstractTensor logits = makeTensor(c.vocabularySize)) {
-            int[] promptTokens = new int[useEOS ? (1 + encoded.length + 1) : (1 + encoded.length)];
+            int[] promptTokens = new int[(1 + encoded.length)];
 
             promptTokens[0] = c.bosToken;
             for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
             promptLength = encoded.length;
-
-            if (useEOS) {
-                promptTokens[promptTokens.length - 1] = getConfig().eosTokens.getLast(); // Add EOS
-                promptLength++;
-            }
 
             long start = System.currentTimeMillis();
             long promptStart = start;
@@ -355,8 +358,13 @@ public abstract class AbstractModel implements Generator {
             last.close();
             try {
                 String c = tokenizer.decode(next);
-                onTokenWithTimings.accept(c, batchMsPerToken);
-                sb.append(c);
+                if (tokenizer.getModel().isSpecialToken(next)) {
+                    responseTextWithSpecialTokens.append(c);
+                } else {
+                    onTokenWithTimings.accept(c, batchMsPerToken);
+                    responseText.append(c);
+                    responseTextWithSpecialTokens.append(c);
+                }
             } catch (Exception e) {
                 logger.error("Failed to decode token {}", next, e);
             }
@@ -381,9 +389,15 @@ public abstract class AbstractModel implements Generator {
 
                 try {
                     String c = tokenizer.decode(next);
-                    genMsPerToken = (System.currentTimeMillis() - start) / (float) (tokensGenerated);
-                    onTokenWithTimings.accept(c, genMsPerToken);
-                    sb.append(c);
+
+                    if (tokenizer.getModel().isSpecialToken(next)) {
+                        responseTextWithSpecialTokens.append(c);
+                    } else {
+                        genMsPerToken = (System.currentTimeMillis() - start) / (float) (tokensGenerated);
+                        onTokenWithTimings.accept(c, genMsPerToken);
+                        responseTextWithSpecialTokens.append(c);
+                        responseText.append(c);
+                    }
                 } catch (Exception e) {
                     logger.error("Failed to decode token {}", next, e);
                 }
@@ -391,13 +405,77 @@ public abstract class AbstractModel implements Generator {
 
             long end = System.currentTimeMillis();
 
-            Response response =
-                    new Response(sb.toString(), reason, promptLength, tokensGenerated, promptBatchTime, end - start);
+            Response response = new Response(
+                    responseText.toString(),
+                    responseTextWithSpecialTokens.toString(),
+                    reason,
+                    promptLength,
+                    tokensGenerated,
+                    promptBatchTime,
+                    end - start);
             logger.debug(String.format(
                     "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
                     TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken));
 
+            return postProcessResponse(promptContext, response);
+        }
+    }
+
+    /**
+     * This is a hook for subclasses to post process the response before returning it to the caller.
+     * For example this can be used to handle tool calls.
+     * @param response
+     * @return */
+    protected Generator.Response postProcessResponse(PromptContext promptContext, Generator.Response response) {
+        if (!tokenizer.getModel().hasToolSupport()
+                || !promptContext.hasTools()
+                || response.finishReason != FinishReason.STOP_TOKEN) {
             return response;
         }
+
+        // Look for a tool call based on the tool names
+        List<Tool> tools = promptContext.getTools().get();
+        boolean foundTool = false;
+        for (Tool tool : tools) {
+            if (response.responseTextWithSpecialTokens.contains(
+                    tool.getFunction().getName())) {
+                foundTool = true;
+                break;
+            }
+        }
+
+        if (!foundTool) {
+            return response;
+        }
+
+        try {
+            // If we found a tool call, we need to extract the tool call from the response
+            List<String> jsonCalls = JsonSupport.extractJsonFromString(response.responseText);
+            if (jsonCalls.isEmpty()) {
+                logger.warn("Tool call detected but no tool call found in response: {}", response.responseText);
+                return response;
+            }
+
+            logger.debug("Found tool calls: {}", jsonCalls);
+            List<ToolCall> toolCalls = new ArrayList<>(jsonCalls.size());
+            for (String jsonCall : jsonCalls) {
+
+                if (jsonCall.startsWith("[")) {
+                    List<ToolCall> toolCallList =
+                            JsonSupport.om.readValue(jsonCall, ToolCall.toolCallListTypeReference);
+                    toolCalls.addAll(toolCallList);
+                } else {
+                    ToolCall toolCall = JsonSupport.om.readValue(jsonCall, ToolCall.class);
+                    toolCalls.add(toolCall);
+                }
+
+                return response.copyWithToolCalls(toolCalls);
+            }
+
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to parse tool call from response: {}", response.responseText, e);
+        }
+
+        return response;
     }
 }

@@ -17,11 +17,7 @@ package com.github.tjake.jlama.model.gemma;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.FloatConversions;
-import com.github.tjake.jlama.model.CausalSelfAttention;
-import com.github.tjake.jlama.model.LayerNorm;
-import com.github.tjake.jlama.model.MLPBlock;
-import com.github.tjake.jlama.model.RMSNorm;
-import com.github.tjake.jlama.model.TransformerBlock;
+import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.model.llama.LlamaModel;
@@ -40,6 +36,7 @@ public class GemmaModel extends LlamaModel {
     private static final Logger logger = LoggerFactory.getLogger(GemmaModel.class);
 
     private final float embeddingScalingFactor;
+    private AbstractTensor wte;
 
     public GemmaModel(
             Config config,
@@ -66,7 +63,10 @@ public class GemmaModel extends LlamaModel {
                 FloatConversions.float32ToBFloat16((float) Math.pow(c.embeddingLength, 0.5)));
     }
 
-    private AbstractTensor wte;
+    @Override
+    public ModelSupport.ModelType getModelType() {
+        return ModelSupport.ModelType.GEMMA;
+    }
 
     @Override
     protected TransformerBlock[] loadTransformerBlockWeights() {

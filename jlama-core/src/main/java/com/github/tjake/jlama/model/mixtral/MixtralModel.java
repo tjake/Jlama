@@ -52,6 +52,11 @@ public class MixtralModel extends MistralModel {
     }
 
     @Override
+    public ModelSupport.ModelType getModelType() {
+        return ModelSupport.ModelType.MIXTRAL;
+    }
+
+    @Override
     protected TransformerBlock[] loadTransformerBlockWeights() {
 
         MixtralConfig mixtralConfig = (MixtralConfig) c;
