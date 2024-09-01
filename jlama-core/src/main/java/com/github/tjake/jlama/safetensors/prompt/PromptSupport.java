@@ -67,7 +67,7 @@ public class PromptSupport {
     }
 
     public static void raiseException(String message) {
-        logger.warn("Prompt template error: " + message);
+        logger.debug("Prompt template error: " + message);
     }
 
     private enum PromptType {
@@ -108,10 +108,7 @@ public class PromptSupport {
         public Map toMap() {
             Map map = new HashMap();
             map.put("role", role.name().toLowerCase());
-
-            if (content != null) {
-                map.put("content", content);
-            }
+            map.put("content", content == null ? "" : content);
 
             if (toolCalls != null) {
                 map.put("tool_calls", List.of(toolCalls.toMap()));
@@ -261,7 +258,7 @@ public class PromptSupport {
 
             RenderResult r = jinjava.renderForResult(template, args);
 
-            if (r.hasErrors()) logger.warn("Prompt template errors: " + r.getErrors());
+            if (r.hasErrors()) logger.debug("Prompt template errors: " + r.getErrors());
 
             return new PromptContext(r.getOutput(), optionalTools);
         }

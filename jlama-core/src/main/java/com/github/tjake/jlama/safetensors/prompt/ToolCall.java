@@ -17,12 +17,14 @@ package com.github.tjake.jlama.safetensors.prompt;
 
 import static com.github.tjake.jlama.util.JsonSupport.om;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.type.ArrayType;
 import java.util.Map;
 
+@JsonPropertyOrder({
+        ToolResult.JSON_PROPERTY_TOOL_NAME,
+        ToolResult.JSON_PROPERTY_TOOL_ID
+})
 public class ToolCall {
     public static final ArrayType toolCallListTypeReference =
             om.getTypeFactory().constructArrayType(ToolCall.class);
@@ -30,14 +32,20 @@ public class ToolCall {
     @JsonProperty("name")
     private final String name;
 
+    @JsonProperty("id")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String id;
+
     @JsonProperty("parameters")
     private final Map<String, Object> parameters;
 
     @JsonCreator
     public ToolCall(
             @JsonProperty("name") String name,
+            @JsonProperty("id") String id,
             @JsonAlias({"arguments"}) @JsonProperty("parameters") Map<String, Object> parameters) {
         this.name = name;
+        this.id = id == null ? "" : id;
         this.parameters = parameters;
     }
 
@@ -47,5 +55,8 @@ public class ToolCall {
 
     public Map<String, Object> getParameters() {
         return parameters;
+    }
+    public String getId() {
+        return id;
     }
 }

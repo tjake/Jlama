@@ -453,7 +453,6 @@ public class SafeTensorSupport {
                     "https://huggingface.co/" + hfModel + "/resolve/" + optionalBranch.orElse("main") + "/" + currFile,
                     optionalAuthHeader);
 
-            if (optionalProgressConsumer.isEmpty()) logger.info("Downloading file: {}", outputPath);
 
             CountingInputStream inStream = new CountingInputStream(stream.left);
 
@@ -463,6 +462,8 @@ public class SafeTensorSupport {
                 logger.debug("File already exists: {}", outputPath);
                 return;
             }
+
+            if (optionalProgressConsumer.isEmpty()) logger.info("Downloading file: {}", outputPath);
 
             optionalProgressConsumer.ifPresent(p -> p.accept(currFile, 0L, totalBytes));
 
