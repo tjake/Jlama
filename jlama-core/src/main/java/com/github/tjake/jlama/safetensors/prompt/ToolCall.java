@@ -20,6 +20,7 @@ import static com.github.tjake.jlama.util.JsonSupport.om;
 import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.type.ArrayType;
 import java.util.Map;
+import java.util.Objects;
 
 @JsonPropertyOrder({
         ToolResult.JSON_PROPERTY_TOOL_NAME,
@@ -34,7 +35,7 @@ public class ToolCall {
 
     @JsonProperty("id")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private final String id;
+    private String id;
 
     @JsonProperty("parameters")
     private final Map<String, Object> parameters;
@@ -42,10 +43,17 @@ public class ToolCall {
     @JsonCreator
     public ToolCall(
             @JsonProperty("name") String name,
-            @JsonProperty("id") String id,
             @JsonAlias({"arguments"}) @JsonProperty("parameters") Map<String, Object> parameters) {
         this.name = name;
-        this.id = id == null ? "" : id;
+        this.parameters = parameters;
+    }
+
+    public ToolCall(
+            String name,
+            String id,
+            Map<String, Object> parameters) {
+        this.name = name;
+        this.id = id;
         this.parameters = parameters;
     }
 
@@ -56,7 +64,25 @@ public class ToolCall {
     public Map<String, Object> getParameters() {
         return parameters;
     }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
     public String getId() {
         return id;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ToolCall toolCall = (ToolCall) o;
+        return Objects.equals(name, toolCall.name) && Objects.equals(parameters, toolCall.parameters);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, parameters);
     }
 }

@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -459,19 +461,27 @@ public abstract class AbstractModel implements Generator {
             logger.debug("Found tool calls: {}", jsonCalls);
             List<ToolCall> toolCalls = new ArrayList<>(jsonCalls.size());
             for (String jsonCall : jsonCalls) {
-
                 if (jsonCall.startsWith("[")) {
-                    List<ToolCall> toolCallList =
-                            JsonSupport.om.readValue(jsonCall, ToolCall.toolCallListTypeReference);
+                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, ToolCall.toolCallListTypeReference);
                     toolCalls.addAll(toolCallList);
                 } else {
                     ToolCall toolCall = JsonSupport.om.readValue(jsonCall, ToolCall.class);
                     toolCalls.add(toolCall);
                 }
-
-                return response.copyWithToolCalls(toolCalls);
             }
 
+            // Remove duplicates
+            toolCalls = toolCalls.stream()
+                    .sorted(Comparator.comparing(ToolCall::getName))
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            for (int i = 0; i < toolCalls.size(); i++) {
+                // Standard is to use 9 digit ids
+                toolCalls.get(i).setId(String.format("%09d", i));
+            }
+
+            return response.copyWithToolCalls(toolCalls);
         } catch (JsonProcessingException e) {
             logger.error("Failed to parse tool call from response: {}", response.responseText, e);
         }

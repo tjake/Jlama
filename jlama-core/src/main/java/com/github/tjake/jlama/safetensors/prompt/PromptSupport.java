@@ -88,23 +88,34 @@ public class PromptSupport {
         private final Object content;
         private final PromptRole role;
         private final ToolCallFunction toolCalls;
+        private final String toolCallId;
 
         private Message(Object content, PromptRole role) {
             this.content = content;
             this.role = role;
             this.toolCalls = null;
+            this.toolCallId = null;
         }
 
         private Message(ToolCall toolCall) {
             this.content = null;
             this.role = PromptRole.TOOL_CALL;
             this.toolCalls = new ToolCallFunction(toolCall);
+            this.toolCallId = toolCall.getId();
+        }
+
+        private Message(ToolResult toolResult) {
+            this.content = toolResult.toJson();
+            this.toolCalls = null;
+            this.role = PromptRole.TOOL;
+            this.toolCallId = toolResult.getToolCallId();
         }
 
         public Object getContent() {
             return content;
         }
 
+        // Jinja template expects a map for each message
         public Map toMap() {
             Map map = new HashMap();
             map.put("role", role.name().toLowerCase());
@@ -112,6 +123,10 @@ public class PromptSupport {
 
             if (toolCalls != null) {
                 map.put("tool_calls", List.of(toolCalls.toMap()));
+            }
+
+            if (toolCallId != null) {
+                map.put("tool_call_id", toolCallId);
             }
 
             return map;
@@ -142,7 +157,10 @@ public class PromptSupport {
         }
 
         public Map toMap() {
-            return Map.of("function", Map.of("name", call.getName(), "arguments", call.getParameters()));
+            Map<String, Object> args = new LinkedHashMap<>();
+            args.put("name", call.getName());
+            args.put("arguments", call.getParameters());
+            return Map.of("function", args, "id", call.getId());
         }
     }
 
@@ -189,14 +207,10 @@ public class PromptSupport {
         }
 
         public Builder addToolResult(ToolResult result) {
-            messages.add(new Message(result.toJson(), PromptRole.TOOL));
+            messages.add(new Message(result));
             return this;
         }
 
-        public Builder addToolResult(String result) {
-            messages.add(new Message(result, PromptRole.TOOL));
-            return this;
-        }
 
         public Builder addToolCall(ToolCall call) {
             messages.add(new Message(call));

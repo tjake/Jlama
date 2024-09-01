@@ -42,7 +42,7 @@ public class JsonSupport {
 
     public static String toJson(Object o) {
         try {
-            return om.writeValueAsString(o);
+            return om.writer(JlamaPrettyPrinter.INSTANCE).writeValueAsString(o);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

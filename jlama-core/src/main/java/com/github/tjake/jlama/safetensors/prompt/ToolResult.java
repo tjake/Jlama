@@ -18,6 +18,8 @@ package com.github.tjake.jlama.safetensors.prompt;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.github.tjake.jlama.util.JsonSupport;
 
+import java.util.Map;
+
 /**
  * ToolResult
  */
@@ -30,7 +32,7 @@ public class ToolResult {
     public static final String JSON_PROPERTY_TOOL_NAME = "name";
     public final String name;
 
-    public static final String JSON_PROPERTY_TOOL_ID = "id";
+    public static final String JSON_PROPERTY_TOOL_ID = "tool_call_id";
     public final String id;
 
     public static final String JSON_PROPERTY_RESULT = "result";
@@ -54,11 +56,11 @@ public class ToolResult {
         return name;
     }
 
-    public String getId() {
+    public String getToolCallId() {
         return id;
     }
 
-    public String toJson() {
-        return JsonSupport.toJson(this);
+    public Map<String, Object> toJson() {
+        return Map.of("content", Map.of("result", result));
     }
 }

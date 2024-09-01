@@ -211,7 +211,7 @@ public class TestModels {
             logger.info("Calling tool: {}", f.getName());
 
             builder.addToolCall(f);
-            builder.addToolResult(ToolResult.from(f.getName(), null, 20f));
+            builder.addToolResult(ToolResult.from(f.getName(), f.getId(), 20f));
 
             logger.info("Second prompt {}", builder.build());
             Generator.Response r2 = model.generate(UUID.randomUUID(), builder.build(), 0.0f, 1024, makeOutHandler());
