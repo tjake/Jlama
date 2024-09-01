@@ -373,8 +373,6 @@ public class SafeTensorSupport {
         Path localModelDir = Paths.get(modelDir, modelName);
         Files.createDirectories(localModelDir);
 
-        logger.info("Downloading model to: {}", localModelDir);
-
         for (String currFile : tensorFiles) {
             downloadFile(
                     hfModel,
@@ -462,7 +460,7 @@ public class SafeTensorSupport {
             long totalBytes = stream.right;
 
             if (outputPath.toFile().exists() && outputPath.toFile().length() == totalBytes) {
-                logger.info("File already exists: {}", outputPath);
+                logger.debug("File already exists: {}", outputPath);
                 return;
             }
 

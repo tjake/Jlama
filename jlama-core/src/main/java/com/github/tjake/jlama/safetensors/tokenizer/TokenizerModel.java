@@ -91,8 +91,10 @@ public class TokenizerModel {
         this.vocabLookup = HashBiMap.create(vocabLookup);
         this.ignoreMerges = ignoreMerges != null && ignoreMerges;
         this.merges = new HashMap<>();
-        for (int i = 0; i < merges.size(); i++) {
-            this.merges.put(merges.get(i), (long) i);
+        if (merges != null) {
+            for (int i = 0; i < merges.size(); i++) {
+                this.merges.put(merges.get(i), (long) i);
+            }
         }
     }
 

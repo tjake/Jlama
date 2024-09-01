@@ -242,7 +242,7 @@ public class PromptSupport {
                     .orElseThrow(
                             () -> new UnsupportedOperationException("Prompt template not available for type: " + type));
 
-            if (optionalTools.isPresent() && !m.hasToolSupport())
+            if (optionalTools.isPresent() && !optionalTools.get().isEmpty() && !m.hasToolSupport())
                 logger.warn("This model does not support tools, but tools are specified");
 
             Map<String, Object> args = new HashMap<>();
