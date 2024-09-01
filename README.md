@@ -45,7 +45,6 @@ Jlama includes a simple UI if you just want to chat with an llm.
 ```
 ./run-cli.sh download tjake/llama2-7b-chat-hf-jlama-Q4
 ./run-cli.sh restapi models/llama2-7b-chat-hf-jlama-Q4
-
 ```
 open browser to http://localhost:8080/
 

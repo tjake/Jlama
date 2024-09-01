@@ -359,12 +359,14 @@
             <artifactId>maven-javadoc-plugin</artifactId>
             <version>3.6.3</version>
             <configuration>
+              <jdkToolchain>
+                <version>22</version>
+              </jdkToolchain>
               <skippedModules>jlama-tests</skippedModules>
               <additionalJOptions>
                 <additionalJOption>--add-modules=jdk.incubator.vector</additionalJOption>
-                <additionalJOption>--enable-preview</additionalJOption>
               </additionalJOptions>
-              <release>21</release>
+              <release>22</release>
             </configuration>
             <executions>
               <execution>
