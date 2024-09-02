@@ -46,17 +46,17 @@ public class Coordinator implements Generator {
     private final JlamaService service;
 
     public Coordinator(File modelPath, File workingDirectory, int port, int workerCount) {
-        Preconditions.checkArgument(
-                workerCount != 0 && ((workerCount & (workerCount - 1)) == 0), "worker count must be a power of 2");
+        Preconditions.checkArgument(workerCount != 0 && ((workerCount & (workerCount - 1)) == 0), "worker count must be a power of 2");
         this.model = loadModel(
-                AbstractModel.InferenceType.OUTPUT_TO_TOKEN,
-                modelPath,
-                workingDirectory,
-                DType.F32,
-                DType.I8,
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty());
+            AbstractModel.InferenceType.OUTPUT_TO_TOKEN,
+            modelPath,
+            workingDirectory,
+            DType.F32,
+            DType.I8,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty()
+        );
         this.port = port;
         this.workerCount = workerCount;
         this.service = new JlamaService(model, workerCount);
@@ -92,11 +92,12 @@ public class Coordinator implements Generator {
     }
 
     public Generator.Response generate(
-            UUID session,
-            PromptContext promptContext,
-            float temperature,
-            int ntokens,
-            BiConsumer<String, Float> onTokenWithTimings) {
+        UUID session,
+        PromptContext promptContext,
+        float temperature,
+        int ntokens,
+        BiConsumer<String, Float> onTokenWithTimings
+    ) {
         try {
             service.waitForReady();
             StringBuilder responseBuilder = new StringBuilder();
@@ -111,7 +112,8 @@ public class Coordinator implements Generator {
             int[] promptTokens = new int[1 + encoded.length];
 
             promptTokens[0] = model.getConfig().bosToken;
-            for (int i = 1; i < encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i]);
+            for (int i = 1; i < encoded.length; i++)
+                promptTokens[i] = Ints.checkedCast(encoded[i]);
 
             int promptLength = encoded.length;
 
@@ -128,8 +130,7 @@ public class Coordinator implements Generator {
             int tokensGenerated = 0;
 
             for (int i = promptLength; i < ntokens; i++) {
-                int next = model.sample(
-                        output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
+                int next = model.sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
                 output.close();
 
                 tokensGenerated++;
@@ -157,13 +158,14 @@ public class Coordinator implements Generator {
             }
 
             return new Generator.Response(
-                    responseBuilder.toString(),
-                    responseWithSpecialTokens.toString(),
-                    finishReason,
-                    promptTokens.length,
-                    tokensGenerated,
-                    promptTime - start,
-                    System.currentTimeMillis() - promptTime);
+                responseBuilder.toString(),
+                responseWithSpecialTokens.toString(),
+                finishReason,
+                promptTokens.length,
+                tokensGenerated,
+                promptTime - start,
+                System.currentTimeMillis() - promptTime
+            );
         } catch (Throwable t) {
             logger.warn("Error generating tokens for session {}", session, t);
             return new Generator.Response("", "", FinishReason.ERROR, 0, 0, 0, 0);

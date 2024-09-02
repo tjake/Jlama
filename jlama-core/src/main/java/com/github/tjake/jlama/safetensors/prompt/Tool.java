@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 /**
  * Tool
  */
-@JsonPropertyOrder({Tool.JSON_PROPERTY_TYPE, Tool.JSON_PROPERTY_FUNCTION})
+@JsonPropertyOrder({ Tool.JSON_PROPERTY_TYPE, Tool.JSON_PROPERTY_FUNCTION })
 public class Tool {
     public static final String JSON_PROPERTY_TYPE = "type";
     private final String type = "function";

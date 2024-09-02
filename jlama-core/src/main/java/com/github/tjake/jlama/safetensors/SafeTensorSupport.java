@@ -48,11 +48,9 @@ import org.slf4j.LoggerFactory;
 
 public class SafeTensorSupport {
     private static final Logger logger = LoggerFactory.getLogger(SafeTensorSupport.class);
-    private static final MapType metadataTypeReference =
-            om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
+    private static final MapType metadataTypeReference = om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
 
-    public static Map<String, TensorInfo> readTensorInfoMap(
-            ByteBuffer buf, Optional<Map<String, String>> saveMetadata) {
+    public static Map<String, TensorInfo> readTensorInfoMap(ByteBuffer buf, Optional<Map<String, String>> saveMetadata) {
         buf = buf.order(ByteOrder.LITTLE_ENDIAN);
         long headerLength = buf.getLong();
         byte[] header = new byte[Ints.checkedCast(headerLength)];
@@ -99,11 +97,14 @@ public class SafeTensorSupport {
     }
 
     public static WeightLoader loadWeights(File baseDir) throws IOException {
-        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON)))
-            return SafeTensorIndex.loadWithWeights(baseDir.toPath());
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON))) return SafeTensorIndex.loadWithWeights(
+            baseDir.toPath()
+        );
 
-        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME)))
-            return SafeTensorIndex.loadSingleFile(baseDir.toPath(), SafeTensorIndex.SINGLE_MODEL_NAME);
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME))) return SafeTensorIndex.loadSingleFile(
+            baseDir.toPath(),
+            SafeTensorIndex.SINGLE_MODEL_NAME
+        );
 
         throw new IllegalArgumentException("No safetensor model found in: " + baseDir);
     }
@@ -122,17 +123,18 @@ public class SafeTensorSupport {
             model.setAddedTokens(addedTokens);
         }
 
-        if (rootNode.has("pre_tokenizer") && rootNode.get("pre_tokenizer") != null)
-            model.setPreTokenizer(om.treeToValue(rootNode.get("pre_tokenizer"), TokenizerModel.PreTokenizer.class));
+        if (rootNode.has("pre_tokenizer") && rootNode.get("pre_tokenizer") != null) model.setPreTokenizer(
+            om.treeToValue(rootNode.get("pre_tokenizer"), TokenizerModel.PreTokenizer.class)
+        );
 
-        if (rootNode.has("normalizer") && rootNode.get("normalizer") != null)
-            model.setNormalizer(om.treeToValue(rootNode.get("normalizer"), TokenizerModel.Normalizer.class));
+        if (rootNode.has("normalizer") && rootNode.get("normalizer") != null) model.setNormalizer(
+            om.treeToValue(rootNode.get("normalizer"), TokenizerModel.Normalizer.class)
+        );
 
         File tokenizerConfigJson = modelRoot.resolve("tokenizer_config.json").toFile();
         if (tokenizerConfigJson.exists()) {
             JsonNode configNode = om.readTree(tokenizerConfigJson);
-            if (configNode.has("legacy"))
-                model.setLegacy(configNode.get("legacy").asBoolean());
+            if (configNode.has("legacy")) model.setLegacy(configNode.get("legacy").asBoolean());
 
             if (configNode.has("chat_template")) {
                 JsonNode chatTemplateNode = configNode.get("chat_template");
@@ -168,12 +170,12 @@ public class SafeTensorSupport {
     }
 
     public static Path quantizeModel(
-            Path modelRoot,
-            DType modelQuantization,
-            String[] skipLayerPrefixes,
-            String[] dropLayerPrefixes,
-            Optional<Path> outputRoot)
-            throws IOException {
+        Path modelRoot,
+        DType modelQuantization,
+        String[] skipLayerPrefixes,
+        String[] dropLayerPrefixes,
+        Optional<Path> outputRoot
+    ) throws IOException {
         File tmp = File.createTempFile("safe", "tensor");
         tmp.deleteOnExit();
         WeightLoader wl = SafeTensorSupport.loadWeights(modelRoot.toFile());
@@ -218,23 +220,17 @@ public class SafeTensorSupport {
                             break;
                         case Q4:
                             writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
-                            writtenInfo.put(
-                                    e.getKey() + ".qb",
-                                    ((Q4ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
+                            writtenInfo.put(e.getKey() + ".qb", ((Q4ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
                             break;
                         case Q5:
                             writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
-                            writtenInfo.put(
-                                    e.getKey() + ".qb",
-                                    ((Q5ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
+                            writtenInfo.put(e.getKey() + ".qb", ((Q5ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
                             // FIXME: Need to add b5 bits
                             throw new UnsupportedOperationException("TODO");
-                            // break;
+                        // break;
                         case I8:
                             writtenInfo.put(e.getKey(), t.save(raf.getChannel()));
-                            writtenInfo.put(
-                                    e.getKey() + ".qb",
-                                    ((Q8ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
+                            writtenInfo.put(e.getKey() + ".qb", ((Q8ByteBufferTensor) t).getBlockF().save(raf.getChannel()));
                             break;
                         default:
                             throw new UnsupportedOperationException("" + t.dType() + " not implemented");
@@ -247,8 +243,7 @@ public class SafeTensorSupport {
         String baseDirName = modelRoot.getName(modelRoot.getNameCount() - 1).toString();
         Path parentPath = modelRoot.getParent();
 
-        Path qPath = outputRoot.orElseGet(
-                () -> Paths.get(parentPath.toString(), baseDirName + "-jlama-" + modelQuantization.name()));
+        Path qPath = outputRoot.orElseGet(() -> Paths.get(parentPath.toString(), baseDirName + "-jlama-" + modelQuantization.name()));
         File qDir = qPath.toFile();
         qDir.mkdirs();
 
@@ -256,11 +251,12 @@ public class SafeTensorSupport {
         Files.copy(modelRoot.resolve("config.json"), qPath.resolve("config.json"));
         Files.copy(modelRoot.resolve("tokenizer.json"), qPath.resolve("tokenizer.json"));
 
-        if (Files.exists(modelRoot.resolve("tokenizer_config.json")))
-            Files.copy(modelRoot.resolve("tokenizer_config.json"), qPath.resolve("tokenizer_config.json"));
+        if (Files.exists(modelRoot.resolve("tokenizer_config.json"))) Files.copy(
+            modelRoot.resolve("tokenizer_config.json"),
+            qPath.resolve("tokenizer_config.json")
+        );
 
-        try (RandomAccessFile raf =
-                new RandomAccessFile(qPath.resolve("model.safetensors").toFile(), "rw")) {
+        try (RandomAccessFile raf = new RandomAccessFile(qPath.resolve("model.safetensors").toFile(), "rw")) {
             FileChannel chan = raf.getChannel();
 
             byte[] header = om.writeValueAsBytes(writtenInfo);
@@ -310,8 +306,7 @@ public class SafeTensorSupport {
             name = parts[1];
         }
 
-        return maybeDownloadModel(
-                modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
+        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     /**
@@ -327,23 +322,22 @@ public class SafeTensorSupport {
      * @throws IOException
      */
     public static File maybeDownloadModel(
-            String modelDir,
-            Optional<String> modelOwner,
-            String modelName,
-            Optional<String> optionalBranch,
-            Optional<String> optionalAuthHeader,
-            Optional<TriConsumer<String, Long, Long>> optionalProgressReporter)
-            throws IOException {
+        String modelDir,
+        Optional<String> modelOwner,
+        String modelName,
+        Optional<String> optionalBranch,
+        Optional<String> optionalAuthHeader,
+        Optional<TriConsumer<String, Long, Long>> optionalProgressReporter
+    ) throws IOException {
         String hfModel = modelOwner.map(mo -> mo + "/" + modelName).orElse(modelName);
         InputStream modelInfoStream = getResponse(
-                        "https://huggingface.co/api/models/" + hfModel + "/tree/" + optionalBranch.orElse("main"),
-                        optionalAuthHeader)
-                .left;
+            "https://huggingface.co/api/models/" + hfModel + "/tree/" + optionalBranch.orElse("main"),
+            optionalAuthHeader
+        ).left;
         String modelInfo = readInputStream(modelInfoStream);
 
         if (modelInfo == null) {
-            throw new IOException(
-                    "No valid model found or trying to access a restricted model (please include correct access token)");
+            throw new IOException("No valid model found or trying to access a restricted model (please include correct access token)");
         }
 
         List<String> allFiles = parseFileList(modelInfo);
@@ -356,9 +350,9 @@ public class SafeTensorSupport {
         for (String currFile : allFiles) {
             String f = currFile.toLowerCase();
             if ((f.contains("safetensor") && !f.contains("consolidated"))
-                    || f.contains("readme")
-                    || f.equals("config.json")
-                    || f.contains("tokenizer")) {
+                || f.contains("readme")
+                || f.equals("config.json")
+                || f.contains("tokenizer")) {
                 tensorFiles.add(currFile);
                 if (f.contains("safetensor")) {
                     hasSafetensor = true;
@@ -374,13 +368,7 @@ public class SafeTensorSupport {
         Files.createDirectories(localModelDir);
 
         for (String currFile : tensorFiles) {
-            downloadFile(
-                    hfModel,
-                    currFile,
-                    optionalBranch,
-                    optionalAuthHeader,
-                    localModelDir.resolve(currFile),
-                    optionalProgressReporter);
+            downloadFile(hfModel, currFile, optionalBranch, optionalAuthHeader, localModelDir.resolve(currFile), optionalProgressReporter);
         }
 
         return localModelDir.toFile();
@@ -401,8 +389,7 @@ public class SafeTensorSupport {
         return fileList;
     }
 
-    private static Pair<InputStream, Long> getResponse(String urlString, Optional<String> optionalAuthHeader)
-            throws IOException {
+    private static Pair<InputStream, Long> getResponse(String urlString, Optional<String> optionalAuthHeader) throws IOException {
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
@@ -410,8 +397,7 @@ public class SafeTensorSupport {
         connection.setRequestMethod("GET");
 
         // Set the request header
-        optionalAuthHeader.ifPresent(
-                authHeader -> connection.setRequestProperty("Authorization", "Bearer " + authHeader));
+        optionalAuthHeader.ifPresent(authHeader -> connection.setRequestProperty("Authorization", "Bearer " + authHeader));
 
         // Get the response code
         int responseCode = connection.getResponseCode();
@@ -441,18 +427,18 @@ public class SafeTensorSupport {
     }
 
     private static void downloadFile(
-            String hfModel,
-            String currFile,
-            Optional<String> optionalBranch,
-            Optional<String> optionalAuthHeader,
-            Path outputPath,
-            Optional<TriConsumer<String, Long, Long>> optionalProgressConsumer)
-            throws IOException {
+        String hfModel,
+        String currFile,
+        Optional<String> optionalBranch,
+        Optional<String> optionalAuthHeader,
+        Path outputPath,
+        Optional<TriConsumer<String, Long, Long>> optionalProgressConsumer
+    ) throws IOException {
         try {
             Pair<InputStream, Long> stream = getResponse(
-                    "https://huggingface.co/" + hfModel + "/resolve/" + optionalBranch.orElse("main") + "/" + currFile,
-                    optionalAuthHeader);
-
+                "https://huggingface.co/" + hfModel + "/resolve/" + optionalBranch.orElse("main") + "/" + currFile,
+                optionalAuthHeader
+            );
 
             CountingInputStream inStream = new CountingInputStream(stream.left);
 
@@ -490,8 +476,7 @@ public class SafeTensorSupport {
                 throw new IOException("Failed to download file: " + currFile, e);
             }
 
-            if (optionalProgressConsumer.isEmpty() && !result.isCompletedExceptionally())
-                logger.info("Downloaded file: {}", outputPath);
+            if (optionalProgressConsumer.isEmpty() && !result.isCompletedExceptionally()) logger.info("Downloaded file: {}", outputPath);
         } catch (IOException e) {
             throw e;
         }

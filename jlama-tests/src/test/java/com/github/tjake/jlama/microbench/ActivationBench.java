@@ -29,15 +29,8 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 1, time = 5)
-@Fork(
-        warmups = 1,
-        value = 1,
-        jvmArgsAppend = {
-            "--add-modules=jdk.incubator.vector",
-            "--add-exports",
-            "java.base/sun.nio.ch=ALL-UNNAMED",
-            "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0"
-        })
+@Fork(warmups = 1, value = 1, jvmArgsAppend = { "--add-modules=jdk.incubator.vector", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
+    "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0" })
 public class ActivationBench {
     private static final TensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
     static int size = 1 << 20;

@@ -40,9 +40,8 @@ public class TestParser {
     @Test
     public void simpleTest() {
         byte[] preamble = BaseEncoding.base16().decode("5900000000000000");
-        byte[] header =
-                "{\"test\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]},\"__metadata__\":{\"foo\":\"bar\"}}"
-                        .getBytes();
+        byte[] header = "{\"test\":{\"dtype\":\"F32\",\"shape\":[2,2],\"data_offsets\":[0,16]},\"__metadata__\":{\"foo\":\"bar\"}}"
+            .getBytes();
 
         ByteBuffer bb = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);
         bb.putFloat(1.0f);
@@ -102,13 +101,13 @@ public class TestParser {
     @Test
     public void testOffsets() {
         FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.allocate(10), TensorShape.of(50000, 768), false);
-        Assert.assertEquals(49000 * 768, b.getOffset(new int[] {49000, 0}));
+        Assert.assertEquals(49000 * 768, b.getOffset(new int[] { 49000, 0 }));
 
         b = new FloatBufferTensor(FloatBuffer.allocate(10), TensorShape.of(3, 7, 13), false);
 
-        Assert.assertEquals(0, b.getOffset(new int[] {0, 0, 0}));
-        Assert.assertEquals(7 * 13 * 1, b.getOffset(new int[] {1, 0, 0}));
-        Assert.assertEquals(7 * 13 * 2, b.getOffset(new int[] {2, 0, 0}));
+        Assert.assertEquals(0, b.getOffset(new int[] { 0, 0, 0 }));
+        Assert.assertEquals(7 * 13 * 1, b.getOffset(new int[] { 1, 0, 0 }));
+        Assert.assertEquals(7 * 13 * 2, b.getOffset(new int[] { 2, 0, 0 }));
     }
 
     @Test
@@ -156,8 +155,7 @@ public class TestParser {
         for (int row = 0; row < DIM; row++) {
             for (int col = 0; col < DIM; col++) {
                 v++;
-                if (col >= 100 && col < 120)
-                    Assert.assertEquals("col=" + col + ", row=" + row, v - 1, bt.get(row, col), 1e-5f);
+                if (col >= 100 && col < 120) Assert.assertEquals("col=" + col + ", row=" + row, v - 1, bt.get(row, col), 1e-5f);
                 else {
                     try {
                         bt.get(row, col);

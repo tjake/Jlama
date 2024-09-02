@@ -60,51 +60,54 @@ public class Config {
     public final TensorCache tensorCache;
 
     public Config(
-            int contextLength,
-            int embeddingLength,
-            int hiddenLength,
-            int numberOfHeads,
-            int numberOfKeyValueHeads,
-            int numberOfLayers,
-            float layerNormEps,
-            int vocabularySize,
-            int bosToken,
-            List<Integer> eosToken,
-            ActivationFunction.Type activationFunction,
-            Double ropeFreqsTheta,
-            Double ropeScalingFactor) {
+        int contextLength,
+        int embeddingLength,
+        int hiddenLength,
+        int numberOfHeads,
+        int numberOfKeyValueHeads,
+        int numberOfLayers,
+        float layerNormEps,
+        int vocabularySize,
+        int bosToken,
+        List<Integer> eosToken,
+        ActivationFunction.Type activationFunction,
+        Double ropeFreqsTheta,
+        Double ropeScalingFactor
+    ) {
         this(
-                contextLength,
-                embeddingLength,
-                hiddenLength,
-                numberOfHeads,
-                numberOfKeyValueHeads,
-                numberOfLayers,
-                layerNormEps,
-                vocabularySize,
-                bosToken,
-                eosToken,
-                activationFunction,
-                ropeFreqsTheta,
-                ropeScalingFactor,
-                embeddingLength / numberOfHeads);
+            contextLength,
+            embeddingLength,
+            hiddenLength,
+            numberOfHeads,
+            numberOfKeyValueHeads,
+            numberOfLayers,
+            layerNormEps,
+            vocabularySize,
+            bosToken,
+            eosToken,
+            activationFunction,
+            ropeFreqsTheta,
+            ropeScalingFactor,
+            embeddingLength / numberOfHeads
+        );
     }
 
     public Config(
-            int contextLength,
-            int embeddingLength,
-            int hiddenLength,
-            int numberOfHeads,
-            int numberOfKeyValueHeads,
-            int numberOfLayers,
-            float layerNormEps,
-            int vocabularySize,
-            int bosToken,
-            List<Integer> eosTokens,
-            ActivationFunction.Type activationFunction,
-            Double ropeFreqsTheta,
-            Double ropeScalingFactor,
-            Integer headSize) {
+        int contextLength,
+        int embeddingLength,
+        int hiddenLength,
+        int numberOfHeads,
+        int numberOfKeyValueHeads,
+        int numberOfLayers,
+        float layerNormEps,
+        int vocabularySize,
+        int bosToken,
+        List<Integer> eosTokens,
+        ActivationFunction.Type activationFunction,
+        Double ropeFreqsTheta,
+        Double ropeScalingFactor,
+        Integer headSize
+    ) {
         this.contextLength = contextLength;
         this.embeddingLength = embeddingLength;
         this.hiddenLength = hiddenLength;
@@ -122,9 +125,10 @@ public class Config {
         this.isGQA = numberOfKeyValueHeads < numberOfHeads;
         this.activationFunction = activationFunction;
         this.ropeFreqs = ropeFreqsTheta == null
-                ? Optional.empty()
-                : Optional.of(VectorMath.precomputeFreqsCis(
-                        headSize, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor));
+            ? Optional.empty()
+            : Optional.of(
+                VectorMath.precomputeFreqsCis(headSize, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor)
+            );
 
         // Set default values
         setOffset(null);

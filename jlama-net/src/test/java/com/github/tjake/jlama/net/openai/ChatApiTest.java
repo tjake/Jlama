@@ -26,10 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 @ExtendWith(SpringExtension.class)
-@SpringBootTest(
-        classes = MockedOpenAIServer.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        useMainMethod = SpringBootTest.UseMainMethod.ALWAYS)
+@SpringBootTest(classes = MockedOpenAIServer.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, useMainMethod = SpringBootTest.UseMainMethod.ALWAYS)
 public class ChatApiTest {
     @LocalServerPort
     private int port;
@@ -41,17 +38,16 @@ public class ChatApiTest {
     @Test
     public void testChatCompletion() throws JSONException {
 
-        OpenAI openAI = OpenAI.newBuilder("Fake key")
-                .baseUrl("http://localhost:" + port)
-                .build();
+        OpenAI openAI = OpenAI.newBuilder("Fake key").baseUrl("http://localhost:" + port).build();
 
         ChatClient client = openAI.chatClient();
 
-        CreateChatCompletionRequest request =
-                CreateChatCompletionRequest.newBuilder().model(OpenAIModel.GPT_3_5_TURBO).stream(false)
-                        .temperature(0.0f)
-                        .message(ChatMessage.userMessage("Who won the world series in 2020?"))
-                        .build();
+        CreateChatCompletionRequest request = CreateChatCompletionRequest.newBuilder()
+            .model(OpenAIModel.GPT_3_5_TURBO)
+            .stream(false)
+            .temperature(0.0f)
+            .message(ChatMessage.userMessage("Who won the world series in 2020?"))
+            .build();
 
         ChatCompletion response = client.createChatCompletion(request);
 
@@ -63,17 +59,16 @@ public class ChatApiTest {
     @Test
     public void testStreamingChatCompletion() throws JSONException {
 
-        OpenAI openAI = OpenAI.newBuilder("Fake key")
-                .baseUrl("http://localhost:" + port)
-                .build();
+        OpenAI openAI = OpenAI.newBuilder("Fake key").baseUrl("http://localhost:" + port).build();
 
         ChatClient client = openAI.chatClient();
 
-        CreateChatCompletionRequest request =
-                CreateChatCompletionRequest.newBuilder().model(OpenAIModel.GPT_3_5_TURBO).stream(true)
-                        .temperature(0.0f)
-                        .message(ChatMessage.userMessage("Who won the world series in 2020?"))
-                        .build();
+        CreateChatCompletionRequest request = CreateChatCompletionRequest.newBuilder()
+            .model(OpenAIModel.GPT_3_5_TURBO)
+            .stream(true)
+            .temperature(0.0f)
+            .message(ChatMessage.userMessage("Who won the world series in 2020?"))
+            .build();
 
         client.streamChatCompletion(request).forEach(System.err::println);
 

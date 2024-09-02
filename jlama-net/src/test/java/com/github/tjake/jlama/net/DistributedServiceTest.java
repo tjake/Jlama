@@ -36,42 +36,41 @@ public class DistributedServiceTest {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        ch.qos.logback.classic.Logger rootLogger =
-                (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        ch.qos.logback.classic.Logger rootLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(
+            ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME
+        );
         rootLogger.setLevel(Level.toLevel("info"));
     }
 
-    private static final ObjectMapper om = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
+    private static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+        .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
 
     @Test
     void oneWorkerTestLLama() throws Exception {
         Path modelPath = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelPath));
 
-        Coordinator coordinator =
-                new Coordinator(modelPath.toFile(), com.google.common.io.Files.createTempDir(), 8888, 1);
+        Coordinator coordinator = new Coordinator(modelPath.toFile(), com.google.common.io.Files.createTempDir(), 8888, 1);
         try {
             new Thread(() -> {
-                        try {
-                            coordinator.start();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    })
-                    .start();
+                try {
+                    coordinator.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
 
             startWorker(modelPath);
 
             coordinator.generate(
-                    UUID.randomUUID(),
-                    PromptContext.of("Simply put, the theory of relativity states that"),
-                    0.7f,
-                    256,
-                    makeOutHandler());
+                UUID.randomUUID(),
+                PromptContext.of("Simply put, the theory of relativity states that"),
+                0.7f,
+                256,
+                makeOutHandler()
+            );
 
         } finally {
             coordinator.stop();
@@ -87,13 +86,12 @@ public class DistributedServiceTest {
         Coordinator coordinator = new Coordinator(modelRoot.toFile(), null, 8888, 4);
         try {
             new Thread(() -> {
-                        try {
-                            coordinator.start();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    })
-                    .start();
+                try {
+                    coordinator.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
 
             startWorker(modelRoot);
             startWorker(modelRoot);
@@ -106,29 +104,28 @@ public class DistributedServiceTest {
             // startWorker(modelRoot);
 
             coordinator.generate(
-                    UUID.randomUUID(),
-                    PromptContext.of("Simply put, the theory of relativity states that"),
-                    0.7f,
-                    256,
-                    makeOutHandler());
+                UUID.randomUUID(),
+                PromptContext.of("Simply put, the theory of relativity states that"),
+                0.7f,
+                256,
+                makeOutHandler()
+            );
         } finally {
             coordinator.stop();
         }
     }
 
     private void startWorker(Path modelRoot) throws Exception {
-        Worker worker = new Worker(
-                modelRoot.toFile(), "localhost", 8888, null, DType.F32, DType.I8, Optional.empty(), Optional.empty());
+        Worker worker = new Worker(modelRoot.toFile(), "localhost", 8888, null, DType.F32, DType.I8, Optional.empty(), Optional.empty());
         new Thread(() -> {
-                    try {
-                        worker.run();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    } finally {
-                        worker.close();
-                    }
-                })
-                .start();
+            try {
+                worker.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                worker.close();
+            }
+        }).start();
     }
 
     private BiConsumer<String, Float> makeOutHandler() {

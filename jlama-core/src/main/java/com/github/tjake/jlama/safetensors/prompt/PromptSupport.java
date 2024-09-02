@@ -36,24 +36,28 @@ public class PromptSupport {
     private static final Logger logger = LoggerFactory.getLogger(PromptSupport.class);
 
     // This matches the jinja config in huggingface
-    private static final Jinjava jinjava = new Jinjava(JinjavaConfig.newBuilder()
+    private static final Jinjava jinjava = new Jinjava(
+        JinjavaConfig.newBuilder()
             .withTrimBlocks(true)
             .withLstripBlocks(true)
-            .withLegacyOverrides(LegacyOverrides.newBuilder()
+            .withLegacyOverrides(
+                LegacyOverrides.newBuilder()
                     .withParseWhitespaceControlStrictly(true)
                     .withUseTrimmingForNotesAndExpressions(true)
                     .withUseSnakeCasePropertyNaming(true)
                     .withKeepNullableLoopValues(true)
-                    .build())
-            .withObjectMapper(new ObjectMapper()
-                    .enable(SerializationFeature.INDENT_OUTPUT)
-                    .setDefaultPrettyPrinter(JsonSupport.JlamaPrettyPrinter.INSTANCE))
-            .build());
+                    .build()
+            )
+            .withObjectMapper(
+                new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
+                    .setDefaultPrettyPrinter(JsonSupport.JlamaPrettyPrinter.INSTANCE)
+            )
+            .build()
+    );
 
     static {
         jinjava.getGlobalContext()
-                .registerFunction(new ELFunctionDefinition(
-                        "", "raise_exception", PromptSupport.class, "raiseException", String.class));
+            .registerFunction(new ELFunctionDefinition("", "raise_exception", PromptSupport.class, "raiseException", String.class));
     }
 
     private final TokenizerModel m;
@@ -211,7 +215,6 @@ public class PromptSupport {
             return this;
         }
 
-
         public Builder addToolCall(ToolCall call) {
             messages.add(new Message(call));
             return this;
@@ -249,16 +252,17 @@ public class PromptSupport {
             }
 
             String template = m.promptTemplates()
-                    .map(t -> t.get(type.name().toLowerCase()))
-                    .orElseThrow(
-                            () -> new UnsupportedOperationException("Prompt template not available for type: " + type));
+                .map(t -> t.get(type.name().toLowerCase()))
+                .orElseThrow(() -> new UnsupportedOperationException("Prompt template not available for type: " + type));
 
-            if (optionalTools.isPresent() && !optionalTools.get().isEmpty() && !m.hasToolSupport())
-                logger.warn("This model does not support tools, but tools are specified");
+            if (optionalTools.isPresent() && !optionalTools.get().isEmpty() && !m.hasToolSupport()) logger.warn(
+                "This model does not support tools, but tools are specified"
+            );
 
             Map<String, Object> args = new HashMap<>();
 
-            args.putAll(Map.of(
+            args.putAll(
+                Map.of(
                     "messages",
                     messages.stream().map(Message::toMap).toList(),
                     "add_generation_prompt",
@@ -266,7 +270,9 @@ public class PromptSupport {
                     "eos_token",
                     m.eosToken(),
                     "bos_token",
-                    "")); // We add the BOS ourselves
+                    ""
+                )
+            ); // We add the BOS ourselves
 
             optionalTools.ifPresent(tools -> args.put("tools", tools));
 

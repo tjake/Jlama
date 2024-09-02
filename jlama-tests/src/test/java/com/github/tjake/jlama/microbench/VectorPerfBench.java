@@ -27,10 +27,7 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
-@Fork(
-        warmups = 1,
-        value = 1,
-        jvmArgsPrepend = {"--add-modules=jdk.incubator.vector", "--enable-preview"})
+@Fork(warmups = 1, value = 1, jvmArgsPrepend = { "--add-modules=jdk.incubator.vector", "--enable-preview" })
 public class VectorPerfBench {
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 

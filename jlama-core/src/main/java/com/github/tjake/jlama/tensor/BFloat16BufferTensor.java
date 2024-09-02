@@ -50,8 +50,9 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short> {
         super(DType.BF16, shape, true);
         this.name = "tmp";
         this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                        Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                .asShortBuffer();
+            Ints.checkedCast(size() * dType().size()),
+            UnsafeDirectByteBuffer.CACHE_LINE_SIZE
+        ).asShortBuffer();
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -116,7 +117,7 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short> {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
         segment.asSlice(getMemorySegmentOffset(destOffset), length)
-                .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
+            .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
     }
 
     @Override
@@ -152,9 +153,6 @@ public class BFloat16BufferTensor extends AbstractTensor<ShortVector, Short> {
             }
         }
 
-        return "BFloat16BufferTensor{" + "name='"
-                + name + '\'' + ", shape="
-                + shape + ",\n b="
-                + sb + "..." + sb2 + "}";
+        return "BFloat16BufferTensor{" + "name='" + name + '\'' + ", shape=" + shape + ",\n b=" + sb + "..." + sb2 + "}";
     }
 }

@@ -97,13 +97,14 @@ public abstract class AbstractModel implements Generator {
     protected KvBufferCache kvBufferCache;
 
     protected AbstractModel(
-            InferenceType inferenceType,
-            Config c,
-            WeightLoader w,
-            Tokenizer t,
-            DType workingMemoryDType,
-            DType workingMemoryQType,
-            Optional<DType> modelQType) {
+        InferenceType inferenceType,
+        Config c,
+        WeightLoader w,
+        Tokenizer t,
+        DType workingMemoryDType,
+        DType workingMemoryQType,
+        Optional<DType> modelQType
+    ) {
         this.inferenceType = inferenceType;
         this.c = c;
         this.weights = w;
@@ -126,14 +127,10 @@ public abstract class AbstractModel implements Generator {
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;
             AbstractTensor tmp = makeTensor(Q8ByteBufferTensor.BLOCK_SIZE);
-            try (AbstractTensor tmp2 = TensorOperationsProvider.get()
-                    .quantize(tmp, workingMemoryQType, 0, Q8ByteBufferTensor.BLOCK_SIZE)) {
+            try (AbstractTensor tmp2 = TensorOperationsProvider.get().quantize(tmp, workingMemoryQType, 0, Q8ByteBufferTensor.BLOCK_SIZE)) {
                 supportsQType = tmp2.dType() == workingMemoryQType;
                 if (!supportsQType) {
-                    logger.warn(
-                            "Quantized memory type {} not supported, falling back to {}",
-                            workingMemoryQType,
-                            workingMemoryDType);
+                    logger.warn("Quantized memory type {} not supported, falling back to {}", workingMemoryQType, workingMemoryDType);
                     this.workingQType = this.workingDType;
                 } else {
                     this.workingQType = workingMemoryQType;
@@ -180,8 +177,7 @@ public abstract class AbstractModel implements Generator {
 
     public AbstractTensor makeTensor(int... shape) {
         TensorShape s;
-        if (c.offset().isPresent() && shape[shape.length - 1] == c.embeddingLength)
-            s = TensorShape.sparse(shape, c.offset().get());
+        if (c.offset().isPresent() && shape[shape.length - 1] == c.embeddingLength) s = TensorShape.sparse(shape, c.offset().get());
         else s = TensorShape.of(shape);
 
         return c.tensorCache.get(workingDType, s);
@@ -212,11 +208,12 @@ public abstract class AbstractModel implements Generator {
      * @return
      */
     public AbstractTensor forward(
-            int token_id,
-            int pos,
-            AbstractTensor kvbuf,
-            Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
-            Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+        int token_id,
+        int pos,
+        AbstractTensor kvbuf,
+        Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
+        Optional<Consumer<List<AbstractTensor>>> tensorReducer
+    ) {
         AbstractTensor embedding = embedInput.inputTokenToEmbedding(token_id, pos);
 
         debug("EMBEDDING TOKEN", token_id);
@@ -260,14 +257,7 @@ public abstract class AbstractModel implements Generator {
             // This is a mix of argmax and sampling with softmax
             VectorMath.pchunk(0, c.vocabularySize, (chunkStart, chunkSize) -> {
                 TensorOperationsProvider.get()
-                        .dotProductChunk(
-                                logits,
-                                embedding,
-                                sampleOutput.getOutputLogitsWeights(),
-                                0,
-                                c.embeddingLength,
-                                chunkStart,
-                                chunkSize);
+                    .dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
             });
 
             int maxi = Integer.MIN_VALUE;
@@ -303,11 +293,12 @@ public abstract class AbstractModel implements Generator {
     }
 
     public Response generate(
-            UUID sessionId,
-            PromptContext promptContext,
-            float temperature,
-            int ntokens,
-            BiConsumer<String, Float> onTokenWithTimings) {
+        UUID sessionId,
+        PromptContext promptContext,
+        float temperature,
+        int ntokens,
+        BiConsumer<String, Float> onTokenWithTimings
+    ) {
         long[] encoded = tokenizer.encode(promptContext.getPrompt());
 
         // Remove BOS token if it's the first token, we explicitly add it below
@@ -336,15 +327,16 @@ public abstract class AbstractModel implements Generator {
             int[] promptTokens = new int[(1 + encoded.length)];
 
             promptTokens[0] = c.bosToken;
-            for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
+            for (int i = 1; i <= encoded.length; i++)
+                promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
             promptLength = encoded.length;
 
             long start = System.currentTimeMillis();
             long promptStart = start;
             // Batch Process Prompt
             AbstractTensor last = DebugSupport.isDebug()
-                    ? batchForwardSlow(promptTokens, startPos, kvmem)
-                    : batchForward(promptTokens, startPos, kvmem);
+                ? batchForwardSlow(promptTokens, startPos, kvmem)
+                : batchForward(promptTokens, startPos, kvmem);
 
             promptBatchTime = System.currentTimeMillis() - start;
             float batchMsPerToken = Math.round((((double) promptBatchTime) / (double) promptLength));
@@ -352,11 +344,7 @@ public abstract class AbstractModel implements Generator {
 
             float genMsPerToken = 0;
             tokensGenerated = 0;
-            int next = sample(
-                    last.slice(last.shape().first() - 1),
-                    temperature,
-                    ThreadLocalRandom.current().nextFloat(),
-                    logits);
+            int next = sample(last.slice(last.shape().first() - 1), temperature, ThreadLocalRandom.current().nextFloat(), logits);
             last.close();
             try {
                 String c = tokenizer.decode(next);
@@ -408,16 +396,22 @@ public abstract class AbstractModel implements Generator {
             long end = System.currentTimeMillis();
 
             Response response = new Response(
-                    responseText.toString(),
-                    responseTextWithSpecialTokens.toString(),
-                    reason,
-                    promptLength,
-                    tokensGenerated,
-                    promptBatchTime,
-                    end - start);
-            logger.debug(String.format(
+                responseText.toString(),
+                responseTextWithSpecialTokens.toString(),
+                reason,
+                promptLength,
+                tokensGenerated,
+                promptBatchTime,
+                end - start
+            );
+            logger.debug(
+                String.format(
                     "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
-                    TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken));
+                    TimeUnit.MILLISECONDS.toSeconds(end - promptStart),
+                    batchMsPerToken,
+                    genMsPerToken
+                )
+            );
 
             return postProcessResponse(promptContext, response);
         }
@@ -429,9 +423,7 @@ public abstract class AbstractModel implements Generator {
      * @param response
      * @return */
     protected Generator.Response postProcessResponse(PromptContext promptContext, Generator.Response response) {
-        if (!tokenizer.getModel().hasToolSupport()
-                || !promptContext.hasTools()
-                || response.finishReason != FinishReason.STOP_TOKEN) {
+        if (!tokenizer.getModel().hasToolSupport() || !promptContext.hasTools() || response.finishReason != FinishReason.STOP_TOKEN) {
             return response;
         }
 
@@ -439,8 +431,7 @@ public abstract class AbstractModel implements Generator {
         List<Tool> tools = promptContext.getTools().get();
         boolean foundTool = false;
         for (Tool tool : tools) {
-            if (response.responseTextWithSpecialTokens.contains(
-                    tool.getFunction().getName())) {
+            if (response.responseTextWithSpecialTokens.contains(tool.getFunction().getName())) {
                 foundTool = true;
                 break;
             }
@@ -471,10 +462,7 @@ public abstract class AbstractModel implements Generator {
             }
 
             // Remove duplicates
-            toolCalls = toolCalls.stream()
-                    .sorted(Comparator.comparing(ToolCall::getName))
-                    .distinct()
-                    .collect(Collectors.toList());
+            toolCalls = toolCalls.stream().sorted(Comparator.comparing(ToolCall::getName)).distinct().collect(Collectors.toList());
 
             for (int i = 0; i < toolCalls.size(); i++) {
                 // Standard is to use 9 digit ids

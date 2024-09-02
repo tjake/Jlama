@@ -52,8 +52,9 @@ public class TensorOperationsProvider {
 
         if (!forcePanama) {
             try {
-                Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>)
-                        Class.forName("com.github.tjake.jlama.tensor.operations.NativeTensorOperations");
+                Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName(
+                    "com.github.tjake.jlama.tensor.operations.NativeTensorOperations"
+                );
                 pick = nativeClazz.getConstructor().newInstance();
                 // This should break of no shared lib found
             } catch (Throwable t) {
@@ -61,10 +62,9 @@ public class TensorOperationsProvider {
             }
         }
 
-        if (pick == null)
-            pick = MachineSpec.VECTOR_TYPE == MachineSpec.Type.NONE
-                    ? new NaiveTensorOperations()
-                    : new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
+        if (pick == null) pick = MachineSpec.VECTOR_TYPE == MachineSpec.Type.NONE
+            ? new NaiveTensorOperations()
+            : new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
         logger.info("Using {} ({})", pick.name(), "OffHeap");
         return pick;

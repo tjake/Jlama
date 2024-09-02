@@ -49,8 +49,9 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short> {
         super(DType.F16, shape, true);
         this.name = "tmp";
         this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                        Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                .asShortBuffer();
+            Ints.checkedCast(size() * dType().size()),
+            UnsafeDirectByteBuffer.CACHE_LINE_SIZE
+        ).asShortBuffer();
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -120,7 +121,7 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short> {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
         segment.asSlice(getMemorySegmentOffset(destOffset), length)
-                .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
+            .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
     }
 
     @Override
@@ -133,9 +134,6 @@ public class Float16BufferTensor extends AbstractTensor<ShortVector, Short> {
     public String toString() {
         short[] sample = new short[Math.min(10, b.remaining())];
         b.duplicate().get(sample);
-        return "Float16BufferTensor{" + "name='"
-                + name + '\'' + "shape="
-                + shape + ", b="
-                + Arrays.toString(sample) + "...}";
+        return "Float16BufferTensor{" + "name='" + name + '\'' + "shape=" + shape + ", b=" + Arrays.toString(sample) + "...}";
     }
 }

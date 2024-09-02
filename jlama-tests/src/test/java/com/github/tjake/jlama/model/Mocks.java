@@ -34,34 +34,34 @@ import java.util.Optional;
 
 public class Mocks {
 
-    public static MockModel makeModel(
-            int contextLength, int embeddingLength, int hiddenLength, int numberOfHeads, int numberOfLayers) {
-        return new MockModel(
-                new MockConfig(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfLayers, 1e5f));
+    public static MockModel makeModel(int contextLength, int embeddingLength, int hiddenLength, int numberOfHeads, int numberOfLayers) {
+        return new MockModel(new MockConfig(contextLength, embeddingLength, hiddenLength, numberOfHeads, numberOfLayers, 1e5f));
     }
 
     public static class MockConfig extends Config {
         public MockConfig(
-                int contextLength,
-                int embeddingLength,
-                int hiddenLength,
-                int numberOfHeads,
-                int numberOfLayers,
-                float layerNormEps) {
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfLayers,
+            float layerNormEps
+        ) {
             super(
-                    contextLength,
-                    embeddingLength,
-                    hiddenLength,
-                    numberOfHeads,
-                    numberOfHeads,
-                    numberOfLayers,
-                    layerNormEps,
-                    32000,
-                    1,
-                    List.of(2),
-                    ActivationFunction.Type.SILU,
-                    10000.0,
-                    1.0);
+                contextLength,
+                embeddingLength,
+                hiddenLength,
+                numberOfHeads,
+                numberOfHeads,
+                numberOfLayers,
+                layerNormEps,
+                32000,
+                1,
+                List.of(2),
+                ActivationFunction.Type.SILU,
+                10000.0,
+                1.0
+            );
         }
     }
 
@@ -125,14 +125,7 @@ public class Mocks {
 
     public static class MockModel extends AbstractModel {
         protected MockModel(Config c) {
-            super(
-                    InferenceType.INPUT_TO_EMBEDDING,
-                    c,
-                    new MockWeightLoader(),
-                    new MockTokenizer(),
-                    DType.F32,
-                    DType.F32,
-                    Optional.empty());
+            super(InferenceType.INPUT_TO_EMBEDDING, c, new MockWeightLoader(), new MockTokenizer(), DType.F32, DType.F32, Optional.empty());
         }
 
         @Override

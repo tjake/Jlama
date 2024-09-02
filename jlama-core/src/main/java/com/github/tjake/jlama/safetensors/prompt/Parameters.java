@@ -23,11 +23,7 @@ import java.util.*;
 /**
  * Parameters
  */
-@JsonPropertyOrder({
-    Parameters.JSON_PROPERTY_TYPE,
-    Parameters.JSON_PROPERTY_PROPERTIES,
-    Parameters.JSON_PROPERTY_REQUIRED
-})
+@JsonPropertyOrder({ Parameters.JSON_PROPERTY_TYPE, Parameters.JSON_PROPERTY_PROPERTIES, Parameters.JSON_PROPERTY_REQUIRED })
 public class Parameters extends PyMap {
 
     public static final String JSON_PROPERTY_TYPE = "type";
@@ -39,19 +35,18 @@ public class Parameters extends PyMap {
     private List<String> required;
 
     public Parameters(Map<String, Map<String, Object>> properties, List<String> required) {
-        super(ImmutableMap.<String, Object>builder()
+        super(
+            ImmutableMap.<String, Object>builder()
                 .put(JSON_PROPERTY_TYPE, "object")
                 .put(JSON_PROPERTY_PROPERTIES, properties)
                 .put(JSON_PROPERTY_REQUIRED, required)
-                .build());
+                .build()
+        );
         this.required = required;
     }
 
     public Parameters(Map<String, Map<String, Object>> properties) {
-        super(ImmutableMap.<String, Object>builder()
-                .put(JSON_PROPERTY_TYPE, "object")
-                .put(JSON_PROPERTY_PROPERTIES, properties)
-                .build());
+        super(ImmutableMap.<String, Object>builder().put(JSON_PROPERTY_TYPE, "object").put(JSON_PROPERTY_PROPERTIES, properties).build());
         this.required = null;
     }
 

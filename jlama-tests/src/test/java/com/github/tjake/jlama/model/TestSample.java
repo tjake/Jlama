@@ -43,11 +43,11 @@ public class TestSample {
         // Checks if the model supports chat prompting and adds prompt in the expected format for this model
         if (m.promptSupport().isPresent()) {
             promptContext = m.promptSupport()
-                    .get()
-                    .builder()
-                    .addSystemMessage("You are a helpful chatbot who writes short responses.")
-                    .addUserMessage(prompt)
-                    .build();
+                .get()
+                .builder()
+                .addSystemMessage("You are a helpful chatbot who writes short responses.")
+                .addUserMessage(prompt)
+                .build();
         } else {
             promptContext = PromptContext.of(prompt);
         }

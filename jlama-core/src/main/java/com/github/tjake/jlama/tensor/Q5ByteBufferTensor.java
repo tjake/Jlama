@@ -115,15 +115,13 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
         this.blockF = new FloatBufferTensor(makeBlockShape(shape));
         this.b5 = new int[Ints.checkedCast(makeBlockShape(shape).size())];
         this.name = "tmp";
-        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                        Ints.checkedCast(size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                .order(ByteOrder.LITTLE_ENDIAN);
+        this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(Ints.checkedCast(size() / 2), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
+            .order(ByteOrder.LITTLE_ENDIAN);
 
         this.segment = MemorySegment.ofBuffer(b);
     }
 
-    public Q5ByteBufferTensor(
-            String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, TensorShape shape, boolean cacheSlices) {
+    public Q5ByteBufferTensor(String name, ByteBuffer b, FloatBufferTensor blockF, int[] b5, TensorShape shape, boolean cacheSlices) {
         super(DType.Q5, shape, cacheSlices);
         Preconditions.checkArgument(b.isDirect(), "Must use direct buffers");
         this.name = name;
@@ -145,7 +143,11 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
     @Override
     protected AbstractTensor make(int offset, int length, TensorShape shape, boolean cacheSlices) {
         FloatBufferTensor newBlockF = (FloatBufferTensor) this.blockF.make(
-                (int) (offset * I_BLOCK_SIZE), (int) (length * I_BLOCK_SIZE), makeBlockShape(shape), cacheSlices);
+            (int) (offset * I_BLOCK_SIZE),
+            (int) (length * I_BLOCK_SIZE),
+            makeBlockShape(shape),
+            cacheSlices
+        );
         return new Q5ByteBufferTensor(name, b.slice(offset, length), newBlockF, b5, shape, cacheSlices);
     }
 
@@ -198,7 +200,7 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
         Preconditions.checkArgument(this.dType == src.dType, "different types");
         Preconditions.checkArgument(!b.isReadOnly(), "Read-only");
         segment.asSlice(getMemorySegmentOffset(destOffset), length)
-                .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
+            .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length));
     }
 
     @Override
@@ -224,9 +226,6 @@ public class Q5ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
     public String toString() {
         byte[] sample = new byte[Math.min(10, b.remaining())];
         b.duplicate().get(sample);
-        return "Q5BufferTensor{" + "name='"
-                + name + '\'' + "shape="
-                + shape + ", b="
-                + Arrays.toString(sample) + "...}";
+        return "Q5BufferTensor{" + "name='" + name + '\'' + "shape=" + shape + ", b=" + Arrays.toString(sample) + "...}";
     }
 }

@@ -31,23 +31,25 @@ public class MixtralModel extends MistralModel {
     private static final Logger logger = LoggerFactory.getLogger(MixtralModel.class);
 
     public MixtralModel(
-            Config config,
-            WeightLoader weights,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        Config config,
+        WeightLoader weights,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(InferenceType.FULL_GENERATION, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
     public MixtralModel(
-            InferenceType inferenceType,
-            Config config,
-            WeightLoader weights,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        InferenceType inferenceType,
+        Config config,
+        WeightLoader weights,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
@@ -71,11 +73,12 @@ public class MixtralModel extends MistralModel {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
-                    this,
-                    weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType));
+                this,
+                weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType)
+            );
 
             prefix = base + "block_sparse_moe.";
 
@@ -85,36 +88,30 @@ public class MixtralModel extends MistralModel {
 
             for (int e = 0; e < mixtralConfig.numberOfExperts; e++) {
                 String expertPrefix = prefix + "experts." + e + ".";
-                expertGateWeights[e] =
-                        weights.load(expertPrefix + "w1.weight", c.offset()).quantize(qType);
+                expertGateWeights[e] = weights.load(expertPrefix + "w1.weight", c.offset()).quantize(qType);
                 expertDownWeights[e] = weights.load(expertPrefix + "w2.weight").quantize(qType);
-                expertUpWeights[e] =
-                        weights.load(expertPrefix + "w3.weight", c.offset()).quantize(qType);
+                expertUpWeights[e] = weights.load(expertPrefix + "w3.weight", c.offset()).quantize(qType);
             }
 
             MoEBlock moe = new MoEBlock(
-                    this,
-                    mixtralConfig.numberOfExperts,
-                    mixtralConfig.numberOfExpertsPerToken,
-                    c.activationFunction,
-                    weights.load(prefix + "gate.weight", c.offset()).quantize(qType),
-                    expertGateWeights, // w1
-                    expertDownWeights, // w2
-                    expertUpWeights); // w3
+                this,
+                mixtralConfig.numberOfExperts,
+                mixtralConfig.numberOfExpertsPerToken,
+                c.activationFunction,
+                weights.load(prefix + "gate.weight", c.offset()).quantize(qType),
+                expertGateWeights, // w1
+                expertDownWeights, // w2
+                expertUpWeights
+            ); // w3
 
             transformerBlocks[i] = new TransformerBlock(
-                    this,
-                    i,
-                    new RMSNorm(
-                            this,
-                            weights.load(base + "input_layernorm.weight", c.offset())
-                                    .quantize(qType)),
-                    attention,
-                    new RMSNorm(
-                            this,
-                            weights.load(base + "post_attention_layernorm.weight", c.offset())
-                                    .quantize(qType)),
-                    moe);
+                this,
+                i,
+                new RMSNorm(this, weights.load(base + "input_layernorm.weight", c.offset()).quantize(qType)),
+                attention,
+                new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight", c.offset()).quantize(qType)),
+                moe
+            );
         });
 
         return transformerBlocks;

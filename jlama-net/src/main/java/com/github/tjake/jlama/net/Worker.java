@@ -54,41 +54,40 @@ public class Worker implements Closeable {
     private final RegisterResponse registerResponse;
 
     public Worker(
-            File modelPrefix,
-            String host,
-            int port,
-            File workingDirectory,
-            DType workingMemoryType,
-            DType workingQuantizationType,
-            Optional<DType> modelQuantization,
-            Optional<String> optionalWorkerId) {
-        Channel channel =
-                ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+        File modelPrefix,
+        String host,
+        int port,
+        File workingDirectory,
+        DType workingMemoryType,
+        DType workingQuantizationType,
+        Optional<DType> modelQuantization,
+        Optional<String> optionalWorkerId
+    ) {
+        Channel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
 
-        this.workerId =
-                optionalWorkerId.map(s -> new UUID(s.hashCode(), s.hashCode())).orElse(UUID.randomUUID());
+        this.workerId = optionalWorkerId.map(s -> new UUID(s.hashCode(), s.hashCode())).orElse(UUID.randomUUID());
         this.client = JlamaServiceGrpc.newStub(channel);
         this.blockingClient = JlamaServiceGrpc.newBlockingStub(channel);
-        this.workerIdBytes = ByteString.copyFrom(ByteBuffer.allocate(128)
-                .putLong(workerId.getMostSignificantBits())
-                .putLong(workerId.getLeastSignificantBits())
-                .flip());
-        this.registerResponse = blockingClient.register(
-                RegisterRequest.newBuilder().setWorkerid(workerIdBytes).build());
+        this.workerIdBytes = ByteString.copyFrom(
+            ByteBuffer.allocate(128).putLong(workerId.getMostSignificantBits()).putLong(workerId.getLeastSignificantBits()).flip()
+        );
+        this.registerResponse = blockingClient.register(RegisterRequest.newBuilder().setWorkerid(workerIdBytes).build());
         logger.info(
-                "Registered worker {} with offset {} and length {}",
-                workerId,
-                registerResponse.getOffset(),
-                registerResponse.getLength());
+            "Registered worker {} with offset {} and length {}",
+            workerId,
+            registerResponse.getOffset(),
+            registerResponse.getLength()
+        );
         this.model = loadModel(
-                AbstractModel.InferenceType.FORWARD_PASS,
-                modelPrefix,
-                workingDirectory,
-                workingMemoryType,
-                workingQuantizationType,
-                modelQuantization,
-                Optional.empty(),
-                Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength())));
+            AbstractModel.InferenceType.FORWARD_PASS,
+            modelPrefix,
+            workingDirectory,
+            workingMemoryType,
+            workingQuantizationType,
+            modelQuantization,
+            Optional.empty(),
+            Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength()))
+        );
     }
 
     @Override
@@ -111,8 +110,9 @@ public class Worker implements Closeable {
 
         public CompletableFuture<CombineResponse> request(CombineRequest request) {
             CompletableFuture<CombineResponse> f = new CompletableFuture<>();
-            if (!activeRequestFuture.compareAndSet(null, f))
-                throw new IllegalStateException("active future still outstanding for " + session);
+            if (!activeRequestFuture.compareAndSet(null, f)) throw new IllegalStateException(
+                "active future still outstanding for " + session
+            );
 
             requestStreamObserver.onNext(request);
 
@@ -158,9 +158,7 @@ public class Worker implements Closeable {
         }
 
         private int getNextRequestCount(UUID session) {
-            return requestCount
-                    .computeIfAbsent(session, s -> new AtomicInteger(0))
-                    .incrementAndGet();
+            return requestCount.computeIfAbsent(session, s -> new AtomicInteger(0)).incrementAndGet();
         }
 
         private CombineObserver getCombineResponseStream(UUID session) {
@@ -181,48 +179,42 @@ public class Worker implements Closeable {
 
             logger.info("Processing token {} at position {} for session {}", token, position, session);
 
-            AbstractTensor output = model.forward(
-                    token,
-                    position,
-                    kvBufferCache.getKvBuffer(session),
-                    Optional.of((a, b) -> {
-                        CombineRequest nr = CombineRequest.newBuilder()
-                                .setUuid(generateResponse.getSession())
-                                .setWorkerid(workerIdBytes)
-                                .setLayer(getNextRequestCount(session))
-                                .setSumSq(a)
-                                .setSum(b)
-                                .build();
+            AbstractTensor output = model.forward(token, position, kvBufferCache.getKvBuffer(session), Optional.of((a, b) -> {
+                CombineRequest nr = CombineRequest.newBuilder()
+                    .setUuid(generateResponse.getSession())
+                    .setWorkerid(workerIdBytes)
+                    .setLayer(getNextRequestCount(session))
+                    .setSumSq(a)
+                    .setSum(b)
+                    .build();
 
-                        CombineResponse combineResponse =
-                                getCombineResponseStream(session).request(nr).join();
-                        return Pair.create(combineResponse.getSumSq(), combineResponse.getSum());
-                    }),
-                    Optional.of(t -> {
-                        CombineRequest.Builder nrb = CombineRequest.newBuilder()
-                                .setUuid(generateResponse.getSession())
-                                .setWorkerid(workerIdBytes)
-                                .setLayer(getNextRequestCount(session));
-                        for (int i = 0; i < t.size(); i++) nrb = nrb.addTensor(getTensorBytes(t.get(i)));
+                CombineResponse combineResponse = getCombineResponseStream(session).request(nr).join();
+                return Pair.create(combineResponse.getSumSq(), combineResponse.getSum());
+            }), Optional.of(t -> {
+                CombineRequest.Builder nrb = CombineRequest.newBuilder()
+                    .setUuid(generateResponse.getSession())
+                    .setWorkerid(workerIdBytes)
+                    .setLayer(getNextRequestCount(session));
+                for (int i = 0; i < t.size(); i++)
+                    nrb = nrb.addTensor(getTensorBytes(t.get(i)));
 
-                        CombineResponse combineResponse = getCombineResponseStream(session)
-                                .request(nrb.build())
-                                .join();
+                CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
 
-                        for (int i = 0; i < t.size(); i++)
-                            t.get(i)
-                                    .getMemorySegment()
-                                    .copyFrom(MemorySegment.ofBuffer(combineResponse
-                                            .getTensor(i)
-                                            .asReadOnlyByteBuffer()
-                                            .order(ByteOrder.LITTLE_ENDIAN)));
-                    }));
+                for (int i = 0; i < t.size(); i++)
+                    t.get(i)
+                        .getMemorySegment()
+                        .copyFrom(
+                            MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
+                        );
+            }));
 
-            outputStream.onNext(GenerateRequest.newBuilder()
+            outputStream.onNext(
+                GenerateRequest.newBuilder()
                     .setSession(generateResponse.getSession())
                     .setWorkerid(workerIdBytes)
                     .setTensor(getTensorBytes(output))
-                    .build());
+                    .build()
+            );
 
             output.close();
         }

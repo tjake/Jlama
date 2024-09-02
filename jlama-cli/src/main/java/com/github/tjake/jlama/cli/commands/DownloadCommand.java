@@ -31,21 +31,15 @@ import picocli.CommandLine;
 
 @CommandLine.Command(name = "download", description = "Downloads the specified model")
 public class DownloadCommand extends JlamaCli {
-    @CommandLine.Option(
-            names = {"-d", "--model-directory"},
-            description = "The directory to download the model to (default: ${DEFAULT-VALUE})",
-            defaultValue = "models")
+    @CommandLine.Option(names = { "-d",
+        "--model-directory" }, description = "The directory to download the model to (default: ${DEFAULT-VALUE})", defaultValue = "models")
     protected File modelDirectory = new File("models");
 
-    @CommandLine.Option(
-            names = {"-b", "--branch"},
-            description = "The branch to download from (default: ${DEFAULT-VALUE})",
-            defaultValue = "main")
+    @CommandLine.Option(names = { "-b",
+        "--branch" }, description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
     protected String branch = "main";
 
-    @CommandLine.Option(
-            names = {"-t", "--auth-token"},
-            description = "The auth token to use for downloading the model (if required)")
+    @CommandLine.Option(names = { "-t", "--auth-token" }, description = "The auth token to use for downloading the model (if required)")
     protected String authToken = null;
 
     @CommandLine.Parameters(index = "0", arity = "1", description = "The model owner/name pair to download")
@@ -74,33 +68,32 @@ public class DownloadCommand extends JlamaCli {
 
         try {
             SafeTensorSupport.maybeDownloadModel(
-                    modelDirectory.getAbsolutePath(),
-                    Optional.ofNullable(owner),
-                    name,
-                    Optional.ofNullable(URLEncoder.encode(branch)),
-                    Optional.ofNullable(authToken),
-                    Optional.of((n, c, t) -> {
-                        if (progressRef.get() == null
-                                || !progressRef.get().getTaskName().equals(n)) {
-                            ProgressBarBuilder builder = new ProgressBarBuilder()
-                                    .setTaskName(n)
-                                    .setInitialMax(t)
-                                    .setStyle(ProgressBarStyle.ASCII);
+                modelDirectory.getAbsolutePath(),
+                Optional.ofNullable(owner),
+                name,
+                Optional.ofNullable(URLEncoder.encode(branch)),
+                Optional.ofNullable(authToken),
+                Optional.of((n, c, t) -> {
+                    if (progressRef.get() == null || !progressRef.get().getTaskName().equals(n)) {
+                        ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(n)
+                            .setInitialMax(t)
+                            .setStyle(ProgressBarStyle.ASCII);
 
-                            if (t > 1000000) {
-                                builder.setUnit("MB", 1000000);
-                            } else if (t > 1000) {
-                                builder.setUnit("KB", 1000);
-                            } else {
-                                builder.setUnit("B", 1);
-                            }
-
-                            progressRef.set(builder.build());
+                        if (t > 1000000) {
+                            builder.setUnit("MB", 1000000);
+                        } else if (t > 1000) {
+                            builder.setUnit("KB", 1000);
+                        } else {
+                            builder.setUnit("B", 1);
                         }
 
-                        progressRef.get().stepTo(c);
-                        Uninterruptibles.sleepUninterruptibly(150, TimeUnit.MILLISECONDS);
-                    }));
+                        progressRef.set(builder.build());
+                    }
+
+                    progressRef.get().stepTo(c);
+                    Uninterruptibles.sleepUninterruptibly(150, TimeUnit.MILLISECONDS);
+                })
+            );
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);

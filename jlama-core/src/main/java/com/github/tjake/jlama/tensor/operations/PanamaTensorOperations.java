@@ -51,8 +51,17 @@ public final class PanamaTensorOperations implements TensorOperations {
     static final IntVector BF16_BYTE_SHIFT_128 = IntVector.broadcast(IntVector.SPECIES_128, 16);
     static final FloatVector F32_ROUND_UP_128 = FloatVector.broadcast(FloatVector.SPECIES_128, 0.5f);
 
-    static final VectorMask<Byte> BYTE_MASK_32 =
-            VectorMask.fromValues(ByteVector.SPECIES_64, true, true, true, true, false, false, false, false);
+    static final VectorMask<Byte> BYTE_MASK_32 = VectorMask.fromValues(
+        ByteVector.SPECIES_64,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false
+    );
 
     private final MachineSpec.Type vectorType;
 
@@ -84,14 +93,15 @@ public final class PanamaTensorOperations implements TensorOperations {
      */
     @Override
     public void batchDotProduct(
-            AbstractTensor result,
-            AbstractTensor a,
-            AbstractTensor b,
-            int aColumnOffset,
-            int bColumnOffset,
-            int columnLength,
-            int bRowOffset,
-            int rowChunkSize) {
+        AbstractTensor result,
+        AbstractTensor a,
+        AbstractTensor b,
+        int aColumnOffset,
+        int bColumnOffset,
+        int columnLength,
+        int bRowOffset,
+        int rowChunkSize
+    ) {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
         Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
         // Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
@@ -103,37 +113,32 @@ public final class PanamaTensorOperations implements TensorOperations {
         int N = rowChunkSize; // b.shape().dim(0);
         int K = columnLength; // a.shape().dim(1);
 
-        Gemmer gemm =
-                switch (a.dType()) {
-                    case F32 -> switch (b.dType()) {
-                        case F32 -> new GemmerF32(K, a, b, result, aColumnOffset, bColumnOffset);
-                        case BF16 -> new GemmerF32BF16(K, a, b, result, aColumnOffset, bColumnOffset);
-                        case Q4 -> switch (vectorType) {
-                            case AVX_256 -> new GemmerF32Q4_256(K, a, b, result, aColumnOffset, bColumnOffset);
-                            case AVX_512 -> new GemmerF32Q4_512(K, a, b, result, aColumnOffset, bColumnOffset);
-                            default -> throw new UnsupportedOperationException(vectorType.name());
-                        };
-                        default -> throw new UnsupportedOperationException(
-                                b.dType().name());
-                    };
-                    case I8 -> switch (b.dType()) {
-                        case Q4 -> switch (vectorType) {
-                            case AVX_256 -> new GemmerI8Q4_256(K, a, b, result, aColumnOffset, bColumnOffset);
-                            case AVX_512 -> new GemmerI8Q4_512(K, a, b, result, aColumnOffset, bColumnOffset);
-                            case ARM_128 -> new GemmerI8Q4_arm(K, a, b, result, aColumnOffset, bColumnOffset);
-                            default -> throw new UnsupportedOperationException(vectorType.name());
-                        };
-                        default -> throw new UnsupportedOperationException(
-                                b.dType().name());
-                    };
-                    case BF16 -> switch (b.dType()) {
-                        case BF16 -> new GemmerBF16(K, a, b, result, aColumnOffset, bColumnOffset);
-                        default -> throw new UnsupportedOperationException(
-                                b.dType().name());
-                    };
-                    default -> throw new UnsupportedOperationException(
-                            a.dType().name() + " " + b.dType().name());
+        Gemmer gemm = switch (a.dType()) {
+            case F32 -> switch (b.dType()) {
+                case F32 -> new GemmerF32(K, a, b, result, aColumnOffset, bColumnOffset);
+                case BF16 -> new GemmerF32BF16(K, a, b, result, aColumnOffset, bColumnOffset);
+                case Q4 -> switch (vectorType) {
+                    case AVX_256 -> new GemmerF32Q4_256(K, a, b, result, aColumnOffset, bColumnOffset);
+                    case AVX_512 -> new GemmerF32Q4_512(K, a, b, result, aColumnOffset, bColumnOffset);
+                    default -> throw new UnsupportedOperationException(vectorType.name());
                 };
+                default -> throw new UnsupportedOperationException(b.dType().name());
+            };
+            case I8 -> switch (b.dType()) {
+                case Q4 -> switch (vectorType) {
+                    case AVX_256 -> new GemmerI8Q4_256(K, a, b, result, aColumnOffset, bColumnOffset);
+                    case AVX_512 -> new GemmerI8Q4_512(K, a, b, result, aColumnOffset, bColumnOffset);
+                    case ARM_128 -> new GemmerI8Q4_arm(K, a, b, result, aColumnOffset, bColumnOffset);
+                    default -> throw new UnsupportedOperationException(vectorType.name());
+                };
+                default -> throw new UnsupportedOperationException(b.dType().name());
+            };
+            case BF16 -> switch (b.dType()) {
+                case BF16 -> new GemmerBF16(K, a, b, result, aColumnOffset, bColumnOffset);
+                default -> throw new UnsupportedOperationException(b.dType().name());
+            };
+            default -> throw new UnsupportedOperationException(a.dType().name() + " " + b.dType().name());
+        };
 
         gemm.matmul(0, M, bRowOffset, bRowOffset + N);
     }
@@ -211,27 +216,27 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     // Convert the first 4 bits into bytes
                     var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                            .sub(Q4_BYTE_SUB_64)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                            .mul(scale);
+                        .sub(Q4_BYTE_SUB_64)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
 
                     var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                            .sub(Q4_BYTE_SUB_64)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                            .mul(scale);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                        .sub(Q4_BYTE_SUB_64)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
 
                     // Convert the first 4 bits into bytes
                     var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                            .sub(Q4_BYTE_SUB_64)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                            .mul(scale);
+                        .sub(Q4_BYTE_SUB_64)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
 
                     var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                            .sub(Q4_BYTE_SUB_64)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                            .mul(scale);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                        .sub(Q4_BYTE_SUB_64)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                        .mul(scale);
 
                     acc = af0.fma(low0, acc);
                     acc = af1.fma(low1, acc);
@@ -256,10 +261,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                 // FloatVector acc3 = FloatVector.zero(FloatVector.SPECIES_256);
 
                 for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
-                    FloatVector scale0 =
-                            FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 0, boffset));
-                    FloatVector scale1 =
-                            FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 1, boffset));
+                    FloatVector scale0 = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 0, boffset));
+                    FloatVector scale1 = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 1, boffset));
                     // FloatVector scale2 = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 2,
                     // boffset));
                     // FloatVector scale3 = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 3,
@@ -279,27 +282,27 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale0);
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale0);
 
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale0);
 
                         // Convert the first 4 bits into bytes
                         var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale0);
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale0);
 
                         var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale0);
 
                         acc0 = af0.fma(low0, acc0);
                         acc0 = af1.fma(low1, acc0);
@@ -314,27 +317,27 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale1);
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale1);
 
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale1);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale1);
 
                         // Convert the first 4 bits into bytes
                         var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale1);
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale1);
 
                         var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
-                                .mul(scale1);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                            .sub(Q4_BYTE_SUB_64)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
+                            .mul(scale1);
 
                         acc1 = af0.fma(low0, acc1);
                         acc1 = af1.fma(low1, acc1);
@@ -346,66 +349,66 @@ public final class PanamaTensorOperations implements TensorOperations {
                         // Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
                         var bf0 = b.getVector(ByteVector.SPECIES_64, j + 2, boffset);
                         var bf1 = b.getVector(ByteVector.SPECIES_64, j + 2, boffset + 16);
-
+                    
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale2);
-
+                    
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
                                 .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale2);
-
+                    
                         // Convert the first 4 bits into bytes
                         var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale2);
-
+                    
                         var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
                                 .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale2);
-
+                    
                         acc2 = af0.fma(low0, acc2);
                         acc2 = af1.fma(low1, acc2);
                         acc2 = af2.fma(high0, acc2);
                         acc2 = af3.fma(high1, acc2);
                     }
-
+                    
                     {
                         // Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
                         var bf0 = b.getVector(ByteVector.SPECIES_64, j + 3, boffset);
                         var bf1 = b.getVector(ByteVector.SPECIES_64, j + 3, boffset + 16);
-
+                    
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale3);
-
+                    
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
                                 .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale3);
-
+                    
                         // Convert the first 4 bits into bytes
                         var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale3);
-
+                    
                         var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
                                 .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
                                 .sub(Q4_BYTE_SUB_64)
                                 .convertShape(VectorOperators.B2F, FloatVector.SPECIES_256, 0)
                                 .mul(scale3);
-
+                    
                         acc3 = af0.fma(low0, acc3);
                         acc3 = af1.fma(low1, acc3);
                         acc3 = af2.fma(high0, acc3);
@@ -490,15 +493,15 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     // Convert the first 4 bits into bytes
                     var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                            .mul(scale);
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                        .mul(scale);
 
                     var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                            .mul(scale);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                        .mul(scale);
 
                     acc = af0.fma(low0, acc);
                     acc = af1.fma(high0, acc);
@@ -531,15 +534,15 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     // Convert the first 4 bits into bytes
                     var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                            .mul(scale);
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                        .mul(scale);
 
                     var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                            .mul(scale);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                        .mul(scale);
 
                     // BLOCK_SIZE Floats
                     var af00 = a.getVector(FloatVector.SPECIES_512, i, aoffset);
@@ -591,21 +594,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     {
                         // Make 16 bytes -> 32 4bit -> 32 bytes -> 32 32F
-                        var scale0 =
-                                FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 0, boffset));
+                        var scale0 = FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 0, boffset));
                         var bf0 = b.getVector(ByteVector.SPECIES_128, j + 0, boffset);
 
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         acc0 = af0.fma(low0, acc0);
                         acc0 = af1.fma(high0, acc0);
@@ -613,21 +615,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     {
                         // Make 16 bytes -> 32 4bit -> 32 bytes -> 32 32F
-                        var scale0 =
-                                FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 1, boffset));
+                        var scale0 = FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 1, boffset));
                         var bf0 = b.getVector(ByteVector.SPECIES_128, j + 1, boffset);
 
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         acc1 = af0.fma(low0, acc1);
                         acc1 = af1.fma(high0, acc1);
@@ -635,21 +636,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     {
                         // Make 16 bytes -> 32 4bit -> 32 bytes -> 32 32F
-                        var scale0 =
-                                FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 2, boffset));
+                        var scale0 = FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 2, boffset));
                         var bf0 = b.getVector(ByteVector.SPECIES_128, j + 2, boffset);
 
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         acc2 = af0.fma(low0, acc2);
                         acc2 = af1.fma(high0, acc2);
@@ -657,21 +657,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                     {
                         // Make 16 bytes -> 32 4bit -> 32 bytes -> 32 32F
-                        var scale0 =
-                                FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 3, boffset));
+                        var scale0 = FloatVector.broadcast(FloatVector.SPECIES_512, b.getFactorForIndex(j + 3, boffset));
                         var bf0 = b.getVector(ByteVector.SPECIES_128, j + 3, boffset);
 
                         // Convert the first 4 bits into bytes
                         var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
-                                .mul(scale0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2F, FloatVector.SPECIES_512, 0)
+                            .mul(scale0);
 
                         acc3 = af0.fma(low0, acc3);
                         acc3 = af1.fma(high0, acc3);
@@ -695,8 +694,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         final Q8ByteBufferTensor a;
         final Q4ByteBufferTensor b;
 
-        GemmerI8Q4_arm(
-                int k, AbstractTensor ta, AbstractTensor tb, AbstractTensor c, int aColumnOffset, int bColumnOffset) {
+        GemmerI8Q4_arm(int k, AbstractTensor ta, AbstractTensor tb, AbstractTensor c, int aColumnOffset, int bColumnOffset) {
             super(k, ta, tb, c, aColumnOffset, bColumnOffset);
 
             this.a = (Q8ByteBufferTensor) ta;
@@ -752,15 +750,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                 // First take the scaling factors of both tensors and multiply them in SIMD
                 for (int bi = 0; bi < blocksNeeded; bi += FloatVector.SPECIES_128.length()) {
                     final var ablock = a.getBlockF()
-                            .getVector(FloatVector.SPECIES_128, i, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * aoffset));
+                        .getVector(FloatVector.SPECIES_128, i, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * aoffset));
                     final var bblock = b.getBlockF()
-                            .getVector(FloatVector.SPECIES_128, j, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * boffset));
+                        .getVector(FloatVector.SPECIES_128, j, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * boffset));
 
                     final var scales = ablock.mul(bblock);
                     // Now for each scalar fetch the corresponding block of data and dot product them
-                    for (int k = 0;
-                            k < FloatVector.SPECIES_128.length();
-                            k++, aoffset += blockSize, boffset += blockSize) {
+                    for (int k = 0; k < FloatVector.SPECIES_128.length(); k++, aoffset += blockSize, boffset += blockSize) {
                         var scale = FloatVector.broadcast(FloatVector.SPECIES_128, scales.lane(k));
 
                         var ab0 = a.getVector(ByteVector.SPECIES_128, i, aoffset);
@@ -776,20 +772,18 @@ public final class PanamaTensorOperations implements TensorOperations {
                         var bf1 = b.getVector(ByteVector.SPECIES_64, j, boffset + 16);
 
                         // Convert the first 4 bits into bytes
-                        var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64);
+                        var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
                         var high = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                            .sub(Q4_BYTE_SUB_64);
 
                         var low0 = low.castShape(ShortVector.SPECIES_128, 0);
                         var high0 = high.castShape(ShortVector.SPECIES_128, 0);
 
-                        var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64);
+                        var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
                         var nhigh = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                                .sub(Q4_BYTE_SUB_64);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                            .sub(Q4_BYTE_SUB_64);
 
                         var low2 = nlow.castShape(ShortVector.SPECIES_128, 0);
                         var high2 = nhigh.castShape(ShortVector.SPECIES_128, 0);
@@ -801,10 +795,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                         tacc = tacc.add(af2.mul(high0));
                         tacc = tacc.add(af3.mul(high2));
 
-                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0)
-                                .mul(scale));
-                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1)
-                                .mul(scale));
+                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0).mul(scale));
+                        acc = acc.add(tacc.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1).mul(scale));
                     }
                 }
 
@@ -822,8 +814,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         final Q8ByteBufferTensor a;
         final Q4ByteBufferTensor b;
 
-        GemmerI8Q4_256(
-                int k, AbstractTensor ta, AbstractTensor tb, AbstractTensor c, int aColumnOffset, int bColumnOffset) {
+        GemmerI8Q4_256(int k, AbstractTensor ta, AbstractTensor tb, AbstractTensor c, int aColumnOffset, int bColumnOffset) {
             super(k, ta, tb, c, aColumnOffset, bColumnOffset);
 
             this.a = (Q8ByteBufferTensor) ta;
@@ -879,45 +870,41 @@ public final class PanamaTensorOperations implements TensorOperations {
                 // First take the scaling factors of both tensors and multiply them in SIMD
                 for (int bi = 0; bi < blocksNeeded; bi += FloatVector.SPECIES_256.length()) {
                     final var ablock = a.getBlockF()
-                            .getVector(FloatVector.SPECIES_256, i, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * aoffset));
+                        .getVector(FloatVector.SPECIES_256, i, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * aoffset));
                     final var bblock = b.getBlockF()
-                            .getVector(FloatVector.SPECIES_256, j, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * boffset));
+                        .getVector(FloatVector.SPECIES_256, j, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * boffset));
 
                     final var scales = ablock.mul(bblock);
                     // Now for each scalar fetch the corresponding block of data and dot product them
-                    for (int k = 0;
-                            k < FloatVector.SPECIES_256.length();
-                            k++, aoffset += blockSize, boffset += blockSize) {
+                    for (int k = 0; k < FloatVector.SPECIES_256.length(); k++, aoffset += blockSize, boffset += blockSize) {
                         final var scale = FloatVector.broadcast(FloatVector.SPECIES_256, scales.lane(k));
 
                         final var af0 = a.getVector(ByteVector.SPECIES_128, i, aoffset)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                .reinterpretAsShorts();
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                            .reinterpretAsShorts();
 
                         final var af1 = a.getVector(ByteVector.SPECIES_128, i, aoffset + 16)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                .reinterpretAsShorts();
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                            .reinterpretAsShorts();
 
                         // Make 16 bytes -> 32 4bit -> 32 bytes -> 32 32F
                         final var bf0 = b.getVector(ByteVector.SPECIES_128, j, boffset);
 
                         // Convert the first 4 bits into bytes
                         final var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                         final var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                         var isum = low0.mul(af0);
                         isum = isum.add(high0.mul(af1));
 
-                        final var r0 = isum.convertShape(VectorOperators.S2F, FloatVector.SPECIES_256, 0)
-                                .reinterpretAsFloats();
-                        final var r1 = isum.convertShape(VectorOperators.S2F, FloatVector.SPECIES_256, 1)
-                                .reinterpretAsFloats();
+                        final var r0 = isum.convertShape(VectorOperators.S2F, FloatVector.SPECIES_256, 0).reinterpretAsFloats();
+                        final var r1 = isum.convertShape(VectorOperators.S2F, FloatVector.SPECIES_256, 1).reinterpretAsFloats();
 
                         acc = scale.fma(r0, acc);
                         acc = scale.fma(r1, acc);
@@ -981,27 +968,28 @@ public final class PanamaTensorOperations implements TensorOperations {
                 // Now for each scalar fetch the corresponding block of data and dot product them
                 for (int l = 0; l < k; l += blockSize, aoffset += blockSize, boffset += blockSize) {
                     final var scale = FloatVector.broadcast(
-                            FloatVector.SPECIES_512, a.getFactorForIndex(i, aoffset) * b.getFactorForIndex(j, boffset));
+                        FloatVector.SPECIES_512,
+                        a.getFactorForIndex(i, aoffset) * b.getFactorForIndex(j, boffset)
+                    );
 
                     final var af = a.getVector(ByteVector.SPECIES_256, i, aoffset)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0)
-                            .reinterpretAsShorts();
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0)
+                        .reinterpretAsShorts();
 
                     // Make 16 bytes -> 32 4bit -> 32 bytes -> 32 32F
                     final var bf0 = b.getVector(ByteVector.SPECIES_128, j, boffset);
 
                     // Convert the first 4 bits into bytes
                     final var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                     final var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
-                    var isum = low0.mul(af.castShape(ShortVector.SPECIES_256, 0))
-                            .add(high0.mul(af.castShape(ShortVector.SPECIES_256, 1)));
+                    var isum = low0.mul(af.castShape(ShortVector.SPECIES_256, 0)).add(high0.mul(af.castShape(ShortVector.SPECIES_256, 1)));
 
                     var r0 = isum.convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
@@ -1028,21 +1016,15 @@ public final class PanamaTensorOperations implements TensorOperations {
                 // First take the scaling factors of both tensors and multiply them in SIMD
                 for (int bi = 0; bi < blocksNeeded; bi += FloatVector.SPECIES_512.length()) {
                     // Now for each scalar fetch the corresponding block of data and dot product them
-                    for (int k = 0;
-                            k < FloatVector.SPECIES_512.length();
-                            k++, aoffset += blockSize, boffset += blockSize) {
+                    for (int k = 0; k < FloatVector.SPECIES_512.length(); k++, aoffset += blockSize, boffset += blockSize) {
                         float as = a.getFactorForIndex(i + 0, aoffset);
-                        final var scale0 = FloatVector.broadcast(
-                                FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 0, boffset));
-                        final var scale1 = FloatVector.broadcast(
-                                FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 1, boffset));
-                        final var scale2 = FloatVector.broadcast(
-                                FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 2, boffset));
-                        final var scale3 = FloatVector.broadcast(
-                                FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 3, boffset));
+                        final var scale0 = FloatVector.broadcast(FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 0, boffset));
+                        final var scale1 = FloatVector.broadcast(FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 1, boffset));
+                        final var scale2 = FloatVector.broadcast(FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 2, boffset));
+                        final var scale3 = FloatVector.broadcast(FloatVector.SPECIES_512, as * b.getFactorForIndex(j + 3, boffset));
 
                         var af = a.getVector(ByteVector.SPECIES_256, i, aoffset)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
                         var af0 = af.castShape(ShortVector.SPECIES_256, 0);
                         var af1 = af.castShape(ShortVector.SPECIES_256, 1);
 
@@ -1054,48 +1036,56 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                         // Convert the first 4 bits into bytes
                         final var r0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                .mul(af0)
-                                .add(bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                        .sub(Q4_BYTE_SUB_128)
-                                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                        .mul(af1))
-                                .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                            .mul(af0)
+                            .add(
+                                bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
+                                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                                    .sub(Q4_BYTE_SUB_128)
+                                    .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                                    .mul(af1)
+                            )
+                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
                         final var r1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                .mul(af0)
-                                .add(bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                        .sub(Q4_BYTE_SUB_128)
-                                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                        .mul(af1))
-                                .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                            .mul(af0)
+                            .add(
+                                bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
+                                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                                    .sub(Q4_BYTE_SUB_128)
+                                    .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                                    .mul(af1)
+                            )
+                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
                         final var r2 = bf2.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                .mul(af0)
-                                .add(bf2.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                        .sub(Q4_BYTE_SUB_128)
-                                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                        .mul(af1))
-                                .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                            .mul(af0)
+                            .add(
+                                bf2.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
+                                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                                    .sub(Q4_BYTE_SUB_128)
+                                    .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                                    .mul(af1)
+                            )
+                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
                         final var r3 = bf3.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                .sub(Q4_BYTE_SUB_128)
-                                .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                .mul(af0)
-                                .add(bf3.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                                        .sub(Q4_BYTE_SUB_128)
-                                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
-                                        .mul(af1))
-                                .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                            .sub(Q4_BYTE_SUB_128)
+                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                            .mul(af0)
+                            .add(
+                                bf3.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
+                                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                                    .sub(Q4_BYTE_SUB_128)
+                                    .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0)
+                                    .mul(af1)
+                            )
+                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
                         acc0 = scale0.fma(r0, acc0);
                         acc1 = scale1.fma(r1, acc1);
@@ -1143,10 +1133,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                     var scale11 = FloatVector.broadcast(FloatVector.SPECIES_512, as1 * bs1);
 
                     var af0 = a.getVector(ByteVector.SPECIES_256, i + 0, aoffset)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
 
                     var af1 = a.getVector(ByteVector.SPECIES_256, i + 1, aoffset)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_512, 0);
 
                     var af0low = af0.castShape(ShortVector.SPECIES_256, 0);
                     var af0high = af0.castShape(ShortVector.SPECIES_256, 1);
@@ -1159,39 +1149,31 @@ public final class PanamaTensorOperations implements TensorOperations {
                     var bf1 = b.getVector(ByteVector.SPECIES_128, j + 1, boffset);
 
                     var low0 = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                     var high0 = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                     var low1 = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                     var high1 = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_128)
-                            .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
-                            .sub(Q4_BYTE_SUB_128)
-                            .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
+                        .lanewise(VectorOperators.AND, Q4_BYTE_MASK_128)
+                        .sub(Q4_BYTE_SUB_128)
+                        .convertShape(VectorOperators.B2S, ShortVector.SPECIES_256, 0);
 
                     // Convert the first 4 bits into bytes
-                    final var r00 = low0.mul(af0low)
-                            .add(high0.mul(af0high))
-                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                    final var r00 = low0.mul(af0low).add(high0.mul(af0high)).convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
-                    final var r01 = low1.mul(af0low)
-                            .add(high1.mul(af0high))
-                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                    final var r01 = low1.mul(af0low).add(high1.mul(af0high)).convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
-                    final var r10 = low0.mul(af1low)
-                            .add(high0.mul(af1high))
-                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                    final var r10 = low0.mul(af1low).add(high0.mul(af1high)).convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
-                    final var r11 = low1.mul(af1low)
-                            .add(high1.mul(af1high))
-                            .convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
+                    final var r11 = low1.mul(af1low).add(high1.mul(af1high)).convertShape(VectorOperators.S2F, FloatVector.SPECIES_512, 0);
 
                     acc00 = scale00.fma(r00, acc00);
                     acc01 = scale01.fma(r01, acc01);
@@ -1260,14 +1242,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
 
-                for (;
-                        aoffset < alim || boffset < blim;
-                        aoffset += FloatVector.SPECIES_PREFERRED.length(),
-                                boffset += FloatVector.SPECIES_PREFERRED.length()) {
-                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, j, boffset)
-                            .reinterpretAsFloats();
+                for (; aoffset < alim || boffset < blim; aoffset += FloatVector.SPECIES_PREFERRED.length(), boffset +=
+                    FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset).reinterpretAsFloats();
+                    FloatVector vb = b.getVector(FloatVector.SPECIES_PREFERRED, j, boffset).reinterpretAsFloats();
                     vc = va.fma(vb, vc);
                 }
                 c.set(vc.reduceLanes(VectorOperators.ADD), i, j);
@@ -1286,20 +1264,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
 
-                for (;
-                        aoffset < alim || boffset < blim;
-                        aoffset += FloatVector.SPECIES_PREFERRED.length(),
-                                boffset += FloatVector.SPECIES_PREFERRED.length()) {
-                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 0, boffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 1, boffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 2, boffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset)
-                            .reinterpretAsFloats();
+                for (; aoffset < alim || boffset < blim; aoffset += FloatVector.SPECIES_PREFERRED.length(), boffset +=
+                    FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset).reinterpretAsFloats();
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 0, boffset).reinterpretAsFloats();
+                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 1, boffset).reinterpretAsFloats();
+                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 2, boffset).reinterpretAsFloats();
+                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset).reinterpretAsFloats();
                     vc0 = va.fma(vb0, vc0);
                     vc1 = va.fma(vb1, vc1);
                     vc2 = va.fma(vb2, vc2);
@@ -1333,35 +1304,26 @@ public final class PanamaTensorOperations implements TensorOperations {
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
 
-                for (;
-                        aoffset < alim || boffset < blim;
-                        aoffset += FloatVector.SPECIES_PREFERRED.length(),
-                                boffset += FloatVector.SPECIES_PREFERRED.length()) {
-                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 0, boffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 1, boffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 2, boffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset)
-                            .reinterpretAsFloats();
+                for (; aoffset < alim || boffset < blim; aoffset += FloatVector.SPECIES_PREFERRED.length(), boffset +=
+                    FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 0, boffset).reinterpretAsFloats();
+                    FloatVector vb1 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 1, boffset).reinterpretAsFloats();
+                    FloatVector vb2 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 2, boffset).reinterpretAsFloats();
+                    FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset).reinterpretAsFloats();
 
-                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset)
-                            .reinterpretAsFloats();
+                    FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset).reinterpretAsFloats();
                     vc00 = va.fma(vb0, vc00);
                     vc01 = va.fma(vb1, vc01);
                     vc02 = va.fma(vb2, vc02);
                     vc03 = va.fma(vb3, vc03);
 
-                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset)
-                            .reinterpretAsFloats();
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset).reinterpretAsFloats();
                     vc10 = va1.fma(vb0, vc10);
                     vc11 = va1.fma(vb1, vc11);
                     vc12 = va1.fma(vb2, vc12);
                     vc13 = va1.fma(vb3, vc13);
 
-                    FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset)
-                            .reinterpretAsFloats();
+                    FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset).reinterpretAsFloats();
                     vc20 = va2.fma(vb0, vc20);
                     vc21 = va2.fma(vb1, vc21);
                     vc22 = va2.fma(vb2, vc22);
@@ -1397,20 +1359,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
 
-                for (;
-                        aoffset < alim || boffset < blim;
-                        aoffset += FloatVector.SPECIES_PREFERRED.length(),
-                                boffset += FloatVector.SPECIES_PREFERRED.length()) {
-                    FloatVector va0 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset)
-                            .reinterpretAsFloats();
-                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset)
-                            .reinterpretAsFloats();
-                    FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset)
-                            .reinterpretAsFloats();
-                    FloatVector va3 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 3, aoffset)
-                            .reinterpretAsFloats();
-                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j, boffset)
-                            .reinterpretAsFloats();
+                for (; aoffset < alim || boffset < blim; aoffset += FloatVector.SPECIES_PREFERRED.length(), boffset +=
+                    FloatVector.SPECIES_PREFERRED.length()) {
+                    FloatVector va0 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset).reinterpretAsFloats();
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset).reinterpretAsFloats();
+                    FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset).reinterpretAsFloats();
+                    FloatVector va3 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 3, aoffset).reinterpretAsFloats();
+                    FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j, boffset).reinterpretAsFloats();
 
                     vc0 = va0.fma(vb0, vc0);
                     vc1 = va1.fma(vb0, vc1);
@@ -1483,21 +1438,21 @@ public final class PanamaTensorOperations implements TensorOperations {
                 for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
                     ShortVector sa = a.getVector(ShortVector.SPECIES_PREFERRED, i, aoffset);
                     FloatVector va0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                            .reinterpretAsFloats();
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
 
                     FloatVector va1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                            .reinterpretAsFloats();
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
 
                     ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
                     FloatVector vb0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                            .reinterpretAsFloats();
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
 
                     FloatVector vb1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                            .reinterpretAsFloats();
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
 
                     vc = va0.fma(vb0, vc);
                     vc = va1.fma(vb1, vc);
@@ -1513,12 +1468,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                 FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc2 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc3 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
-
+        
                 int aoffset = aColumnOffset;
                 int boffset = bColumnOffset;
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
-
+        
                 for (;
                      aoffset < alim || boffset < blim;
                      aoffset += FloatVector.SPECIES_PREFERRED.length(),
@@ -1538,14 +1493,14 @@ public final class PanamaTensorOperations implements TensorOperations {
                     vc2 = va.fma(vb2, vc2);
                     vc3 = va.fma(vb3, vc3);
                 }
-
+        
                 c.set(vc0.reduceLanes(VectorOperators.ADD), i, j + 0);
                 c.set(vc1.reduceLanes(VectorOperators.ADD), i, j + 1);
                 c.set(vc2.reduceLanes(VectorOperators.ADD), i, j + 2);
                 c.set(vc3.reduceLanes(VectorOperators.ADD), i, j + 3);
             };
         }
-
+        
         protected BiIntConsumer initMatmul3x4() {
             return (i, j) -> {
                 FloatVector vc00 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
@@ -1560,12 +1515,12 @@ public final class PanamaTensorOperations implements TensorOperations {
                 FloatVector vc21 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc22 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc23 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
-
+        
                 int aoffset = aColumnOffset;
                 int boffset = bColumnOffset;
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
-
+        
                 for (;
                      aoffset < alim || boffset < blim;
                      aoffset += FloatVector.SPECIES_PREFERRED.length(),
@@ -1578,21 +1533,21 @@ public final class PanamaTensorOperations implements TensorOperations {
                             .reinterpretAsFloats();
                     FloatVector vb3 = b.getVector(FloatVector.SPECIES_PREFERRED, j + 3, boffset)
                             .reinterpretAsFloats();
-
+        
                     FloatVector va = a.getVector(FloatVector.SPECIES_PREFERRED, i + 0, aoffset)
                             .reinterpretAsFloats();
                     vc00 = va.fma(vb0, vc00);
                     vc01 = va.fma(vb1, vc01);
                     vc02 = va.fma(vb2, vc02);
                     vc03 = va.fma(vb3, vc03);
-
+        
                     FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 1, aoffset)
                             .reinterpretAsFloats();
                     vc10 = va1.fma(vb0, vc10);
                     vc11 = va1.fma(vb1, vc11);
                     vc12 = va1.fma(vb2, vc12);
                     vc13 = va1.fma(vb3, vc13);
-
+        
                     FloatVector va2 = a.getVector(FloatVector.SPECIES_PREFERRED, i + 2, aoffset)
                             .reinterpretAsFloats();
                     vc20 = va2.fma(vb0, vc20);
@@ -1600,36 +1555,36 @@ public final class PanamaTensorOperations implements TensorOperations {
                     vc22 = va2.fma(vb2, vc22);
                     vc23 = va2.fma(vb3, vc23);
                 }
-
+        
                 c.set(vc00.reduceLanes(VectorOperators.ADD), i + 0, j + 0);
                 c.set(vc01.reduceLanes(VectorOperators.ADD), i + 0, j + 1);
                 c.set(vc02.reduceLanes(VectorOperators.ADD), i + 0, j + 2);
                 c.set(vc03.reduceLanes(VectorOperators.ADD), i + 0, j + 3);
-
+        
                 c.set(vc10.reduceLanes(VectorOperators.ADD), i + 1, j + 0);
                 c.set(vc11.reduceLanes(VectorOperators.ADD), i + 1, j + 1);
                 c.set(vc12.reduceLanes(VectorOperators.ADD), i + 1, j + 2);
                 c.set(vc13.reduceLanes(VectorOperators.ADD), i + 1, j + 3);
-
+        
                 c.set(vc20.reduceLanes(VectorOperators.ADD), i + 2, j + 0);
                 c.set(vc21.reduceLanes(VectorOperators.ADD), i + 2, j + 1);
                 c.set(vc22.reduceLanes(VectorOperators.ADD), i + 2, j + 2);
                 c.set(vc23.reduceLanes(VectorOperators.ADD), i + 2, j + 3);
             };
         }
-
+        
         protected BiIntConsumer initMatmul4x1() {
             return (i, j) -> {
                 FloatVector vc0 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc1 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc2 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
                 FloatVector vc3 = FloatVector.zero(FloatVector.SPECIES_PREFERRED);
-
+        
                 int aoffset = aColumnOffset;
                 int boffset = bColumnOffset;
                 int alim = aColumnOffset + k;
                 int blim = bColumnOffset + k;
-
+        
                 for (;
                      aoffset < alim || boffset < blim;
                      aoffset += FloatVector.SPECIES_PREFERRED.length(),
@@ -1644,13 +1599,13 @@ public final class PanamaTensorOperations implements TensorOperations {
                             .reinterpretAsFloats();
                     FloatVector vb0 = b.getVector(FloatVector.SPECIES_PREFERRED, j, boffset)
                             .reinterpretAsFloats();
-
+        
                     vc0 = va0.fma(vb0, vc0);
                     vc1 = va1.fma(vb0, vc1);
                     vc2 = va2.fma(vb0, vc2);
                     vc3 = va3.fma(vb0, vc3);
                 }
-
+        
                 c.set(vc0.reduceLanes(VectorOperators.ADD), i + 0, j);
                 c.set(vc1.reduceLanes(VectorOperators.ADD), i + 1, j);
                 c.set(vc2.reduceLanes(VectorOperators.ADD), i + 2, j);
@@ -1714,17 +1669,16 @@ public final class PanamaTensorOperations implements TensorOperations {
                 int slen = ShortVector.SPECIES_PREFERRED.length();
                 for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
                     FloatVector va0 = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset);
-                    FloatVector va1 = a.getVector(
-                            FloatVector.SPECIES_PREFERRED, i, aoffset + FloatVector.SPECIES_PREFERRED.length());
+                    FloatVector va1 = a.getVector(FloatVector.SPECIES_PREFERRED, i, aoffset + FloatVector.SPECIES_PREFERRED.length());
 
                     ShortVector sb = b.getVector(ShortVector.SPECIES_PREFERRED, j, boffset);
                     FloatVector vb0 = sb.convertShape(VectorOperators.ZERO_EXTEND_S2I, IntVector.SPECIES_PREFERRED, 0)
-                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                            .reinterpretAsFloats();
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
 
                     FloatVector vb1 = sb.convertShape(VectorOperators.ZERO_EXTEND_S2I, IntVector.SPECIES_PREFERRED, 1)
-                            .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                            .reinterpretAsFloats();
+                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                        .reinterpretAsFloats();
 
                     vc = va0.fma(vb0, vc);
                     vc = va1.fma(vb1, vc);
@@ -1828,17 +1782,19 @@ public final class PanamaTensorOperations implements TensorOperations {
         for (int b = 0; b < batchSize; b++) {
             for (int i = offset; i < offset + length; i += ShortVector.SPECIES_PREFERRED.length()) {
                 var r0 = ft.getVector(FloatVector.SPECIES_PREFERRED, b, i)
-                        .reinterpretAsInts()
-                        .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
-                        .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
+                    .reinterpretAsInts()
+                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
 
                 var r1 = ft.getVector(FloatVector.SPECIES_PREFERRED, b, i + FloatVector.SPECIES_PREFERRED.length())
-                        .reinterpretAsInts()
-                        .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
-                        .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
+                    .reinterpretAsInts()
+                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
 
                 VectorMask<Short> mask = VectorMask.fromLong(
-                        ShortVector.SPECIES_PREFERRED, (1L << FloatVector.SPECIES_PREFERRED.length()) - 1);
+                    ShortVector.SPECIES_PREFERRED,
+                    (1L << FloatVector.SPECIES_PREFERRED.length()) - 1
+                );
                 mask = mask.not(); // Invert the mask to select the second half
 
                 var r = r0.blend(r1, mask);
@@ -1859,12 +1815,12 @@ public final class PanamaTensorOperations implements TensorOperations {
             for (int i = offset; i < offset + length; i += ShortVector.SPECIES_PREFERRED.length()) {
                 var sa = ft.getVector(ShortVector.SPECIES_PREFERRED, b, i);
                 var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
 
                 var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                    .reinterpretAsFloats();
 
                 qft.intoTensor(af0, b, i);
                 qft.intoTensor(af1, b, i + FloatVector.SPECIES_PREFERRED.length());
@@ -1899,10 +1855,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                 var fvq1 = fv1.mul(vid).add(F32_ROUND_UP_512); // rounding
 
                 // Squash to bytes (rounds internally)
-                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
-                        .reinterpretAsBytes();
-                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
-                        .reinterpretAsBytes();
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0).reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0).reinterpretAsBytes();
 
                 qft.intoTensor(bvq0, b, i);
                 qft.intoTensor(bvq1, b, i + 16);
@@ -1951,14 +1905,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                 var fvq3 = fv3.mul(vid).add(F32_ROUND_UP_256); // rounding
 
                 // Squash to bytes (rounds internally)
-                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
 
                 qft.intoTensor(bvq0, b, i);
                 qft.intoTensor(bvq1, b, i + 8);
@@ -2024,22 +1974,14 @@ public final class PanamaTensorOperations implements TensorOperations {
                 var fvq7 = fv7.mul(vid).add(F32_ROUND_UP_128); // rounding
 
                 // Squash to bytes (rounds internally)
-                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq4 = fvq4.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq5 = fvq5.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq6 = fvq6.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq4 = fvq4.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq5 = fvq5.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq6 = fvq6.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
 
                 qft.intoTensor(bvq0, BYTE_MASK_32, b, i + 0);
                 qft.intoTensor(bvq1, BYTE_MASK_32, b, i + 4);
@@ -2066,11 +2008,11 @@ public final class PanamaTensorOperations implements TensorOperations {
             for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
                 ShortVector sv = ft.getVector(ShortVector.SPECIES_512, b, i);
                 FloatVector fv0 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                    .reinterpretAsFloats();
                 FloatVector fv1 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                    .reinterpretAsFloats();
 
                 // Compute max abs
                 var maxAbs0 = fv0.abs();
@@ -2087,10 +2029,8 @@ public final class PanamaTensorOperations implements TensorOperations {
                 var fvq1 = fv1.mul(vid).add(F32_ROUND_UP_512); // rounding
 
                 // Squash to bytes (rounds internally)
-                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
-                        .reinterpretAsBytes();
-                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0)
-                        .reinterpretAsBytes();
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0).reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_128, 0).reinterpretAsBytes();
 
                 qft.intoTensor(bvq0, b, i);
                 qft.intoTensor(bvq1, b, i + 16);
@@ -2115,19 +2055,19 @@ public final class PanamaTensorOperations implements TensorOperations {
             for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
                 ShortVector sv = ft.getVector(ShortVector.SPECIES_256, b, i);
                 FloatVector fv0 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                    .reinterpretAsFloats();
                 FloatVector fv1 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                    .reinterpretAsFloats();
 
                 sv = ft.getVector(ShortVector.SPECIES_256, b, i + 16);
                 FloatVector fv2 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                    .reinterpretAsFloats();
                 FloatVector fv3 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                    .reinterpretAsFloats();
 
                 // Compute max abs
                 var maxAbs0 = fv0.abs();
@@ -2150,14 +2090,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                 var fvq3 = fv3.mul(vid).add(F32_ROUND_UP_256); // rounding
 
                 // Squash to bytes (rounds internally)
-                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
 
                 qft.intoTensor(bvq0, b, i);
                 qft.intoTensor(bvq1, b, i + 8);
@@ -2181,35 +2117,35 @@ public final class PanamaTensorOperations implements TensorOperations {
             for (int i = offset; i < offset + length; i += Q8ByteBufferTensor.BLOCK_SIZE) {
                 ShortVector sv = ft.getVector(ShortVector.SPECIES_128, b, i);
                 FloatVector fv0 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
                 FloatVector fv1 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
 
                 sv = ft.getVector(ShortVector.SPECIES_128, b, i + 8);
                 FloatVector fv2 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
                 FloatVector fv3 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
 
                 sv = ft.getVector(ShortVector.SPECIES_128, b, i + 16);
                 FloatVector fv4 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
                 FloatVector fv5 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
 
                 sv = ft.getVector(ShortVector.SPECIES_128, b, i + 24);
                 FloatVector fv6 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
                 FloatVector fv7 = sv.convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 1)
-                        .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                        .reinterpretAsFloats();
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                    .reinterpretAsFloats();
 
                 // Compute max abs
                 var maxAbs0 = fv0.abs();
@@ -2246,22 +2182,14 @@ public final class PanamaTensorOperations implements TensorOperations {
                 var fvq7 = fv7.mul(vid).add(F32_ROUND_UP_128); // rounding
 
                 // Squash to bytes (rounds internally)
-                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq4 = fvq4.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq5 = fvq5.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq6 = fvq6.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
-                var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0)
-                        .reinterpretAsBytes();
+                var bvq0 = fvq0.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq1 = fvq1.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq2 = fvq2.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq3 = fvq3.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq4 = fvq4.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq5 = fvq5.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq6 = fvq6.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
+                var bvq7 = fvq7.convertShape(VectorOperators.F2B, ByteVector.SPECIES_64, 0).reinterpretAsBytes();
 
                 qft.intoTensor(bvq0, BYTE_MASK_32, b, i + 0);
                 qft.intoTensor(bvq1, BYTE_MASK_32, b, i + 4);
@@ -2327,32 +2255,32 @@ public final class PanamaTensorOperations implements TensorOperations {
             // Convert BF16 to F32
             var sa = a.getVector(ShortVector.SPECIES_PREFERRED, 0, i);
             var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             // Convert BF16 to F32
             var sb = b.getVector(ShortVector.SPECIES_PREFERRED, 0, i);
             var bf0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var bf1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var r0 = af0.mul(bf0)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
 
             var r1 = af1.mul(bf1)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
 
             VectorMask<Short> mask = VectorMask.fromLong(ShortVector.SPECIES_PREFERRED, (1L << half) - 1);
             mask = mask.not(); // Invert the mask to select the second half
@@ -2423,20 +2351,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
             // Convert BF16 to F32
             var af = a.getVector(ShortVector.SPECIES_128, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                .reinterpretAsFloats();
 
             // Convert BF16 to F32
             var bf = b.getVector(ShortVector.SPECIES_128, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                .reinterpretAsFloats();
 
             var res = af.add(bf)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
 
             a.intoTensor((ShortVector) res, 0, i);
         }
@@ -2455,20 +2383,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
             // Convert BF16 to F32
             var af = a.getVector(ShortVector.SPECIES_256, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                .reinterpretAsFloats();
 
             // Convert BF16 to F32
             var bf = b.getVector(ShortVector.SPECIES_256, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                .reinterpretAsFloats();
 
             var res = af.add(bf)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
 
             a.intoTensor((ShortVector) res, 0, i);
         }
@@ -2526,14 +2454,14 @@ public final class PanamaTensorOperations implements TensorOperations {
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_512, factor);
         for (; i < upperBound; i += FloatVector.SPECIES_512.length()) {
             var va = a.getVector(ShortVector.SPECIES_256, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_512, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_512)
+                .reinterpretAsFloats();
 
             var res = va.mul(sf)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_512)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_256, 0);
 
             a.intoTensor((ShortVector) res, 0, i);
         }
@@ -2551,14 +2479,14 @@ public final class PanamaTensorOperations implements TensorOperations {
         FloatVector sf = FloatVector.broadcast(FloatVector.SPECIES_256, factor);
         for (; i < upperBound; i += FloatVector.SPECIES_256.length()) {
             var va = a.getVector(ShortVector.SPECIES_128, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                .reinterpretAsFloats();
 
             var res = va.mul(sf)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_256)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_128, 0);
 
             a.intoTensor((ShortVector) res, 0, i);
         }
@@ -2601,9 +2529,8 @@ public final class PanamaTensorOperations implements TensorOperations {
         int xo = xoffset;
         int yo = yoffset;
         FloatVector av = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha);
-        for (;
-                xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
-                xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
+        for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += FloatVector.SPECIES_PREFERRED.length(), yo +=
+            FloatVector.SPECIES_PREFERRED.length()) {
             FloatVector vx = x.getVector(FloatVector.SPECIES_PREFERRED, 0, xo);
             FloatVector vy = y.getVector(FloatVector.SPECIES_PREFERRED, 0, yo);
             FloatVector res = vx.fma(av, vy);
@@ -2618,14 +2545,7 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void saxpy(
-            AbstractTensor alpha,
-            AbstractTensor x,
-            AbstractTensor y,
-            int xoffset,
-            int yoffset,
-            int limit,
-            int batchSize) {
+    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
         Preconditions.checkArgument(limit % 2 == 0);
 
         switch (x.dType()) {
@@ -2650,13 +2570,14 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     public void saxpyF32(
-            AbstractTensor alpha,
-            FloatBufferTensor x,
-            FloatBufferTensor y,
-            int xoffset,
-            int yoffset,
-            int limit,
-            int batchSize) {
+        AbstractTensor alpha,
+        FloatBufferTensor x,
+        FloatBufferTensor y,
+        int xoffset,
+        int yoffset,
+        int limit,
+        int batchSize
+    ) {
 
         int upperBound = FloatVector.SPECIES_PREFERRED.loopBound(limit);
 
@@ -2673,9 +2594,8 @@ public final class PanamaTensorOperations implements TensorOperations {
             FloatVector a2 = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha.get(0, a + 2));
             FloatVector a3 = FloatVector.broadcast(FloatVector.SPECIES_PREFERRED, alpha.get(0, a + 3));
 
-            for (;
-                    xo < (xoffset + upperBound) && yo < (yoffset + upperBound);
-                    xo += FloatVector.SPECIES_PREFERRED.length(), yo += FloatVector.SPECIES_PREFERRED.length()) {
+            for (; xo < (xoffset + upperBound) && yo < (yoffset + upperBound); xo += FloatVector.SPECIES_PREFERRED.length(), yo +=
+                FloatVector.SPECIES_PREFERRED.length()) {
                 FloatVector x0 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 0, xo);
                 FloatVector x1 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 1, xo);
                 FloatVector x2 = x.getVector(FloatVector.SPECIES_PREFERRED, a + 2, xo);
@@ -2698,14 +2618,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
-    public void saxpyBF16(
-            AbstractTensor alpha,
-            AbstractTensor xt,
-            AbstractTensor yt,
-            int xoffset,
-            int yoffset,
-            int limit,
-            int batchSize) {
+    public void saxpyBF16(AbstractTensor alpha, AbstractTensor xt, AbstractTensor yt, int xoffset, int yoffset, int limit, int batchSize) {
 
         BFloat16BufferTensor x = (BFloat16BufferTensor) xt;
         BFloat16BufferTensor y = (BFloat16BufferTensor) yt;
@@ -2716,13 +2629,14 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     public void saxpyBF16F32(
-            AbstractTensor alpha,
-            AbstractTensor xt,
-            AbstractTensor yt,
-            int xoffset,
-            int yoffset,
-            int limit,
-            int batchSize) {
+        AbstractTensor alpha,
+        AbstractTensor xt,
+        AbstractTensor yt,
+        int xoffset,
+        int yoffset,
+        int limit,
+        int batchSize
+    ) {
 
         BFloat16BufferTensor x = (BFloat16BufferTensor) xt;
         FloatBufferTensor y = (FloatBufferTensor) yt;
@@ -2745,32 +2659,32 @@ public final class PanamaTensorOperations implements TensorOperations {
             // Convert BF16 to F32
             var sa = a.getVector(ShortVector.SPECIES_PREFERRED, 0, ao);
             var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             // Convert BF16 to F32
             var sb = b.getVector(ShortVector.SPECIES_PREFERRED, 0, bo);
             var bf0 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var bf1 = sb.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var r0 = bf0.add(af0.mul(alpha))
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, 0);
 
             var r1 = bf1.add(af1.mul(alpha))
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_PREFERRED, -1);
 
             VectorMask<Short> mask = VectorMask.fromLong(ShortVector.SPECIES_PREFERRED, (1L << half) - 1);
             mask = mask.not(); // Invert the mask to select the second half
@@ -2793,12 +2707,12 @@ public final class PanamaTensorOperations implements TensorOperations {
             // Convert BF16 to F32
             var sa = a.getVector(ShortVector.SPECIES_PREFERRED, 0, ao);
             var af0 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             var af1 = sa.convertShape(VectorOperators.S2I, IntVector.SPECIES_PREFERRED, 1)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
-                    .reinterpretAsFloats();
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT)
+                .reinterpretAsFloats();
 
             // Convert BF16 to F32
             var bf0 = b.getVector(FloatVector.SPECIES_PREFERRED, 0, bo);

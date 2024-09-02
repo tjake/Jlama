@@ -27,8 +27,7 @@ public class LlamaTokenizer extends BPETokenizer {
 
     public LlamaTokenizer(Path modelRoot) {
         super(modelRoot);
-        this.byteFallbackEncodingOffset =
-                this.getModel().vocabLookup.getOrDefault("<0x00>", 0L).intValue();
+        this.byteFallbackEncodingOffset = this.getModel().vocabLookup.getOrDefault("<0x00>", 0L).intValue();
     }
 
     @Override
@@ -53,9 +52,9 @@ public class LlamaTokenizer extends BPETokenizer {
 
         if (model.isLegacy() && !model.byteFallback) {
             sentence = sentence.codePoints()
-                    .map(c -> alteredBytes.getOrDefault(c, c))
-                    .mapToObj(Character::toString)
-                    .collect(Collectors.joining());
+                .map(c -> alteredBytes.getOrDefault(c, c))
+                .mapToObj(Character::toString)
+                .collect(Collectors.joining());
         }
 
         return sentence;
@@ -75,9 +74,9 @@ public class LlamaTokenizer extends BPETokenizer {
 
         if (model.isLegacy() && !model.byteFallback) {
             decoded = decoded.codePoints()
-                    .map(c -> alteredBytes.inverse().getOrDefault(c, c))
-                    .mapToObj(Character::toString)
-                    .collect(Collectors.joining());
+                .map(c -> alteredBytes.inverse().getOrDefault(c, c))
+                .mapToObj(Character::toString)
+                .collect(Collectors.joining());
         }
 
         return decoded;

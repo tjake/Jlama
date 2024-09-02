@@ -37,8 +37,7 @@ public class LayerNorm {
         return forward(input, Optional.empty());
     }
 
-    public AbstractTensor forward(
-            AbstractTensor input, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+    public AbstractTensor forward(AbstractTensor input, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
         Preconditions.checkArgument(input.shape().dims() == 2);
         int size = input.shape().last();
         Preconditions.checkArgument(size == m.c.embeddingLength);
@@ -46,10 +45,11 @@ public class LayerNorm {
     }
 
     public AbstractTensor forward(
-            AbstractTensor input,
-            int offset,
-            int length,
-            Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+        AbstractTensor input,
+        int offset,
+        int length,
+        Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer
+    ) {
 
         int batchSize = input.shape().first();
         AbstractTensor output = input.copyShape();

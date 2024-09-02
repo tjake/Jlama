@@ -16,18 +16,13 @@
 package com.github.tjake.jlama.safetensors.prompt;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.github.tjake.jlama.util.JsonSupport;
 
 import java.util.Map;
 
 /**
  * ToolResult
  */
-@JsonPropertyOrder({
-    ToolResult.JSON_PROPERTY_TOOL_NAME,
-    ToolResult.JSON_PROPERTY_TOOL_ID,
-    ToolResult.JSON_PROPERTY_RESULT
-})
+@JsonPropertyOrder({ ToolResult.JSON_PROPERTY_TOOL_NAME, ToolResult.JSON_PROPERTY_TOOL_ID, ToolResult.JSON_PROPERTY_RESULT })
 public class ToolResult {
     public static final String JSON_PROPERTY_TOOL_NAME = "name";
     public final String name;

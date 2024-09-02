@@ -32,8 +32,7 @@ import org.springframework.context.annotation.Configuration;
 @SpringBootConfiguration
 @Configuration
 public class MockedOpenAIServer {
-    private final JlamaServiceTest.MockConfig modelConfig =
-            new JlamaServiceTest.MockConfig(128, 4096, 8192, 16, 12, 1e5f);
+    private final JlamaServiceTest.MockConfig modelConfig = new JlamaServiceTest.MockConfig(128, 4096, 8192, 16, 12, 1e5f);
 
     public static void main(String[] args) {
         SpringApplication.run(MockedOpenAIServer.class, args);

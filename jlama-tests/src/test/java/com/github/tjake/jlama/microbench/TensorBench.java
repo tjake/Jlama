@@ -30,20 +30,9 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
-@Fork(
-        warmups = 1,
-        value = 1,
-        jvmArgsPrepend = {
-            "--add-modules=jdk.incubator.vector",
-            "--add-exports",
-            "java.base/sun.nio.ch=ALL-UNNAMED",
-            "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0",
-            "--enable-preview",
-            "-XX:+UnlockDiagnosticVMOptions",
-            "-XX:CompilerDirectivesFile=inlinerules.json",
-            "--enable-native-access=ALL-UNNAMED",
-            "-XX:+AlignVector"
-        })
+@Fork(warmups = 1, value = 1, jvmArgsPrepend = { "--add-modules=jdk.incubator.vector", "--add-exports", "java.base/sun.nio.ch=ALL-UNNAMED",
+    "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0", "--enable-preview", "-XX:+UnlockDiagnosticVMOptions",
+    "-XX:CompilerDirectivesFile=inlinerules.json", "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector" })
 public class TensorBench {
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
@@ -124,6 +113,6 @@ public class TensorBench {
     }
 
     public static void main(String[] args) throws Exception {
-        org.openjdk.jmh.Main.main(new String[] {"-prof", "gc", "TensorBench"});
+        org.openjdk.jmh.Main.main(new String[] { "-prof", "gc", "TensorBench" });
     }
 }

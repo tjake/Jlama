@@ -23,27 +23,18 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
-
-@Command(
-        name = "jlama",
-        mixinStandardHelpOptions = true,
-        requiredOptionMarker = '*',
-        usageHelpAutoWidth = true,
-        sortOptions = true)
+@Command(name = "jlama", mixinStandardHelpOptions = true, requiredOptionMarker = '*', usageHelpAutoWidth = true, sortOptions = true)
 public class JlamaCli implements Runnable {
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
         TensorOperationsProvider.get();
     }
 
-    @Option(
-            names = {"-h", "--help"},
-            usageHelp = true,
-            hidden = true)
+    @Option(names = { "-h", "--help" }, usageHelp = true, hidden = true)
     boolean helpRequested = false;
 
     public static void main(String[] args) {
-        Logger root = (Logger)LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         root.setLevel(Level.INFO);
 
         CommandLine cli = new CommandLine(new JlamaCli());
@@ -57,7 +48,7 @@ public class JlamaCli implements Runnable {
 
         cli.setUsageHelpLongOptionsMaxWidth(256);
 
-        String[] pargs = args.length == 0 ? new String[] {"-h"} : args;
+        String[] pargs = args.length == 0 ? new String[] { "-h" } : args;
         cli.parseWithHandler(new RunLast(), pargs);
     }
 

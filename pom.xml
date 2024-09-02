@@ -259,12 +259,10 @@
               <!-- no need to specify files, inferred automatically, but you can if you want -->
 
               <removeUnusedImports /> <!-- self-explanatory -->
-              <!-- apply a specific flavor of google-java-format and reflow long strings -->
-              <palantirJavaFormat>
-                <version>2.40.0</version>                     <!-- optional -->
-                <style>PALANTIR</style>                       <!-- or AOSP/GOOGLE (optional) -->
-                <formatJavadoc>false</formatJavadoc>          <!-- defaults to false (optional, requires at least Palantir 2.39.0) -->
-              </palantirJavaFormat>
+
+              <eclipse>
+                <file>conf/formatterConfig.xml</file>
+              </eclipse>
 
               <!-- make sure every file has the following copyright header.
                 optionally, Spotless can set copyright years by digging

@@ -22,13 +22,9 @@ import com.fasterxml.jackson.databind.type.ArrayType;
 import java.util.Map;
 import java.util.Objects;
 
-@JsonPropertyOrder({
-        ToolResult.JSON_PROPERTY_TOOL_NAME,
-        ToolResult.JSON_PROPERTY_TOOL_ID
-})
+@JsonPropertyOrder({ ToolResult.JSON_PROPERTY_TOOL_NAME, ToolResult.JSON_PROPERTY_TOOL_ID })
 public class ToolCall {
-    public static final ArrayType toolCallListTypeReference =
-            om.getTypeFactory().constructArrayType(ToolCall.class);
+    public static final ArrayType toolCallListTypeReference = om.getTypeFactory().constructArrayType(ToolCall.class);
 
     @JsonProperty("name")
     private final String name;
@@ -42,16 +38,14 @@ public class ToolCall {
 
     @JsonCreator
     public ToolCall(
-            @JsonProperty("name") String name,
-            @JsonAlias({"arguments"}) @JsonProperty("parameters") Map<String, Object> parameters) {
+        @JsonProperty("name") String name,
+        @JsonAlias({ "arguments" }) @JsonProperty("parameters") Map<String, Object> parameters
+    ) {
         this.name = name;
         this.parameters = parameters;
     }
 
-    public ToolCall(
-            String name,
-            String id,
-            Map<String, Object> parameters) {
+    public ToolCall(String name, String id, Map<String, Object> parameters) {
         this.name = name;
         this.id = id;
         this.parameters = parameters;

@@ -26,23 +26,25 @@ import java.util.Optional;
 public class MistralModel extends LlamaModel {
 
     public MistralModel(
-            Config config,
-            WeightLoader weights,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        Config config,
+        WeightLoader weights,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
     public MistralModel(
-            InferenceType inferenceType,
-            Config config,
-            WeightLoader weights,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        InferenceType inferenceType,
+        Config config,
+        WeightLoader weights,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 

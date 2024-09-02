@@ -53,18 +53,16 @@ public class KvBufferCache {
     private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session) {
         TensorShape s;
         // FIXME: Max size should be configurable
-        int[] rawShape = new int[] {
-            model.getConfig().getNumberOfLayers(),
-            2,
-            Math.min(1024, model.getConfig().contextLength),
-            model.getConfig().kvLength
-        };
+        int[] rawShape = new int[] { model.getConfig().getNumberOfLayers(), 2, Math.min(1024, model.getConfig().contextLength), model
+            .getConfig().kvLength };
 
         if (model.getConfig().offset().isPresent()) {
             Pair<Integer, Integer> offset = model.getConfig().offset().get();
             // Adjust the shape to be relative to the kv cache size (in case of GQA)
             Pair<Integer, Integer> kvOffset = Pair.create(
-                    offset.left / model.getConfig().headGroupSize, offset.right / model.getConfig().headGroupSize);
+                offset.left / model.getConfig().headGroupSize,
+                offset.right / model.getConfig().headGroupSize
+            );
             s = TensorShape.sparse(rawShape, kvOffset);
         } else {
             s = TensorShape.of(rawShape);
@@ -78,25 +76,25 @@ public class KvBufferCache {
         // Otherwise, create a file-backed tensor
         try {
             RandomAccessFile raf = new RandomAccessFile(
-                    Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString())
-                            .toFile(),
-                    "rw");
+                Paths.get(model.getConfig().workingDirectory().get().toString(), session.toString()).toFile(),
+                "rw"
+            );
             long bytes = s.size() * model.getWorkingDType().size();
             raf.setLength(bytes);
 
             AbstractTensor t;
             if (model.getWorkingDType() == DType.F32) {
                 FloatBuffer fb = raf.getChannel()
-                        .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                        .order(ByteOrder.LITTLE_ENDIAN)
-                        .asFloatBuffer();
+                    .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .asFloatBuffer();
 
                 t = new FloatBufferTensor(fb, s, true);
             } else if (model.getWorkingDType() == DType.BF16) {
                 ShortBuffer sb = raf.getChannel()
-                        .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                        .order(ByteOrder.LITTLE_ENDIAN)
-                        .asShortBuffer();
+                    .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .asShortBuffer();
 
                 t = new BFloat16BufferTensor("kvmem", sb, s, true);
             } else {

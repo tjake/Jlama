@@ -31,14 +31,13 @@ import java.util.regex.Pattern;
  */
 public class JsonSupport {
     private static final String JSON_REGEX =
-            "\\{\\s*\"name\"\\s*:\\s*\"[^\"]+\"\\s*(,\\s*\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\]))*\\s*\\}";
+        "\\{\\s*\"name\"\\s*:\\s*\"[^\"]+\"\\s*(,\\s*\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\]))*\\s*\\}";
     private static final Pattern JSON_PATTERN = Pattern.compile(JSON_REGEX);
-    public static final ObjectMapper om = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false)
-            .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
+    public static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+        .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false)
+        .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
 
     public static String toJson(Object o) {
         try {

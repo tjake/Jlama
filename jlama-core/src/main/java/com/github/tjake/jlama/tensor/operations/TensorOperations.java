@@ -42,52 +42,48 @@ public interface TensorOperations {
     }
 
     default void batchDotProduct(
-            AbstractTensor result,
-            AbstractTensor a,
-            AbstractTensor b,
-            int aColumnOffset,
-            int bColumnOffset,
-            int columnLimit) {
-        batchDotProduct(
-                result,
-                a,
-                b,
-                aColumnOffset,
-                bColumnOffset,
-                columnLimit,
-                0,
-                b.shape().first());
+        AbstractTensor result,
+        AbstractTensor a,
+        AbstractTensor b,
+        int aColumnOffset,
+        int bColumnOffset,
+        int columnLimit
+    ) {
+        batchDotProduct(result, a, b, aColumnOffset, bColumnOffset, columnLimit, 0, b.shape().first());
     }
 
     void batchDotProduct(
-            AbstractTensor result,
-            AbstractTensor a,
-            AbstractTensor b,
-            int aColumnOffset,
-            int bColumnOffset,
-            int columnLimit,
-            int bRowOffset,
-            int rowChunkSize);
+        AbstractTensor result,
+        AbstractTensor a,
+        AbstractTensor b,
+        int aColumnOffset,
+        int bColumnOffset,
+        int columnLimit,
+        int bRowOffset,
+        int rowChunkSize
+    );
 
     default void dotProductChunk(
-            AbstractTensor result,
-            AbstractTensor a,
-            AbstractTensor b,
-            int columnOffset,
-            int columnLimit,
-            int rowOffset,
-            int rowChunkSize) {
+        AbstractTensor result,
+        AbstractTensor a,
+        AbstractTensor b,
+        int columnOffset,
+        int columnLimit,
+        int rowOffset,
+        int rowChunkSize
+    ) {
         batchDotProduct(result, a, b, columnOffset, columnOffset, columnLimit, rowOffset, rowChunkSize);
     }
 
     default void dotProductBatchChunk(
-            AbstractTensor[] result,
-            AbstractTensor a,
-            AbstractTensor[] b,
-            int offset,
-            int limit,
-            int chunkStart,
-            int chunkSize) {
+        AbstractTensor[] result,
+        AbstractTensor a,
+        AbstractTensor[] b,
+        int offset,
+        int limit,
+        int chunkStart,
+        int chunkSize
+    ) {
         Preconditions.checkArgument(b[0].dims() == 2 && result.length == b.length);
         for (int j = 0; j < result.length; j++) {
             dotProductChunk(result[j], a, b[j], offset, limit, chunkStart, chunkSize);
@@ -112,16 +108,8 @@ public interface TensorOperations {
     /**
      * The value computed is Y[i] = (alpha[j] * X[j, i]) + Y[i]
      */
-    default void saxpy(
-            AbstractTensor alpha,
-            AbstractTensor x,
-            AbstractTensor y,
-            int xoffset,
-            int yoffset,
-            int limit,
-            int batchSize) {
-        Preconditions.checkArgument(
-                alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
+    default void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+        Preconditions.checkArgument(alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
 
         for (int i = 0; i < batchSize; i++) {
             saxpy(alpha.get(0, i), x.slice(i), y, xoffset, yoffset, limit);
@@ -148,7 +136,8 @@ public interface TensorOperations {
     default float sum(AbstractTensor a) {
         float sum = 0f;
         int[] cursor = new int[a.dims()];
-        while (a.iterate(cursor)) sum += a.get(cursor);
+        while (a.iterate(cursor))
+            sum += a.get(cursor);
         return sum;
     }
 }

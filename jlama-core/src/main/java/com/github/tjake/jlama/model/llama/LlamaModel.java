@@ -35,23 +35,25 @@ public class LlamaModel extends AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
 
     public LlamaModel(
-            Config config,
-            WeightLoader weights,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        Config config,
+        WeightLoader weights,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(InferenceType.FULL_GENERATION, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
     public LlamaModel(
-            InferenceType inferenceType,
-            Config config,
-            WeightLoader weights,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        InferenceType inferenceType,
+        Config config,
+        WeightLoader weights,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(inferenceType, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
@@ -63,23 +65,24 @@ public class LlamaModel extends AbstractModel {
     @Override
     protected EmbedInput loadInputWeights() {
 
-        final AbstractTensor wte = weights.load("model.embed_tokens.weight", c.offset())
-                .quantize(workingDType); // Don't quantize this, it's used for the embedding layer
+        final AbstractTensor wte = weights.load("model.embed_tokens.weight", c.offset()).quantize(workingDType); // Don't quantize this,
+                                                                                                                 // it's used for the
+                                                                                                                 // embedding layer
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeTensor(1, c.embeddingLength);
 
             AbstractTensor at = wte.slice(true, inputToken);
 
-            if (wte.dType() != embedding.dType())
-                at = TensorOperationsProvider.get()
-                        .quantize(at, embedding.dType(), c.embeddingSegmentStart(), c.embeddingSegmentLength());
+            if (wte.dType() != embedding.dType()) at = TensorOperationsProvider.get()
+                .quantize(at, embedding.dType(), c.embeddingSegmentStart(), c.embeddingSegmentLength());
 
             embedding.copyFrom(
-                    at,
-                    at.getOffset(0, c.embeddingSegmentStart()),
-                    embedding.getOffset(c.embeddingSegmentStart()),
-                    c.embeddingSegmentLength());
+                at,
+                at.getOffset(0, c.embeddingSegmentStart()),
+                embedding.getOffset(c.embeddingSegmentStart()),
+                c.embeddingSegmentLength()
+            );
 
             return embedding;
         };
@@ -98,34 +101,31 @@ public class LlamaModel extends AbstractModel {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
-                    this,
-                    weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
-                    weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType));
+                this,
+                weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType)
+            );
 
             prefix = base + "mlp.";
 
             MLPBlock mlp = new MLPBlock(
-                    this,
-                    c.activationFunction,
-                    weights.load(prefix + "gate_proj.weight", c.offset()).quantize(qType), // w1
-                    weights.load(prefix + "down_proj.weight").quantize(qType), // w2
-                    weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType)); // w3
+                this,
+                c.activationFunction,
+                weights.load(prefix + "gate_proj.weight", c.offset()).quantize(qType), // w1
+                weights.load(prefix + "down_proj.weight").quantize(qType), // w2
+                weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType)
+            ); // w3
 
             transformerBlocks[i] = new TransformerBlock(
-                    this,
-                    i,
-                    new RMSNorm(
-                            this,
-                            weights.load(base + "input_layernorm.weight", c.offset())
-                                    .quantize(qType)),
-                    attention,
-                    new RMSNorm(
-                            this,
-                            weights.load(base + "post_attention_layernorm.weight", c.offset())
-                                    .quantize(qType)),
-                    mlp);
+                this,
+                i,
+                new RMSNorm(this, weights.load(base + "input_layernorm.weight", c.offset()).quantize(qType)),
+                attention,
+                new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight", c.offset()).quantize(qType)),
+                mlp
+            );
         });
 
         return transformerBlocks;
@@ -134,10 +134,9 @@ public class LlamaModel extends AbstractModel {
     @Override
     protected SampleOutput loadOutputWeights() {
         DType qType = modelQType.orElse(this.modelDType);
-        final LayerNorm outputLayerNorm =
-                new RMSNorm(this, weights.load("model.norm.weight").quantize(qType));
-        final AbstractTensor classificationWeights =
-                weights.load("lm_head.weight").quantize(workingDType); // Don't quantize this, it's the output layer
+        final LayerNorm outputLayerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType));
+        final AbstractTensor classificationWeights = weights.load("lm_head.weight").quantize(workingDType); // Don't quantize this, it's the
+                                                                                                            // output layer
 
         return new SampleOutput() {
             @Override
@@ -158,9 +157,7 @@ public class LlamaModel extends AbstractModel {
         if (t.dType() == workingQType) return super.maybeQuantize(t);
 
         return t.shape().last() == c.embeddingLength
-                ? TensorOperationsProvider.get()
-                        .quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
-                : TensorOperationsProvider.get()
-                        .quantize(t, workingQType, 0, Ints.checkedCast(t.shape().last()));
+            ? TensorOperationsProvider.get().quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
+            : TensorOperationsProvider.get().quantize(t, workingQType, 0, Ints.checkedCast(t.shape().last()));
     }
 }

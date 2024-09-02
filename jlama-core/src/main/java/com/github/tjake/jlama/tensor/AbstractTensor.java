@@ -162,8 +162,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
             do {
                 cursor[cursor.length - 1] = offset;
                 sparseT.copyFrom(this, getOffset(cursor), sparseT.getOffset(cursor), length);
-                cursor[cursor.length - 1] =
-                        originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
+                cursor[cursor.length - 1] = originalLength - 1; // Reset last dimension, so it iterates in the next lower dimension
             } while (iterate(cursor));
         } catch (Throwable t) {
             logger.warn("Cursor = {}", Arrays.toString(cursor), t);
@@ -183,8 +182,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
 
         TensorShape newShape = shape.setDimValue(dim, innerLength);
         for (int i = 0; i < numChunks; i++) {
-            chunks[i] =
-                    this.make(Ints.checkedCast(i * newShape.size()), Ints.checkedCast(newShape.size()), newShape, true);
+            chunks[i] = this.make(Ints.checkedCast(i * newShape.size()), Ints.checkedCast(newShape.size()), newShape, true);
         }
 
         return chunks;
@@ -228,7 +226,8 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
 
         // Reverse the dimensions
         int[] tshape = new int[dims()];
-        for (int i = 0; i < tshape.length; i++) tshape[i] = shape.dim(shape.dims() - i - 1);
+        for (int i = 0; i < tshape.length; i++)
+            tshape[i] = shape.dim(shape.dims() - i - 1);
 
         AbstractTensor tt = this.make(TensorShape.of(tshape));
         int[] cursor = new int[dims()];
@@ -238,7 +237,8 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
 
             // 1000(0), 100(0), 10(1) -> 1
             // 10, 100, 1000 -> 10001
-            for (int i = 0; i < tcursor.length; i++) tcursor[i] = cursor[cursor.length - i - 1];
+            for (int i = 0; i < tcursor.length; i++)
+                tcursor[i] = cursor[cursor.length - i - 1];
 
             tt.set(v, tcursor);
         } while (iterate(cursor));
@@ -281,8 +281,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
 
     public AbstractTensor quantize(DType dType, boolean force) {
 
-        if (!force && (this.shape().first() == 1 || this.dType == dType || this.dType.size() < dType.size()))
-            return this;
+        if (!force && (this.shape().first() == 1 || this.dType == dType || this.dType.size() < dType.size())) return this;
 
         if (shape.isSparse()) {
             logger.info("Quantizing sparse tensor is not supported");
@@ -306,9 +305,10 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
         out.write(bb);
 
         long[] lshape = new long[shape.dims()];
-        for (int i = 0; i < shape.dims(); i++) lshape[i] = shape.dim(i);
+        for (int i = 0; i < shape.dims(); i++)
+            lshape[i] = shape.dim(i);
 
-        return new TensorInfo(dType, lshape, new long[] {startOffset, out.position()});
+        return new TensorInfo(dType, lshape, new long[] { startOffset, out.position() });
     }
 
     public void debug(String id) {

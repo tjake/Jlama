@@ -55,8 +55,7 @@ public class MachineSpec {
             if (tmp == Type.NONE) logger.warn("Unknown vector type: {}", preferredBits);
 
         } catch (Throwable t) {
-            logger.warn(
-                    "Java SIMD Vector API *not* available. Add --add-modules=jdk.incubator.vector to your JVM options");
+            logger.warn("Java SIMD Vector API *not* available. Add --add-modules=jdk.incubator.vector to your JVM options");
         }
 
         logger.debug("Machine Vector Spec: {}", tmp);

@@ -46,13 +46,14 @@ public interface Generator {
         public final List<ToolCall> toolCalls;
 
         public Response(
-                String responseText,
-                String responseTextWithSpecialTokens,
-                FinishReason finishReason,
-                int promptTokens,
-                int generatedTokens,
-                long promptTimeMs,
-                long generateTimeMs) {
+            String responseText,
+            String responseTextWithSpecialTokens,
+            FinishReason finishReason,
+            int promptTokens,
+            int generatedTokens,
+            long promptTimeMs,
+            long generateTimeMs
+        ) {
             this.responseText = responseText;
             this.responseTextWithSpecialTokens = responseTextWithSpecialTokens;
             this.finishReason = finishReason;
@@ -64,14 +65,15 @@ public interface Generator {
         }
 
         private Response(
-                String responseText,
-                String responseTextWithSpecialTokens,
-                FinishReason finishReason,
-                int promptTokens,
-                int generatedTokens,
-                long promptTimeMs,
-                long generateTimeMs,
-                List<ToolCall> toolCalls) {
+            String responseText,
+            String responseTextWithSpecialTokens,
+            FinishReason finishReason,
+            int promptTokens,
+            int generatedTokens,
+            long promptTimeMs,
+            long generateTimeMs,
+            List<ToolCall> toolCalls
+        ) {
             this.responseText = responseText;
             this.responseTextWithSpecialTokens = responseTextWithSpecialTokens;
             this.finishReason = finishReason;
@@ -84,35 +86,47 @@ public interface Generator {
 
         public Response copyWithToolCalls(List<ToolCall> toolCalls) {
             return new Response(
-                    responseText,
-                    responseTextWithSpecialTokens,
-                    FinishReason.TOOL_CALL,
-                    promptTokens,
-                    generatedTokens,
-                    promptTimeMs,
-                    generateTimeMs,
-                    toolCalls);
+                responseText,
+                responseTextWithSpecialTokens,
+                FinishReason.TOOL_CALL,
+                promptTokens,
+                generatedTokens,
+                promptTimeMs,
+                generateTimeMs,
+                toolCalls
+            );
         }
 
         @Override
         public String toString() {
-            return "Response{" + "responseText='"
-                    + responseText + '\'' + ", responseTextWithSpecialTokens='"
-                    + responseTextWithSpecialTokens + '\'' + ", finishReason="
-                    + finishReason + ", promptTokens="
-                    + promptTokens + ", generatedTokens="
-                    + generatedTokens + ", promptTimeMs="
-                    + promptTimeMs + ", generateTimeMs="
-                    + generateTimeMs + '}';
+            return "Response{"
+                + "responseText='"
+                + responseText
+                + '\''
+                + ", responseTextWithSpecialTokens='"
+                + responseTextWithSpecialTokens
+                + '\''
+                + ", finishReason="
+                + finishReason
+                + ", promptTokens="
+                + promptTokens
+                + ", generatedTokens="
+                + generatedTokens
+                + ", promptTimeMs="
+                + promptTimeMs
+                + ", generateTimeMs="
+                + generateTimeMs
+                + '}';
         }
     }
 
     Response generate(
-            UUID session,
-            PromptContext promptContext,
-            float temperature,
-            int ntokens,
-            BiConsumer<String, Float> onTokenWithTimings);
+        UUID session,
+        PromptContext promptContext,
+        float temperature,
+        int ntokens,
+        BiConsumer<String, Float> onTokenWithTimings
+    );
 
     Tokenizer getTokenizer();
 }

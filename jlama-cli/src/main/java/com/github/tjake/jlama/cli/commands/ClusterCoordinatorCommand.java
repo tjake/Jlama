@@ -18,27 +18,18 @@ package com.github.tjake.jlama.cli.commands;
 import com.github.tjake.jlama.net.Coordinator;
 import picocli.CommandLine;
 
-@CommandLine.Command(
-        name = "cluster-coordinator",
-        description = "Starts a distributed rest api for a model using cluster workers")
+@CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers")
 public class ClusterCoordinatorCommand extends BaseCommand {
 
-    @CommandLine.Option(
-            names = {"-w", "--worker-count"},
-            description = "signifies this instance is a coordinator",
-            required = true)
+    @CommandLine.Option(names = { "-w", "--worker-count" }, description = "signifies this instance is a coordinator", required = true)
     int workerCount = 1;
 
-    @CommandLine.Option(
-            names = {"-g", "--grpc-port"},
-            description = "grpc port to listen on (default: ${DEFAULT-VALUE})",
-            defaultValue = "9777")
+    @CommandLine.Option(names = { "-g",
+        "--grpc-port" }, description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
     int grpcPort = 9777;
 
-    @CommandLine.Option(
-            names = {"-p", "--port"},
-            description = "http port to listen on (default: ${DEFAULT-VALUE})",
-            defaultValue = "8080")
+    @CommandLine.Option(names = { "-p",
+        "--port" }, description = "http port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
     @Override
@@ -47,13 +38,12 @@ public class ClusterCoordinatorCommand extends BaseCommand {
             Coordinator c = new Coordinator(model, workingDirectory, grpcPort, workerCount);
 
             new Thread(() -> {
-                        try {
-                            c.start();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    })
-                    .start();
+                try {
+                    c.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
 
             /*UndertowJaxrsServer ut = new UndertowJaxrsServer();
             ut.deploy(new JlamaRestApi(c), APPLICATION_PATH);
@@ -62,7 +52,7 @@ public class ClusterCoordinatorCommand extends BaseCommand {
                     resource(new ClassPathResourceManager(ServeCommand.class.getClassLoader()))
                             .setDirectoryListingEnabled(true)
                             .addWelcomeFiles("index.html"));
-
+            
             System.out.println("Chat UI: http://localhost:" + port + "/ui/index.html");
             ut.start(Undertow.builder().addHttpListener(port, "0.0.0.0"));*/
 

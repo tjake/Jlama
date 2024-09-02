@@ -44,14 +44,14 @@ public class WordPieceTokenizer implements Tokenizer {
     protected static final String unkString = "[UNK]";
 
     public WordPieceTokenizer(Path modelRoot) {
-        Preconditions.checkArgument(
-                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.json found in " + modelRoot);
+        Preconditions.checkArgument(modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.json found in " + modelRoot);
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);
             Preconditions.checkArgument(
-                    model.type == null || model.type.equalsIgnoreCase("WordPiece"),
-                    "Invalid model type: " + model.type);
+                model.type == null || model.type.equalsIgnoreCase("WordPiece"),
+                "Invalid model type: " + model.type
+            );
 
             this.promptSupport = new PromptSupport(model);
         } catch (IOException e) {
@@ -79,39 +79,39 @@ public class WordPieceTokenizer implements Tokenizer {
         tokens.add(clsString);
 
         List<String> stringList = Arrays.stream(whitespaceSplits)
-                .flatMap(this::splitByPunctuation)
-                .map(str -> str.length() > 200 ? model.unkToken : str)
-                .flatMap(str -> {
-                    boolean isBad = false;
-                    List<String> subTokens = new ArrayList<>();
+            .flatMap(this::splitByPunctuation)
+            .map(str -> str.length() > 200 ? model.unkToken : str)
+            .flatMap(str -> {
+                boolean isBad = false;
+                List<String> subTokens = new ArrayList<>();
 
-                    int start = 0;
-                    while (start < str.length()) {
-                        int end = str.length();
-                        String curSubStr = null;
-                        while (start < end) {
-                            String substr = str.substring(start, end);
-                            if (start > 0) substr = "##" + substr;
-                            if (model.vocabLookup.containsKey(substr)) {
-                                curSubStr = substr;
-                                break;
-                            }
-                            end -= 1;
-                        }
-                        if (curSubStr == null) {
-                            isBad = true;
+                int start = 0;
+                while (start < str.length()) {
+                    int end = str.length();
+                    String curSubStr = null;
+                    while (start < end) {
+                        String substr = str.substring(start, end);
+                        if (start > 0) substr = "##" + substr;
+                        if (model.vocabLookup.containsKey(substr)) {
+                            curSubStr = substr;
                             break;
                         }
-
-                        subTokens.add(curSubStr);
-                        start = end;
+                        end -= 1;
+                    }
+                    if (curSubStr == null) {
+                        isBad = true;
+                        break;
                     }
 
-                    if (isBad) subTokens.add(model.unkToken);
+                    subTokens.add(curSubStr);
+                    start = end;
+                }
 
-                    return subTokens.stream();
-                })
-                .collect(Collectors.toList());
+                if (isBad) subTokens.add(model.unkToken);
+
+                return subTokens.stream();
+            })
+            .collect(Collectors.toList());
 
         tokens.addAll(stringList);
         tokens.add(sepString);
@@ -144,17 +144,13 @@ public class WordPieceTokenizer implements Tokenizer {
     }
 
     String cleanText(String sentence) {
-        return sentence.codePoints()
-                .map(c -> {
-                    if (c == 0 || c == 0xfffd || isControl(c)) return -1;
+        return sentence.codePoints().map(c -> {
+            if (c == 0 || c == 0xfffd || isControl(c)) return -1;
 
-                    if (Character.isWhitespace(c)) return ' ';
+            if (Character.isWhitespace(c)) return ' ';
 
-                    return c;
-                })
-                .filter(c -> c != -1)
-                .mapToObj(Character::toString)
-                .collect(Collectors.joining());
+            return c;
+        }).filter(c -> c != -1).mapToObj(Character::toString).collect(Collectors.joining());
     }
 
     Stream<String> splitByPunctuation(String str) {
@@ -162,7 +158,7 @@ public class WordPieceTokenizer implements Tokenizer {
 
         int start = 0;
 
-        for (int offset = 0; offset < str.length(); ) {
+        for (int offset = 0; offset < str.length();) {
             int codepoint = str.codePointAt(offset);
 
             if (isPunctuation(codepoint)) {
@@ -186,9 +182,7 @@ public class WordPieceTokenizer implements Tokenizer {
 
     @Override
     public long[] encode(String sentence) {
-        return tokenize(sentence).stream()
-                .mapToLong(s -> model.vocabLookup.get(s))
-                .toArray();
+        return tokenize(sentence).stream().mapToLong(s -> model.vocabLookup.get(s)).toArray();
     }
 
     protected String postProcessToken(String decoded) {

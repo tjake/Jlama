@@ -56,8 +56,7 @@ public abstract class BPETokenizer implements Tokenizer {
     }
 
     protected BPETokenizer(Path modelRoot) {
-        Preconditions.checkArgument(
-                modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.json found in " + modelRoot);
+        Preconditions.checkArgument(modelRoot.resolve("tokenizer.json").toFile().exists(), "No tokenizer.json found in " + modelRoot);
 
         try {
             this.model = SafeTensorSupport.loadTokenizer(modelRoot);
@@ -87,8 +86,7 @@ public abstract class BPETokenizer implements Tokenizer {
             for (String piece : pieces) {
                 if (!piece.isEmpty()) {
                     if (model.addedTokens().containsKey(piece)) sentencePieces.add(piece);
-                    else if (model.preTokenizer() != null)
-                        sentencePieces.addAll(model.preTokenizer().pretokenize(piece));
+                    else if (model.preTokenizer() != null) sentencePieces.addAll(model.preTokenizer().pretokenize(piece));
                     else sentencePieces.add(piece);
                 }
             }
@@ -198,24 +196,22 @@ public abstract class BPETokenizer implements Tokenizer {
 
     @Override
     public String decode(long id) {
-        return maybeDecodeTokenAsCharacter(id)
-                .map(c -> {
-                    // We have a continuation byte or are buffering them
-                    if (Character.isUnicodeIdentifierPart(c) || decodeBuffer.remaining() < 4) {
-                        decodeBuffer.put((byte) c.charValue());
+        return maybeDecodeTokenAsCharacter(id).map(c -> {
+            // We have a continuation byte or are buffering them
+            if (Character.isUnicodeIdentifierPart(c) || decodeBuffer.remaining() < 4) {
+                decodeBuffer.put((byte) c.charValue());
 
-                        // Unicode symbol is ready
-                        if (decodeBuffer.remaining() == 0) {
-                            String s = new String(decodeBuffer.array());
-                            decodeBuffer.rewind();
-                            return s;
-                        }
+                // Unicode symbol is ready
+                if (decodeBuffer.remaining() == 0) {
+                    String s = new String(decodeBuffer.array());
+                    decodeBuffer.rewind();
+                    return s;
+                }
 
-                        return "";
-                    }
-                    return Character.toString(c);
-                })
-                .orElseGet(() -> postProcessToken(model.vocabLookup.inverse().get(id)));
+                return "";
+            }
+            return Character.toString(c);
+        }).orElseGet(() -> postProcessToken(model.vocabLookup.inverse().get(id)));
     }
 
     protected abstract long encodeCharacterAsToken(byte c);

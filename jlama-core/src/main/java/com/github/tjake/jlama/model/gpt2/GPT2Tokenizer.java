@@ -62,10 +62,7 @@ public class GPT2Tokenizer extends BPETokenizer {
 
     @Override
     protected String preProcess(String sentence) {
-        return sentence.codePoints()
-                .map(c -> alteredBytes.getOrDefault(c, c))
-                .mapToObj(Character::toString)
-                .collect(Collectors.joining());
+        return sentence.codePoints().map(c -> alteredBytes.getOrDefault(c, c)).mapToObj(Character::toString).collect(Collectors.joining());
     }
 
     @Override
@@ -89,9 +86,9 @@ public class GPT2Tokenizer extends BPETokenizer {
         String s = model.vocabLookup.inverse().get(id);
 
         return s.codePoints()
-                .map(c -> alteredBytes.inverse().getOrDefault(c, c))
-                .mapToObj(Character::toString)
-                .collect(Collectors.joining());
+            .map(c -> alteredBytes.inverse().getOrDefault(c, c))
+            .mapToObj(Character::toString)
+            .collect(Collectors.joining());
     }
 
     @Override

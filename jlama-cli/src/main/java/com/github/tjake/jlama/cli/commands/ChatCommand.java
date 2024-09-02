@@ -34,33 +34,27 @@ public class ChatCommand extends BaseCommand {
     private static final AnsiFormat chatText = new AnsiFormat(Attribute.CYAN_TEXT());
     private static final AnsiFormat statsColor = new AnsiFormat(Attribute.BLUE_TEXT());
 
-    @Option(
-            names = {"-s", "--system-prompt"},
-            description = "Change the default system prompt for this model")
+    @Option(names = { "-s", "--system-prompt" }, description = "Change the default system prompt for this model")
     String systemPrompt = null;
 
-    @Option(
-            names = {"-t", "--temperature"},
-            description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})",
-            defaultValue = "0.6")
+    @Option(names = { "-t",
+        "--temperature" }, description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})", defaultValue = "0.6")
     protected Float temperature;
 
-    @Option(
-            names = {"--top-p"},
-            description =
-                    "Controls how many different words the model considers per token [0,1] (default: ${DEFAULT-VALUE})",
-            defaultValue = ".9")
+    @Option(names = {
+        "--top-p" }, description = "Controls how many different words the model considers per token [0,1] (default: ${DEFAULT-VALUE})", defaultValue = ".9")
     protected Float topp;
 
     @Override
     public void run() {
         AbstractModel m = loadModel(
-                model,
-                workingDirectory,
-                workingMemoryType,
-                workingQuantizationType,
-                Optional.ofNullable(modelQuantization),
-                Optional.ofNullable(threadCount));
+            model,
+            workingDirectory,
+            workingMemoryType,
+            workingQuantizationType,
+            Optional.ofNullable(modelQuantization),
+            Optional.ofNullable(threadCount)
+        );
 
         if (m.promptSupport().isEmpty()) {
             System.err.println("This model does not support chat prompting");

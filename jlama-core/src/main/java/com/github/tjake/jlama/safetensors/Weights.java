@@ -36,11 +36,7 @@ public class Weights implements WeightLoader {
     private final DType majorityDType;
     private final Optional<WeightLoader> parent;
 
-    Weights(
-            Map<String, String> metadata,
-            Map<String, TensorInfo> tensorInfoMap,
-            ByteBuffer bytes,
-            Optional<WeightLoader> parent) {
+    Weights(Map<String, String> metadata, Map<String, TensorInfo> tensorInfoMap, ByteBuffer bytes, Optional<WeightLoader> parent) {
         this.metadata = ImmutableMap.copyOf(metadata);
         this.tensorInfoMap = ImmutableMap.copyOf(tensorInfoMap);
         this.bytes = bytes.duplicate();
@@ -51,8 +47,7 @@ public class Weights implements WeightLoader {
     private DType findDType() {
         EnumMap<DType, Integer> counts = new EnumMap<>(DType.class);
         for (Map.Entry<String, TensorInfo> e : tensorInfoMap.entrySet()) {
-            if (!e.getKey().endsWith(".qb"))
-                counts.put(e.getValue().dType, counts.getOrDefault(e.getValue().dType, 0) + 1);
+            if (!e.getKey().endsWith(".qb")) counts.put(e.getValue().dType, counts.getOrDefault(e.getValue().dType, 0) + 1);
         }
 
         int max = 0;
@@ -83,13 +78,12 @@ public class Weights implements WeightLoader {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null) throw new NoSuchElementException(name + " not found in weights");
 
-        if (info.shape.length < 1)
-            throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name);
+        if (info.shape.length < 1) throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name);
 
         ByteBuffer b = bytes.duplicate()
-                .order(ByteOrder.LITTLE_ENDIAN)
-                .position(Ints.checkedCast(info.dataOffsets[0]))
-                .limit(Ints.checkedCast(info.dataOffsets[1]));
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .position(Ints.checkedCast(info.dataOffsets[0]))
+            .limit(Ints.checkedCast(info.dataOffsets[1]));
 
         int len;
         FloatBuffer fb;

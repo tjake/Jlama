@@ -29,20 +29,13 @@ public class QuantizeCommand extends SimpleBaseCommand {
     @CommandLine.Parameters(index = "1", arity = "0..1", description = "The output location")
     protected Path output;
 
-    @CommandLine.Option(
-            names = {"-q", "--quantization"},
-            description = "Model quantization type",
-            arity = "1")
+    @CommandLine.Option(names = { "-q", "--quantization" }, description = "Model quantization type", arity = "1")
     protected DType modelQuantization;
 
-    @CommandLine.Option(
-            names = {"-s", "--skip-layer"},
-            description = "Layer name prefix to not quantize")
+    @CommandLine.Option(names = { "-s", "--skip-layer" }, description = "Layer name prefix to not quantize")
     protected String[] skipLayerPrefixes;
 
-    @CommandLine.Option(
-            names = {"-d", "--drop-layer"},
-            description = "Layer name prefix to drop")
+    @CommandLine.Option(names = { "-d", "--drop-layer" }, description = "Layer name prefix to drop")
     protected String[] dropLayerPrefixes;
 
     @Override
@@ -62,11 +55,12 @@ public class QuantizeCommand extends SimpleBaseCommand {
 
         try {
             Path out = SafeTensorSupport.quantizeModel(
-                    baseDir.toPath(),
-                    modelQuantization,
-                    skipLayerPrefixes,
-                    dropLayerPrefixes,
-                    Optional.ofNullable(output));
+                baseDir.toPath(),
+                modelQuantization,
+                skipLayerPrefixes,
+                dropLayerPrefixes,
+                Optional.ofNullable(output)
+            );
 
             System.out.println("Quantized model written to: " + out);
         } catch (IOException e) {

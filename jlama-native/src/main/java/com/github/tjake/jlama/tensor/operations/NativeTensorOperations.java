@@ -82,14 +82,15 @@ public class NativeTensorOperations implements TensorOperations {
 
     @Override
     public void batchDotProduct(
-            AbstractTensor result,
-            AbstractTensor at,
-            AbstractTensor bt,
-            int aColumnOffset,
-            int bColumnOffset,
-            int columnLength,
-            int bRowOffset,
-            int rowChunkSize) {
+        AbstractTensor result,
+        AbstractTensor at,
+        AbstractTensor bt,
+        int aColumnOffset,
+        int bColumnOffset,
+        int columnLength,
+        int bRowOffset,
+        int rowChunkSize
+    ) {
 
         int M = at.shape().dim(0);
         int N = rowChunkSize; // b.shape().dim(0);
@@ -100,63 +101,65 @@ public class NativeTensorOperations implements TensorOperations {
                 switch (bt.dType()) {
                     case BF16:
                         NativeSimd.gemm_bf16(
-                                flags,
-                                at.getMemorySegment(),
-                                at.getOffset(0, aColumnOffset),
-                                bt.getMemorySegment(),
-                                bt.getOffset(0, bColumnOffset),
-                                result.dType() == DType.BF16 ? result.getMemorySegment() : MemorySegment.NULL,
-                                result.dType() == DType.F32 ? result.getMemorySegment() : MemorySegment.NULL,
-                                result.shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                at.getStride(),
-                                bt.getStride(),
-                                result.getStride());
+                            flags,
+                            at.getMemorySegment(),
+                            at.getOffset(0, aColumnOffset),
+                            bt.getMemorySegment(),
+                            bt.getOffset(0, bColumnOffset),
+                            result.dType() == DType.BF16 ? result.getMemorySegment() : MemorySegment.NULL,
+                            result.dType() == DType.F32 ? result.getMemorySegment() : MemorySegment.NULL,
+                            result.shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            at.getStride(),
+                            bt.getStride(),
+                            result.getStride()
+                        );
                         break;
                     default:
-                        throw new UnsupportedOperationException(
-                                at.dType().name() + " " + bt.dType().name());
+                        throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
                 }
                 break;
             case F32:
                 switch (bt.dType()) {
                     case F32:
                         NativeSimd.gemm_f32(
-                                flags,
-                                at.getMemorySegment(),
-                                at.getOffset(0, aColumnOffset),
-                                bt.getMemorySegment(),
-                                bt.getOffset(0, bColumnOffset),
-                                result.getMemorySegment(),
-                                result.shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                at.getStride(),
-                                bt.getStride(),
-                                result.getStride());
+                            flags,
+                            at.getMemorySegment(),
+                            at.getOffset(0, aColumnOffset),
+                            bt.getMemorySegment(),
+                            bt.getOffset(0, bColumnOffset),
+                            result.getMemorySegment(),
+                            result.shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            at.getStride(),
+                            bt.getStride(),
+                            result.getStride()
+                        );
                         break;
                     case BF16:
                         NativeSimd.gemm_f32_bf16(
-                                flags,
-                                at.getMemorySegment(),
-                                at.getOffset(0, aColumnOffset),
-                                bt.getMemorySegment(),
-                                bt.getOffset(0, bColumnOffset),
-                                result.dType() == DType.BF16 ? result.getMemorySegment() : MemorySegment.NULL,
-                                result.dType() == DType.F32 ? result.getMemorySegment() : MemorySegment.NULL,
-                                result.shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                at.getStride(),
-                                bt.getStride(),
-                                result.getStride());
+                            flags,
+                            at.getMemorySegment(),
+                            at.getOffset(0, aColumnOffset),
+                            bt.getMemorySegment(),
+                            bt.getOffset(0, bColumnOffset),
+                            result.dType() == DType.BF16 ? result.getMemorySegment() : MemorySegment.NULL,
+                            result.dType() == DType.F32 ? result.getMemorySegment() : MemorySegment.NULL,
+                            result.shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            at.getStride(),
+                            bt.getStride(),
+                            result.getStride()
+                        );
                         break;
                     case Q4:
                         switch (MachineSpec.VECTOR_TYPE) {
@@ -165,27 +168,27 @@ public class NativeTensorOperations implements TensorOperations {
                             default:
                                 Q4ByteBufferTensor b = (Q4ByteBufferTensor) bt;
                                 NativeSimd.gemm_f32_q4(
-                                        flags,
-                                        at.getMemorySegment(),
-                                        at.getOffset(0, aColumnOffset),
-                                        b.getBlockF().getMemorySegment(),
-                                        b.getMemorySegment(),
-                                        b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
-                                        result.getMemorySegment(),
-                                        result.shape().sparseOffset(),
-                                        M,
-                                        bRowOffset,
-                                        N,
-                                        K,
-                                        at.getStride(),
-                                        b.getMemorySegmentOffset(b.getStride()),
-                                        b.getBlockF().getStride(),
-                                        result.getStride());
+                                    flags,
+                                    at.getMemorySegment(),
+                                    at.getOffset(0, aColumnOffset),
+                                    b.getBlockF().getMemorySegment(),
+                                    b.getMemorySegment(),
+                                    b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
+                                    result.getMemorySegment(),
+                                    result.shape().sparseOffset(),
+                                    M,
+                                    bRowOffset,
+                                    N,
+                                    K,
+                                    at.getStride(),
+                                    b.getMemorySegmentOffset(b.getStride()),
+                                    b.getBlockF().getStride(),
+                                    result.getStride()
+                                );
                         }
                         break;
                     default:
-                        throw new UnsupportedOperationException(
-                                at.dType().name() + " " + bt.dType().name());
+                        throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
                 }
                 break;
             case I8:
@@ -194,28 +197,28 @@ public class NativeTensorOperations implements TensorOperations {
                         Q8ByteBufferTensor a = (Q8ByteBufferTensor) at;
                         Q4ByteBufferTensor b = (Q4ByteBufferTensor) bt;
                         NativeSimd.gemm_q8_q4(
-                                flags,
-                                a.getBlockF().getMemorySegment(),
-                                a.getMemorySegment(),
-                                a.getOffset(0, aColumnOffset),
-                                b.getBlockF().getMemorySegment(),
-                                b.getMemorySegment(),
-                                b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
-                                result.getMemorySegment(),
-                                result.shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                a.getStride(),
-                                a.getBlockF().getStride(),
-                                b.getMemorySegmentOffset(b.getStride()),
-                                b.getBlockF().getStride(),
-                                result.getStride());
+                            flags,
+                            a.getBlockF().getMemorySegment(),
+                            a.getMemorySegment(),
+                            a.getOffset(0, aColumnOffset),
+                            b.getBlockF().getMemorySegment(),
+                            b.getMemorySegment(),
+                            b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
+                            result.getMemorySegment(),
+                            result.shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            a.getStride(),
+                            a.getBlockF().getStride(),
+                            b.getMemorySegmentOffset(b.getStride()),
+                            b.getBlockF().getStride(),
+                            result.getStride()
+                        );
                         break;
                     default:
-                        throw new UnsupportedOperationException(
-                                at.dType().name() + " " + bt.dType().name());
+                        throw new UnsupportedOperationException(at.dType().name() + " " + bt.dType().name());
                 }
                 break;
             default:
@@ -225,21 +228,21 @@ public class NativeTensorOperations implements TensorOperations {
 
     @Override
     public void dotProductBatchChunk(
-            AbstractTensor[] r,
-            AbstractTensor a,
-            AbstractTensor[] b,
-            int columnOffset,
-            int columnLength,
-            int bRowOffset,
-            int rowChunkSize) {
+        AbstractTensor[] r,
+        AbstractTensor a,
+        AbstractTensor[] b,
+        int columnOffset,
+        int columnLength,
+        int bRowOffset,
+        int rowChunkSize
+    ) {
 
         MemorySegment[] tmp = MemorySegmentSupport.setupBatch(
-                i -> r[i].getMemorySegment(),
-                i -> b[i].getMemorySegment(),
-                i -> b[i] instanceof Q4ByteBufferTensor
-                        ? ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment()
-                        : MemorySegment.NULL,
-                r.length);
+            i -> r[i].getMemorySegment(),
+            i -> b[i].getMemorySegment(),
+            i -> b[i] instanceof Q4ByteBufferTensor ? ((Q4ByteBufferTensor) b[i]).getBlockF().getMemorySegment() : MemorySegment.NULL,
+            r.length
+        );
         MemorySegment ra = tmp[0];
         MemorySegment rb = tmp[1];
         MemorySegment rc = tmp[2];
@@ -253,66 +256,68 @@ public class NativeTensorOperations implements TensorOperations {
                 switch (b[0].dType()) {
                     case BF16:
                         NativeSimd.gemm_bf16_batch(
-                                flags,
-                                r.length,
-                                a.getMemorySegment(),
-                                a.getOffset(0, columnOffset),
-                                rb,
-                                b[0].getOffset(0, columnOffset),
-                                r[0].dType() == DType.BF16 ? ra : MemorySegment.NULL,
-                                r[0].dType() == DType.F32 ? ra : MemorySegment.NULL,
-                                r[0].shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                a.getStride(),
-                                b[0].getStride(),
-                                r[0].getStride());
+                            flags,
+                            r.length,
+                            a.getMemorySegment(),
+                            a.getOffset(0, columnOffset),
+                            rb,
+                            b[0].getOffset(0, columnOffset),
+                            r[0].dType() == DType.BF16 ? ra : MemorySegment.NULL,
+                            r[0].dType() == DType.F32 ? ra : MemorySegment.NULL,
+                            r[0].shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            a.getStride(),
+                            b[0].getStride(),
+                            r[0].getStride()
+                        );
                         break;
                     default:
-                        throw new UnsupportedOperationException(
-                                a.dType().name() + " " + b[0].dType().name());
+                        throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());
                 }
                 break;
             case F32:
                 switch (b[0].dType()) {
                     case F32:
                         NativeSimd.gemm_f32_batch(
-                                flags,
-                                r.length,
-                                a.getMemorySegment(),
-                                a.getOffset(0, columnOffset),
-                                rb,
-                                b[0].getOffset(0, columnOffset),
-                                ra,
-                                r[0].shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                a.getStride(),
-                                b[0].getStride(),
-                                r[0].getStride());
+                            flags,
+                            r.length,
+                            a.getMemorySegment(),
+                            a.getOffset(0, columnOffset),
+                            rb,
+                            b[0].getOffset(0, columnOffset),
+                            ra,
+                            r[0].shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            a.getStride(),
+                            b[0].getStride(),
+                            r[0].getStride()
+                        );
                         break;
                     case BF16:
                         NativeSimd.gemm_f32_bf16_batch(
-                                flags,
-                                r.length,
-                                a.getMemorySegment(),
-                                a.getOffset(0, columnOffset),
-                                rb,
-                                b[0].getOffset(0, columnOffset),
-                                r[0].dType() == DType.BF16 ? ra : MemorySegment.NULL,
-                                r[0].dType() == DType.F32 ? ra : MemorySegment.NULL,
-                                r[0].shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                a.getStride(),
-                                b[0].getStride(),
-                                r[0].getStride());
+                            flags,
+                            r.length,
+                            a.getMemorySegment(),
+                            a.getOffset(0, columnOffset),
+                            rb,
+                            b[0].getOffset(0, columnOffset),
+                            r[0].dType() == DType.BF16 ? ra : MemorySegment.NULL,
+                            r[0].dType() == DType.F32 ? ra : MemorySegment.NULL,
+                            r[0].shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            a.getStride(),
+                            b[0].getStride(),
+                            r[0].getStride()
+                        );
                         break;
                     case Q4:
                         switch (MachineSpec.VECTOR_TYPE) {
@@ -321,28 +326,28 @@ public class NativeTensorOperations implements TensorOperations {
                             default:
                                 Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
                                 NativeSimd.gemm_f32_q4_batch(
-                                        flags,
-                                        r.length,
-                                        a.getMemorySegment(),
-                                        a.getOffset(0, columnOffset),
-                                        rc,
-                                        rb,
-                                        b[0].getMemorySegmentOffset(b[0].getOffset(0, columnOffset)),
-                                        ra,
-                                        r[0].shape().sparseOffset(),
-                                        M,
-                                        bRowOffset,
-                                        N,
-                                        K,
-                                        a.getStride(),
-                                        b[0].getMemorySegmentOffset(b[0].getStride()),
-                                        bt.getBlockF().getStride(),
-                                        r[0].getStride());
+                                    flags,
+                                    r.length,
+                                    a.getMemorySegment(),
+                                    a.getOffset(0, columnOffset),
+                                    rc,
+                                    rb,
+                                    b[0].getMemorySegmentOffset(b[0].getOffset(0, columnOffset)),
+                                    ra,
+                                    r[0].shape().sparseOffset(),
+                                    M,
+                                    bRowOffset,
+                                    N,
+                                    K,
+                                    a.getStride(),
+                                    b[0].getMemorySegmentOffset(b[0].getStride()),
+                                    bt.getBlockF().getStride(),
+                                    r[0].getStride()
+                                );
                         }
                         break;
                     default:
-                        throw new UnsupportedOperationException(
-                                a.dType().name() + " " + b[0].dType().name());
+                        throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());
                 }
                 break;
             case I8:
@@ -351,29 +356,29 @@ public class NativeTensorOperations implements TensorOperations {
                         Q8ByteBufferTensor at = (Q8ByteBufferTensor) a;
                         Q4ByteBufferTensor bt = (Q4ByteBufferTensor) b[0];
                         NativeSimd.gemm_q8_q4_batch(
-                                flags,
-                                r.length,
-                                at.getBlockF().getMemorySegment(),
-                                a.getMemorySegment(),
-                                a.getOffset(0, columnOffset),
-                                rc,
-                                rb,
-                                bt.getMemorySegmentOffset(bt.getOffset(0, columnOffset)),
-                                ra,
-                                r[0].shape().sparseOffset(),
-                                M,
-                                bRowOffset,
-                                N,
-                                K,
-                                a.getStride(),
-                                at.getBlockF().getStride(),
-                                bt.getMemorySegmentOffset(bt.getStride()),
-                                bt.getBlockF().getStride(),
-                                r[0].getStride());
+                            flags,
+                            r.length,
+                            at.getBlockF().getMemorySegment(),
+                            a.getMemorySegment(),
+                            a.getOffset(0, columnOffset),
+                            rc,
+                            rb,
+                            bt.getMemorySegmentOffset(bt.getOffset(0, columnOffset)),
+                            ra,
+                            r[0].shape().sparseOffset(),
+                            M,
+                            bRowOffset,
+                            N,
+                            K,
+                            a.getStride(),
+                            at.getBlockF().getStride(),
+                            bt.getMemorySegmentOffset(bt.getStride()),
+                            bt.getBlockF().getStride(),
+                            r[0].getStride()
+                        );
                         break;
                     default:
-                        throw new UnsupportedOperationException(
-                                a.dType().name() + " " + b[0].dType().name());
+                        throw new UnsupportedOperationException(a.dType().name() + " " + b[0].dType().name());
                 }
                 break;
             default:
@@ -397,14 +402,7 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void saxpy(
-            AbstractTensor alpha,
-            AbstractTensor x,
-            AbstractTensor y,
-            int xoffset,
-            int yoffset,
-            int limit,
-            int batchSize) {
+    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
         delegate.saxpy(alpha, x, y, xoffset, yoffset, limit, batchSize);
     }
 

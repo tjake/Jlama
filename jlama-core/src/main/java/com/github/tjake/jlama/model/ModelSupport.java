@@ -63,9 +63,10 @@ public class ModelSupport {
         public final Class<? extends Tokenizer> tokenizerClass;
 
         ModelType(
-                Class<? extends AbstractModel> modelClass,
-                Class<? extends Config> configClass,
-                Class<? extends Tokenizer> tokenizerClass) {
+            Class<? extends AbstractModel> modelClass,
+            Class<? extends Config> configClass,
+            Class<? extends Tokenizer> tokenizerClass
+        ) {
 
             this.modelClass = modelClass;
             this.configClass = configClass;
@@ -78,32 +79,35 @@ public class ModelSupport {
     }
 
     public static AbstractModel loadModel(
-            File model,
-            File workingDirectory,
-            DType workingMemoryType,
-            DType workingQuantizationType,
-            Optional<DType> modelQuantization,
-            Optional<Integer> threadCount) {
+        File model,
+        File workingDirectory,
+        DType workingMemoryType,
+        DType workingQuantizationType,
+        Optional<DType> modelQuantization,
+        Optional<Integer> threadCount
+    ) {
         return loadModel(
-                AbstractModel.InferenceType.FULL_GENERATION,
-                model,
-                workingDirectory,
-                workingMemoryType,
-                workingQuantizationType,
-                modelQuantization,
-                threadCount,
-                Optional.empty());
+            AbstractModel.InferenceType.FULL_GENERATION,
+            model,
+            workingDirectory,
+            workingMemoryType,
+            workingQuantizationType,
+            modelQuantization,
+            threadCount,
+            Optional.empty()
+        );
     }
 
     public static AbstractModel loadModel(
-            AbstractModel.InferenceType inferenceType,
-            File model,
-            File workingDirectory,
-            DType workingMemoryType,
-            DType workingQuantizationType,
-            Optional<DType> modelQuantization,
-            Optional<Integer> threadCount,
-            Optional<Pair<Integer, Integer>> offset) {
+        AbstractModel.InferenceType inferenceType,
+        File model,
+        File workingDirectory,
+        DType workingMemoryType,
+        DType workingQuantizationType,
+        Optional<DType> modelQuantization,
+        Optional<Integer> threadCount,
+        Optional<Pair<Integer, Integer>> offset
+    ) {
 
         if (!model.exists()) {
             throw new IllegalArgumentException("Model location does not exist: " + model);
@@ -140,24 +144,17 @@ public class ModelSupport {
             Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
             WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
 
-            return modelType
-                    .modelClass
-                    .getConstructor(
-                            AbstractModel.InferenceType.class,
-                            Config.class,
-                            WeightLoader.class,
-                            Tokenizer.class,
-                            DType.class,
-                            DType.class,
-                            Optional.class)
-                    .newInstance(
-                            inferenceType, c, wl, t, workingMemoryType, workingQuantizationType, modelQuantization);
+            return modelType.modelClass.getConstructor(
+                AbstractModel.InferenceType.class,
+                Config.class,
+                WeightLoader.class,
+                Tokenizer.class,
+                DType.class,
+                DType.class,
+                Optional.class
+            ).newInstance(inferenceType, c, wl, t, workingMemoryType, workingQuantizationType, modelQuantization);
 
-        } catch (IOException
-                | NoSuchMethodException
-                | InvocationTargetException
-                | InstantiationException
-                | IllegalAccessException e) {
+        } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }

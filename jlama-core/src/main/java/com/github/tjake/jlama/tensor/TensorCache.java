@@ -62,8 +62,9 @@ public class TensorCache {
     private final AtomicLong currentBytes;
     private final ConcurrentMap<ShapeKey, MpmcUnboundedXaddArrayQueue<AbstractTensor>> availableByShape;
 
-    private final Function<ShapeKey, MpmcUnboundedXaddArrayQueue<AbstractTensor>> queueFactory =
-            s -> new MpmcUnboundedXaddArrayQueue<>(128);
+    private final Function<ShapeKey, MpmcUnboundedXaddArrayQueue<AbstractTensor>> queueFactory = s -> new MpmcUnboundedXaddArrayQueue<>(
+        128
+    );
 
     public TensorCache(long bytesCapacity) {
         this.bytesCapacity = bytesCapacity;
@@ -72,8 +73,10 @@ public class TensorCache {
     }
 
     public AbstractTensor get(DType dType, TensorShape shape) {
-        MpmcUnboundedXaddArrayQueue<AbstractTensor> availableQueue =
-                availableByShape.computeIfAbsent(new ShapeKey(dType, shape), queueFactory);
+        MpmcUnboundedXaddArrayQueue<AbstractTensor> availableQueue = availableByShape.computeIfAbsent(
+            new ShapeKey(dType, shape),
+            queueFactory
+        );
         AbstractTensor t = availableQueue.poll();
 
         if (t != null) return t;
@@ -83,7 +86,8 @@ public class TensorCache {
             case F16 -> new Float16BufferTensor(shape);
             case BF16 -> new BFloat16BufferTensor(shape);
             case I8 -> new Q8ByteBufferTensor(shape);
-            default -> throw new RuntimeException("Unsupported tensor type: " + dType);};
+            default -> throw new RuntimeException("Unsupported tensor type: " + dType);
+        };
 
         // Assign to this cache or just over allocate
         if (currentBytes.addAndGet(t.size()) < bytesCapacity) {
@@ -98,8 +102,10 @@ public class TensorCache {
 
     void release(AbstractTensor b) {
         b.clear();
-        MpmcUnboundedXaddArrayQueue<AbstractTensor> availableQueue =
-                availableByShape.computeIfAbsent(new ShapeKey(b.dType(), b.shape()), queueFactory);
+        MpmcUnboundedXaddArrayQueue<AbstractTensor> availableQueue = availableByShape.computeIfAbsent(
+            new ShapeKey(b.dType(), b.shape()),
+            queueFactory
+        );
         availableQueue.offer(b);
     }
 }

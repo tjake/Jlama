@@ -34,10 +34,11 @@ public class RMSNorm extends LayerNorm {
 
     @Override
     public AbstractTensor forward(
-            AbstractTensor input,
-            int offset,
-            int length,
-            Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
+        AbstractTensor input,
+        int offset,
+        int length,
+        Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer
+    ) {
 
         int batchSize = input.shape().first();
         AbstractTensor output = input.copyShape();

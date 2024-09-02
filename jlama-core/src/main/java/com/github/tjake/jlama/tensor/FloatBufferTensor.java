@@ -63,8 +63,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
         super(DType.F32, shape, true);
         this.name = "tmp";
         this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                        Ints.checkedCast(shape.size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                .asFloatBuffer();
+            Ints.checkedCast(shape.size() * dType().size()),
+            UnsafeDirectByteBuffer.CACHE_LINE_SIZE
+        ).asFloatBuffer();
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -80,8 +81,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
             this.b = b;
         } else {
             this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                            Ints.checkedCast(size() * dType().size()), UnsafeDirectByteBuffer.CACHE_LINE_SIZE)
-                    .asFloatBuffer();
+                Ints.checkedCast(size() * dType().size()),
+                UnsafeDirectByteBuffer.CACHE_LINE_SIZE
+            ).asFloatBuffer();
             this.b.duplicate().put(b);
         }
 
@@ -123,7 +125,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
         // Preconditions.checkArgument(this.dType == src.dType, "Different types");
         // Preconditions.checkArgument(!b.isReadOnly());
         segment.asSlice(getMemorySegmentOffset(destOffset), length * dType.size())
-                .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));
+            .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));
     }
 
     @Override

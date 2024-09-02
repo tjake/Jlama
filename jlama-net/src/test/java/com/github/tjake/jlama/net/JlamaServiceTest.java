@@ -57,28 +57,31 @@ public class JlamaServiceTest {
 
         String serverName = InProcessServerBuilder.generateName();
 
-        grpcCleanup.register(InProcessServerBuilder.forName(serverName)
+        grpcCleanup.register(
+            InProcessServerBuilder.forName(serverName)
                 .directExecutor()
                 .addService(new JlamaService(new MockModel(modelConfig), 4))
                 .build()
-                .start());
+                .start()
+        );
 
-        blockingStub = JlamaServiceGrpc.newBlockingStub(grpcCleanup.register(
-                InProcessChannelBuilder.forName(serverName).directExecutor().build()));
+        blockingStub = JlamaServiceGrpc.newBlockingStub(
+            grpcCleanup.register(InProcessChannelBuilder.forName(serverName).directExecutor().build())
+        );
 
-        stub = JlamaServiceGrpc.newStub(grpcCleanup.register(
-                InProcessChannelBuilder.forName(serverName).directExecutor().build()));
+        stub = JlamaServiceGrpc.newStub(grpcCleanup.register(InProcessChannelBuilder.forName(serverName).directExecutor().build()));
     }
 
     @Test
     public void testRegister() {
         UUID uuid = UUID.randomUUID();
         RegisterRequest request = RegisterRequest.newBuilder()
-                .setWorkerid(ByteString.copyFrom(ByteBuffer.allocate(128)
-                        .putLong(uuid.getLeastSignificantBits())
-                        .putLong(uuid.getMostSignificantBits())
-                        .flip()))
-                .build();
+            .setWorkerid(
+                ByteString.copyFrom(
+                    ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip()
+                )
+            )
+            .build();
         RegisterResponse response = blockingStub.register(request);
         assertThat(response.getOffset()).isEqualTo(0);
         assertThat(response.getLength()).isEqualTo(1024);
@@ -91,11 +94,12 @@ public class JlamaServiceTest {
         // Should get a different response if we register with a different uuid
         uuid = UUID.randomUUID();
         request = RegisterRequest.newBuilder()
-                .setWorkerid(ByteString.copyFrom(ByteBuffer.allocate(128)
-                        .putLong(uuid.getLeastSignificantBits())
-                        .putLong(uuid.getMostSignificantBits())
-                        .flip()))
-                .build();
+            .setWorkerid(
+                ByteString.copyFrom(
+                    ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip()
+                )
+            )
+            .build();
         response = blockingStub.register(request);
         assertThat(response.getOffset()).isEqualTo(1024);
         assertThat(response.getLength()).isEqualTo(1024);
@@ -105,19 +109,20 @@ public class JlamaServiceTest {
     public void testNorm() {
         UUID uuid = UUID.randomUUID();
         CombineRequest request = CombineRequest.newBuilder()
-                .setUuid(ByteString.copyFrom(ByteBuffer.allocate(128)
-                        .putLong(uuid.getLeastSignificantBits())
-                        .putLong(uuid.getMostSignificantBits())
-                        .flip()))
-                .setLayer(0)
-                .setSumSq(10)
-                .build();
+            .setUuid(
+                ByteString.copyFrom(
+                    ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip()
+                )
+            )
+            .setLayer(0)
+            .setSumSq(10)
+            .build();
 
         /*ListenableFuture<NormResponse> response1 = futureStub.norm(request);
         ListenableFuture<NormResponse> response2 = futureStub.norm(request);
         ListenableFuture<NormResponse> response3 = futureStub.norm(request);
         ListenableFuture<NormResponse> response4 = futureStub.norm(request);
-
+        
         Futures.whenAllComplete(response1, response2, response3, response4);
         assertThat(response1.resultNow().getSumSq()).isEqualTo(40);
         assertThat(response2.resultNow().getSumSq()).isEqualTo(40);
@@ -127,26 +132,28 @@ public class JlamaServiceTest {
 
     public static class MockConfig extends Config {
         public MockConfig(
-                int contextLength,
-                int embeddingLength,
-                int hiddenLength,
-                int numberOfHeads,
-                int numberOfLayers,
-                float layerNormEps) {
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfLayers,
+            float layerNormEps
+        ) {
             super(
-                    contextLength,
-                    embeddingLength,
-                    hiddenLength,
-                    numberOfHeads,
-                    numberOfHeads,
-                    numberOfLayers,
-                    layerNormEps,
-                    32000,
-                    1,
-                    List.of(2),
-                    ActivationFunction.Type.SILU,
-                    10000.0,
-                    1.0);
+                contextLength,
+                embeddingLength,
+                hiddenLength,
+                numberOfHeads,
+                numberOfHeads,
+                numberOfLayers,
+                layerNormEps,
+                32000,
+                1,
+                List.of(2),
+                ActivationFunction.Type.SILU,
+                10000.0,
+                1.0
+            );
         }
     }
 
@@ -210,14 +217,7 @@ public class JlamaServiceTest {
 
     public static class MockModel extends AbstractModel {
         public MockModel(Config c) {
-            super(
-                    InferenceType.INPUT_TO_EMBEDDING,
-                    c,
-                    new MockWeightLoader(),
-                    new MockTokenizer(),
-                    DType.F32,
-                    DType.F32,
-                    Optional.empty());
+            super(InferenceType.INPUT_TO_EMBEDDING, c, new MockWeightLoader(), new MockTokenizer(), DType.F32, DType.F32, Optional.empty());
         }
 
         @Override

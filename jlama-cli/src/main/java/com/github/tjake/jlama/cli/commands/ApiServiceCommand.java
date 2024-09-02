@@ -30,19 +30,14 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import picocli.CommandLine;
 
-@CommandLine.Command(
-        name = "restapi",
-        description = "Starts a openai compatible rest api for interacting with this model")
-@SpringBootApplication(scanBasePackages = {"com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands"})
+@CommandLine.Command(name = "restapi", description = "Starts a openai compatible rest api for interacting with this model")
+@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
 @SpringBootConfiguration
 @Configuration
 public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(ApiServiceCommand.class);
 
-    @CommandLine.Option(
-            names = {"-p", "--port"},
-            description = "http port (default: ${DEFAULT-VALUE})",
-            defaultValue = "8080")
+    @CommandLine.Option(names = { "-p", "--port" }, description = "http port (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
     static volatile AbstractModel m;
@@ -61,21 +56,21 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     public void run() {
         try {
             m = loadModel(
-                    model,
-                    workingDirectory,
-                    workingMemoryType,
-                    workingQuantizationType,
-                    Optional.ofNullable(modelQuantization),
-                    Optional.ofNullable(threadCount));
+                model,
+                workingDirectory,
+                workingMemoryType,
+                workingQuantizationType,
+                Optional.ofNullable(modelQuantization),
+                Optional.ofNullable(threadCount)
+            );
 
             System.out.println("Chat UI: http://localhost:" + port);
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
 
-            new SpringApplicationBuilder(ApiServiceCommand.class)
-                    .lazyInitialization(true)
-                    .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
-                    .build()
-                    .run();
+            new SpringApplicationBuilder(ApiServiceCommand.class).lazyInitialization(true)
+                .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
+                .build()
+                .run();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(2);

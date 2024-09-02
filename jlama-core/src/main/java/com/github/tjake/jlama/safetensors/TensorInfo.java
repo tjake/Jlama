@@ -33,20 +33,26 @@ public class TensorInfo {
 
     @JsonCreator
     public TensorInfo(
-            @JsonProperty("dtype") DType dType,
-            @JsonProperty("shape") long[] shape,
-            @JsonProperty("data_offsets") long[] dataOffsets) {
+        @JsonProperty("dtype") DType dType,
+        @JsonProperty("shape") long[] shape,
+        @JsonProperty("data_offsets") long[] dataOffsets
+    ) {
         this.dType = dType;
         this.shape = new int[shape.length];
-        for (int i = 0; i < shape.length; i++) this.shape[i] = Ints.checkedCast(shape[i]);
+        for (int i = 0; i < shape.length; i++)
+            this.shape[i] = Ints.checkedCast(shape[i]);
         this.dataOffsets = dataOffsets;
     }
 
     @Override
     public String toString() {
-        return "TensorInfo{" + "dType="
-                + dType + ", shape="
-                + Arrays.toString(shape) + ", dataOffsets="
-                + Arrays.toString(dataOffsets) + "}";
+        return "TensorInfo{"
+            + "dType="
+            + dType
+            + ", shape="
+            + Arrays.toString(shape)
+            + ", dataOffsets="
+            + Arrays.toString(dataOffsets)
+            + "}";
     }
 }

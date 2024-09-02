@@ -40,8 +40,7 @@ public class JarSupport {
                 final File libpath = Files.createTempDirectory("jlama").toFile();
                 libpath.deleteOnExit(); // just in case
 
-                File libfile =
-                        Paths.get(libpath.getAbsolutePath(), "libjlama" + ext).toFile();
+                File libfile = Paths.get(libpath.getAbsolutePath(), "libjlama" + ext).toFile();
                 libfile.deleteOnExit(); // just in case
 
                 final InputStream in = lib.openStream();
@@ -49,7 +48,8 @@ public class JarSupport {
 
                 int len = 0;
                 byte[] buffer = new byte[8192];
-                while ((len = in.read(buffer)) > -1) out.write(buffer, 0, len);
+                while ((len = in.read(buffer)) > -1)
+                    out.write(buffer, 0, len);
                 out.close();
                 in.close();
                 System.load(libfile.getAbsolutePath());

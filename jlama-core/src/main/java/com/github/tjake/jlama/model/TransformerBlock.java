@@ -41,12 +41,13 @@ public class TransformerBlock {
     final Optional<LayerNorm> postFFNorm;
 
     public TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            LayerNorm preAttentionNorm,
-            CausalSelfAttention attention,
-            LayerNorm postAttentionNorm,
-            FeedForward ffBlock) {
+        AbstractModel model,
+        int layerIndex,
+        LayerNorm preAttentionNorm,
+        CausalSelfAttention attention,
+        LayerNorm postAttentionNorm,
+        FeedForward ffBlock
+    ) {
         this.model = model;
         this.layerIndex = layerIndex;
         this.preAttentionNorm = Optional.of(preAttentionNorm);
@@ -59,12 +60,13 @@ public class TransformerBlock {
     }
 
     public TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            CausalSelfAttention attention,
-            LayerNorm postAttentionNorm,
-            FeedForward ffBlock,
-            LayerNorm postFFNorm) {
+        AbstractModel model,
+        int layerIndex,
+        CausalSelfAttention attention,
+        LayerNorm postAttentionNorm,
+        FeedForward ffBlock,
+        LayerNorm postFFNorm
+    ) {
         this.model = model;
         this.layerIndex = layerIndex;
         this.preAttentionNorm = Optional.empty();
@@ -81,16 +83,16 @@ public class TransformerBlock {
     }
 
     public AbstractTensor forward(
-            AbstractTensor embedding,
-            int position,
-            AbstractTensor kvBuffer,
-            Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
-            Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+        AbstractTensor embedding,
+        int position,
+        AbstractTensor kvBuffer,
+        Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
+        Optional<Consumer<List<AbstractTensor>>> tensorReducer
+    ) {
 
         debug("input_emb", embedding, layerIndex);
 
-        AbstractTensor lnemb =
-                preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
+        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
 
         debug("ln_emb", lnemb, layerIndex);
 
@@ -103,8 +105,7 @@ public class TransformerBlock {
 
         // residual connection
         TensorOperationsProvider.get()
-                .accumulate(
-                        postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+            .accumulate(postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
 
         debug("post_attn_res", postAttention, layerIndex);
 
@@ -119,8 +120,7 @@ public class TransformerBlock {
         }
 
         // residual connection
-        TensorOperationsProvider.get()
-                .accumulate(postFF, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+        TensorOperationsProvider.get().accumulate(postFF, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
 
         debug("post_ff_res", postFF, layerIndex);
 
@@ -130,13 +130,11 @@ public class TransformerBlock {
         lnemb2.close();
         postAttention.close();
 
-        return postFFNorm
-                .map(ln -> {
-                    AbstractTensor lnout = ln.forward(postFF, normReducer);
-                    debug("ln_out", lnout, layerIndex);
-                    postFF.close();
-                    return lnout;
-                })
-                .orElse(postFF);
+        return postFFNorm.map(ln -> {
+            AbstractTensor lnout = ln.forward(postFF, normReducer);
+            debug("ln_out", lnout, layerIndex);
+            postFF.close();
+            return lnout;
+        }).orElse(postFF);
     }
 }

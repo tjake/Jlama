@@ -34,8 +34,7 @@ public interface EmbedInput {
         if (inputTokens.length == 1) return t;
 
         TensorShape tbs = TensorShape.of(inputTokens.length, t.shape().last());
-        if (t.shape().isSparse())
-            tbs = tbs.sparsify(t.shape().sparseOffset(), t.shape().sparseLength());
+        if (t.shape().isSparse()) tbs = tbs.sparsify(t.shape().sparseOffset(), t.shape().sparseLength());
 
         AbstractTensor tb = TensorCache.instance.get(t.dType(), tbs);
         tb.copyFrom(t, 0, 0, t.shape().sparseLength());

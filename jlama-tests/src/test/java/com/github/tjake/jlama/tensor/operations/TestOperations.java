@@ -67,8 +67,7 @@ public class TestOperations {
 
             if (RuntimeSupport.isLinux() || RuntimeSupport.isWin()) {
                 opTypes.add(new NativeTensorOperations(HAS_F16C));
-                if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512)
-                    opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
+                if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
             }
 
             if (RuntimeSupport.isArm()) {
@@ -90,14 +89,17 @@ public class TestOperations {
 
     static AbstractTensor makeTensor(int size) {
         AbstractTensor f = new FloatBufferTensor(1, size);
-        for (int i = 0; i < size; i++) f.set(r.nextFloat(-1, 100), 0, i);
+        for (int i = 0; i < size; i++)
+            f.set(r.nextFloat(-1, 100), 0, i);
 
         return f;
     }
 
     static FloatBufferTensor makeWeights(int rows, int size) {
         FloatBufferTensor f = new FloatBufferTensor(rows, size);
-        for (int j = 0; j < rows; j++) for (int i = 0; i < size; i++) f.set(r.nextFloat(), j, i);
+        for (int j = 0; j < rows; j++)
+            for (int i = 0; i < size; i++)
+                f.set(r.nextFloat(), j, i);
 
         return f;
     }
@@ -117,15 +119,20 @@ public class TestOperations {
                 for (Map.Entry<DType, Function<AbstractTensor, AbstractTensor>> bType : bTypes.entrySet()) {
                     try {
                         logger.debug("Running {} {} {}", opt, aType, bType);
-                        float dp = t.dotProduct(
-                                aType.getValue().apply(a), bType.getValue().apply(b), SIZE);
+                        float dp = t.dotProduct(aType.getValue().apply(a), bType.getValue().apply(b), SIZE);
                         supported++;
                         Assert.assertEquals(
-                                "OP " + t.name() + ", AType " + aType.getKey() + ", BType " + bType.getKey()
-                                        + " combo is outside of 1% error limit",
-                                control,
-                                dp,
-                                control * .01f);
+                            "OP "
+                                + t.name()
+                                + ", AType "
+                                + aType.getKey()
+                                + ", BType "
+                                + bType.getKey()
+                                + " combo is outside of 1% error limit",
+                            control,
+                            dp,
+                            control * .01f
+                        );
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -151,15 +158,20 @@ public class TestOperations {
                 for (Map.Entry<DType, Function<AbstractTensor, AbstractTensor>> bType : bTypes.entrySet()) {
                     try {
                         logger.debug("Running {} {} {}", opt, aType, bType);
-                        float dp = t.dotProduct(
-                                aType.getValue().apply(a), bType.getValue().apply(b), 512, 512, 512);
+                        float dp = t.dotProduct(aType.getValue().apply(a), bType.getValue().apply(b), 512, 512, 512);
                         supported++;
                         Assert.assertEquals(
-                                "OP " + t.name() + ", AType " + aType.getKey() + ", BType " + bType.getKey()
-                                        + " combo is outside of 1% error limit",
-                                control,
-                                dp,
-                                control * .01f);
+                            "OP "
+                                + t.name()
+                                + ", AType "
+                                + aType.getKey()
+                                + ", BType "
+                                + bType.getKey()
+                                + " combo is outside of 1% error limit",
+                            control,
+                            dp,
+                            control * .01f
+                        );
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -224,11 +236,11 @@ public class TestOperations {
                         float dp = t.sum(chat);
                         supported++;
                         Assert.assertEquals(
-                                "AType " + aType.getKey() + ", BType " + bType.getKey()
-                                        + " combo is outside of 1% error limit",
-                                control,
-                                dp,
-                                control * .01f);
+                            "AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit",
+                            control,
+                            dp,
+                            control * .01f
+                        );
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -261,11 +273,11 @@ public class TestOperations {
                         float dp = t.sum(chat);
                         supported++;
                         Assert.assertEquals(
-                                "AType " + aType.getKey() + ", BType " + bType.getKey()
-                                        + " combo is outside of 1% error limit",
-                                control,
-                                dp,
-                                control * .01f);
+                            "AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit",
+                            control,
+                            dp,
+                            control * .01f
+                        );
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -296,13 +308,9 @@ public class TestOperations {
                     t.scale(3.14159f, chat, 0, SIZE);
                     float dp = t.sum(chat);
                     supported++;
-                    Assert.assertEquals(
-                            "AType " + aType.getKey() + " is outside of 1% error limit", control, dp, control * .01f);
+                    Assert.assertEquals("AType " + aType.getKey() + " is outside of 1% error limit", control, dp, control * .01f);
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
-                    logger.debug(
-                            "No support for AType {} {}",
-                            aType.getKey(),
-                            t.getClass().getSimpleName());
+                    logger.debug("No support for AType {} {}", aType.getKey(), t.getClass().getSimpleName());
                 }
             }
             Assert.assertTrue(supported > 0);
@@ -334,11 +342,11 @@ public class TestOperations {
                         float dp = t.sum(chat);
                         supported++;
                         Assert.assertEquals(
-                                "AType " + aType.getKey() + ", BType " + bType.getKey()
-                                        + " combo is outside of 1% error limit",
-                                control,
-                                dp,
-                                control * .01f);
+                            "AType " + aType.getKey() + ", BType " + bType.getKey() + " combo is outside of 1% error limit",
+                            control,
+                            dp,
+                            control * .01f
+                        );
                     } catch (UnsupportedOperationException | IllegalArgumentException e) {
                         logger.debug("No support for AType {} and BType {}", aType.getKey(), bType.getKey());
                     }
@@ -362,16 +370,13 @@ public class TestOperations {
                     AbstractTensor qv = t.quantize(at, DType.I8, 0, SIZE);
                     supported++;
                     Assert.assertEquals(
-                            "AType " + aType.getKey() + " is outside of 1% error limit "
-                                    + t.getClass().getSimpleName(),
-                            control,
-                            controlOps.sum(qv),
-                            control * .01f);
+                        "AType " + aType.getKey() + " is outside of 1% error limit " + t.getClass().getSimpleName(),
+                        control,
+                        controlOps.sum(qv),
+                        control * .01f
+                    );
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
-                    logger.debug(
-                            "No support for AType {} {}",
-                            aType.getKey(),
-                            t.getClass().getSimpleName());
+                    logger.debug("No support for AType {} {}", aType.getKey(), t.getClass().getSimpleName());
                 }
             }
             Assert.assertTrue(supported > 0);
@@ -392,15 +397,13 @@ public class TestOperations {
                     AbstractTensor qv = t.quantize(at, DType.BF16, 0, (int) a.size());
                     supported++;
                     Assert.assertEquals(
-                            "AType " + aType.getKey() + " is outside of 1% error limit",
-                            control,
-                            controlOps.sum(qv),
-                            control * .01f);
+                        "AType " + aType.getKey() + " is outside of 1% error limit",
+                        control,
+                        controlOps.sum(qv),
+                        control * .01f
+                    );
                 } catch (UnsupportedOperationException | IllegalArgumentException e) {
-                    logger.debug(
-                            "No support for AType {} {}",
-                            aType.getKey(),
-                            t.getClass().getSimpleName());
+                    logger.debug("No support for AType {} {}", aType.getKey(), t.getClass().getSimpleName());
                 }
             }
             Assert.assertTrue(supported > 0);
@@ -424,7 +427,7 @@ public class TestOperations {
         controlOps.dotProductChunk(r1, a, w1, 0, SIZE, 0, ROWS);
 
         for (TensorOperations t : opTypes) {
-            t.dotProductBatchChunk(new AbstractTensor[] {b0, b1}, a, new AbstractTensor[] {w0, w1}, 0, SIZE, 0, ROWS);
+            t.dotProductBatchChunk(new AbstractTensor[] { b0, b1 }, a, new AbstractTensor[] { w0, w1 }, 0, SIZE, 0, ROWS);
 
             Assert.assertEquals(t.name(), controlOps.sum(r0), controlOps.sum(b0), controlOps.sum(r0) * 0.01);
             Assert.assertEquals(t.name(), controlOps.sum(r1), controlOps.sum(b1), controlOps.sum(r1) * 0.01);
@@ -542,9 +545,11 @@ public class TestOperations {
         controlOps.batchDotProduct(c, q8, q4, 0, 0, SIZE);
         float sum = controlOps.sum(c);
 
-        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
-            globalOps.dotProductChunk(c1, q8, q4, 0, SIZE, chunkStart, chunkLength);
-        });
+        VectorMath.pchunk(
+            0,
+            SIZE,
+            (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, q8, q4, 0, SIZE, chunkStart, chunkLength); }
+        );
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
         c1.clear();
@@ -552,9 +557,7 @@ public class TestOperations {
         controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
         sum = controlOps.sum(c);
 
-        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
-            globalOps.dotProductChunk(c1, a, b, 0, SIZE, chunkStart, chunkLength);
-        });
+        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, a, b, 0, SIZE, chunkStart, chunkLength); });
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
 
         if (MachineSpec.VECTOR_TYPE != MachineSpec.Type.ARM_128) {
@@ -563,9 +566,11 @@ public class TestOperations {
             controlOps.batchDotProduct(c, a, q4, 0, 0, SIZE);
             sum = controlOps.sum(c);
 
-            VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> {
-                globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength);
-            });
+            VectorMath.pchunk(
+                0,
+                SIZE,
+                (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength); }
+            );
             Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
         }
     }

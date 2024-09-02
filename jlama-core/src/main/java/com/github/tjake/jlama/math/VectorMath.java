@@ -30,9 +30,7 @@ public class VectorMath {
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
     public static void pfor(int start, int end, IntConsumer action) {
-        PhysicalCoreExecutor.instance
-                .get()
-                .execute(() -> IntStream.range(start, end).parallel().forEach(action));
+        PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(start, end).parallel().forEach(action));
     }
 
     public static void pchunk(int offset, int length, BiIntConsumer action) {
@@ -52,11 +50,17 @@ public class VectorMath {
         int fchunkSize = chunkSize;
         int fremainder = remainder;
 
-        PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(0, fsplits)
-                .parallel()
-                .forEach(i -> action.accept(
-                        offset + (i * fchunkSize),
-                        fremainder > 0 && i == fsplits - 1 ? fchunkSize + fremainder : fchunkSize)));
+        PhysicalCoreExecutor.instance.get()
+            .execute(
+                () -> IntStream.range(0, fsplits)
+                    .parallel()
+                    .forEach(
+                        i -> action.accept(
+                            offset + (i * fchunkSize),
+                            fremainder > 0 && i == fsplits - 1 ? fchunkSize + fremainder : fchunkSize
+                        )
+                    )
+            );
     }
 
     public static void softMax(AbstractTensor x, int offset, int length) {
@@ -84,17 +88,21 @@ public class VectorMath {
 
     public static void l1normalize(float[] x) {
         float sum = 0.0f;
-        for (int i = 0; i < x.length; i++) sum += Math.abs(x[i]);
+        for (int i = 0; i < x.length; i++)
+            sum += Math.abs(x[i]);
 
-        for (int i = 0; i < x.length; i++) x[i] /= sum;
+        for (int i = 0; i < x.length; i++)
+            x[i] /= sum;
     }
 
     public static void l2normalize(float[] x) {
         float sum = 0.0f;
-        for (int i = 0; i < x.length; i++) sum += x[i] * x[i];
+        for (int i = 0; i < x.length; i++)
+            sum += x[i] * x[i];
 
         double magnitude = Math.sqrt(sum);
-        for (int i = 0; i < x.length; i++) x[i] /= magnitude;
+        for (int i = 0; i < x.length; i++)
+            x[i] /= magnitude;
     }
 
     public static float cosineSimilarity(float[] a, float[] b) {
@@ -130,13 +138,14 @@ public class VectorMath {
             freqs[i] = (float) ((1.0 / Math.pow(theta, step / dim)) / scaling_factor);
 
         float[] t = new float[end];
-        for (int i = 0; i < end; i++) t[i] = i;
+        for (int i = 0; i < end; i++)
+            t[i] = i;
 
         float[] freqs_cis = outerProduct(t, freqs);
 
         float[][] r = new float[freqs_cis.length][];
         for (int i = 0; i < freqs_cis.length; i++)
-            r[i] = new float[] {(float) Math.cos(freqs_cis[i]), (float) Math.sin(freqs_cis[i])};
+            r[i] = new float[] { (float) Math.cos(freqs_cis[i]), (float) Math.sin(freqs_cis[i]) };
 
         return r;
     }

@@ -48,13 +48,9 @@ public class OpenAIChatService {
      * @param request  (required)
      * @return OK (status code 200)
      */
-    @RequestMapping(
-            method = RequestMethod.POST,
-            value = "/chat/completions",
-            produces = {"application/json", "text/event-stream"},
-            consumes = {"application/json"})
-    Object createChatCompletion(
-            @RequestHeader Map<String, String> headers, @Valid @RequestBody CreateChatCompletionRequest request) {
+    @RequestMapping(method = RequestMethod.POST, value = "/chat/completions", produces = { "application/json",
+        "text/event-stream" }, consumes = { "application/json" })
+    Object createChatCompletion(@RequestHeader Map<String, String> headers, @Valid @RequestBody CreateChatCompletionRequest request) {
 
         List<ChatCompletionRequestMessage> messages = request.getMessages();
 
@@ -79,17 +75,14 @@ public class OpenAIChatService {
         for (ChatCompletionRequestMessage m : messages) {
 
             if (m.getActualInstance() instanceof ChatCompletionRequestUserMessage) {
-                ChatCompletionRequestUserMessageContent content =
-                        m.getChatCompletionRequestUserMessage().getContent();
+                ChatCompletionRequestUserMessageContent content = m.getChatCompletionRequestUserMessage().getContent();
 
                 if (content.getActualInstance() instanceof String) {
                     builder.addUserMessage(content.getString());
                 } else {
-                    for (ChatCompletionRequestMessageContentPart p :
-                            content.getListChatCompletionRequestMessageContentPart()) {
+                    for (ChatCompletionRequestMessageContentPart p : content.getListChatCompletionRequestMessageContentPart()) {
                         if (p.getActualInstance() instanceof ChatCompletionRequestMessageContentPartText) {
-                            builder.addUserMessage(p.getChatCompletionRequestMessageContentPartText()
-                                    .getText());
+                            builder.addUserMessage(p.getChatCompletionRequestMessageContentPartText().getText());
                         } else {
                             // We don't support other types of content... yet...
                             return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
@@ -97,62 +90,67 @@ public class OpenAIChatService {
                     }
                 }
             } else if (m.getActualInstance() instanceof ChatCompletionRequestSystemMessage) {
-                builder.addSystemMessage(
-                        m.getChatCompletionRequestSystemMessage().getContent());
+                builder.addSystemMessage(m.getChatCompletionRequestSystemMessage().getContent());
             } else if (m.getActualInstance() instanceof ChatCompletionRequestAssistantMessage) {
-                builder.addAssistantMessage(
-                        m.getChatCompletionRequestAssistantMessage().getContent());
+                builder.addAssistantMessage(m.getChatCompletionRequestAssistantMessage().getContent());
             } else {
                 return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
             }
         }
 
-        float temperature = request.getTemperature() == null
-                ? 0.3f
-                : request.getTemperature().floatValue();
+        float temperature = request.getTemperature() == null ? 0.3f : request.getTemperature().floatValue();
         int maxTokens = request.getMaxTokens() == null ? 1024 : request.getMaxTokens();
 
         AtomicInteger index = new AtomicInteger(0);
         if (request.getStream() != null && request.getStream()) {
             SseEmitter emitter = new SseEmitter(-1L);
-            CompletableFuture.supplyAsync(
-                            () -> model.generate(sessionId, builder.build(), temperature, maxTokens, (t, f) -> {
-                                try {
-                                    emitter.send(new CreateChatCompletionStreamResponse()
-                                            .id(sessionId.toString())
-                                            .choices(List.of(new CreateChatCompletionStreamResponseChoicesInner()
-                                                    .index(index.getAndIncrement())
-                                                    .delta(new ChatCompletionStreamResponseDelta().content(t)))));
-                                } catch (IOException e) {
-                                    emitter.completeWithError(e);
-                                }
-                            }))
-                    .handle((r, ex) -> {
-                        try {
-                            emitter.send(new CreateChatCompletionStreamResponse()
-                                    .id(sessionId.toString())
-                                    .choices(List.of(new CreateChatCompletionStreamResponseChoicesInner()
-                                            .finishReason(
-                                                    CreateChatCompletionStreamResponseChoicesInner.FinishReasonEnum
-                                                            .STOP))));
+            CompletableFuture.supplyAsync(() -> model.generate(sessionId, builder.build(), temperature, maxTokens, (t, f) -> {
+                try {
+                    emitter.send(
+                        new CreateChatCompletionStreamResponse().id(sessionId.toString())
+                            .choices(
+                                List.of(
+                                    new CreateChatCompletionStreamResponseChoicesInner().index(index.getAndIncrement())
+                                        .delta(new ChatCompletionStreamResponseDelta().content(t))
+                                )
+                            )
+                    );
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                }
+            })).handle((r, ex) -> {
+                try {
+                    emitter.send(
+                        new CreateChatCompletionStreamResponse().id(sessionId.toString())
+                            .choices(
+                                List.of(
+                                    new CreateChatCompletionStreamResponseChoicesInner().finishReason(
+                                        CreateChatCompletionStreamResponseChoicesInner.FinishReasonEnum.STOP
+                                    )
+                                )
+                            )
+                    );
 
-                            emitter.complete();
-                        } catch (IOException e) {
-                            emitter.completeWithError(e);
-                        }
+                    emitter.complete();
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                }
 
-                        return null;
-                    });
+                return null;
+            });
 
             return emitter;
         } else {
             Generator.Response r = model.generate(sessionId, builder.build(), temperature, maxTokens, (s, f) -> {});
 
-            CreateChatCompletionResponse out = new CreateChatCompletionResponse()
-                    .id(sessionId.toString())
-                    .choices(List.of(new CreateChatCompletionResponseChoicesInner()
-                            .finishReason(CreateChatCompletionResponseChoicesInner.FinishReasonEnum.STOP)
-                            .message(new ChatCompletionResponseMessage().content(r.responseText))));
+            CreateChatCompletionResponse out = new CreateChatCompletionResponse().id(sessionId.toString())
+                .choices(
+                    List.of(
+                        new CreateChatCompletionResponseChoicesInner().finishReason(
+                            CreateChatCompletionResponseChoicesInner.FinishReasonEnum.STOP
+                        ).message(new ChatCompletionResponseMessage().content(r.responseText))
+                    )
+                );
 
             return new ResponseEntity<>(out, HttpStatus.OK);
         }

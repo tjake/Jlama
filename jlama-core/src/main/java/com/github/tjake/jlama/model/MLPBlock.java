@@ -44,46 +44,43 @@ public class MLPBlock implements FeedForward {
     private final AbstractTensor[] batchWeights;
 
     public MLPBlock(
-            AbstractModel model,
-            ActivationFunction.Type activationFunction,
-            AbstractTensor fullyConnectedBias,
-            AbstractTensor fullyConnectedWeights,
-            AbstractTensor projectionBias,
-            AbstractTensor projectionWeights) {
+        AbstractModel model,
+        ActivationFunction.Type activationFunction,
+        AbstractTensor fullyConnectedBias,
+        AbstractTensor fullyConnectedWeights,
+        AbstractTensor projectionBias,
+        AbstractTensor projectionWeights
+    ) {
         this(
-                model,
-                activationFunction,
-                Optional.of(fullyConnectedBias),
-                fullyConnectedWeights,
-                Optional.of(projectionBias),
-                projectionWeights,
-                null);
+            model,
+            activationFunction,
+            Optional.of(fullyConnectedBias),
+            fullyConnectedWeights,
+            Optional.of(projectionBias),
+            projectionWeights,
+            null
+        );
     }
 
     public MLPBlock(
-            AbstractModel model,
-            ActivationFunction.Type activationFunction,
-            AbstractTensor fullyConnectedWeights,
-            AbstractTensor projectionWeights,
-            AbstractTensor upProjectionWeights) {
-        this(
-                model,
-                activationFunction,
-                Optional.empty(),
-                fullyConnectedWeights,
-                Optional.empty(),
-                projectionWeights,
-                upProjectionWeights);
+        AbstractModel model,
+        ActivationFunction.Type activationFunction,
+        AbstractTensor fullyConnectedWeights,
+        AbstractTensor projectionWeights,
+        AbstractTensor upProjectionWeights
+    ) {
+        this(model, activationFunction, Optional.empty(), fullyConnectedWeights, Optional.empty(), projectionWeights, upProjectionWeights);
     }
 
     public MLPBlock(
-            AbstractModel model,
-            ActivationFunction.Type activationFunction,
-            Optional<AbstractTensor> fullyConnectedBias,
-            AbstractTensor fullyConnectedWeights,
-            Optional<AbstractTensor> projectionBias,
-            AbstractTensor projectionWeights,
-            AbstractTensor upProjectionWeights) {
+        AbstractModel model,
+        ActivationFunction.Type activationFunction,
+        Optional<AbstractTensor> fullyConnectedBias,
+        AbstractTensor fullyConnectedWeights,
+        Optional<AbstractTensor> projectionBias,
+        AbstractTensor projectionWeights,
+        AbstractTensor upProjectionWeights
+    ) {
         this.model = model;
         this.activationFunction = activationFunction;
         this.fullyConnectedBias = fullyConnectedBias;
@@ -92,7 +89,7 @@ public class MLPBlock implements FeedForward {
         this.projectionWeights = projectionWeights;
         this.upProjectionWeights = upProjectionWeights;
         this.batchResults = new AbstractTensor[2];
-        this.batchWeights = new AbstractTensor[] {fullyConnectedWeights, upProjectionWeights};
+        this.batchWeights = new AbstractTensor[] { fullyConnectedWeights, upProjectionWeights };
     }
 
     // For FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
@@ -100,8 +97,10 @@ public class MLPBlock implements FeedForward {
     public AbstractTensor forward(AbstractTensor lnemb, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         int hiddenLength = model.c.hiddenLength;
         int batchSize = lnemb.shape().first();
-        try (AbstractTensor buf = model.makeTensor(batchSize, hiddenLength);
-                AbstractTensor buf2 = model.makeTensor(batchSize, hiddenLength)) {
+        try (
+            AbstractTensor buf = model.makeTensor(batchSize, hiddenLength);
+            AbstractTensor buf2 = model.makeTensor(batchSize, hiddenLength)
+        ) {
 
             batchResults[0] = buf;
             batchResults[1] = buf2;
@@ -109,24 +108,26 @@ public class MLPBlock implements FeedForward {
             VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
                 if (upProjectionWeights != null) {
                     TensorOperationsProvider.get()
-                            .dotProductBatchChunk(
-                                    batchResults,
-                                    lnemb,
-                                    batchWeights,
-                                    model.c.embeddingSegmentStart(),
-                                    model.c.embeddingSegmentLength(),
-                                    chunkStart,
-                                    chunkSize);
+                        .dotProductBatchChunk(
+                            batchResults,
+                            lnemb,
+                            batchWeights,
+                            model.c.embeddingSegmentStart(),
+                            model.c.embeddingSegmentLength(),
+                            chunkStart,
+                            chunkSize
+                        );
                 } else {
                     TensorOperationsProvider.get()
-                            .dotProductChunk(
-                                    buf,
-                                    lnemb,
-                                    fullyConnectedWeights,
-                                    model.c.embeddingSegmentStart(),
-                                    model.c.embeddingSegmentLength(),
-                                    chunkStart,
-                                    chunkSize);
+                        .dotProductChunk(
+                            buf,
+                            lnemb,
+                            fullyConnectedWeights,
+                            model.c.embeddingSegmentStart(),
+                            model.c.embeddingSegmentLength(),
+                            chunkStart,
+                            chunkSize
+                        );
                 }
             });
 
@@ -155,15 +156,14 @@ public class MLPBlock implements FeedForward {
             try (AbstractTensor bufq = model.maybeQuantize(buf)) {
                 // matmul the projection and sum into input
                 AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
-                VectorMath.pchunk(
-                        model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
-                            TensorOperationsProvider.get()
-                                    .dotProductChunk(
-                                            result, bufq, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
-                        });
+                VectorMath.pchunk(model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                    TensorOperationsProvider.get().dotProductChunk(result, bufq, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
+                });
 
-                projectionBias.ifPresent(bias -> TensorOperationsProvider.get()
-                        .accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength()));
+                projectionBias.ifPresent(
+                    bias -> TensorOperationsProvider.get()
+                        .accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength())
+                );
                 return result;
             }
         }

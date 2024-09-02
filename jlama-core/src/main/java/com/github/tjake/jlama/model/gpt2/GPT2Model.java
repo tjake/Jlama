@@ -25,24 +25,19 @@ import java.util.Optional;
 
 public class GPT2Model extends AbstractModel {
 
-    public GPT2Model(
-            Config c,
-            WeightLoader w,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+    public GPT2Model(Config c, WeightLoader w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
         super(InferenceType.FULL_GENERATION, c, w, tokenizer, workingDType, workingQType, modelQType);
     }
 
     public GPT2Model(
-            InferenceType inferenceType,
-            Config c,
-            WeightLoader w,
-            Tokenizer tokenizer,
-            DType workingDType,
-            DType workingQType,
-            Optional<DType> modelQType) {
+        InferenceType inferenceType,
+        Config c,
+        WeightLoader w,
+        Tokenizer tokenizer,
+        DType workingDType,
+        DType workingQType,
+        Optional<DType> modelQType
+    ) {
         super(inferenceType, c, w, tokenizer, workingDType, workingQType, modelQType);
     }
 
@@ -77,27 +72,28 @@ public class GPT2Model extends AbstractModel {
             String prefix = b + "attn.";
 
             AbstractTensor[] attnBias = weights.load(prefix + "c_attn.bias").split(3, 1);
-            AbstractTensor[] attnWeights =
-                    weights.load(prefix + "c_attn.weight").transpose().split(3, 0);
+            AbstractTensor[] attnWeights = weights.load(prefix + "c_attn.weight").transpose().split(3, 0);
             CausalSelfAttention attention = new CausalSelfAttention(
-                    this,
-                    attnBias[0],
-                    attnBias[1],
-                    attnBias[2],
-                    attnWeights[0],
-                    attnWeights[1],
-                    attnWeights[2],
-                    weights.load(prefix + "c_proj.bias"),
-                    weights.load(prefix + "c_proj.weight").transpose());
+                this,
+                attnBias[0],
+                attnBias[1],
+                attnBias[2],
+                attnWeights[0],
+                attnWeights[1],
+                attnWeights[2],
+                weights.load(prefix + "c_proj.bias"),
+                weights.load(prefix + "c_proj.weight").transpose()
+            );
 
             prefix = b + "mlp.";
             MLPBlock mlpBlock = new MLPBlock(
-                    this,
-                    c.activationFunction,
-                    weights.load(prefix + "c_fc.bias"),
-                    weights.load(prefix + "c_fc.weight").transpose(),
-                    weights.load(prefix + "c_proj.bias"),
-                    weights.load(prefix + "c_proj.weight").transpose());
+                this,
+                c.activationFunction,
+                weights.load(prefix + "c_fc.bias"),
+                weights.load(prefix + "c_fc.weight").transpose(),
+                weights.load(prefix + "c_proj.bias"),
+                weights.load(prefix + "c_proj.weight").transpose()
+            );
 
             LayerNorm layerNorm1 = new LayerNorm(this, weights.load(b + "ln_1.bias"), weights.load(b + "ln_1.weight"));
             LayerNorm layerNorm2 = new LayerNorm(this, weights.load(b + "ln_2.bias"), weights.load(b + "ln_2.weight"));

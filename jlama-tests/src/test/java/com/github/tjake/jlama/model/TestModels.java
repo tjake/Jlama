@@ -40,6 +40,7 @@ import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.primitives.Ints;
@@ -89,9 +90,10 @@ public class TestModels {
             GPT2Model gpt2 = new GPT2Model(c, v, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             PromptContext prompt = PromptContext.of(
-                    "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
-                            + "previously unexplored valley, in the Andes Mountains. "
-                            + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English.");
+                "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
+                    + "previously unexplored valley, in the Andes Mountains. "
+                    + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
+            );
 
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
             gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
@@ -102,8 +104,7 @@ public class TestModels {
     public void LlamaRun() throws Exception {
         String modelPrefix = "../models/Meta-Llama-3.1-8B-Instruct-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (WeightLoader weights =
-                SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
@@ -113,20 +114,14 @@ public class TestModels {
             builder.addUserMessage("What is the temp in paris right now?");
             builder.addGenerationPrompt(true);
 
-            Tool t = Tool.from(Function.builder()
+            Tool t = Tool.from(
+                Function.builder()
                     .name("get_current_temperature")
                     .description("Simulates getting the current temperature at a location.")
-                    .addParameter(
-                            "location",
-                            "string",
-                            "The location to get the temperature for, in the format \"City, Country\".",
-                            true)
-                    .addParameter(
-                            "unit",
-                            "string",
-                            "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").",
-                            true)
-                    .build());
+                    .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                    .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                    .build()
+            );
 
             PromptContext promptContext = builder.build(t);
 
@@ -155,8 +150,7 @@ public class TestModels {
     public void DeepCoderRun() throws Exception {
         String modelPrefix = "../models/deepseek-coder-1.3b-base";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (WeightLoader weights =
-                SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
             LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
@@ -169,8 +163,7 @@ public class TestModels {
     public void MistralRun() throws Exception {
         String modelPrefix = "../models/Mistral-7B-Instruct-v0.3-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (WeightLoader weights =
-                SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             BPETokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), MistralConfig.class);
             MistralModel model = new MistralModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
@@ -180,20 +173,14 @@ public class TestModels {
             builder.addUserMessage("What is the temp in paris right now?");
             builder.addGenerationPrompt(true);
 
-            Tool t = Tool.from(Function.builder()
+            Tool t = Tool.from(
+                Function.builder()
                     .name("get_current_temperature")
                     .description("Simulates getting the current temperature at a location.")
-                    .addParameter(
-                            "location",
-                            "string",
-                            "The location to get the temperature for, in the format \"City, Country\".",
-                            true)
-                    .addParameter(
-                            "unit",
-                            "string",
-                            "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").",
-                            true)
-                    .build());
+                    .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                    .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                    .build()
+            );
 
             PromptContext promptContext = builder.build(t);
 
@@ -226,19 +213,17 @@ public class TestModels {
     public void MixtralRun() throws Exception {
         String modelPrefix = "../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (WeightLoader weights =
-                SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             MixtralConfig c = om.readValue(new File(modelPrefix + "/config.json"), MixtralConfig.class);
             MixtralModel model = new MixtralModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt0 =
-                    "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, "
-                            + "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, "
-                            + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
+                "Antibiotics are a type of medication used to treat bacterial infections. They work by either killing the bacteria or preventing them from reproducing, "
+                    + "allowing the body’s immune system to fight off the infection. Antibiotics are usually taken orally in the form of pills, capsules, or liquid solutions, "
+                    + "or sometimes administered intravenously. They are not effective against viral infections, and using them inappropriately can lead to antibiotic resistance. Explain the above in one sentence:";
 
             String prompt = "Tell me a joke.";
-            PromptContext p =
-                    model.promptSupport().get().builder().addUserMessage(prompt).build();
+            PromptContext p = model.promptSupport().get().builder().addUserMessage(prompt).build();
 
             model.generate(UUID.randomUUID(), p, 0.7f, 256, makeOutHandler());
         }
@@ -248,14 +233,12 @@ public class TestModels {
     public void GemmaRun() throws Exception {
         String modelPrefix = "../models/gemma-7b-it";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (WeightLoader weights =
-                SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             GemmaTokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
             GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
             GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
             String prompt = "Tell me a joke.";
-            PromptContext p =
-                    model.promptSupport().get().builder().addUserMessage(prompt).build();
+            PromptContext p = model.promptSupport().get().builder().addUserMessage(prompt).build();
             model.generate(UUID.randomUUID(), p, 0.3f, 256, makeOutHandler());
         }
     }
@@ -268,13 +251,12 @@ public class TestModels {
         Path tmpOut = Files.createTempDirectory("jltest");
         try {
             Path out = SafeTensorSupport.quantizeModel(
-                    Paths.get(modelPrefix),
-                    DType.Q4,
-                    new String[] {
-                        "model.embed_tokens.weight", "lm_head.weight",
-                    },
-                    null,
-                    Optional.of(tmpOut));
+                Paths.get(modelPrefix),
+                DType.Q4,
+                new String[] { "model.embed_tokens.weight", "lm_head.weight", },
+                null,
+                Optional.of(tmpOut)
+            );
 
             Assert.assertEquals(tmpOut, out);
 
@@ -330,16 +312,10 @@ public class TestModels {
             BertModel model = new BertModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
 
             String base = "A man is eating food.";
-            String[] examples = new String[] {
-                "A man is eating a piece of bread.",
-                "The girl is carrying a baby.",
-                "A man is riding a horse.",
-                "A woman is playing violin.",
-                "Two men pushed carts through the woods.",
-                "A man is riding a white horse on an enclosed ground.",
-                "A monkey is playing drums.",
-                "Someone in a gorilla costume is playing a set of drums."
-            };
+            String[] examples = new String[] { "A man is eating a piece of bread.", "The girl is carrying a baby.",
+                "A man is riding a horse.", "A woman is playing violin.", "Two men pushed carts through the woods.",
+                "A man is riding a white horse on an enclosed ground.", "A monkey is playing drums.",
+                "Someone in a gorilla costume is playing a set of drums." };
 
             float[] be = model.embed(base);
             logger.info("base is {}", base);
@@ -384,62 +360,48 @@ public class TestModels {
         Path model = Paths.get("../models/gpt2-medium");
         Assume.assumeTrue(Files.exists(model));
 
-        AbstractModel mFull =
-                ModelSupport.loadModel(model.toFile(), null, DType.F32, DType.F32, Optional.empty(), Optional.empty());
+        AbstractModel mFull = ModelSupport.loadModel(model.toFile(), null, DType.F32, DType.F32, Optional.empty(), Optional.empty());
 
         int len = mFull.getConfig().embeddingLength;
         AbstractModel mFirstHalf = ModelSupport.loadModel(
-                AbstractModel.InferenceType.FULL_GENERATION,
-                model.toFile(),
-                null,
-                DType.F32,
-                DType.F32,
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(Pair.create(0, len / 2)));
+            AbstractModel.InferenceType.FULL_GENERATION,
+            model.toFile(),
+            null,
+            DType.F32,
+            DType.F32,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of(Pair.create(0, len / 2))
+        );
         AbstractModel mSecondHalf = ModelSupport.loadModel(
-                AbstractModel.InferenceType.FULL_GENERATION,
-                model.toFile(),
-                null,
-                DType.F32,
-                DType.F32,
-                Optional.empty(),
-                Optional.empty(),
-                Optional.of(Pair.create(len / 2, len / 2)));
+            AbstractModel.InferenceType.FULL_GENERATION,
+            model.toFile(),
+            null,
+            DType.F32,
+            DType.F32,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.of(Pair.create(len / 2, len / 2))
+        );
 
         int embLen = mFull.c.embeddingLength;
 
         // Main one
-        AbstractTensor kvmem0 = mFull.makeTensor(
-                mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); // k and v are last 2 dims
+        AbstractTensor kvmem0 = new KvBufferCache(mFull).getKvBuffer(UUID.randomUUID());
         AbstractTensor t0 = mFull.embedInput.inputTokenToEmbedding(mFull.c.bosToken, 0);
         AbstractTensor f0 = mFull.transformerBlocks[0].preAttentionNorm.get().forward(t0);
 
         AbstractTensor q0 = mFull.makeTensor(embLen);
         VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
             TensorOperationsProvider.get()
-                    .dotProductChunk(
-                            q0,
-                            t0,
-                            mFull.transformerBlocks[0].attention.queryAttnWeights,
-                            0,
-                            embLen,
-                            chunkStart,
-                            chunkLength);
+                .dotProductChunk(q0, t0, mFull.transformerBlocks[0].attention.queryAttnWeights, 0, embLen, chunkStart, chunkLength);
         });
 
         // Test a double dot
         AbstractTensor qq0 = mFull.makeTensor(embLen);
         VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
             TensorOperationsProvider.get()
-                    .dotProductChunk(
-                            qq0,
-                            q0,
-                            mFull.transformerBlocks[0].attention.queryAttnWeights,
-                            0,
-                            embLen,
-                            chunkStart,
-                            chunkLength);
+                .dotProductChunk(qq0, q0, mFull.transformerBlocks[0].attention.queryAttnWeights, 0, embLen, chunkStart, chunkLength);
         });
 
         AbstractTensor a0 = mFull.transformerBlocks[0].attention.forward(f0, 0, kvmem0.slice(0), Optional.empty());
@@ -472,18 +434,20 @@ public class TestModels {
             return null;
         };
 
-        AbstractTensor kvmem1 = mFirstHalf.makeTensor(
-                mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); // k and v are last 2 dims
+        AbstractTensor kvmem1 = mFirstHalf.makeTensor(mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); // k and v are last 2
+                                                                                                                    // dims
         AbstractTensor t1 = mFirstHalf.embedInput.inputTokenToEmbedding(mFull.c.bosToken, 0);
 
-        AbstractTensor kvmem2 = mSecondHalf.makeTensor(
-                mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); // k and v are last 2 dims
+        AbstractTensor kvmem2 = mSecondHalf.makeTensor(mFull.c.getNumberOfLayers(), 10, 2, mFull.c.embeddingLength); // k and v are last 2
+                                                                                                                     // dims
         AbstractTensor t2 = mSecondHalf.embedInput.inputTokenToEmbedding(mFull.c.bosToken, 0);
 
         CompletableFuture<AbstractTensor> f1c = CompletableFuture.supplyAsync(
-                () -> mFirstHalf.transformerBlocks[0].preAttentionNorm.get().forward(t1, Optional.of(reducer)));
+            () -> mFirstHalf.transformerBlocks[0].preAttentionNorm.get().forward(t1, Optional.of(reducer))
+        );
         CompletableFuture<AbstractTensor> f2c = CompletableFuture.supplyAsync(
-                () -> mSecondHalf.transformerBlocks[0].preAttentionNorm.get().forward(t2, Optional.of(reducer)));
+            () -> mSecondHalf.transformerBlocks[0].preAttentionNorm.get().forward(t2, Optional.of(reducer))
+        );
 
         CompletableFuture.allOf(f1c, f2c);
         AbstractTensor f1 = f1c.join();
@@ -497,26 +461,12 @@ public class TestModels {
 
         VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
             TensorOperationsProvider.get()
-                    .dotProductChunk(
-                            q1,
-                            t1,
-                            mFirstHalf.transformerBlocks[0].attention.queryAttnWeights,
-                            off0,
-                            len0,
-                            chunkStart,
-                            chunkLength);
+                .dotProductChunk(q1, t1, mFirstHalf.transformerBlocks[0].attention.queryAttnWeights, off0, len0, chunkStart, chunkLength);
         });
 
         VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
             TensorOperationsProvider.get()
-                    .dotProductChunk(
-                            qq1,
-                            q1,
-                            mFirstHalf.transformerBlocks[0].attention.queryAttnWeights,
-                            off0,
-                            len0,
-                            chunkStart,
-                            chunkLength);
+                .dotProductChunk(qq1, q1, mFirstHalf.transformerBlocks[0].attention.queryAttnWeights, off0, len0, chunkStart, chunkLength);
         });
 
         AbstractTensor q2 = mFull.makeTensor(embLen);
@@ -527,30 +477,15 @@ public class TestModels {
 
         VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
             TensorOperationsProvider.get()
-                    .dotProductChunk(
-                            q2,
-                            t2,
-                            mSecondHalf.transformerBlocks[0].attention.queryAttnWeights,
-                            off1,
-                            len1,
-                            chunkStart,
-                            chunkLength);
+                .dotProductChunk(q2, t2, mSecondHalf.transformerBlocks[0].attention.queryAttnWeights, off1, len1, chunkStart, chunkLength);
         });
         VectorMath.pchunk(0, embLen, (chunkStart, chunkLength) -> {
             TensorOperationsProvider.get()
-                    .dotProductChunk(
-                            qq2,
-                            q2,
-                            mSecondHalf.transformerBlocks[0].attention.queryAttnWeights,
-                            off1,
-                            len1,
-                            chunkStart,
-                            chunkLength);
+                .dotProductChunk(qq2, q2, mSecondHalf.transformerBlocks[0].attention.queryAttnWeights, off1, len1, chunkStart, chunkLength);
         });
 
         AbstractTensor a1 = mFirstHalf.transformerBlocks[0].attention.forward(f1, 0, kvmem1.slice(0), Optional.empty());
-        AbstractTensor a2 =
-                mSecondHalf.transformerBlocks[0].attention.forward(f2, 0, kvmem2.slice(0), Optional.empty());
+        AbstractTensor a2 = mSecondHalf.transformerBlocks[0].attention.forward(f2, 0, kvmem2.slice(0), Optional.empty());
 
         AbstractTensor tc = mFull.makeTensor(mFull.c.embeddingLength);
         tc.copyFrom(t1, 0, 0, (int) t1.size());
@@ -571,7 +506,8 @@ public class TestModels {
     static boolean tensorEquals(AbstractTensor a, AbstractTensor b) {
         if (a.size() != b.size()) return false;
 
-        for (int i = 0; i < a.size(); i++) Assert.assertEquals("Position " + i, a.get(0, i), b.get(0, i), 0.01f);
+        for (int i = 0; i < a.size(); i++)
+            Assert.assertEquals("Position " + i, a.get(0, i), b.get(0, i), 0.01f);
 
         return true;
     }

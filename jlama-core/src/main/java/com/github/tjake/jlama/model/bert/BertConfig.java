@@ -24,27 +24,29 @@ import java.util.List;
 public class BertConfig extends Config {
     @JsonCreator
     public BertConfig(
-            @JsonProperty("max_position_embeddings") int contextLength,
-            @JsonProperty("hidden_size") int embeddingLength,
-            @JsonProperty("intermediate_size") int hiddenLength,
-            @JsonProperty("num_attention_heads") int numberOfHeads,
-            @JsonProperty("num_hidden_layers") int numberOfLayers,
-            @JsonProperty("layer_norm_eps") float layerNormEps,
-            @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
-            @JsonProperty("vocab_size") int vocabularySize) {
+        @JsonProperty("max_position_embeddings") int contextLength,
+        @JsonProperty("hidden_size") int embeddingLength,
+        @JsonProperty("intermediate_size") int hiddenLength,
+        @JsonProperty("num_attention_heads") int numberOfHeads,
+        @JsonProperty("num_hidden_layers") int numberOfLayers,
+        @JsonProperty("layer_norm_eps") float layerNormEps,
+        @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
+        @JsonProperty("vocab_size") int vocabularySize
+    ) {
         super(
-                contextLength,
-                embeddingLength,
-                hiddenLength,
-                numberOfHeads,
-                numberOfHeads,
-                numberOfLayers,
-                layerNormEps,
-                vocabularySize,
-                0,
-                List.of(0),
-                activationFunction,
-                null,
-                null);
+            contextLength,
+            embeddingLength,
+            hiddenLength,
+            numberOfHeads,
+            numberOfHeads,
+            numberOfLayers,
+            layerNormEps,
+            vocabularySize,
+            0,
+            List.of(0),
+            activationFunction,
+            null,
+            null
+        );
     }
 }

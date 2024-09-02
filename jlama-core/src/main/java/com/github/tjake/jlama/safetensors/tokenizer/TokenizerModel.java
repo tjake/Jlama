@@ -77,13 +77,14 @@ public class TokenizerModel {
 
     @JsonCreator
     public TokenizerModel(
-            @JsonProperty("type") String type,
-            @JsonProperty("unk_token") String unkToken,
-            @JsonProperty("fuse_unk") boolean fuseUnk,
-            @JsonProperty("byte_fallback") boolean byteFallback,
-            @JsonProperty("vocab") Map<String, Long> vocabLookup,
-            @JsonProperty("ignore_merges") Boolean ignoreMerges,
-            @JsonProperty("merges") List<String> merges) {
+        @JsonProperty("type") String type,
+        @JsonProperty("unk_token") String unkToken,
+        @JsonProperty("fuse_unk") boolean fuseUnk,
+        @JsonProperty("byte_fallback") boolean byteFallback,
+        @JsonProperty("vocab") Map<String, Long> vocabLookup,
+        @JsonProperty("ignore_merges") Boolean ignoreMerges,
+        @JsonProperty("merges") List<String> merges
+    ) {
         this.type = type;
         this.unkToken = unkToken;
         this.fuseUnk = fuseUnk;
@@ -174,8 +175,7 @@ public class TokenizerModel {
 
         if (promptTemplates != null) {
 
-            hasToolSupport = promptTemplates.values().stream()
-                    .anyMatch(s -> s.toLowerCase().contains("tools"));
+            hasToolSupport = promptTemplates.values().stream().anyMatch(s -> s.toLowerCase().contains("tools"));
 
             this.promptTemplates = Optional.of(promptTemplates);
         }
@@ -241,11 +241,10 @@ public class TokenizerModel {
         }
 
         // If no match was found, return this
-        if (index == 0) return new String[] {input.toString()};
+        if (index == 0) return new String[] { input.toString() };
 
         // Add remaining segment
-        if (!matchLimited || matchCount < limit)
-            matchList.add(input.subSequence(index, input.length()).toString());
+        if (!matchLimited || matchCount < limit) matchList.add(input.subSequence(index, input.length()).toString());
 
         // Construct result
         int resultSize = matchList.size();
@@ -264,11 +263,9 @@ public class TokenizerModel {
         public final List<NormalizerItem> normalizerItems;
 
         @JsonCreator
-        public Normalizer(
-                @JsonProperty("type") String type, @JsonProperty("normalizers") List<NormalizerItem> normalizerItems) {
+        public Normalizer(@JsonProperty("type") String type, @JsonProperty("normalizers") List<NormalizerItem> normalizerItems) {
             this.type = type;
-            this.normalizerItems =
-                    normalizerItems == null ? Collections.emptyList() : ImmutableList.copyOf(normalizerItems);
+            this.normalizerItems = normalizerItems == null ? Collections.emptyList() : ImmutableList.copyOf(normalizerItems);
         }
 
         public String normalize(String sentence) {
@@ -291,10 +288,11 @@ public class TokenizerModel {
 
         @JsonCreator
         public NormalizerItem(
-                @JsonProperty("type") String type,
-                @JsonProperty("prepend") String prepend,
-                @JsonProperty("pattern") Map<String, String> pattern,
-                @JsonProperty("content") String content) {
+            @JsonProperty("type") String type,
+            @JsonProperty("prepend") String prepend,
+            @JsonProperty("pattern") Map<String, String> pattern,
+            @JsonProperty("content") String content
+        ) {
             this.type = type;
             this.prepend = prepend;
             this.pattern = pattern;
@@ -314,8 +312,7 @@ public class TokenizerModel {
 
         private String replace(String sentence) {
             for (Map.Entry<String, String> entry : pattern.entrySet()) {
-                if (!entry.getKey().equalsIgnoreCase("String"))
-                    logger.warn("Ignoring unknown pattern key: " + entry.getKey());
+                if (!entry.getKey().equalsIgnoreCase("String")) logger.warn("Ignoring unknown pattern key: " + entry.getKey());
                 sentence = sentence.replaceAll(entry.getValue(), content);
             }
 
@@ -337,10 +334,11 @@ public class TokenizerModel {
 
         @JsonCreator
         public PreTokenizer(
-                @JsonProperty("type") String type,
-                @JsonProperty("replacement") String replacement,
-                @JsonProperty("prepend_scheme") String prependScheme,
-                @JsonProperty("pretokenizers") List<PretokenizerItem> pretokenizers) {
+            @JsonProperty("type") String type,
+            @JsonProperty("replacement") String replacement,
+            @JsonProperty("prepend_scheme") String prependScheme,
+            @JsonProperty("pretokenizers") List<PretokenizerItem> pretokenizers
+        ) {
             this.type = type;
             this.replacement = replacement;
             this.prependScheme = prependScheme;
@@ -389,14 +387,15 @@ public class TokenizerModel {
 
         @JsonCreator
         public PretokenizerItem(
-                @JsonProperty("type") String type,
-                @JsonProperty("pattern") Pattern pattern,
-                @JsonProperty("behavior") String behavior,
-                @JsonProperty("invert") Boolean invert,
-                @JsonProperty("individual_digits") Boolean individual_digits,
-                @JsonProperty("add_prefix_space") Boolean add_prefix_space,
-                @JsonProperty("trim_offsets") Boolean trim_offsets,
-                @JsonProperty("use_regex") Boolean use_regex) {
+            @JsonProperty("type") String type,
+            @JsonProperty("pattern") Pattern pattern,
+            @JsonProperty("behavior") String behavior,
+            @JsonProperty("invert") Boolean invert,
+            @JsonProperty("individual_digits") Boolean individual_digits,
+            @JsonProperty("add_prefix_space") Boolean add_prefix_space,
+            @JsonProperty("trim_offsets") Boolean trim_offsets,
+            @JsonProperty("use_regex") Boolean use_regex
+        ) {
             this.type = type;
             this.pattern = pattern;
             this.behavior = behavior;
@@ -423,10 +422,9 @@ public class TokenizerModel {
         }
 
         private List<String> byteLevel(String sentence) {
-            return List.of(sentence.codePoints()
-                    .map(c -> alteredBytes.getOrDefault(c, c))
-                    .mapToObj(Character::toString)
-                    .collect(Collectors.joining()));
+            return List.of(
+                sentence.codePoints().map(c -> alteredBytes.getOrDefault(c, c)).mapToObj(Character::toString).collect(Collectors.joining())
+            );
         }
 
         private List<String> splitRegex(String s) {

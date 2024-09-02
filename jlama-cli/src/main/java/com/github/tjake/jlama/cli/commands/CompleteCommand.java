@@ -29,12 +29,13 @@ public class CompleteCommand extends ModelBaseCommand {
     @Override
     public void run() {
         AbstractModel m = loadModel(
-                model,
-                workingDirectory,
-                workingMemoryType,
-                workingQuantizationType,
-                Optional.ofNullable(modelQuantization),
-                Optional.ofNullable(threadCount));
+            model,
+            workingDirectory,
+            workingMemoryType,
+            workingQuantizationType,
+            Optional.ofNullable(modelQuantization),
+            Optional.ofNullable(threadCount)
+        );
         m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());
     }
 }

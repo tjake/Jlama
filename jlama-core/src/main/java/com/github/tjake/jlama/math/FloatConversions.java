@@ -105,8 +105,7 @@ public class FloatConversions {
 
         long zero_mask = (nonsign - 1) >> (32 + 31);
 
-        return Float.intBitsToFloat(
-                (int) (sign | (((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) & ~zero_mask)));
+        return Float.intBitsToFloat((int) (sign | (((nonsign << renorm_shift >> 3) + ((0x70 - renorm_shift) << 23)) & ~zero_mask)));
     }
 
     private static final short SIGN_MASK = (short) 0x8000;

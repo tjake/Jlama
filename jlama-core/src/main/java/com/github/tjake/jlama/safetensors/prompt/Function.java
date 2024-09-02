@@ -24,7 +24,7 @@ import java.util.Map;
 /**
  * FunctionObject
  */
-@JsonPropertyOrder({Function.JSON_PROPERTY_NAME, Function.JSON_PROPERTY_DESCRIPTION, Function.JSON_PROPERTY_PARAMETERS})
+@JsonPropertyOrder({ Function.JSON_PROPERTY_NAME, Function.JSON_PROPERTY_DESCRIPTION, Function.JSON_PROPERTY_PARAMETERS })
 public class Function extends PyMap {
     public static final String JSON_PROPERTY_NAME = "name";
     private final String name;
@@ -73,11 +73,13 @@ public class Function extends PyMap {
     }
 
     private Function(String name, String description, Parameters parameters) {
-        super(ImmutableMap.<String, Object>builder()
+        super(
+            ImmutableMap.<String, Object>builder()
                 .put(JSON_PROPERTY_NAME, name)
                 .put(JSON_PROPERTY_DESCRIPTION, description)
                 .put(JSON_PROPERTY_PARAMETERS, parameters)
-                .build());
+                .build()
+        );
         this.name = name;
         this.description = description;
         this.parameters = parameters;
