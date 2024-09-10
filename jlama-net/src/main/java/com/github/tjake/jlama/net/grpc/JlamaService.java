@@ -30,10 +30,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
 import jdk.incubator.vector.FloatVector;
 import org.jctools.queues.MpmcArrayQueue;
 import org.slf4j.Logger;
@@ -48,9 +46,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private final GeneratorGroup generatorGroup;
 
     private final ConcurrentMap<String, MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>>> combinations;
-    private final int headSize;
     private final int headCount;
-    private final int headsPerWorker;
 
     public JlamaService(AbstractModel model, int workerCount) {
         Preconditions.checkArgument(
@@ -63,9 +59,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         this.combinations = new ConcurrentHashMap<>();
         this.generatorGroup = new GeneratorGroup();
 
-        this.headCount = model.getConfig().numberOfHeads;
-        this.headSize = model.getConfig().headSize;
-        this.headsPerWorker = headCount / workerCount;
+        this.headCount = model.getConfig().numberOfKeyValueHeads;
     }
 
     public void waitForReady() {
@@ -107,12 +101,17 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     return;
                 }
 
-                int offset = workers.size() * headsPerWorker * headSize;
-                int length = headsPerWorker * headSize;
+                int workerNum = workers.size();
 
-                RegisterResponse r = RegisterResponse.newBuilder().setOffset(offset).setLength(length).build();
+                RegisterResponse r = RegisterResponse.newBuilder()
+                        .setModelShard(workerNum)
+                        .setNumModelShards(workerCount)
+                        .setLayerShard(0)
+                        .setNumLayerShards(1)
+                        .build();
+
                 workers.put(wid, r);
-                logger.info("Registered worker {} with offset {} and length {}", wid, offset, length);
+                logger.info("Registered worker {} with workerNum {} of {}", wid, workerNum, workerCount);
 
                 responseObserver.onNext(r);
                 responseObserver.onCompleted();
@@ -143,7 +142,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     key,
                     k -> new MpmcArrayQueue<>(workerCount + 1)
                 );
-                members.add(Pair.create(request, responseObserver));
+                members.add(Pair.of(request, responseObserver));
 
                 // If we have all the workers, then we can calculate the result and send it back
                 if (members.size() == workerCount && combinations.remove(key, members)) {
@@ -151,8 +150,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     float sum = 0;
                     MemorySegment[] tensors = null;
                     for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
-                        sumSq += f.left.getSumSq();
-                        sum += f.left.getSum();
                         if (f.left.getTensorCount() > 0) {
                             if (tensors == null) {
                                 tensors = new MemorySegment[f.left.getTensorCount()];
@@ -172,7 +169,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                         }
                     }
 
-                    CombineResponse.Builder responseBuilder = CombineResponse.newBuilder().setSumSq(sumSq).setSum(sum);
+                    CombineResponse.Builder responseBuilder = CombineResponse.newBuilder();
 
                     if (tensors != null) {
                         for (int i = 0; i < tensors.length; i++)
@@ -243,15 +240,22 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 g.responseObserver.onNext(gr);
             }
 
-            AbstractTensor output = model.makeFullTensor(model.getConfig().embeddingLength);
+            AbstractTensor output = model.makeDenseTensor(model.getConfig().embeddingLength);
 
-            for (Generator g : generators) {
+
+            for (int j = 0; j < workerCount; j++) {
+                Generator g = generators.get(j);
                 ByteString v = g.waitForOutput(session);
                 RegisterResponse r = workers.get(g.workerId);
 
-                FloatBuffer f = v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
-                for (int i = 0; i < r.getLength(); i++) {
-                    output.set(f.get(), 0, r.getOffset() + i);
+                if (j == 0) {
+                    FloatBuffer f = v.asReadOnlyByteBuffer()
+                            .order(ByteOrder.LITTLE_ENDIAN)
+                            .asFloatBuffer();
+                    int len = f.remaining();
+                    for (int i = 0; i < len; i++) {
+                        output.set(f.get(), 0, i);
+                    }
                 }
             }
 

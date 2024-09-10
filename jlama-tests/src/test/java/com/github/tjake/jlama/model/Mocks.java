@@ -77,7 +77,7 @@ public class Mocks {
         }
 
         @Override
-        public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) {
+        public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) {
             return null;
         }
 

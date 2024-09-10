@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 public class MoEBlock implements FeedForward {
 
     private final AbstractModel model;
+    private final DistributedContext dctx;
     private final AbstractTensor moeGateWeight;
     private final int numberOfExperts;
     private final int numberOfExpertsPerToken;
@@ -55,6 +56,7 @@ public class MoEBlock implements FeedForward {
         AbstractTensor[] upProjectionWeights
     ) {
         this.model = model;
+        this.dctx = model.c.dctx();
         this.numberOfExperts = numberOfExperts;
         this.numberOfExpertsPerToken = numberOfExpertsPerToken;
         this.moeGateWeight = moeGateWeight;
@@ -87,20 +89,17 @@ public class MoEBlock implements FeedForward {
                 // Apply each experts gate to the input
                 VectorMath.pfor(0, numberOfExperts, i -> {
                     expertResults.set(
-                        TensorOperationsProvider.get()
-                            .dotProduct(
+                            TensorOperationsProvider.get().dotProduct(
                                 lnembSlice,
                                 moeGateWeight.slice(true, i),
-                                model.c.embeddingSegmentStart(),
-                                model.c.embeddingSegmentStart(),
-                                model.c.embeddingSegmentLength()
+                                0,
+                                0,
+                                model.c.embeddingLength
                             ),
                         0,
                         i
                     );
                 });
-
-                tensorReducer.ifPresent(func -> { func.accept(Collections.singletonList(expertResults)); });
 
                 // Pick the top experts for this token
                 VectorMath.softMax(expertResults, 0, numberOfExperts);
@@ -114,52 +113,41 @@ public class MoEBlock implements FeedForward {
                     batchResults[0] = buf;
                     batchResults[1] = buf2;
 
-                    VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
+                    VectorMath.pchunk(dctx.hiddenSegmentStart, dctx.hiddenSegmentLength, (chunkStart, chunkSize) -> {
                         TensorOperationsProvider.get()
                             .dotProductBatchChunk(
                                 batchResults,
                                 lnembSlice,
                                 batchWeights,
-                                model.c.embeddingSegmentStart(),
-                                model.c.embeddingSegmentLength(),
+                                0,
+                                model.c.embeddingLength,
                                 chunkStart,
                                 chunkSize
                             );
                     });
 
-                    tensorReducer.ifPresent(func -> {
-                        tmpTensors1.clear();
-                        tmpTensors1.add(buf);
-                        tmpTensors1.add(buf2);
-                        func.accept(tmpTensors1);
-                    });
-
-                    VectorMath.pfor(0, hiddenLength, iv -> {
+                    VectorMath.pfor(dctx.hiddenSegmentStart, dctx.hiddenSegmentEnd, iv -> {
                         float w1 = buf.get(0, iv);
                         float w1a = ActivationFunction.eval(activationFunction, w1);
                         buf.set(w1a, 0, iv);
                     });
 
-                    TensorOperationsProvider.get().maccumulate(buf, buf2, 0, hiddenLength);
+                    TensorOperationsProvider.get().maccumulate(buf, buf2, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength);
+
+                    tensorReducer.ifPresent(func -> func.accept(Collections.singletonList(buf)));
 
                     // matmul the projection and sum into result
                     try (AbstractTensor bufq = model.maybeQuantize(buf)) {
-                        VectorMath.pchunk(model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
+                        VectorMath.pchunk(0, model.c.embeddingLength, (chunkStart, chunkSize) -> {
                             TensorOperationsProvider.get()
                                 .dotProductChunk(moeResult, bufq, projectionWeight, 0, hiddenLength, chunkStart, chunkSize);
                         });
                     }
 
                     if (i == 0) {
-                        result.copyFrom(
-                            moeResult,
-                            moeResult.getOffset(0, model.c.embeddingSegmentStart()),
-                            result.getOffset(b, model.c.embeddingSegmentStart()),
-                            model.c.embeddingSegmentLength()
-                        );
+                        result.copyFrom(moeResult, 0, 0, model.c.embeddingLength);
                     } else {
-                        TensorOperationsProvider.get()
-                            .accumulate(result.slice(b), moeResult, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+                        TensorOperationsProvider.get().accumulate(result.slice(b), moeResult, 0, model.c.embeddingLength);
                     }
                 }
             }

@@ -18,6 +18,7 @@ package com.github.tjake.jlama.safetensors;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
@@ -179,15 +180,11 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     }
 
     @Override
-    public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) {
+    public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) {
         Weights w = weightMap.get(name);
         if (w == null) throw new NoSuchElementException(name);
 
-        AbstractTensor t = w.load(name);
-        return offset.map(o -> {
-            logger.debug("Sparsifying tensor {} with shape {}", name, o);
-            return t.sparsify(o.left, o.right);
-        }).orElse(t);
+        return w.load(name, dctx, sparseRows, sparseColumns);
     }
 
     @Override

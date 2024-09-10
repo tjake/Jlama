@@ -15,11 +15,23 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
+import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.Coordinator;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers")
-public class ClusterCoordinatorCommand extends BaseCommand {
+@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
+@SpringBootConfiguration
+@Configuration
+public class ClusterCoordinatorCommand extends BaseCommand implements WebMvcConfigurer {
 
     @CommandLine.Option(names = { "-w", "--worker-count" }, description = "signifies this instance is a coordinator", required = true)
     int workerCount = 1;
@@ -33,9 +45,17 @@ public class ClusterCoordinatorCommand extends BaseCommand {
     int port = 8080;
 
     @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/ui/**").addResourceLocations("classpath:/static/ui/");
+    }
+
+    @Override
     public void run() {
         try {
             Coordinator c = new Coordinator(model, workingDirectory, grpcPort, workerCount);
+
+            //This wires up the bean for the rest api
+            ApiServiceCommand.m = c;
 
             new Thread(() -> {
                 try {
@@ -45,16 +65,13 @@ public class ClusterCoordinatorCommand extends BaseCommand {
                 }
             }).start();
 
-            /*UndertowJaxrsServer ut = new UndertowJaxrsServer();
-            ut.deploy(new JlamaRestApi(c), APPLICATION_PATH);
-            ut.addResourcePrefixPath(
-                    "/ui",
-                    resource(new ClassPathResourceManager(ServeCommand.class.getClassLoader()))
-                            .setDirectoryListingEnabled(true)
-                            .addWelcomeFiles("index.html"));
-            
-            System.out.println("Chat UI: http://localhost:" + port + "/ui/index.html");
-            ut.start(Undertow.builder().addHttpListener(port, "0.0.0.0"));*/
+            System.out.println("Chat UI: http://localhost:" + port);
+            System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
+
+            new SpringApplicationBuilder(ClusterCoordinatorCommand.class).lazyInitialization(true)
+                    .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
+                    .build()
+                    .run();
 
         } catch (Exception e) {
             e.printStackTrace();

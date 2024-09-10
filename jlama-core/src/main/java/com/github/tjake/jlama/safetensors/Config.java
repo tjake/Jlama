@@ -17,6 +17,7 @@ package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
+import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
@@ -28,6 +29,7 @@ import java.util.Optional;
 public class Config {
     public final int contextLength;
     public final int embeddingLength;
+    public final int attentionLength;
     public final int hiddenLength;
     public final int numberOfHeads;
     public final int numberOfKeyValueHeads;
@@ -36,26 +38,15 @@ public class Config {
     public final int headGroupSize;
     public final int kvLength;
     public final boolean isGQA;
-    protected final int numberOfLayers;
+    public final int numberOfLayers;
     public final float layerNormEps;
     public final int vocabularySize;
     public final int bosToken;
     public final List<Integer> eosTokens;
     public final Optional<float[][]> ropeFreqs;
-    private volatile Optional<Pair<Integer, Integer>> offset;
+    private volatile DistributedContext dctx;
     private volatile File workingDirectory;
 
-    // Suppliers to store values that chance when offset is adjusted
-    private volatile int embeddingSegmentStart;
-    private volatile int embeddingSegmentLength;
-    private volatile int embeddingSegmentEnd;
-    private volatile int kvSegmentStart;
-    private volatile int kvSegmentLength;
-    private volatile int kvSegmentEnd;
-    private volatile int headStart;
-    private volatile int headEnd;
-    private volatile int groupHeadStart;
-    private volatile int groupHeadEnd;
 
     public final TensorCache tensorCache;
 
@@ -109,6 +100,7 @@ public class Config {
         Integer headSize
     ) {
         this.contextLength = contextLength;
+        this.attentionLength = numberOfHeads * headSize;
         this.embeddingLength = embeddingLength;
         this.hiddenLength = hiddenLength;
         this.numberOfHeads = numberOfHeads;
@@ -131,22 +123,11 @@ public class Config {
             );
 
         // Set default values
-        setOffset(null);
+        this.dctx = DistributedContext.builder(this).build();
     }
 
-    public void setOffset(Pair<Integer, Integer> offset) {
-        this.offset = Optional.ofNullable(offset);
-
-        this.embeddingSegmentStart = this.offset.map(Pair::left).orElse(0);
-        this.embeddingSegmentLength = this.offset.map(Pair::right).orElse(embeddingLength);
-        this.embeddingSegmentEnd = embeddingSegmentStart + embeddingSegmentLength;
-        this.kvSegmentStart = embeddingSegmentStart / headGroupSize;
-        this.kvSegmentEnd = embeddingSegmentEnd / headGroupSize;
-        this.kvSegmentLength = embeddingSegmentLength / headGroupSize;
-        this.headStart = embeddingSegmentStart / headSize;
-        this.headEnd = embeddingSegmentEnd / headSize;
-        this.groupHeadStart = kvSegmentStart / headSize;
-        this.groupHeadEnd = kvSegmentEnd / headSize;
+    public void setDistributedContext(DistributedContext dctx) {
+        this.dctx = dctx;
     }
 
     public void setWorkingDirectory(File workingDirectory) {
@@ -163,56 +144,12 @@ public class Config {
         return Optional.ofNullable(this.workingDirectory);
     }
 
-    public Optional<Pair<Integer, Integer>> offset() {
-        return offset;
-    }
-
-    public int layerStart() {
-        return 0;
-    }
-
-    public int layerEnd() {
-        return numberOfLayers;
-    }
-
-    public int getNumberOfLayers() {
-        return numberOfLayers;
-    }
-
-    public int embeddingSegmentStart() {
-        return embeddingSegmentStart;
-    }
-
-    public int embeddingSegmentLength() {
-        return embeddingSegmentLength;
-    }
-
-    public int kvSegmentStart() {
-        return kvSegmentStart;
-    }
-
-    public int kvSegmentLength() {
-        return kvSegmentLength;
-    }
-
-    public int headStart() {
-        return headStart;
-    }
-
-    public int headEnd() {
-        return headEnd;
+    public DistributedContext dctx() {
+        return dctx;
     }
 
     public int maybeMapToGroupHead(int head) {
         if (!isGQA) return head;
         return Math.floorDiv(head, headGroupSize);
-    }
-
-    public int groupHeadStart() {
-        return groupHeadStart;
-    }
-
-    public int groupHeadEnd() {
-        return groupHeadEnd;
     }
 }

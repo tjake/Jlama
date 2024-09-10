@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.safetensors;
 
+import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.util.Pair;
 import java.util.Map;
@@ -27,10 +28,10 @@ public interface WeightLoader extends AutoCloseable {
     Map<String, TensorInfo> tensorInfoMap();
 
     default AbstractTensor load(String name) {
-        return load(name, Optional.empty());
+        return load(name, null, false, false);
     }
 
-    AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset);
+    AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns);
 
     DType getModelDType();
 }

@@ -19,6 +19,8 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import java.util.Optional;
+
+import com.github.tjake.jlama.model.functions.Generator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringBootConfiguration;
@@ -40,10 +42,10 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     @CommandLine.Option(names = { "-p", "--port" }, description = "http port (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
-    static volatile AbstractModel m;
+    protected static volatile Generator m;
 
     @Bean
-    public AbstractModel getModelBean() {
+    public Generator getModelBean() {
         return m;
     }
 

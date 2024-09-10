@@ -16,10 +16,12 @@
 package com.github.tjake.jlama.model.functions;
 
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -129,4 +131,6 @@ public interface Generator {
     );
 
     Tokenizer getTokenizer();
+
+    Optional<PromptSupport> promptSupport();
 }

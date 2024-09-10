@@ -78,17 +78,17 @@ public class GemmaModel extends LlamaModel {
             logger.info("Quantizing model with {} - Please hold...", qType);
         }
 
-        TransformerBlock[] transformerBlocks = new TransformerBlock[c.getNumberOfLayers()];
+        TransformerBlock[] transformerBlocks = new TransformerBlock[c.dctx().numberOfLayers];
 
-        IntStream.range(c.layerStart(), c.layerEnd()).parallel().forEach(i -> {
+        IntStream.range(c.dctx().layerStart, c.dctx().layerEnd).parallel().forEach(i -> {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
-                weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
-                weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
-                weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
-                weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType)
+                weights.load(prefix + "q_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "k_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "v_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "o_proj.weight", c.dctx(), false, true).quantize(qType)
             );
 
             prefix = base + "mlp.";
@@ -96,17 +96,17 @@ public class GemmaModel extends LlamaModel {
             MLPBlock mlp = new MLPBlock(
                 this,
                 ActivationFunction.Type.GELU,
-                weights.load(prefix + "gate_proj.weight", c.offset()).quantize(qType), // w1
-                weights.load(prefix + "down_proj.weight").quantize(qType), // w2
-                weights.load(prefix + "up_proj.weight", c.offset()).quantize(qType)
-            ); // w3
+                weights.load(prefix + "gate_proj.weight", c.dctx(), true, false).quantize(qType), // w1
+                weights.load(prefix + "down_proj.weight", c.dctx(), false, true).quantize(qType), // w2
+                weights.load(prefix + "up_proj.weight", c.dctx(), true, false).quantize(qType) // w3
+            );
 
             transformerBlocks[i] = new TransformerBlock(
                 this,
                 i,
-                new RMSNorm(this, weights.load(base + "input_layernorm.weight", c.offset()).quantize(qType), 1.0f),
+                new RMSNorm(this, weights.load(base + "input_layernorm.weight").quantize(qType), 1.0f),
                 attention,
-                new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight", c.offset()).quantize(qType), 1.0f),
+                new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight").quantize(qType), 1.0f),
                 mlp
             );
         });
@@ -116,25 +116,19 @@ public class GemmaModel extends LlamaModel {
 
     @Override
     protected EmbedInput loadInputWeights() {
-
-        if (wte == null) wte = weights.load("model.embed_tokens.weight", c.offset()).quantize(workingDType); // Don't quantize this, it's
-                                                                                                             // used for the embedding layer
+        // Don't quantize this, it's used for the embedding layer
+        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
 
         return (inputToken, position) -> {
-            AbstractTensor embedding = makeTensor(c.embeddingLength);
+            AbstractTensor embedding = makeDenseTensor(c.embeddingLength);
             AbstractTensor at = wte.slice(true, inputToken);
-            if (wte.dType() != embedding.dType()) at = TensorOperationsProvider.get()
-                .quantize(at, embedding.dType(), c.embeddingSegmentStart(), c.embeddingSegmentLength());
+            if (wte.dType() != embedding.dType())
+                at = TensorOperationsProvider.get().quantize(at, embedding.dType(), 0, c.embeddingLength);
 
-            embedding.copyFrom(
-                at,
-                at.getOffset(0, c.embeddingSegmentStart()),
-                embedding.getOffset(c.embeddingSegmentStart()),
-                c.embeddingSegmentLength()
-            );
+            embedding.copyFrom(at, 0, 0, c.embeddingLength);
 
             // This is important for Gemma, but not for Llama
-            TensorOperationsProvider.get().scale(embeddingScalingFactor, embedding, c.embeddingSegmentStart(), c.embeddingSegmentLength());
+            TensorOperationsProvider.get().scale(embeddingScalingFactor, embedding, 0, c.embeddingLength);
 
             return embedding;
         };
@@ -144,7 +138,7 @@ public class GemmaModel extends LlamaModel {
     protected SampleOutput loadOutputWeights() {
         DType qType = modelQType.orElse(this.modelDType);
 
-        if (wte == null) wte = weights.load("model.embed_tokens.weight", c.offset()).quantize(workingDType); // Don't quantize this, it's
+        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType); // Don't quantize this, it's
                                                                                                              // used for the embedding layer
 
         final LayerNorm layerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType), 1.0f);

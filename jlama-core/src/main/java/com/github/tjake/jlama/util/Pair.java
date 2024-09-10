@@ -58,7 +58,7 @@ public class Pair<T1, T2> {
         return right;
     }
 
-    public static <X, Y> Pair<X, Y> create(X x, Y y) {
+    public static <X, Y> Pair<X, Y> of(X x, Y y) {
         return new Pair<X, Y>(x, y);
     }
 }

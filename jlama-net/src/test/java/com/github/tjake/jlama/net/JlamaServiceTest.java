@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.model.TransformerBlock;
 import com.github.tjake.jlama.model.functions.EmbedInput;
@@ -83,13 +84,13 @@ public class JlamaServiceTest {
             )
             .build();
         RegisterResponse response = blockingStub.register(request);
-        assertThat(response.getOffset()).isEqualTo(0);
-        assertThat(response.getLength()).isEqualTo(1024);
+        assertThat(response.getModelShard()).isEqualTo(0);
+        assertThat(response.getNumModelShards()).isEqualTo(4);
 
         // Should get the same response if we register again with same uuid
         response = blockingStub.register(request);
-        assertThat(response.getOffset()).isEqualTo(0);
-        assertThat(response.getLength()).isEqualTo(1024);
+        assertThat(response.getModelShard()).isEqualTo(0);
+        assertThat(response.getNumModelShards()).isEqualTo(4);
 
         // Should get a different response if we register with a different uuid
         uuid = UUID.randomUUID();
@@ -101,33 +102,8 @@ public class JlamaServiceTest {
             )
             .build();
         response = blockingStub.register(request);
-        assertThat(response.getOffset()).isEqualTo(1024);
-        assertThat(response.getLength()).isEqualTo(1024);
-    }
-
-    @Test
-    public void testNorm() {
-        UUID uuid = UUID.randomUUID();
-        CombineRequest request = CombineRequest.newBuilder()
-            .setUuid(
-                ByteString.copyFrom(
-                    ByteBuffer.allocate(128).putLong(uuid.getLeastSignificantBits()).putLong(uuid.getMostSignificantBits()).flip()
-                )
-            )
-            .setLayer(0)
-            .setSumSq(10)
-            .build();
-
-        /*ListenableFuture<NormResponse> response1 = futureStub.norm(request);
-        ListenableFuture<NormResponse> response2 = futureStub.norm(request);
-        ListenableFuture<NormResponse> response3 = futureStub.norm(request);
-        ListenableFuture<NormResponse> response4 = futureStub.norm(request);
-        
-        Futures.whenAllComplete(response1, response2, response3, response4);
-        assertThat(response1.resultNow().getSumSq()).isEqualTo(40);
-        assertThat(response2.resultNow().getSumSq()).isEqualTo(40);
-        assertThat(response3.resultNow().getSumSq()).isEqualTo(40);
-        assertThat(response4.resultNow().getSumSq()).isEqualTo(40);*/
+        assertThat(response.getModelShard()).isEqualTo(1);
+        assertThat(response.getNumModelShards()).isEqualTo(4);
     }
 
     public static class MockConfig extends Config {
@@ -169,7 +145,7 @@ public class JlamaServiceTest {
         }
 
         @Override
-        public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) {
+        public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) {
             return null;
         }
 

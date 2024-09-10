@@ -67,17 +67,17 @@ public class MixtralModel extends MistralModel {
             logger.info("Quantizing model with {} - Please hold...", qType);
         }
 
-        TransformerBlock[] transformerBlocks = new TransformerBlock[c.getNumberOfLayers()];
+        TransformerBlock[] transformerBlocks = new TransformerBlock[c.dctx().numberOfLayers];
 
-        IntStream.range(c.layerStart(), c.layerEnd()).parallel().forEach(i -> {
+        IntStream.range(c.dctx().layerStart, c.dctx().layerEnd).parallel().forEach(i -> {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
-                weights.load(prefix + "q_proj.weight", c.offset()).quantize(qType),
-                weights.load(prefix + "k_proj.weight", c.offset()).quantize(qType),
-                weights.load(prefix + "v_proj.weight", c.offset()).quantize(qType),
-                weights.load(prefix + "o_proj.weight", c.offset()).quantize(qType)
+                weights.load(prefix + "q_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "k_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "v_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "o_proj.weight").quantize(qType)
             );
 
             prefix = base + "block_sparse_moe.";
@@ -88,9 +88,9 @@ public class MixtralModel extends MistralModel {
 
             for (int e = 0; e < mixtralConfig.numberOfExperts; e++) {
                 String expertPrefix = prefix + "experts." + e + ".";
-                expertGateWeights[e] = weights.load(expertPrefix + "w1.weight", c.offset()).quantize(qType);
+                expertGateWeights[e] = weights.load(expertPrefix + "w1.weight", c.dctx(), true, false).quantize(qType);
                 expertDownWeights[e] = weights.load(expertPrefix + "w2.weight").quantize(qType);
-                expertUpWeights[e] = weights.load(expertPrefix + "w3.weight", c.offset()).quantize(qType);
+                expertUpWeights[e] = weights.load(expertPrefix + "w3.weight", c.dctx(), true, false).quantize(qType);
             }
 
             MoEBlock moe = new MoEBlock(
@@ -98,7 +98,7 @@ public class MixtralModel extends MistralModel {
                 mixtralConfig.numberOfExperts,
                 mixtralConfig.numberOfExpertsPerToken,
                 c.activationFunction,
-                weights.load(prefix + "gate.weight", c.offset()).quantize(qType),
+                weights.load(prefix + "gate.weight").quantize(qType),
                 expertGateWeights, // w1
                 expertDownWeights, // w2
                 expertUpWeights
@@ -107,9 +107,9 @@ public class MixtralModel extends MistralModel {
             transformerBlocks[i] = new TransformerBlock(
                 this,
                 i,
-                new RMSNorm(this, weights.load(base + "input_layernorm.weight", c.offset()).quantize(qType)),
+                new RMSNorm(this, weights.load(base + "input_layernorm.weight").quantize(qType)),
                 attention,
-                new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight", c.offset()).quantize(qType)),
+                new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight").quantize(qType)),
                 moe
             );
         });

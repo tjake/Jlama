@@ -42,10 +42,6 @@ public class DistributedServiceTest {
         rootLogger.setLevel(Level.toLevel("info"));
     }
 
-    private static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-        .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true);
 
     @Test
     void oneWorkerTestLLama() throws Exception {
@@ -79,8 +75,8 @@ public class DistributedServiceTest {
 
     @Test
     void manyWorkerTestLLama() throws Exception {
-        // Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
-        Path modelRoot = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
+        //Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
+        Path modelRoot = Paths.get("../models/Meta-Llama-3.1-8B-Instruct-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelRoot));
 
         Coordinator coordinator = new Coordinator(modelRoot.toFile(), null, 8888, 4);
@@ -106,7 +102,7 @@ public class DistributedServiceTest {
             coordinator.generate(
                 UUID.randomUUID(),
                 PromptContext.of("Simply put, the theory of relativity states that"),
-                0.7f,
+                0.3f,
                 256,
                 makeOutHandler()
             );

@@ -243,13 +243,14 @@ public class SafeTensorSupport {
         String baseDirName = modelRoot.getName(modelRoot.getNameCount() - 1).toString();
         Path parentPath = modelRoot.getParent();
 
-        Path qPath = outputRoot.orElseGet(() -> Paths.get(parentPath.toString(), baseDirName + "-jlama-" + modelQuantization.name()));
+        Path qPath = outputRoot.orElseGet(() -> Paths.get(parentPath.toString(), baseDirName + "-Jlama-" + modelQuantization.name()));
         File qDir = qPath.toFile();
         qDir.mkdirs();
 
         // Copy config.json and tokenizer.json
         Files.copy(modelRoot.resolve("config.json"), qPath.resolve("config.json"));
         Files.copy(modelRoot.resolve("tokenizer.json"), qPath.resolve("tokenizer.json"));
+        Files.copy(modelRoot.resolve("README.md"), qPath.resolve("README.md"));
 
         if (Files.exists(modelRoot.resolve("tokenizer_config.json"))) Files.copy(
             modelRoot.resolve("tokenizer_config.json"),
@@ -404,7 +405,7 @@ public class SafeTensorSupport {
 
         if (responseCode == HttpURLConnection.HTTP_OK) {
             // If the response code is 200 (HTTP_OK), return the input stream
-            return Pair.create(connection.getInputStream(), connection.getContentLengthLong());
+            return Pair.of(connection.getInputStream(), connection.getContentLengthLong());
         } else {
             // If the response code is not 200, throw an IOException
             throw new IOException("HTTP response code: " + responseCode + " for URL: " + urlString);

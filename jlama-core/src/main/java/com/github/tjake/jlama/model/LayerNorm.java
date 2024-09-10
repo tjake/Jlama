@@ -41,7 +41,7 @@ public class LayerNorm {
         Preconditions.checkArgument(input.shape().dims() == 2);
         int size = input.shape().last();
         Preconditions.checkArgument(size == m.c.embeddingLength);
-        return forward(input, m.c.embeddingSegmentStart(), m.c.embeddingSegmentLength(), reducer);
+        return forward(input, 0, m.c.embeddingLength, reducer);
     }
 
     public AbstractTensor forward(
@@ -62,12 +62,6 @@ public class LayerNorm {
                 float v = input.get(b, i);
                 sum += v;
                 sumSq += v * v;
-            }
-
-            if (reducer.isPresent()) {
-                Pair<Float, Float> p = reducer.get().apply(sumSq, sum);
-                sumSq = p.left;
-                sum = p.right;
             }
 
             float mean = sum / m.c.embeddingLength;

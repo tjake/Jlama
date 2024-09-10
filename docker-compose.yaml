@@ -12,7 +12,7 @@ services:
       resources:
         limits:
           memory: 1g
-          cpus: 1
+          cpus: "1"
     command:
       - cluster-coordinator
       - --threads=2
@@ -36,7 +36,7 @@ services:
       replicas: 8
       resources:
         limits:
-          cpus: 1
+          cpus: "1"
           memory: 500m
     command:
       - cluster-worker

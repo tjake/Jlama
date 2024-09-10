@@ -31,37 +31,50 @@ public class TensorShape {
         // Special case for vectors
         if (shape.length == 1) shape = new int[] { 1, shape[0] };
 
-        return new TensorShape(shape, Optional.empty());
+        return new TensorShape(shape, Optional.empty(), Optional.empty());
     }
 
-    public static TensorShape sparse(int[] shape, Pair<Integer, Integer> sparseOffset) {
-        return new TensorShape(shape, Optional.of(sparseOffset));
+    public static TensorShape sparseColumn(int[] shape, Pair<Integer, Integer> sparseOffset) {
+        return new TensorShape(shape, Optional.empty(), Optional.of(sparseOffset));
+    }
+
+    public static TensorShape sparseRow(int[] shape, Pair<Integer, Integer> sparseOffset) {
+        return new TensorShape(shape, Optional.of(sparseOffset), Optional.empty());
     }
 
     private final int[] tshape;
     private final long capacity;
-    private final Optional<Pair<Integer, Integer>> sparseRange;
+    private final Optional<Pair<Integer, Integer>> sparseColumnRange;
+    private final Optional<Pair<Integer, Integer>> sparseRowRange;
     private final boolean isSparse;
-    private final int sparseOffset;
-    private final int sparseLength;
+    private final int sparseColumnOffset;
+    private final int sparseColumnLength;
+    private final int sparseRowOffset;
+    private final int sparseRowLength;
 
-    private TensorShape(int[] shape, Optional<Pair<Integer, Integer>> sparseRange) {
+    private TensorShape(int[] shape, Optional<Pair<Integer,Integer>> sparseRowRange, Optional<Pair<Integer, Integer>> sparseColumnRange) {
         Preconditions.checkArgument(
             shape.length > 1,
             "Shape must have at least two dimensions, even if first is 1 (to represent a vector)"
         );
 
         this.tshape = shape;
-        this.sparseRange = sparseRange;
-        this.isSparse = sparseRange.isPresent();
-        this.sparseOffset = sparseRange.map(Pair::left).orElse(0);
-        this.sparseLength = sparseRange.map(Pair::right).orElse(shape[shape.length - 1]);
+        this.sparseColumnRange = sparseColumnRange;
+        this.sparseRowRange = sparseRowRange;
+        this.isSparse = this.sparseColumnRange.isPresent() || this.sparseRowRange.isPresent();
+
+        this.sparseColumnOffset = this.sparseColumnRange.map(Pair::left).orElse(0);
+        this.sparseColumnLength = this.sparseColumnRange.map(Pair::right).orElse(shape[shape.length - 1]);
+
+        this.sparseRowOffset = this.sparseRowRange.map(Pair::left).orElse(0);
+        this.sparseRowLength = this.sparseRowRange.map(Pair::right).orElse(shape[shape.length - 2]);
 
         long c = 1;
-        for (int i = 0; i < shape.length - 1; i++)
+        for (int i = 0; i < shape.length - 2; i++)
             c *= shape[i];
 
-        c *= sparseLength;
+        c *= sparseRowLength;
+        c *= sparseColumnLength;
         this.capacity = c;
     }
 
@@ -82,15 +95,15 @@ public class TensorShape {
         // Preconditions.checkArgument(pdims.length == dims(), "Method requires all dimensions specified");
         switch (pdims.length) {
             case 1:
-                return sparseLength * pdims[0] - sparseOffset;
+                return sparseColumnLength * (pdims[0] - sparseRowOffset) - sparseColumnOffset;
             case 2:
-                return sparseLength * pdims[0] + pdims[1] - sparseOffset; // Most common case
+                return sparseColumnLength * (pdims[0] - sparseRowOffset) + pdims[1] - sparseColumnOffset; // Most common case
             case 3:
-                return (sparseLength * tshape[1] * pdims[0]) + (sparseLength * pdims[1]) + pdims[2] - sparseOffset;
+                return (sparseColumnLength * tshape[1] * (pdims[0] - sparseRowOffset)) + (sparseColumnLength * pdims[1]) + pdims[2] - sparseColumnOffset;
             default:
                 int totalOffset = 0;
                 for (int d = 0; d < pdims.length - 1; ++d) { // Stop before last dimension
-                    int offset = sparseLength;
+                    int offset = sparseColumnLength;
                     for (int i = tshape.length - 2; i > d; --i) { // factor scaling of each dim shape
                         offset *= tshape[i];
                     }
@@ -98,27 +111,31 @@ public class TensorShape {
                     totalOffset += pdims[d] * offset;
                 }
 
-                return totalOffset + pdims[pdims.length - 1] - sparseOffset;
+                return totalOffset + pdims[pdims.length - 1] - sparseColumnOffset;
         }
     }
 
-    public int sparseLength() {
-        return sparseLength;
+    public int sparseColumnLength() {
+        return sparseColumnLength;
     }
 
-    public int sparseOffset() {
-        return sparseOffset;
+    public int sparseColumnOffset() {
+        return sparseColumnOffset;
     }
 
-    public int sparseAdjustment(int offset) {
-        // Preconditions.checkArgument(sparseOffset <= offset, "Offset is outside of sparse range");
-        return offset - sparseOffset;
+    public int sparseRowLength() {
+        return sparseRowLength;
     }
+
+    public int sparseRowOffset() {
+        return sparseRowOffset;
+    }
+
 
     public TensorShape scaleLastDim(float scale) {
         int[] copy = Arrays.copyOf(tshape, tshape.length);
         copy[copy.length - 1] *= scale;
-        return isSparse ? sparse(copy, Pair.create((int) (sparseOffset * scale), (int) (sparseLength * scale))) : of(copy);
+        return sparseColumnRange.isPresent() ? sparseColumn(copy, Pair.of((int) (sparseColumnOffset * scale), (int) (sparseColumnLength * scale))) : of(copy);
     }
 
     public TensorShape setDimValue(int dim, int value) {
@@ -126,7 +143,7 @@ public class TensorShape {
         int[] copy = Arrays.copyOf(tshape, tshape.length);
         copy[dim] = value;
         int newSparseLength = copy[copy.length - 1];
-        return isSparse ? sparse(copy, Pair.create(sparseOffset, newSparseLength)) : of(copy);
+        return sparseColumnRange.isPresent() ? sparseColumn(copy, Pair.of(sparseColumnOffset, newSparseLength)) : of(copy);
     }
 
     public int first() {
@@ -141,17 +158,17 @@ public class TensorShape {
         return capacity;
     }
 
-    public TensorShape sparsify(int offset, int length) {
+    public TensorShape sparsifyColumns(int offset, int length) {
         Preconditions.checkArgument(!isSparse, "Cannot sparsify a sparse tensor");
-        return new TensorShape(tshape, Optional.of(Pair.create(offset, length)));
+        return new TensorShape(tshape, Optional.empty(), Optional.of(Pair.of(offset, length)));
     }
 
     public TensorShape slice(int numDims) {
         Preconditions.checkArgument(numDims < tshape.length, "Too many dimensions specified for tensor");
         int newLength = tshape.length - numDims;
-        if (newLength == 1) return new TensorShape(new int[] { 1, tshape[tshape.length - 1] }, sparseRange);
+        if (newLength == 1) return new TensorShape(new int[] { 1, tshape[tshape.length - 1] }, sparseRowRange, sparseColumnRange);
 
-        return new TensorShape(Arrays.copyOfRange(tshape, numDims, tshape.length), sparseRange);
+        return new TensorShape(Arrays.copyOfRange(tshape, numDims, tshape.length), sparseRowRange, sparseColumnRange);
     }
 
     @Override
@@ -159,18 +176,18 @@ public class TensorShape {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TensorShape that = (TensorShape) o;
-        return Arrays.equals(tshape, that.tshape) && Objects.equals(sparseRange, that.sparseRange);
+        return Arrays.equals(tshape, that.tshape) && Objects.equals(sparseColumnRange, that.sparseColumnRange);
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(sparseRange);
+        int result = Objects.hash(sparseColumnRange);
         result = 31 * result + Arrays.hashCode(tshape);
         return result;
     }
 
     @Override
     public String toString() {
-        return "TensorShape{" + "tshape=" + Arrays.toString(tshape) + ", capacity=" + capacity + ", sparseRange=" + sparseRange + '}';
+        return "TensorShape{" + "tshape=" + Arrays.toString(tshape) + ", capacity=" + capacity + ", sparseRange=" + sparseColumnRange + '}';
     }
 }

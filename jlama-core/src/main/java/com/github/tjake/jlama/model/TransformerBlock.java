@@ -105,7 +105,7 @@ public class TransformerBlock {
 
         // residual connection
         TensorOperationsProvider.get()
-            .accumulate(postAttention, embedding, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+            .accumulate(postAttention, embedding, 0, model.c.embeddingLength);
 
         debug("post_attn_res", postAttention, layerIndex);
 
@@ -120,7 +120,7 @@ public class TransformerBlock {
         }
 
         // residual connection
-        TensorOperationsProvider.get().accumulate(postFF, postAttention, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength());
+        TensorOperationsProvider.get().accumulate(postFF, postAttention, 0, model.c.embeddingLength);
 
         debug("post_ff_res", postFF, layerIndex);
 
