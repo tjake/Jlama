@@ -137,7 +137,7 @@ public class OpenAIChatService {
 
                     emitter.complete();
 
-                    logger.info("Completed streaming response {} tok/sec", (r.generatedTokens/1000.0f) / r.generatedTokens);
+                    logger.info("Completed streaming response {} tok/sec", r.generatedTokens / (r.generatedTokens / 1000f));
                 } catch (IOException e) {
                     emitter.completeWithError(e);
                 }
