@@ -18,6 +18,7 @@ package com.github.tjake.jlama.net;
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
@@ -73,11 +74,13 @@ public class Worker implements Closeable {
         );
         this.registerResponse = blockingClient.register(RegisterRequest.newBuilder().setWorkerid(workerIdBytes).build());
         logger.info(
-            "Registered worker {} with offset {} and length {}",
+            "Registered worker {} with shard {} of {}",
             workerId,
-            registerResponse.getOffset(),
-            registerResponse.getLength()
+            registerResponse.getModelShard(),
+            registerResponse.getNumModelShards()
         );
+
+
         this.model = loadModel(
             AbstractModel.InferenceType.FORWARD_PASS,
             modelPrefix,
@@ -86,7 +89,13 @@ public class Worker implements Closeable {
             workingQuantizationType,
             modelQuantization,
             Optional.empty(),
-            Optional.of(Pair.create(registerResponse.getOffset(), registerResponse.getLength()))
+            Optional.of(c -> DistributedContext.builder(c)
+                        .setModelShard(registerResponse.getModelShard())
+                        .setNumModelShards(registerResponse.getNumModelShards())
+                        .setLayerShard(registerResponse.getLayerShard())
+                        .setNumLayerShards(registerResponse.getNumLayerShards())
+                        .build()
+            )
         );
     }
 
@@ -180,16 +189,7 @@ public class Worker implements Closeable {
             logger.info("Processing token {} at position {} for session {}", token, position, session);
 
             AbstractTensor output = model.forward(token, position, kvBufferCache.getKvBuffer(session), Optional.of((a, b) -> {
-                CombineRequest nr = CombineRequest.newBuilder()
-                    .setUuid(generateResponse.getSession())
-                    .setWorkerid(workerIdBytes)
-                    .setLayer(getNextRequestCount(session))
-                    .setSumSq(a)
-                    .setSum(b)
-                    .build();
-
-                CombineResponse combineResponse = getCombineResponseStream(session).request(nr).join();
-                return Pair.create(combineResponse.getSumSq(), combineResponse.getSum());
+               return null;
             }), Optional.of(t -> {
                 CombineRequest.Builder nrb = CombineRequest.newBuilder()
                     .setUuid(generateResponse.getSession())

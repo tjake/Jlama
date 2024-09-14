@@ -58,7 +58,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
         this.shape = shape;
         this.metadata = new HashMap<>();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
-        this.stride = shape.first() > 1 && dims() == 2 ? getOffset(1, shape.sparseOffset()) : 0;
+        this.stride = shape.first() > 1 && dims() == 2 ? getOffset(shape.sparseRowOffset() + 1, shape.sparseColumnOffset()) : 0;
     }
 
     public static AbstractTensor make(DType dType, TensorShape shape) {
@@ -127,10 +127,10 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
         TensorShape slicedShape = shape.slice(dims.length);
         int totalOffset = 0;
         if (dims.length == 1 && this.shape.dims() == 2) {
-            totalOffset = shape.sparseLength() * dims[0];
+            totalOffset = shape.sparseColumnLength() * dims[0];
         } else {
             for (int d = 0; d <= dims.length - 1; d++) {
-                int offset = shape.sparseLength();
+                int offset = shape.sparseColumnLength();
                 for (int i = shape.dims() - 2; i > d; i--) { // factor scaling of each dim shape
                     offset *= shape.dim(i);
                 }
@@ -153,7 +153,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
 
         if (length == shape.last()) return this;
 
-        AbstractTensor<V, T> sparseT = this.make(shape.sparsify(offset, length));
+        AbstractTensor<V, T> sparseT = this.make(shape.sparsifyColumns(offset, length));
         int originalLength = shape.last();
 
         int[] cursor = new int[shape.dims()];

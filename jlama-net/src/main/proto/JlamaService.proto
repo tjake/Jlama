@@ -6,14 +6,18 @@ message CombineRequest {
   bytes workerid = 1;
   bytes uuid = 2;
   int32 layer = 3;
-  float sumSq = 4;
-  float sum = 5;
   repeated bytes tensor = 6;
 }
 
+message TensorData {
+  int32 dim0 = 1; // Rows
+  int32 dim1 = 2; // Columns
+  int32 columnOffset = 3; // Offset into the column (if sparse)
+  int32 columnLength = 4; // Length of the column (if sparse)
+  bytes data = 5;
+}
+
 message CombineResponse {
-  float sumSq = 1;
-  float sum = 2;
   repeated bytes tensor = 3;
 }
 
@@ -29,13 +33,18 @@ message GenerateResponse {
   int32 position = 3;
 }
 
+/**
+ * Register a worker with the server
+ */
 message RegisterRequest {
   bytes workerid = 1;
 }
 
 message RegisterResponse {
-  int32 offset = 1;
-  int32 length = 2;
+  int32 modelShard = 1;
+  int32 numModelShards = 2;
+  int32 layerShard = 3;
+  int32 numLayerShards = 4;
 }
 
 service JlamaService {

@@ -51,11 +51,6 @@ public class RMSNorm extends LayerNorm {
                 ss += v * v;
             }
 
-            if (reducer.isPresent()) {
-                Pair<Float, Float> p = reducer.get().apply((float) ss, 0f);
-                ss = p.left;
-            }
-
             ss /= m.c.embeddingLength;
             ss += m.c.layerNormEps;
             ss = (1.0 / StrictMath.sqrt(ss));

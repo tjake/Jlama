@@ -66,7 +66,7 @@ public class BertModel extends AbstractModel {
         );
 
         return (inputToken, position) -> {
-            AbstractTensor embedding = makeTensor(c.embeddingLength);
+            AbstractTensor embedding = makeDenseTensor(c.embeddingLength);
 
             for (int i = 0; i < c.embeddingLength; i++) {
                 float v = we.get(inputToken, i) + wte.get(0, i) + wpe.get(position, i);
@@ -81,9 +81,9 @@ public class BertModel extends AbstractModel {
 
     @Override
     protected TransformerBlock[] loadTransformerBlockWeights() {
-        TransformerBlock[] transformerBlocks = new TransformerBlock[c.getNumberOfLayers()];
+        TransformerBlock[] transformerBlocks = new TransformerBlock[c.dctx().embeddingSegmentLength];
 
-        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
+        for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             String b = "encoder.layer." + i + ".";
             String prefix = b + "attention.";
 
@@ -147,7 +147,7 @@ public class BertModel extends AbstractModel {
         Preconditions.checkArgument(encoded.length < c.contextLength);
         float[] outputEmbedding = new float[c.embeddingLength];
 
-        try (AbstractTensor kvmem = makeTensor(c.getNumberOfLayers(), 2, encoded.length, c.embeddingLength)) { // 2 for key and value
+        try (AbstractTensor kvmem = makeDenseTensor(c.dctx().numberOfLayers, 2, encoded.length, c.embeddingLength)) { // 2 for key and value
 
             int promptLength = encoded.length;
             float avgp = 1.0f / promptLength;

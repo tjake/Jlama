@@ -44,6 +44,8 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +108,7 @@ public class ModelSupport {
         DType workingQuantizationType,
         Optional<DType> modelQuantization,
         Optional<Integer> threadCount,
-        Optional<Pair<Integer, Integer>> offset
+        Optional<Function<Config, DistributedContext>> distributedContextLoader
     ) {
 
         if (!model.exists()) {
@@ -137,7 +139,7 @@ public class ModelSupport {
 
             ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
             Config c = om.readValue(configFile, modelType.configClass);
-            offset.ifPresent(c::setOffset);
+            distributedContextLoader.ifPresent(loader -> c.setDistributedContext(loader.apply(c)));
 
             c.setWorkingDirectory(workingDirectory);
 

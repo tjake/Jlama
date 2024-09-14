@@ -21,6 +21,7 @@ import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -30,6 +31,7 @@ import java.util.function.Consumer;
  */
 public class MLPBlock implements FeedForward {
     private final AbstractModel model;
+    private final DistributedContext dctx;
     private final Optional<AbstractTensor> fullyConnectedBias;
     private final AbstractTensor fullyConnectedWeights;
 
@@ -82,6 +84,7 @@ public class MLPBlock implements FeedForward {
         AbstractTensor upProjectionWeights
     ) {
         this.model = model;
+        this.dctx = model.c.dctx();
         this.activationFunction = activationFunction;
         this.fullyConnectedBias = fullyConnectedBias;
         this.fullyConnectedWeights = fullyConnectedWeights;
@@ -105,15 +108,15 @@ public class MLPBlock implements FeedForward {
             batchResults[0] = buf;
             batchResults[1] = buf2;
 
-            VectorMath.pchunk(0, hiddenLength, (chunkStart, chunkSize) -> {
+            VectorMath.pchunk(dctx.hiddenSegmentStart, dctx.hiddenSegmentLength, (chunkStart, chunkSize) -> {
                 if (upProjectionWeights != null) {
                     TensorOperationsProvider.get()
                         .dotProductBatchChunk(
                             batchResults,
                             lnemb,
                             batchWeights,
-                            model.c.embeddingSegmentStart(),
-                            model.c.embeddingSegmentLength(),
+                            0,
+                            model.c.embeddingLength,
                             chunkStart,
                             chunkSize
                         );
@@ -123,25 +126,17 @@ public class MLPBlock implements FeedForward {
                             buf,
                             lnemb,
                             fullyConnectedWeights,
-                            model.c.embeddingSegmentStart(),
-                            model.c.embeddingSegmentLength(),
+                            0,
+                            model.c.embeddingLength,
                             chunkStart,
                             chunkSize
                         );
                 }
             });
 
-            tensorReducer.ifPresent(func -> {
-                List<AbstractTensor> ts = new ArrayList<>(2);
-                ts.add(buf);
-                if (upProjectionWeights != null) ts.add(buf2);
+            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength));
 
-                func.accept(ts);
-            });
-
-            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, 0, hiddenLength));
-
-            VectorMath.pfor(0, hiddenLength, i -> {
+            VectorMath.pfor(dctx.hiddenSegmentStart, dctx.hiddenSegmentEnd, i -> {
                 for (int j = 0; j < batchSize; j++) {
                     float w1 = buf.get(j, i);
                     float w1a = ActivationFunction.eval(activationFunction, w1);
@@ -156,13 +151,14 @@ public class MLPBlock implements FeedForward {
             try (AbstractTensor bufq = model.maybeQuantize(buf)) {
                 // matmul the projection and sum into input
                 AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
-                VectorMath.pchunk(model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength(), (chunkStart, chunkSize) -> {
-                    TensorOperationsProvider.get().dotProductChunk(result, bufq, projectionWeights, 0, hiddenLength, chunkStart, chunkSize);
+                VectorMath.pchunk(0, model.c.embeddingLength, (chunkStart, chunkSize) -> {
+                    TensorOperationsProvider.get().dotProductChunk(result, bufq, projectionWeights, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength, chunkStart, chunkSize);
                 });
 
+                tensorReducer.ifPresent(func -> func.accept(Collections.singletonList(result)));
+
                 projectionBias.ifPresent(
-                    bias -> TensorOperationsProvider.get()
-                        .accumulate(result, bias, model.c.embeddingSegmentStart(), model.c.embeddingSegmentLength())
+                    bias -> TensorOperationsProvider.get().accumulate(result, bias, 0, model.c.embeddingLength)
                 );
                 return result;
             }

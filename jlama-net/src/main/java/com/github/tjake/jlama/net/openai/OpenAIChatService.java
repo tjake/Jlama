@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,10 +40,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Validated
 public class OpenAIChatService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OpenAIChatService.class);
     private static final String JLAMA_SESSION_HEADER = "X-Jlama-Session";
 
     @Autowired
-    private AbstractModel model;
+    private Generator model;
 
     /**
      * POST /chat/completions : Creates a model response for the given chat conversation.
@@ -132,6 +136,8 @@ public class OpenAIChatService {
                     );
 
                     emitter.complete();
+
+                    logger.info("Completed streaming response {} tok/sec", r.generatedTokens / (r.generatedTokens / 1000f));
                 } catch (IOException e) {
                     emitter.completeWithError(e);
                 }

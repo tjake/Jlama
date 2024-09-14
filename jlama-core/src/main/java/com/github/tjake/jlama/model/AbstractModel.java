@@ -126,7 +126,7 @@ public abstract class AbstractModel implements Generator {
 
         if (workingMemoryQType != workingMemoryDType) {
             boolean supportsQType;
-            AbstractTensor tmp = makeTensor(Q8ByteBufferTensor.BLOCK_SIZE);
+            AbstractTensor tmp = makeDenseTensor(Q8ByteBufferTensor.BLOCK_SIZE);
             try (AbstractTensor tmp2 = TensorOperationsProvider.get().quantize(tmp, workingMemoryQType, 0, Q8ByteBufferTensor.BLOCK_SIZE)) {
                 supportsQType = tmp2.dType() == workingMemoryQType;
                 if (!supportsQType) {
@@ -176,14 +176,11 @@ public abstract class AbstractModel implements Generator {
     }
 
     public AbstractTensor makeTensor(int... shape) {
-        TensorShape s;
-        if (c.offset().isPresent() && shape[shape.length - 1] == c.embeddingLength) s = TensorShape.sparse(shape, c.offset().get());
-        else s = TensorShape.of(shape);
-
+        TensorShape s = TensorShape.of(shape);
         return c.tensorCache.get(workingDType, s);
     }
 
-    public AbstractTensor makeFullTensor(int... shape) {
+    public AbstractTensor makeDenseTensor(int... shape) {
         return c.tensorCache.get(workingDType, TensorShape.of(shape));
     }
 
@@ -219,7 +216,7 @@ public abstract class AbstractModel implements Generator {
         debug("EMBEDDING TOKEN", token_id);
         debug("TOKEN POSITION", pos);
 
-        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
+        for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; // reference so we can free
             embedding = transformerBlocks[i].forward(embedding, pos, kvlayer, normReducer, tensorReducer);
@@ -242,7 +239,7 @@ public abstract class AbstractModel implements Generator {
     protected AbstractTensor batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
 
         AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
-        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
+        for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; // reference so we can free
             embedding = transformerBlocks[i].forward(embedding, startPos, kvlayer, Optional.empty(), Optional.empty());
@@ -323,7 +320,7 @@ public abstract class AbstractModel implements Generator {
         StringBuilder responseText = new StringBuilder();
         StringBuilder responseTextWithSpecialTokens = new StringBuilder();
 
-        try (AbstractTensor logits = makeTensor(c.vocabularySize)) {
+        try (AbstractTensor logits = makeDenseTensor(c.vocabularySize)) {
             int[] promptTokens = new int[(1 + encoded.length)];
 
             promptTokens[0] = c.bosToken;

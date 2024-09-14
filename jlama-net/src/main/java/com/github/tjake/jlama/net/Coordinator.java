@@ -22,6 +22,7 @@ import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.grpc.JlamaService;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
+import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
@@ -67,6 +68,10 @@ public class Coordinator implements Generator {
         return model.getTokenizer();
     }
 
+    public Optional<PromptSupport> promptSupport() {
+        return model.promptSupport();
+    }
+
     public void start() throws IOException {
         server.start();
         logger.info("Server started, listening on " + port);
@@ -107,7 +112,7 @@ public class Coordinator implements Generator {
             long[] encoded = model.getTokenizer().encode(promptContext.getPrompt());
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
 
-            AbstractTensor logits = model.makeTensor(model.getConfig().vocabularySize);
+            AbstractTensor logits = model.makeDenseTensor(model.getConfig().vocabularySize);
 
             int[] promptTokens = new int[1 + encoded.length];
 

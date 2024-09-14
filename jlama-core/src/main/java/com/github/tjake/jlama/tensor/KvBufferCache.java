@@ -16,6 +16,8 @@
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.DistributedContext;
+import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.util.Pair;
 import java.io.IOError;
@@ -52,25 +54,22 @@ public class KvBufferCache {
 
     private Pair<RandomAccessFile, AbstractTensor> makeKvBuffer(UUID session) {
         TensorShape s;
+        Config c = model.getConfig();
+        DistributedContext dctx = c.dctx();
         // FIXME: Max size should be configurable
-        int[] rawShape = new int[] { model.getConfig().getNumberOfLayers(), 2, Math.min(1024, model.getConfig().contextLength), model
-            .getConfig().kvLength };
+        int[] rawShape = new int[] { dctx.numberOfLayers, 2, Math.min(1024, c.contextLength), c.kvLength };
 
-        if (model.getConfig().offset().isPresent()) {
-            Pair<Integer, Integer> offset = model.getConfig().offset().get();
-            // Adjust the shape to be relative to the kv cache size (in case of GQA)
-            Pair<Integer, Integer> kvOffset = Pair.create(
-                offset.left / model.getConfig().headGroupSize,
-                offset.right / model.getConfig().headGroupSize
-            );
-            s = TensorShape.sparse(rawShape, kvOffset);
+        // Adjust the shape to be relative to the kv cache size (in case of GQA)
+        if (c.kvLength != dctx.kvSegmentLength) {
+            Pair<Integer, Integer> kvOffset = Pair.of(dctx.kvSegmentStart, dctx.kvSegmentEnd);
+            s = TensorShape.sparseColumn(rawShape, kvOffset);
         } else {
             s = TensorShape.of(rawShape);
         }
 
         // If we don't have a working directory, just use a FloatBufferTensor
         if (model.getConfig().workingDirectory().isEmpty()) {
-            return Pair.create(null, AbstractTensor.make(model.getWorkingDType(), s));
+            return Pair.of(null, AbstractTensor.make(model.getWorkingDType(), s));
         }
 
         // Otherwise, create a file-backed tensor
@@ -101,7 +100,7 @@ public class KvBufferCache {
                 throw new UnsupportedOperationException("Only F32/BF16 is supported for now");
             }
 
-            return Pair.create(raf, t);
+            return Pair.of(raf, t);
 
         } catch (IOException e) {
             throw new IOError(e);

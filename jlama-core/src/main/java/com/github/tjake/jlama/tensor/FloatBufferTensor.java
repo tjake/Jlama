@@ -122,7 +122,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
 
     @Override
     public void copyFrom(AbstractTensor src, int srcOffset, int destOffset, int length) {
-        // Preconditions.checkArgument(this.dType == src.dType, "Different types");
+        Preconditions.checkArgument(this.dType == src.dType, "Different types");
         // Preconditions.checkArgument(!b.isReadOnly());
         segment.asSlice(getMemorySegmentOffset(destOffset), length * dType.size())
             .copyFrom(src.getMemorySegment().asSlice(src.getMemorySegmentOffset(srcOffset), length * dType.size()));

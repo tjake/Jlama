@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.math.FloatConversions;
+import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
@@ -74,16 +75,38 @@ public class Weights implements WeightLoader {
     }
 
     @Override
-    public AbstractTensor load(String name, Optional<Pair<Integer, Integer>> offset) throws NoSuchElementException {
+    public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) throws NoSuchElementException {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null) throw new NoSuchElementException(name + " not found in weights");
 
         if (info.shape.length < 1) throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name);
 
+        if (dctx != null && info.shape.length != 2) {
+            throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name + " with offset");
+        }
+
+        int positionOffset = Ints.checkedCast(info.dataOffsets[0]);
+        int positionLimit = Ints.checkedCast(info.dataOffsets[1]);
+        TensorShape shape = TensorShape.of(info.shape);
+
+        // If this is a sparse tensor, we need to fetch only the section of the tensor that is needed
+        if (dctx != null && sparseRows) {
+            int rows = info.shape[0];
+            int columnLength = info.shape[1] * info.dType.size();
+
+            //Hack for Q4
+            if (info.dType == DType.Q4)
+                columnLength /= 2;
+
+            positionOffset = Ints.checkedCast(info.dataOffsets[0]) + (dctx.getShardOffsetForLength(rows) * columnLength);
+            positionLimit = positionOffset + (dctx.getShardLength(rows) * columnLength);
+            shape = TensorShape.sparseRow(info.shape, Pair.of(dctx.getShardOffsetForLength(rows), dctx.getShardLength(rows)));
+        }
+
         ByteBuffer b = bytes.duplicate()
             .order(ByteOrder.LITTLE_ENDIAN)
-            .position(Ints.checkedCast(info.dataOffsets[0]))
-            .limit(Ints.checkedCast(info.dataOffsets[1]));
+            .position(Ints.checkedCast(positionOffset))
+            .limit(Ints.checkedCast(positionLimit));
 
         int len;
         FloatBuffer fb;
@@ -92,7 +115,7 @@ public class Weights implements WeightLoader {
         switch (info.dType) {
             case F32:
                 fb = b.asFloatBuffer().slice();
-                t = new FloatBufferTensor(name, fb, TensorShape.of(info.shape), true);
+                t = new FloatBufferTensor(name, fb, shape, true);
                 break;
             case F16:
                 // If the majority of the weights are F32 then convert to F32
@@ -104,10 +127,10 @@ public class Weights implements WeightLoader {
                         float v = Float.float16ToFloat(s);
                         bb.putFloat(i, v);
                     }
-                    t = new FloatBufferTensor(bb.asFloatBuffer(), TensorShape.of(info.shape), true);
+                    t = new FloatBufferTensor(bb.asFloatBuffer(), shape, true);
                 } else {
                     sb = b.asShortBuffer().slice();
-                    t = new Float16BufferTensor(name, sb, TensorShape.of(info.shape), true);
+                    t = new Float16BufferTensor(name, sb, shape, true);
                 }
                 break;
             case BF16:
@@ -119,25 +142,27 @@ public class Weights implements WeightLoader {
                         float v = FloatConversions.bFloat16ToFloat32(s);
                         bb.putFloat(i, v);
                     }
-                    t = new FloatBufferTensor(bb.asFloatBuffer(), TensorShape.of(info.shape), true);
+                    t = new FloatBufferTensor(bb.asFloatBuffer(), shape, true);
                 } else {
                     sb = b.asShortBuffer().slice();
-                    t = new BFloat16BufferTensor(name, sb, TensorShape.of(info.shape), true);
+                    t = new BFloat16BufferTensor(name, sb, shape, true);
                 }
                 break;
             case Q4:
-                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", offset);
-                t = new Q4ByteBufferTensor(name, b.slice(), qb, TensorShape.of(info.shape), true);
+                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); //only need to sparsify once
+                t = new Q4ByteBufferTensor(name, b.slice(), qb, shape, true);
                 break;
             case I8:
-                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", offset);
-                t = new Q8ByteBufferTensor(name, b.slice(), qb1, TensorShape.of(info.shape), true);
+                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); //only need to sparsify once
+                t = new Q8ByteBufferTensor(name, b.slice(), qb1, shape, true);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported Tensor type: " + info.dType.name() + " for " + name);
         }
 
-        return offset.map(o -> t.sparsify(o.left, o.right)).orElse(t);
+        return dctx != null && sparseColumns && dctx.hasModelShard()
+                ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
+                : t;
     }
 
     @Override

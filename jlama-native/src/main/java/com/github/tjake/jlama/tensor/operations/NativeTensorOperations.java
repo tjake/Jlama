@@ -96,6 +96,13 @@ public class NativeTensorOperations implements TensorOperations {
         int N = rowChunkSize; // b.shape().dim(0);
         int K = columnLength; // a.shape().dim(1);
 
+        int aOffset = at.getOffset(0, aColumnOffset);
+        int bOffset = bt.getOffset(bt.shape().sparseRowOffset(), bColumnOffset);
+
+        int rOffset = result.shape().sparseColumnOffset() - bt.shape().sparseRowOffset();
+
+        int adjBRowOffset = bRowOffset - bt.shape().sparseRowOffset();
+
         switch (at.dType()) {
             case BF16:
                 switch (bt.dType()) {
@@ -103,14 +110,14 @@ public class NativeTensorOperations implements TensorOperations {
                         NativeSimd.gemm_bf16(
                             flags,
                             at.getMemorySegment(),
-                            at.getOffset(0, aColumnOffset),
+                            aOffset,
                             bt.getMemorySegment(),
-                            bt.getOffset(0, bColumnOffset),
+                            bOffset,
                             result.dType() == DType.BF16 ? result.getMemorySegment() : MemorySegment.NULL,
                             result.dType() == DType.F32 ? result.getMemorySegment() : MemorySegment.NULL,
-                            result.shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             at.getStride(),
@@ -128,13 +135,13 @@ public class NativeTensorOperations implements TensorOperations {
                         NativeSimd.gemm_f32(
                             flags,
                             at.getMemorySegment(),
-                            at.getOffset(0, aColumnOffset),
+                            aOffset,
                             bt.getMemorySegment(),
-                            bt.getOffset(0, bColumnOffset),
+                            bOffset,
                             result.getMemorySegment(),
-                            result.shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             at.getStride(),
@@ -146,14 +153,14 @@ public class NativeTensorOperations implements TensorOperations {
                         NativeSimd.gemm_f32_bf16(
                             flags,
                             at.getMemorySegment(),
-                            at.getOffset(0, aColumnOffset),
+                            aOffset,
                             bt.getMemorySegment(),
-                            bt.getOffset(0, bColumnOffset),
+                            bOffset,
                             result.dType() == DType.BF16 ? result.getMemorySegment() : MemorySegment.NULL,
                             result.dType() == DType.F32 ? result.getMemorySegment() : MemorySegment.NULL,
-                            result.shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             at.getStride(),
@@ -170,14 +177,14 @@ public class NativeTensorOperations implements TensorOperations {
                                 NativeSimd.gemm_f32_q4(
                                     flags,
                                     at.getMemorySegment(),
-                                    at.getOffset(0, aColumnOffset),
+                                    aOffset,
                                     b.getBlockF().getMemorySegment(),
                                     b.getMemorySegment(),
-                                    b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
+                                    b.getMemorySegmentOffset(bOffset),
                                     result.getMemorySegment(),
-                                    result.shape().sparseOffset(),
+                                    rOffset,
                                     M,
-                                    bRowOffset,
+                                    adjBRowOffset,
                                     N,
                                     K,
                                     at.getStride(),
@@ -200,14 +207,14 @@ public class NativeTensorOperations implements TensorOperations {
                             flags,
                             a.getBlockF().getMemorySegment(),
                             a.getMemorySegment(),
-                            a.getOffset(0, aColumnOffset),
+                            aOffset,
                             b.getBlockF().getMemorySegment(),
                             b.getMemorySegment(),
-                            b.getMemorySegmentOffset(b.getOffset(0, bColumnOffset)),
+                            b.getMemorySegmentOffset(bOffset),
                             result.getMemorySegment(),
-                            result.shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             a.getStride(),
@@ -251,6 +258,14 @@ public class NativeTensorOperations implements TensorOperations {
         int N = rowChunkSize; // b.shape().dim(0);
         int K = columnLength; // a.shape().dim(1);
 
+        int aOffset = a.getOffset(0, columnOffset);
+        int bOffset = b[0].getOffset(b[0].shape().sparseRowOffset(), columnOffset);
+
+        int adjBRowOffset = bRowOffset - b[0].shape().sparseRowOffset();
+
+        //Adjusts for both sparse columns and rows
+        int rOffset = r[0].shape().sparseColumnOffset() - b[0].shape().sparseRowOffset();
+
         switch (a.dType()) {
             case BF16:
                 switch (b[0].dType()) {
@@ -259,14 +274,14 @@ public class NativeTensorOperations implements TensorOperations {
                             flags,
                             r.length,
                             a.getMemorySegment(),
-                            a.getOffset(0, columnOffset),
+                            aOffset,
                             rb,
-                            b[0].getOffset(0, columnOffset),
+                            bOffset,
                             r[0].dType() == DType.BF16 ? ra : MemorySegment.NULL,
                             r[0].dType() == DType.F32 ? ra : MemorySegment.NULL,
-                            r[0].shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             a.getStride(),
@@ -285,11 +300,11 @@ public class NativeTensorOperations implements TensorOperations {
                             flags,
                             r.length,
                             a.getMemorySegment(),
-                            a.getOffset(0, columnOffset),
+                            aOffset,
                             rb,
-                            b[0].getOffset(0, columnOffset),
+                            bOffset,
                             ra,
-                            r[0].shape().sparseOffset(),
+                            rOffset,
                             M,
                             bRowOffset,
                             N,
@@ -304,14 +319,14 @@ public class NativeTensorOperations implements TensorOperations {
                             flags,
                             r.length,
                             a.getMemorySegment(),
-                            a.getOffset(0, columnOffset),
+                            aOffset,
                             rb,
-                            b[0].getOffset(0, columnOffset),
+                            bOffset,
                             r[0].dType() == DType.BF16 ? ra : MemorySegment.NULL,
                             r[0].dType() == DType.F32 ? ra : MemorySegment.NULL,
-                            r[0].shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             a.getStride(),
@@ -329,12 +344,12 @@ public class NativeTensorOperations implements TensorOperations {
                                     flags,
                                     r.length,
                                     a.getMemorySegment(),
-                                    a.getOffset(0, columnOffset),
+                                    aOffset,
                                     rc,
                                     rb,
-                                    b[0].getMemorySegmentOffset(b[0].getOffset(0, columnOffset)),
+                                    bt.getMemorySegmentOffset(bOffset),
                                     ra,
-                                    r[0].shape().sparseOffset(),
+                                    rOffset,
                                     M,
                                     bRowOffset,
                                     N,
@@ -360,14 +375,14 @@ public class NativeTensorOperations implements TensorOperations {
                             r.length,
                             at.getBlockF().getMemorySegment(),
                             a.getMemorySegment(),
-                            a.getOffset(0, columnOffset),
+                            aOffset,
                             rc,
                             rb,
-                            bt.getMemorySegmentOffset(bt.getOffset(0, columnOffset)),
+                            bt.getMemorySegmentOffset(bOffset),
                             ra,
-                            r[0].shape().sparseOffset(),
+                            rOffset,
                             M,
-                            bRowOffset,
+                            adjBRowOffset,
                             N,
                             K,
                             a.getStride(),

@@ -52,9 +52,9 @@ public class GPT2Model extends AbstractModel {
         final AbstractTensor wpe = weights.load("wpe.weight");
 
         return (inputToken, position) -> {
-            AbstractTensor embedding = makeTensor(1, c.embeddingLength);
+            AbstractTensor embedding = makeDenseTensor(1, c.embeddingLength);
 
-            for (int i = c.embeddingSegmentStart(); i < c.embeddingSegmentLength(); i++) {
+            for (int i = 0; i < c.embeddingLength; i++) {
                 float v = wte.get(inputToken, i) + wpe.get(position, i);
                 embedding.set(v, 0, i);
             }
@@ -65,9 +65,9 @@ public class GPT2Model extends AbstractModel {
 
     @Override
     protected TransformerBlock[] loadTransformerBlockWeights() {
-        TransformerBlock[] transformerBlocks = new TransformerBlock[c.getNumberOfLayers()];
+        TransformerBlock[] transformerBlocks = new TransformerBlock[c.dctx().numberOfLayers];
 
-        for (int i = c.layerStart(); i < c.layerEnd(); i++) {
+        for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             String b = "h." + i + ".";
             String prefix = b + "attn.";
 
