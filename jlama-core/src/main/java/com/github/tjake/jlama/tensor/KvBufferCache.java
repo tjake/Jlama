@@ -119,8 +119,7 @@ public class KvBufferCache {
 
         KvBufferPage(KvPageContext pageCtx, String pageId) {
             this.pageCtx = pageCtx;
-            this.pageId = pageId
-            ;
+            this.pageId = pageId;
 
             if (model.getConfig().workingDirectory().isEmpty()) {
                 this.raf = null;
@@ -279,7 +278,7 @@ public class KvBufferCache {
             // Calculate page indices and relative indices
             int layerPageIndex = layerIndex / pageContext.layersPerPage;
             int contextPageIndex = position / pageContext.contextLengthPerPage;
-            int relativeLayerIndex = layerPageIndex % pageContext.layersPerPage;
+            int relativeLayerIndex = layerIndex % pageContext.layersPerPage;
             int relativeContextIndex = position % pageContext.contextLengthPerPage;
 
             KvBufferPage page = pages[layerPageIndex][contextPageIndex];

@@ -2,7 +2,7 @@
   <configuration default="false" name="TestModels.LlamaRun" type="JUnit" factoryName="JUnit">
     <classpathModifications>
       <entry exclude="true" path="$PROJECT_DIR$/jlama-native/target/classes" />
-      <entry path="$PROJECT_DIR$/jlama-native/target/jlama-native-0.3.1-linux-x86_64.jar" />
+      <entry path="$PROJECT_DIR$/jlama-native/target/jlama-native-0.4.0-linux-x86_64.jar" />
     </classpathModifications>
     <module name="jlama-tests" />
     <extension name="coverage">
@@ -17,7 +17,7 @@
     <option name="MAIN_CLASS_NAME" value="com.github.tjake.jlama.model.TestModels" />
     <option name="METHOD_NAME" value="LlamaRun" />
     <option name="TEST_OBJECT" value="method" />
-    <option name="VM_PARAMETERS" value="-ea --add-modules=jdk.incubator.vector -Djava.library.path=../jlama-native/target/native-lib-only" />
+    <option name="VM_PARAMETERS" value="-ea --add-modules=jdk.incubator.vector -Djava.library.path=../jlama-native/target/native-lib-only --enable-preview" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

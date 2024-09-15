@@ -211,9 +211,9 @@ public class CausalSelfAttention {
                 bias -> TensorOperationsProvider.get().accumulate(tmpValBatch, bias, dctx.kvSegmentStart, dctx.kvSegmentLength)
             );
 
-            debug("query", queryBatch, 0);
-            debug("key", tmpKeyBatch, 0);
-            debug("value", tmpValBatch, 0);
+            debug("query", queryBatch, layerIndex);
+            debug("key", tmpKeyBatch, layerIndex);
+            debug("value", tmpValBatch, layerIndex);
 
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
@@ -329,7 +329,7 @@ public class CausalSelfAttention {
 
                     if (yoffset >= query.shape().last()) return;
 
-                    try (AbstractTensor attn = m.makeDenseTensor(1, finalPostion + 1)) {
+                    try (AbstractTensor attn = m.makeDenseTensor(1, kvp[0].shape().first() * kvp.length)) { // chunky so the cache isn't thrashed
                         // compute attention scores by multiplying query and key for every position
                         // Do this for each page
                         for (int i = 0; i < kvp.length; i++) {
@@ -356,7 +356,7 @@ public class CausalSelfAttention {
                 });
             }
 
-            debug("after_attention", valueBatch, 0);
+            debug("after_attention", valueBatch, layerIndex);
 
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias

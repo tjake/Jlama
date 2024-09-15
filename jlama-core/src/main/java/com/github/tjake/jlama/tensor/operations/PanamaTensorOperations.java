@@ -105,7 +105,7 @@ public final class PanamaTensorOperations implements TensorOperations {
     ) {
         Preconditions.checkArgument(a.dims() == 2 && b.dims() == 2 && result.dims() == 2);
         Preconditions.checkArgument(a.shape().dim(0) == result.shape().dim(0), "BAD M");
-        Preconditions.checkArgument(rOffset >= bRowOffset, "Result offset must be >= b row offset");
+        Preconditions.checkArgument(rOffset == 0 || rOffset >= bRowOffset, "Result offset must be >= b row offset");
         // Preconditions.checkArgument(b.shape().dim(0) == result.shape().dim(1), "BAD N");
         // This check breaks for GQA
         // Preconditions.checkArgument(a.shape().dim(1) == b.shape().dim(1), "BAD K" + a.shape() + " " + b.shape() + " "

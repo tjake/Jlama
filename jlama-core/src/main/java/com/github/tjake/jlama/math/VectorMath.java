@@ -30,7 +30,9 @@ public class VectorMath {
     private static final Logger logger = LoggerFactory.getLogger(VectorMath.class);
 
     public static void pfor(int start, int end, IntConsumer action) {
-        PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(start, end).parallel().forEach(action));
+        PhysicalCoreExecutor.instance.get().execute(() -> IntStream.range(start, end)
+                .parallel()
+                .forEach(action));
     }
 
     public static void pchunk(int offset, int length, BiIntConsumer action) {
