@@ -128,7 +128,7 @@ public class KvBufferCache {
             } else {
                 try {
                     raf = new RandomAccessFile(
-                            Paths.get(model.getConfig().workingDirectory().get().toString(), pageCtx.session.toString(), pageId).toFile(),
+                            Paths.get(model.getConfig().workingDirectory().get().toString(), pageCtx.session.toString() + "-" + pageId + ".page").toFile(),
                             "rw");
                     long bytes = pageCtx.pageShape.size() * model.getWorkingDType().size();
                     raf.setLength(bytes);

@@ -22,7 +22,7 @@ Model Support:
   * WordPiece Tokenizers
 
 Implements:
-  * Flash Attention
+  * Paged Attention
   * Mixture of Experts
   * Tool Calling
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model and tokenizer format
