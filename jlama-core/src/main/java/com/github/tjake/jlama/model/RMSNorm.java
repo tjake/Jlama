@@ -16,9 +16,7 @@
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.util.Pair;
-import java.util.Optional;
-import java.util.function.BiFunction;
+
 
 public class RMSNorm extends LayerNorm {
     private final float weightAdjustment;
@@ -36,8 +34,7 @@ public class RMSNorm extends LayerNorm {
     public AbstractTensor forward(
         AbstractTensor input,
         int offset,
-        int length,
-        Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer
+        int length
     ) {
 
         int batchSize = input.shape().first();

@@ -453,6 +453,28 @@ public class TestOperations {
     }
 
     @Test
+    public void testBatchDotProductWithResultOffset() {
+        // M == BATCH, N == ROWS, K == SIZE
+
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS * 2);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS * 2);
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
+
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE, 0, 0, ROWS);
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE, ROWS, 0, ROWS);
+
+
+        for (TensorOperations t : opTypes) {
+            c1.clear();
+            t.batchDotProduct(c1, a, b, 0, 0, SIZE, 0, 0, ROWS);
+            t.batchDotProduct(c1, a, b, 0, 0, SIZE, ROWS, 0, ROWS);
+            Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1), controlOps.sum(c) * 0.01);
+        }
+    }
+
+    @Test
     public void testNativeBatchDotProduct() {
         // M == BATCH, N == ROWS, K == SIZE
         Assume.assumeTrue(globalOps instanceof NativeTensorOperations);

@@ -19,6 +19,7 @@ import static com.github.tjake.jlama.util.DebugSupport.debug;
 
 import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import java.util.List;
@@ -78,21 +79,20 @@ public class TransformerBlock {
         this.postFFNorm = Optional.of(postFFNorm);
     }
 
-    public AbstractTensor forward(AbstractTensor embedding, int position, AbstractTensor kvBuffer) {
-        return forward(embedding, position, kvBuffer, Optional.empty(), Optional.empty());
+    public AbstractTensor forward(AbstractTensor embedding, int position, KvBufferCache.KvBuffer kvBuffer) {
+        return forward(embedding, position, kvBuffer, Optional.empty());
     }
 
     public AbstractTensor forward(
         AbstractTensor embedding,
         int position,
-        AbstractTensor kvBuffer,
-        Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
+        KvBufferCache.KvBuffer kvBuffer,
         Optional<Consumer<List<AbstractTensor>>> tensorReducer
     ) {
 
         debug("input_emb", embedding, layerIndex);
 
-        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding, normReducer)).orElse(embedding);
+        AbstractTensor lnemb = preAttentionNorm.map(ln -> ln.forward(embedding)).orElse(embedding);
 
         debug("ln_emb", lnemb, layerIndex);
 
@@ -109,7 +109,7 @@ public class TransformerBlock {
 
         debug("post_attn_res", postAttention, layerIndex);
 
-        AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention, normReducer);
+        AbstractTensor lnemb2 = postAttentionNorm.forward(postAttention);
 
         debug("ln_emb2", lnemb2, layerIndex);
 
@@ -131,7 +131,7 @@ public class TransformerBlock {
         postAttention.close();
 
         return postFFNorm.map(ln -> {
-            AbstractTensor lnout = ln.forward(postFF, normReducer);
+            AbstractTensor lnout = ln.forward(postFF);
             debug("ln_out", lnout, layerIndex);
             postFF.close();
             return lnout;

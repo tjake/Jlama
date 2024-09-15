@@ -75,6 +75,7 @@ public class GPT2Model extends AbstractModel {
             AbstractTensor[] attnWeights = weights.load(prefix + "c_attn.weight").transpose().split(3, 0);
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
+                i,
                 attnBias[0],
                 attnBias[1],
                 attnBias[2],

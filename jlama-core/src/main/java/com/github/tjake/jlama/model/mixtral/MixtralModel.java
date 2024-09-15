@@ -74,6 +74,7 @@ public class MixtralModel extends MistralModel {
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
+                i,
                 weights.load(prefix + "q_proj.weight", c.dctx(), true, false).quantize(qType),
                 weights.load(prefix + "k_proj.weight", c.dctx(), true, false).quantize(qType),
                 weights.load(prefix + "v_proj.weight", c.dctx(), true, false).quantize(qType),

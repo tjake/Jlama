@@ -231,15 +231,15 @@ public class TestModels {
 
     @Test
     public void GemmaRun() throws Exception {
-        String modelPrefix = "../models/gemma-7b-it";
+        String modelPrefix = "../models/Yi-Coder-1.5B-Chat";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
-            GemmaTokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
-            GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
-            GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
-            String prompt = "Tell me a joke.";
+            LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+            LlamaConfig c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
+            String prompt = "Write a java function that takes a list of integers and returns the sum of all the integers in the list.";
             PromptContext p = model.promptSupport().get().builder().addUserMessage(prompt).build();
-            model.generate(UUID.randomUUID(), p, 0.3f, 256, makeOutHandler());
+            model.generate(UUID.randomUUID(), p, 0.3f, c.contextLength, makeOutHandler());
         }
     }
 

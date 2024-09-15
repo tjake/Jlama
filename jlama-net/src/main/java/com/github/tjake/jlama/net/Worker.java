@@ -188,9 +188,7 @@ public class Worker implements Closeable {
 
             logger.info("Processing token {} at position {} for session {}", token, position, session);
 
-            AbstractTensor output = model.forward(token, position, kvBufferCache.getKvBuffer(session), Optional.of((a, b) -> {
-               return null;
-            }), Optional.of(t -> {
+            AbstractTensor output = model.forward(token, position, kvBufferCache.getKvBuffer(session), Optional.of(t -> {
                 CombineRequest.Builder nrb = CombineRequest.newBuilder()
                     .setUuid(generateResponse.getSession())
                     .setWorkerid(workerIdBytes)
