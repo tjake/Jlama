@@ -20,6 +20,7 @@ import static com.github.tjake.jlama.util.DebugSupport.debug;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import java.util.*;
@@ -28,6 +29,7 @@ import java.util.function.Consumer;
 public class CausalSelfAttention {
     private final AbstractModel m;
     private final Config c;
+    private final int layerIndex;
     private final DistributedContext dctx;
     private final Optional<AbstractTensor> queryAttnBias;
     private final Optional<AbstractTensor> keyAttnBias;
@@ -44,20 +46,20 @@ public class CausalSelfAttention {
 
     private final float attentionScale;
     private final int attentionLength;
-    private final boolean attentionQVSizeMismatch;
 
     private final AbstractTensor[] qkvResults;
     private final AbstractTensor[] qkvWeights;
 
     public CausalSelfAttention(
         AbstractModel m,
+        int layerIndex,
         AbstractTensor queryAttnWeights,
         AbstractTensor keyAttnWeights,
         AbstractTensor valueAttnWeights,
         AbstractTensor outputProjectionWeights
     ) {
         this(
-            m,
+            m, layerIndex,
             Optional.empty(),
             Optional.empty(),
             Optional.empty(),
@@ -71,6 +73,7 @@ public class CausalSelfAttention {
 
     public CausalSelfAttention(
         AbstractModel m,
+        int layerIndex,
         AbstractTensor queryAttnBias,
         AbstractTensor keyAttnBias,
         AbstractTensor valueAttnBias,
@@ -82,6 +85,7 @@ public class CausalSelfAttention {
     ) {
         this(
             m,
+            layerIndex,
             Optional.of(queryAttnBias),
             Optional.of(keyAttnBias),
             Optional.of(valueAttnBias),
@@ -95,6 +99,7 @@ public class CausalSelfAttention {
 
     public CausalSelfAttention(
         AbstractModel m,
+        int layerIndex,
         Optional<AbstractTensor> queryAttnBias,
         Optional<AbstractTensor> keyAttnBias,
         Optional<AbstractTensor> valueAttnBias,
@@ -105,6 +110,7 @@ public class CausalSelfAttention {
         AbstractTensor outputProjectionWeights
     ) {
         this.m = m;
+        this.layerIndex = layerIndex;
         this.c = m.c;
         this.dctx = m.c.dctx();
         this.queryAttnBias = queryAttnBias;
@@ -118,7 +124,6 @@ public class CausalSelfAttention {
         this.outputProjectionWeights = outputProjectionWeights;
         this.attentionLength = c.numberOfHeads * c.headSize;
 
-        this.attentionQVSizeMismatch = c.embeddingLength != attentionLength;
         this.attentionScale = (float) (1.0 / StrictMath.sqrt(c.headSize));
 
         this.qkvResults = new AbstractTensor[3];
@@ -128,7 +133,7 @@ public class CausalSelfAttention {
     public AbstractTensor forward(
         AbstractTensor input,
         int startPosition,
-        AbstractTensor kvMem,
+        KvBufferCache.KvBuffer kvMem,
         Optional<Consumer<List<AbstractTensor>>> tensorReducer
     ) {
         Preconditions.checkArgument(input.dims() == 2 && input.shape().last() == c.embeddingLength);
@@ -206,19 +211,20 @@ public class CausalSelfAttention {
                 bias -> TensorOperationsProvider.get().accumulate(tmpValBatch, bias, dctx.kvSegmentStart, dctx.kvSegmentLength)
             );
 
-            debug("query", queryBatch, 0);
-            debug("key", tmpKeyBatch, 0);
-            debug("value", tmpValBatch, 0);
+            debug("query", queryBatch, layerIndex);
+            debug("key", tmpKeyBatch, layerIndex);
+            debug("value", tmpValBatch, layerIndex);
 
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
                 int finalPostion = position;
 
-                AbstractTensor kvp = kvMem.slice(true, 0);
-                AbstractTensor vvp = kvMem.slice(true, 1);
+                AbstractTensor key = kvMem.getKeyTensorForPosition(layerIndex, position);
+                AbstractTensor val = kvMem.getValTensorForPosition(layerIndex, position);
 
-                AbstractTensor key = kvp.slice(position);
-                AbstractTensor val = vvp.slice(position);
+                AbstractTensor[] kvp = kvMem.getKeyTensorsUptoPosition(layerIndex, position);
+                AbstractTensor[] vvp = kvMem.getValTensorsUptoPosition(layerIndex, position);
+
 
                 AbstractTensor tmpKey = tmpKeyBatch.slice(bi);
                 AbstractTensor tmpVal = tmpValBatch.slice(bi);
@@ -318,26 +324,39 @@ public class CausalSelfAttention {
 
                 // Attention
                 VectorMath.pfor(dctx.headStart, dctx.headEnd, h -> {
-                    try (AbstractTensor attn = m.makeDenseTensor(1, kvp.shape().first())) {
-                        int xoffset = c.maybeMapToGroupHead(h) * c.headSize;
-                        int yoffset = h * c.headSize;
+                    int xoffset = c.maybeMapToGroupHead(h) * c.headSize;
+                    int yoffset = h * c.headSize;
 
-                        if (yoffset >= query.shape().last()) return;
+                    if (yoffset >= query.shape().last()) return;
 
+                    try (AbstractTensor attn = m.makeDenseTensor(1, kvp[0].shape().first() * kvp.length)) { // chunky so the cache isn't thrashed
                         // compute attention scores by multiplying query and key for every position
-                        TensorOperationsProvider.get().batchDotProduct(attn, query, kvp, yoffset, xoffset, c.headSize, 0, finalPostion + 1);
+                        // Do this for each page
+                        for (int i = 0; i < kvp.length; i++) {
+                            int len = kvp[i].shape().first();
+                            int offset = i * len;
+                            int size = i == kvp.length - 1 ? (finalPostion + 1) - offset : len;
+                            TensorOperationsProvider.get().batchDotProduct(attn, query, kvp[i], yoffset, xoffset, c.headSize, offset, 0, size);
+                        }
+
                         TensorOperationsProvider.get().scale(attentionScale, attn, 0, finalPostion + 1);
 
                         // softmax the scores to get attention weights, from 0..pos inclusively
                         VectorMath.softMax(attn, 0, finalPostion + 1);
 
                         // apply adjusted attention weights to value vectors
-                        TensorOperationsProvider.get().saxpy(attn, vvp, value, xoffset, yoffset, c.headSize, finalPostion + 1);
+                        // do this for each page
+                        for (int i = 0; i < vvp.length; i++) {
+                            int len = vvp[i].shape().first();
+                            int offset = i * len;
+                            int size = i == vvp.length - 1 ? (finalPostion + 1) - offset : len;
+                            TensorOperationsProvider.get().saxpy(attn, vvp[i], value, xoffset, yoffset, c.headSize, offset, 0, size);
+                        }
                     }
                 });
             }
 
-            debug("after_attention", valueBatch, 0);
+            debug("after_attention", valueBatch, layerIndex);
 
             // matmul the projection and sum into input
             // input += c_proj_weight @ ybuf + c_proj_bias

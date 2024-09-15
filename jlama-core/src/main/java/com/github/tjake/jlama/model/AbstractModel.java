@@ -44,7 +44,6 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -190,8 +189,8 @@ public abstract class AbstractModel implements Generator {
         return t2;
     }
 
-    protected AbstractTensor forward(int token_id, int pos, AbstractTensor kvbuf) {
-        return forward(token_id, pos, kvbuf, Optional.empty(), Optional.empty());
+    protected AbstractTensor forward(int token_id, int pos, KvBufferCache.KvBuffer kvbuf) {
+        return forward(token_id, pos, kvbuf, Optional.empty());
     }
 
     /**
@@ -207,8 +206,7 @@ public abstract class AbstractModel implements Generator {
     public AbstractTensor forward(
         int token_id,
         int pos,
-        AbstractTensor kvbuf,
-        Optional<BiFunction<Float, Float, Pair<Float, Float>>> normReducer,
+        KvBufferCache.KvBuffer kvbuf,
         Optional<Consumer<List<AbstractTensor>>> tensorReducer
     ) {
         AbstractTensor embedding = embedInput.inputTokenToEmbedding(token_id, pos);
@@ -217,16 +215,15 @@ public abstract class AbstractModel implements Generator {
         debug("TOKEN POSITION", pos);
 
         for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
-            AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; // reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, pos, kvlayer, normReducer, tensorReducer);
+            embedding = transformerBlocks[i].forward(embedding, pos, kvbuf, tensorReducer);
             ref.close();
         }
 
         return embedding;
     }
 
-    protected AbstractTensor batchForwardSlow(int[] token_ids, int startPos, AbstractTensor kvbuf) {
+    protected AbstractTensor batchForwardSlow(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf) {
         AbstractTensor last = null;
         for (int i = 0; i < token_ids.length; i++) {
             if (last != null) last.close();
@@ -236,13 +233,12 @@ public abstract class AbstractModel implements Generator {
         return last;
     }
 
-    protected AbstractTensor batchForward(int[] token_ids, int startPos, AbstractTensor kvbuf) {
+    protected AbstractTensor batchForward(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf) {
 
         AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
         for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
-            AbstractTensor kvlayer = kvbuf.slice(true, i);
             AbstractTensor ref = embedding; // reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, startPos, kvlayer, Optional.empty(), Optional.empty());
+            embedding = transformerBlocks[i].forward(embedding, startPos, kvbuf, Optional.empty());
             ref.close();
         }
 
@@ -303,11 +299,10 @@ public abstract class AbstractModel implements Generator {
             encoded = Arrays.copyOfRange(encoded, 1, encoded.length);
         }
 
-        Preconditions.checkArgument(encoded.length < c.contextLength);
+        Preconditions.checkArgument(encoded.length < c.contextLength && encoded.length < ntokens, "Prompt exceeds max tokens");
 
-        AbstractTensor kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window
-        Integer startPos = (Integer) kvmem.getMetadata(KvBufferCache.TOKEN_COUNT); // Number of tokens in the buffer
-        if (startPos == null) startPos = 0;
+        KvBufferCache.KvBuffer kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window
+        int startPos = kvmem.getCurrentContextPosition(); // Number of tokens in the buffer
 
         logger.debug("Starting at token {} for session {}", startPos, sessionId);
 
@@ -366,7 +361,7 @@ public abstract class AbstractModel implements Generator {
                 if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
                 output.close();
 
-                kvmem.setMetadata(KvBufferCache.TOKEN_COUNT, i);
+                kvmem.incrementContextPosition();
 
                 // Model may tell us it's done
                 if (c.eosTokens.contains(next)) {

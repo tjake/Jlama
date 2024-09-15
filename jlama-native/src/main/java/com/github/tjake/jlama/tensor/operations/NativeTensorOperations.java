@@ -88,6 +88,7 @@ public class NativeTensorOperations implements TensorOperations {
         int aColumnOffset,
         int bColumnOffset,
         int columnLength,
+        int rRowOffset,
         int bRowOffset,
         int rowChunkSize
     ) {
@@ -99,7 +100,9 @@ public class NativeTensorOperations implements TensorOperations {
         int aOffset = at.getOffset(0, aColumnOffset);
         int bOffset = bt.getOffset(bt.shape().sparseRowOffset(), bColumnOffset);
 
-        int rOffset = result.shape().sparseColumnOffset() - bt.shape().sparseRowOffset();
+        //Adjusts for both sparse columns and rows this goes negative because we subtract the row offset
+        //And the row offsets need to add to the result offset
+        int rOffset = result.shape().sparseColumnOffset() - bt.shape().sparseRowOffset() - rRowOffset;
 
         int adjBRowOffset = bRowOffset - bt.shape().sparseRowOffset();
 
@@ -417,8 +420,8 @@ public class NativeTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
-        delegate.saxpy(alpha, x, y, xoffset, yoffset, limit, batchSize);
+    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int rOffset, int xOffset, int batchSize) {
+        delegate.saxpy(alpha, x, y, xoffset, yoffset, limit, rOffset, xOffset, batchSize);
     }
 
     @Override

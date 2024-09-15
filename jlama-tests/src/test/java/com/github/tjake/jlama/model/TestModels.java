@@ -72,7 +72,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        // System.setProperty("jlama.force_panama_tensor_operations", "true");
+        //System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -231,15 +231,15 @@ public class TestModels {
 
     @Test
     public void GemmaRun() throws Exception {
-        String modelPrefix = "../models/gemma-7b-it";
+        String modelPrefix = "../models/Yi-Coder-1.5B-Chat";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
-            GemmaTokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
-            GemmaConfig c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
-            GemmaModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
-            String prompt = "Tell me a joke.";
+            LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+            LlamaConfig c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
+            String prompt = "Write a java function that takes a list of integers and returns the sum of all the integers in the list.";
             PromptContext p = model.promptSupport().get().builder().addUserMessage(prompt).build();
-            model.generate(UUID.randomUUID(), p, 0.3f, 256, makeOutHandler());
+            model.generate(UUID.randomUUID(), p, 0.3f, c.contextLength, makeOutHandler());
         }
     }
 
@@ -282,20 +282,19 @@ public class TestModels {
 
     @Test
     public void TinyLlamaRun() throws Exception {
-        String modelPrefix = "models/TinyLLama";
+        String modelPrefix = "../models/TinyLlama-1.1B-Chat-v1.0-jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
-        try (RandomAccessFile sc = new RandomAccessFile(modelPrefix + "/model.safetensors", "r")) {
-            ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
+        AbstractModel model = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.I8);
 
-            Weights weights = SafeTensorSupport.readWeights(bb);
-            LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
-            Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
-
-            String prompt = "Lily picked up a flower and gave it to";
-            model.generate(UUID.randomUUID(), PromptContext.of(prompt), 0.7f, 128, makeOutHandler());
-        }
+        String prompt = "What is the best season to plant avocados?";
+        PromptContext promptContext = model.promptSupport()
+                .get()
+                .builder()
+                .addSystemMessage("You are a helpful chatbot who writes short responses.")
+                .addUserMessage(prompt)
+                .build();
+        model.generate(UUID.randomUUID(), promptContext, 0.0f, 256, makeOutHandler());
     }
 
     @Test

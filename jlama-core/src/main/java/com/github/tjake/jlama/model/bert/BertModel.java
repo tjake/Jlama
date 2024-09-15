@@ -25,10 +25,12 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.UUID;
 
 public class BertModel extends AbstractModel {
 
@@ -100,6 +102,7 @@ public class BertModel extends AbstractModel {
             AbstractTensor outputWeight = weights.load(prefix + "output.dense.weight");
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
+                i,
                 keyBias,
                 queryBias,
                 valueBias,
@@ -147,8 +150,7 @@ public class BertModel extends AbstractModel {
         Preconditions.checkArgument(encoded.length < c.contextLength);
         float[] outputEmbedding = new float[c.embeddingLength];
 
-        try (AbstractTensor kvmem = makeDenseTensor(c.dctx().numberOfLayers, 2, encoded.length, c.embeddingLength)) { // 2 for key and value
-
+        try (KvBufferCache.KvBuffer kvmem = kvBufferCache.getKvBuffer(UUID.randomUUID())) {
             int promptLength = encoded.length;
             float avgp = 1.0f / promptLength;
 

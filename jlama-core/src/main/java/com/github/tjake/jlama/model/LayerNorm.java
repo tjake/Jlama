@@ -34,21 +34,16 @@ public class LayerNorm {
     }
 
     public AbstractTensor forward(AbstractTensor input) {
-        return forward(input, Optional.empty());
-    }
-
-    public AbstractTensor forward(AbstractTensor input, Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer) {
         Preconditions.checkArgument(input.shape().dims() == 2);
         int size = input.shape().last();
         Preconditions.checkArgument(size == m.c.embeddingLength);
-        return forward(input, 0, m.c.embeddingLength, reducer);
+        return forward(input, 0, m.c.embeddingLength);
     }
 
     public AbstractTensor forward(
         AbstractTensor input,
         int offset,
-        int length,
-        Optional<BiFunction<Float, Float, Pair<Float, Float>>> reducer
+        int length
     ) {
 
         int batchSize = input.shape().first();

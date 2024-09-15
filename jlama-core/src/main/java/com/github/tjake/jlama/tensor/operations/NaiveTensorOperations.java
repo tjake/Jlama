@@ -78,6 +78,7 @@ public class NaiveTensorOperations implements TensorOperations {
         int aColumnOffset,
         int bColumnOffset,
         int columnLength,
+        int rRowOffset,
         int bRowOffset,
         int rowChunkSize
     ) {
@@ -86,9 +87,9 @@ public class NaiveTensorOperations implements TensorOperations {
         int bRowLimit = bRowOffset + rowChunkSize;
 
         for (int i = 0; i < a.shape().first(); i++) {
-            for (int j = bRowOffset; j < bRowLimit; j++) {
+            for (int j = bRowOffset, r = rRowOffset; j < bRowLimit; j++, r++) {
                 float d = dotProduct(a.slice(i), b.slice(j), aColumnOffset, bColumnOffset, columnLength);
-                result.set(d, i, j);
+                result.set(d, i, r);
             }
         }
     }

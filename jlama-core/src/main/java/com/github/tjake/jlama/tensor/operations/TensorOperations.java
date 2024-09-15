@@ -49,7 +49,7 @@ public interface TensorOperations {
         int bColumnOffset,
         int columnLimit
     ) {
-        batchDotProduct(result, a, b, aColumnOffset, bColumnOffset, columnLimit, 0, b.shape().first());
+        batchDotProduct(result, a, b, aColumnOffset, bColumnOffset, columnLimit, 0, 0, b.shape().first());
     }
 
     void batchDotProduct(
@@ -59,6 +59,7 @@ public interface TensorOperations {
         int aColumnOffset,
         int bColumnOffset,
         int columnLimit,
+        int rRowOffset,
         int bRowOffset,
         int rowChunkSize
     );
@@ -72,7 +73,7 @@ public interface TensorOperations {
         int rowOffset,
         int rowChunkSize
     ) {
-        batchDotProduct(result, a, b, columnOffset, columnOffset, columnLimit, rowOffset, rowChunkSize);
+        batchDotProduct(result, a, b, columnOffset, columnOffset, columnLimit, 0, rowOffset, rowChunkSize);
     }
 
     default void dotProductBatchChunk(
@@ -108,11 +109,11 @@ public interface TensorOperations {
     /**
      * The value computed is Y[i] = (alpha[j] * X[j, i]) + Y[i]
      */
-    default void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int batchSize) {
+    default void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int aOffset, int xRowOffset, int batchSize) {
         Preconditions.checkArgument(alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
-
-        for (int i = 0; i < batchSize; i++) {
-            saxpy(alpha.get(0, i), x.slice(i), y, xoffset, yoffset, limit);
+        int batchLimit = xRowOffset + batchSize;
+        for (int xi = xRowOffset; xi < batchLimit; xi++) {
+            saxpy(alpha.get(0, aOffset++), x.slice(xi), y, xoffset, yoffset, limit);
         }
     }
 
