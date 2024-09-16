@@ -233,12 +233,15 @@ public abstract class AbstractModel implements Generator {
         return last;
     }
 
-    protected AbstractTensor batchForward(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf) {
+    public AbstractTensor batchForward(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf) {
+        return batchForward(token_ids, startPos, kvbuf, Optional.empty());
+    }
 
+    public AbstractTensor batchForward(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
         AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
         for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             AbstractTensor ref = embedding; // reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, startPos, kvbuf, Optional.empty());
+            embedding = transformerBlocks[i].forward(embedding, startPos, kvbuf, tensorReducer);
             ref.close();
         }
 

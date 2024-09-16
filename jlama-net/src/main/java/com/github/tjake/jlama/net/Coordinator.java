@@ -31,8 +31,12 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
@@ -40,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 public class Coordinator implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(Coordinator.class);
+    private static final ConcurrentMap<UUID, Integer> sessionPositions = new ConcurrentHashMap<>();
     private final int port;
     private final int workerCount;
     private final Server server;
@@ -108,37 +113,33 @@ public class Coordinator implements Generator {
             StringBuilder responseBuilder = new StringBuilder();
             StringBuilder responseWithSpecialTokens = new StringBuilder();
 
+            int startPos = sessionPositions.computeIfAbsent(session, s -> 0);
+
             FinishReason finishReason = FinishReason.MAX_TOKENS;
             long[] encoded = model.getTokenizer().encode(promptContext.getPrompt());
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
 
             AbstractTensor logits = model.makeDenseTensor(model.getConfig().vocabularySize);
 
-            int[] promptTokens = new int[1 + encoded.length];
+            Integer[] promptTokens = new Integer[1 + encoded.length];
 
             promptTokens[0] = model.getConfig().bosToken;
-            for (int i = 1; i < encoded.length; i++)
-                promptTokens[i] = Ints.checkedCast(encoded[i]);
+            for (int i = 1; i <= encoded.length; i++)
+                promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
 
             int promptLength = encoded.length;
 
             long start = System.currentTimeMillis();
 
-            AbstractTensor output = null;
-            for (int i = 0; i < promptLength; i++) {
-                if (output != null) output.close();
-                logger.debug("Generating token {}", i);
-                output = service.generateNextOutput(session, promptTokens[i], i);
-            }
+            AbstractTensor output = service.generateNextOutput(session, Arrays.asList(promptTokens), startPos);
 
             long promptTime = System.currentTimeMillis();
+            int lastPosition = startPos + promptLength;
             int tokensGenerated = 0;
-
+            sessionPositions.put(session, lastPosition);
             for (int i = promptLength; i < ntokens; i++) {
                 int next = model.sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
                 output.close();
-
-                tokensGenerated++;
 
                 // Model may tell us it's done
                 if (model.getConfig().eosTokens.contains(next)) {
@@ -160,6 +161,8 @@ public class Coordinator implements Generator {
                 }
 
                 output = service.generateNextOutput(session, next, i);
+                tokensGenerated++;
+                sessionPositions.put(session, lastPosition++);
             }
 
             return new Generator.Response(

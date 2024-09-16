@@ -6,19 +6,11 @@ message CombineRequest {
   bytes workerid = 1;
   bytes uuid = 2;
   int32 layer = 3;
-  repeated bytes tensor = 6;
-}
-
-message TensorData {
-  int32 dim0 = 1; // Rows
-  int32 dim1 = 2; // Columns
-  int32 columnOffset = 3; // Offset into the column (if sparse)
-  int32 columnLength = 4; // Length of the column (if sparse)
-  bytes data = 5;
+  repeated bytes tensor = 4;
 }
 
 message CombineResponse {
-  repeated bytes tensor = 3;
+  repeated bytes tensor = 1;
 }
 
 message GenerateRequest {
@@ -29,8 +21,8 @@ message GenerateRequest {
 
 message GenerateResponse {
   bytes session = 1;
-  int32 token = 2;
-  int32 position = 3;
+  int32 startPosition = 2;
+  repeated int32 tokens = 3;
 }
 
 /**

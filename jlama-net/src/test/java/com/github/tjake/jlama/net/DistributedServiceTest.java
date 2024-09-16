@@ -94,11 +94,6 @@ public class DistributedServiceTest {
             startWorker(modelRoot);
             startWorker(modelRoot);
 
-            // startWorker(modelRoot);
-            // startWorker(modelRoot);
-            // startWorker(modelRoot);
-            // startWorker(modelRoot);
-
             coordinator.generate(
                 UUID.randomUUID(),
                 PromptContext.of("Simply put, the theory of relativity states that"),

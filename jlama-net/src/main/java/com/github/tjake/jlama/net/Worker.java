@@ -179,10 +179,50 @@ public class Worker implements Closeable {
             return UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer());
         }
 
+        public void onNextBatch(GenerateResponse generateResponse) {
+            int[] tokens = generateResponse.getTokensList().stream().mapToInt(Integer::intValue).toArray();
+            int startPosition = generateResponse.getStartPosition();
+            ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
+            UUID session = new UUID(bb.getLong(), bb.getLong());
+
+            logger.info("Processing batch of {} starting at position {} for session {}", tokens, startPosition, session);
+
+            AbstractTensor output = model.batchForward(tokens, startPosition, kvBufferCache.getKvBuffer(session), Optional.of(t -> {
+                CombineRequest.Builder nrb = CombineRequest.newBuilder()
+                        .setUuid(generateResponse.getSession())
+                        .setWorkerid(workerIdBytes)
+                        .setLayer(getNextRequestCount(session));
+                for (int i = 0; i < t.size(); i++)
+                    nrb = nrb.addTensor(getTensorBytes(t.get(i)));
+
+                CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
+
+                for (int i = 0; i < t.size(); i++)
+                    t.get(i).getMemorySegment().copyFrom(
+                            MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
+                    );
+            }));
+
+            outputStream.onNext(
+                    GenerateRequest.newBuilder()
+                            .setSession(generateResponse.getSession())
+                            .setWorkerid(workerIdBytes)
+                            .setTensor(getTensorBytes(output.slice(output.shape().first() - 1))) // keep only the last token
+                            .build()
+            );
+
+            output.close();
+        }
+
         @Override
         public void onNext(GenerateResponse generateResponse) {
-            int token = generateResponse.getToken();
-            int position = generateResponse.getPosition();
+            if (generateResponse.getTokensCount() > 1) {
+                onNextBatch(generateResponse);
+                return;
+            }
+
+            int token = generateResponse.getTokens(0);
+            int position = generateResponse.getStartPosition();
             ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
 
@@ -199,11 +239,9 @@ public class Worker implements Closeable {
                 CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
 
                 for (int i = 0; i < t.size(); i++)
-                    t.get(i)
-                        .getMemorySegment()
-                        .copyFrom(
+                    t.get(i).getMemorySegment().copyFrom(
                             MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
-                        );
+                    );
             }));
 
             outputStream.onNext(

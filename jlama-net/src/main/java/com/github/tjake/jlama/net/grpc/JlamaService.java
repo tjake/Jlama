@@ -46,7 +46,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private final GeneratorGroup generatorGroup;
 
     private final ConcurrentMap<String, MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>>> combinations;
-    private final int headCount;
 
     public JlamaService(AbstractModel model, int workerCount) {
         Preconditions.checkArgument(
@@ -58,8 +57,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         this.workers = new ConcurrentHashMap<>();
         this.combinations = new ConcurrentHashMap<>();
         this.generatorGroup = new GeneratorGroup();
-
-        this.headCount = model.getConfig().numberOfKeyValueHeads;
     }
 
     public void waitForReady() {
@@ -119,6 +116,10 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         }
     }
 
+    public AbstractTensor generateNextOutput(UUID session, List<Integer> tokenIds, int startPosition) {
+        return generatorGroup.generateNextOutput(session, tokenIds, startPosition);
+    }
+
     public AbstractTensor generateNextOutput(UUID session, int tokenId, int position) {
         return generatorGroup.generateNextOutput(session, tokenId, position);
     }
@@ -146,8 +147,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
                 // If we have all the workers, then we can calculate the result and send it back
                 if (members.size() == workerCount && combinations.remove(key, members)) {
-                    float sumSq = 0;
-                    float sum = 0;
                     MemorySegment[] tensors = null;
                     for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
                         if (f.left.getTensorCount() > 0) {
@@ -230,11 +229,15 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         }
 
         public AbstractTensor generateNextOutput(UUID session, int tokenId, int position) {
+            return generateNextOutput(session, Collections.singletonList(tokenId), position);
+        }
+
+        public AbstractTensor generateNextOutput(UUID session, List<Integer> tokenIds, int startPosition) {
             Preconditions.checkArgument(generators.size() == workerCount, "Missing workers %d", workers.size());
             ByteString sid = ByteString.copyFrom(
                 ByteBuffer.allocate(128).putLong(session.getMostSignificantBits()).putLong(session.getLeastSignificantBits()).flip()
             );
-            GenerateResponse gr = GenerateResponse.newBuilder().setSession(sid).setToken(tokenId).setPosition(position).build();
+            GenerateResponse gr = GenerateResponse.newBuilder().setSession(sid).addAllTokens(tokenIds).setStartPosition(startPosition).build();
             for (Generator g : generators) {
                 g.registerLatch(session);
                 g.responseObserver.onNext(gr);
@@ -242,20 +245,13 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
             AbstractTensor output = model.makeDenseTensor(model.getConfig().embeddingLength);
 
-
             for (int j = 0; j < workerCount; j++) {
                 Generator g = generators.get(j);
                 ByteString v = g.waitForOutput(session);
                 RegisterResponse r = workers.get(g.workerId);
 
                 if (j == 0) {
-                    FloatBuffer f = v.asReadOnlyByteBuffer()
-                            .order(ByteOrder.LITTLE_ENDIAN)
-                            .asFloatBuffer();
-                    int len = f.remaining();
-                    for (int i = 0; i < len; i++) {
-                        output.set(f.get(), 0, i);
-                    }
+                    output.getMemorySegment().copyFrom(MemorySegment.ofBuffer(v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
                 }
             }
 
