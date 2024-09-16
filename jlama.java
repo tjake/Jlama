@@ -1,6 +1,9 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //COMPILE_OPTIONS -source 20
-//RUNTIME_OPTIONS -server -Dstdout.encoding=UTF-8 -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0 --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED -XX:+UnlockDiagnosticVMOptions -XX:CompilerDirectivesFile=./inlinerules.json -XX:+AlignVector -XX:+UseStringDeduplication -XX:+UseCompressedOops -XX:+UseCompressedClassPointers
+//RUNTIME_OPTIONS -server -Dstdout.encoding=UTF-8 -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0
+//RUNTIME_OPTIONS --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+//RUNTIME_OPTIONS --enable-preview --enable-native-access=ALL-UNNAMED -XX:+UnlockDiagnosticVMOptions
+//RUNTIME_OPTIONS -XX:+AlignVector -XX:+UseStringDeduplication -XX:+UseCompressedOops -XX:+UseCompressedClassPointers
 
 //DEPS com.github.tjake:jlama-cli:0.4.0
 //DEPS com.github.tjake:jlama-native:0.4.0:${os.detected.name}-${os.detected.arch}
