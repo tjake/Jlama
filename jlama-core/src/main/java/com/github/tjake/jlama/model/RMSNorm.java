@@ -17,7 +17,6 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
 
-
 public class RMSNorm extends LayerNorm {
     private final float weightAdjustment;
 
@@ -31,11 +30,7 @@ public class RMSNorm extends LayerNorm {
     }
 
     @Override
-    public AbstractTensor forward(
-        AbstractTensor input,
-        int offset,
-        int length
-    ) {
+    public AbstractTensor forward(AbstractTensor input, int offset, int length) {
 
         int batchSize = input.shape().first();
         AbstractTensor output = input.copyShape();

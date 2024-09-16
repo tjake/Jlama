@@ -73,10 +73,9 @@ public class LlamaModel extends AbstractModel {
 
             AbstractTensor at = wte.slice(true, inputToken);
 
-            if (wte.dType() != embedding.dType())
-                at = TensorOperationsProvider.get().quantize(at, embedding.dType(), 0, c.embeddingLength);
+            if (wte.dType() != embedding.dType()) at = TensorOperationsProvider.get().quantize(at, embedding.dType(), 0, c.embeddingLength);
 
-            //Always copy the entire embedding
+            // Always copy the entire embedding
             embedding.copyFrom(at, 0, 0, c.embeddingLength);
 
             return embedding;
@@ -152,9 +151,9 @@ public class LlamaModel extends AbstractModel {
         Preconditions.checkArgument(t.dims() == 2, "Unexpected shape");
         if (t.dType() == workingQType) return super.maybeQuantize(t);
 
-        return //t.shape().last() == c.embeddingLength
-            //? TensorOperationsProvider.get().quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
-            //:
+        return // t.shape().last() == c.embeddingLength
+               // ? TensorOperationsProvider.get().quantize(t, workingQType, c.embeddingSegmentStart(), c.embeddingSegmentLength())
+               // :
         TensorOperationsProvider.get().quantize(t, workingQType, 0, Ints.checkedCast(t.shape().last()));
     }
 }

@@ -15,13 +15,10 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-import com.github.tjake.jlama.model.AbstractModel;
-import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.Coordinator;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -54,7 +51,7 @@ public class ClusterCoordinatorCommand extends BaseCommand implements WebMvcConf
         try {
             Coordinator c = new Coordinator(model, workingDirectory, grpcPort, workerCount);
 
-            //This wires up the bean for the rest api
+            // This wires up the bean for the rest api
             ApiServiceCommand.m = c;
 
             new Thread(() -> {
@@ -69,9 +66,9 @@ public class ClusterCoordinatorCommand extends BaseCommand implements WebMvcConf
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
 
             new SpringApplicationBuilder(ClusterCoordinatorCommand.class).lazyInitialization(true)
-                    .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
-                    .build()
-                    .run();
+                .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
+                .build()
+                .run();
 
         } catch (Exception e) {
             e.printStackTrace();

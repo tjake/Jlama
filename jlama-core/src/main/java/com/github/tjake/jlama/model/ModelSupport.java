@@ -38,7 +38,6 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
-import com.github.tjake.jlama.util.Pair;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;

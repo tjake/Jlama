@@ -75,7 +75,8 @@ public class Weights implements WeightLoader {
     }
 
     @Override
-    public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) throws NoSuchElementException {
+    public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns)
+        throws NoSuchElementException {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null) throw new NoSuchElementException(name + " not found in weights");
 
@@ -94,9 +95,8 @@ public class Weights implements WeightLoader {
             int rows = info.shape[0];
             int columnLength = info.shape[1] * info.dType.size();
 
-            //Hack for Q4
-            if (info.dType == DType.Q4)
-                columnLength /= 2;
+            // Hack for Q4
+            if (info.dType == DType.Q4) columnLength /= 2;
 
             positionOffset = Ints.checkedCast(info.dataOffsets[0]) + (dctx.getShardOffsetForLength(rows) * columnLength);
             positionLimit = positionOffset + (dctx.getShardLength(rows) * columnLength);
@@ -149,11 +149,14 @@ public class Weights implements WeightLoader {
                 }
                 break;
             case Q4:
-                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); //only need to sparsify once
+                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); // only need to
+                                                                                                                            // sparsify once
                 t = new Q4ByteBufferTensor(name, b.slice(), qb, shape, true);
                 break;
             case I8:
-                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); //only need to sparsify once
+                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); // only need to
+                                                                                                                             // sparsify
+                                                                                                                             // once
                 t = new Q8ByteBufferTensor(name, b.slice(), qb1, shape, true);
                 break;
             default:
@@ -161,8 +164,8 @@ public class Weights implements WeightLoader {
         }
 
         return dctx != null && sparseColumns && dctx.hasModelShard()
-                ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
-                : t;
+            ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
+            : t;
     }
 
     @Override

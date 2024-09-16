@@ -465,7 +465,6 @@ public class TestOperations {
         controlOps.batchDotProduct(c, a, b, 0, 0, SIZE, 0, 0, ROWS);
         controlOps.batchDotProduct(c, a, b, 0, 0, SIZE, ROWS, 0, ROWS);
 
-
         for (TensorOperations t : opTypes) {
             c1.clear();
             t.batchDotProduct(c1, a, b, 0, 0, SIZE, 0, 0, ROWS);

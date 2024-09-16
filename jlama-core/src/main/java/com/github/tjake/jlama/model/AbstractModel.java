@@ -37,7 +37,6 @@ import com.github.tjake.jlama.tensor.TensorShape;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.JsonSupport;
-import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import java.util.*;
@@ -237,7 +236,12 @@ public abstract class AbstractModel implements Generator {
         return batchForward(token_ids, startPos, kvbuf, Optional.empty());
     }
 
-    public AbstractTensor batchForward(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf, Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+    public AbstractTensor batchForward(
+        int[] token_ids,
+        int startPos,
+        KvBufferCache.KvBuffer kvbuf,
+        Optional<Consumer<List<AbstractTensor>>> tensorReducer
+    ) {
         AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
         for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             AbstractTensor ref = embedding; // reference so we can free

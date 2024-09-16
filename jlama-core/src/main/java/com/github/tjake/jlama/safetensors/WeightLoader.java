@@ -17,9 +17,7 @@ package com.github.tjake.jlama.safetensors;
 
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.util.Pair;
 import java.util.Map;
-import java.util.Optional;
 
 public interface WeightLoader extends AutoCloseable {
 

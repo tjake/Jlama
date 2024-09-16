@@ -28,7 +28,6 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -101,11 +100,11 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 int workerNum = workers.size();
 
                 RegisterResponse r = RegisterResponse.newBuilder()
-                        .setModelShard(workerNum)
-                        .setNumModelShards(workerCount)
-                        .setLayerShard(0)
-                        .setNumLayerShards(1)
-                        .build();
+                    .setModelShard(workerNum)
+                    .setNumModelShards(workerCount)
+                    .setLayerShard(0)
+                    .setNumLayerShards(1)
+                    .build();
 
                 workers.put(wid, r);
                 logger.info("Registered worker {} with workerNum {} of {}", wid, workerNum, workerCount);
@@ -237,7 +236,11 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             ByteString sid = ByteString.copyFrom(
                 ByteBuffer.allocate(128).putLong(session.getMostSignificantBits()).putLong(session.getLeastSignificantBits()).flip()
             );
-            GenerateResponse gr = GenerateResponse.newBuilder().setSession(sid).addAllTokens(tokenIds).setStartPosition(startPosition).build();
+            GenerateResponse gr = GenerateResponse.newBuilder()
+                .setSession(sid)
+                .addAllTokens(tokenIds)
+                .setStartPosition(startPosition)
+                .build();
             for (Generator g : generators) {
                 g.registerLatch(session);
                 g.responseObserver.onNext(gr);

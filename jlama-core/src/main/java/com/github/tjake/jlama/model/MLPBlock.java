@@ -20,7 +20,6 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -111,30 +110,16 @@ public class MLPBlock implements FeedForward {
             VectorMath.pchunk(dctx.hiddenSegmentStart, dctx.hiddenSegmentLength, (chunkStart, chunkSize) -> {
                 if (upProjectionWeights != null) {
                     TensorOperationsProvider.get()
-                        .dotProductBatchChunk(
-                            batchResults,
-                            lnemb,
-                            batchWeights,
-                            0,
-                            model.c.embeddingLength,
-                            chunkStart,
-                            chunkSize
-                        );
+                        .dotProductBatchChunk(batchResults, lnemb, batchWeights, 0, model.c.embeddingLength, chunkStart, chunkSize);
                 } else {
                     TensorOperationsProvider.get()
-                        .dotProductChunk(
-                            buf,
-                            lnemb,
-                            fullyConnectedWeights,
-                            0,
-                            model.c.embeddingLength,
-                            chunkStart,
-                            chunkSize
-                        );
+                        .dotProductChunk(buf, lnemb, fullyConnectedWeights, 0, model.c.embeddingLength, chunkStart, chunkSize);
                 }
             });
 
-            fullyConnectedBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(buf, bias, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength));
+            fullyConnectedBias.ifPresent(
+                bias -> TensorOperationsProvider.get().accumulate(buf, bias, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength)
+            );
 
             VectorMath.pfor(dctx.hiddenSegmentStart, dctx.hiddenSegmentEnd, i -> {
                 for (int j = 0; j < batchSize; j++) {
@@ -152,14 +137,21 @@ public class MLPBlock implements FeedForward {
                 // matmul the projection and sum into input
                 AbstractTensor result = model.makeTensor(batchSize, model.c.embeddingLength);
                 VectorMath.pchunk(0, model.c.embeddingLength, (chunkStart, chunkSize) -> {
-                    TensorOperationsProvider.get().dotProductChunk(result, bufq, projectionWeights, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength, chunkStart, chunkSize);
+                    TensorOperationsProvider.get()
+                        .dotProductChunk(
+                            result,
+                            bufq,
+                            projectionWeights,
+                            dctx.hiddenSegmentStart,
+                            dctx.hiddenSegmentLength,
+                            chunkStart,
+                            chunkSize
+                        );
                 });
 
                 tensorReducer.ifPresent(func -> func.accept(Collections.singletonList(result)));
 
-                projectionBias.ifPresent(
-                    bias -> TensorOperationsProvider.get().accumulate(result, bias, 0, model.c.embeddingLength)
-                );
+                projectionBias.ifPresent(bias -> TensorOperationsProvider.get().accumulate(result, bias, 0, model.c.embeddingLength));
                 return result;
             }
         }

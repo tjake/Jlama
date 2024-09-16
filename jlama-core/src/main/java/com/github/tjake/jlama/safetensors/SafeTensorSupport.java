@@ -27,23 +27,17 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q5ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.util.HttpSupport;
-import com.github.tjake.jlama.util.Pair;
 import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.base.Preconditions;
-import com.google.common.io.CountingInputStream;
 import com.google.common.primitives.Ints;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -371,7 +365,14 @@ public class SafeTensorSupport {
         Files.createDirectories(localModelDir);
 
         for (String currFile : tensorFiles) {
-            HttpSupport.downloadFile(hfModel, currFile, optionalBranch, optionalAuthHeader, localModelDir.resolve(currFile), optionalProgressReporter);
+            HttpSupport.downloadFile(
+                hfModel,
+                currFile,
+                optionalBranch,
+                optionalAuthHeader,
+                localModelDir.resolve(currFile),
+                optionalProgressReporter
+            );
         }
 
         return localModelDir.toFile();

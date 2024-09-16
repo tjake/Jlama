@@ -89,13 +89,7 @@ public class MoEBlock implements FeedForward {
                 // Apply each experts gate to the input
                 VectorMath.pfor(0, numberOfExperts, i -> {
                     expertResults.set(
-                            TensorOperationsProvider.get().dotProduct(
-                                lnembSlice,
-                                moeGateWeight.slice(true, i),
-                                0,
-                                0,
-                                model.c.embeddingLength
-                            ),
+                        TensorOperationsProvider.get().dotProduct(lnembSlice, moeGateWeight.slice(true, i), 0, 0, model.c.embeddingLength),
                         0,
                         i
                     );

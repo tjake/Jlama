@@ -23,10 +23,8 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
-@Command(name = "jlama", mixinStandardHelpOptions = true, requiredOptionMarker = '*',
-        usageHelpAutoWidth = true, sortOptions = true,
-        description = "Jlama is a modern LLM inference engine for Java!\n\n" +
-                "Quantized models are maintained at https://hf.co/tjake\n")
+@Command(name = "jlama", mixinStandardHelpOptions = true, requiredOptionMarker = '*', usageHelpAutoWidth = true, sortOptions = true, description = "Jlama is a modern LLM inference engine for Java!\n\n"
+    + "Quantized models are maintained at https://hf.co/tjake\n")
 public class JlamaCli implements Runnable {
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");

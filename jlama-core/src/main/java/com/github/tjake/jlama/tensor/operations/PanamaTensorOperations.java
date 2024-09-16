@@ -2549,7 +2549,17 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int aOffset, int xOffset, int batchSize) {
+    public void saxpy(
+        AbstractTensor alpha,
+        AbstractTensor x,
+        AbstractTensor y,
+        int xoffset,
+        int yoffset,
+        int limit,
+        int aOffset,
+        int xOffset,
+        int batchSize
+    ) {
         Preconditions.checkArgument(limit % 2 == 0);
 
         switch (x.dType()) {
@@ -2625,7 +2635,17 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
-    public void saxpyBF16(AbstractTensor alpha, AbstractTensor xt, AbstractTensor yt, int xoffset, int yoffset, int limit, int aOffset, int xOffset, int batchSize) {
+    public void saxpyBF16(
+        AbstractTensor alpha,
+        AbstractTensor xt,
+        AbstractTensor yt,
+        int xoffset,
+        int yoffset,
+        int limit,
+        int aOffset,
+        int xOffset,
+        int batchSize
+    ) {
 
         BFloat16BufferTensor x = (BFloat16BufferTensor) xt;
         BFloat16BufferTensor y = (BFloat16BufferTensor) yt;

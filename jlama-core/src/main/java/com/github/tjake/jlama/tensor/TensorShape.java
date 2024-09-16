@@ -52,7 +52,7 @@ public class TensorShape {
     private final int sparseRowOffset;
     private final int sparseRowLength;
 
-    private TensorShape(int[] shape, Optional<Pair<Integer,Integer>> sparseRowRange, Optional<Pair<Integer, Integer>> sparseColumnRange) {
+    private TensorShape(int[] shape, Optional<Pair<Integer, Integer>> sparseRowRange, Optional<Pair<Integer, Integer>> sparseColumnRange) {
         Preconditions.checkArgument(
             shape.length > 1,
             "Shape must have at least two dimensions, even if first is 1 (to represent a vector)"
@@ -99,7 +99,8 @@ public class TensorShape {
             case 2:
                 return sparseColumnLength * (pdims[0] - sparseRowOffset) + pdims[1] - sparseColumnOffset; // Most common case
             case 3:
-                return (sparseColumnLength * tshape[1] * (pdims[0] - sparseRowOffset)) + (sparseColumnLength * pdims[1]) + pdims[2] - sparseColumnOffset;
+                return (sparseColumnLength * tshape[1] * (pdims[0] - sparseRowOffset)) + (sparseColumnLength * pdims[1]) + pdims[2]
+                    - sparseColumnOffset;
             default:
                 int totalOffset = 0;
                 for (int d = 0; d < pdims.length - 1; ++d) { // Stop before last dimension
@@ -131,11 +132,12 @@ public class TensorShape {
         return sparseRowOffset;
     }
 
-
     public TensorShape scaleLastDim(float scale) {
         int[] copy = Arrays.copyOf(tshape, tshape.length);
         copy[copy.length - 1] *= scale;
-        return sparseColumnRange.isPresent() ? sparseColumn(copy, Pair.of((int) (sparseColumnOffset * scale), (int) (sparseColumnLength * scale))) : of(copy);
+        return sparseColumnRange.isPresent()
+            ? sparseColumn(copy, Pair.of((int) (sparseColumnOffset * scale), (int) (sparseColumnLength * scale)))
+            : of(copy);
     }
 
     public TensorShape setDimValue(int dim, int value) {

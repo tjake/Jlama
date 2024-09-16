@@ -16,8 +16,6 @@
 package com.github.tjake.jlama.net;
 
 import ch.qos.logback.classic.Level;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import java.io.PrintWriter;
@@ -41,7 +39,6 @@ public class DistributedServiceTest {
         );
         rootLogger.setLevel(Level.toLevel("info"));
     }
-
 
     @Test
     void oneWorkerTestLLama() throws Exception {
@@ -75,7 +72,7 @@ public class DistributedServiceTest {
 
     @Test
     void manyWorkerTestLLama() throws Exception {
-        //Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
+        // Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
         Path modelRoot = Paths.get("../models/Meta-Llama-3.1-8B-Instruct-jlama-Q4");
         Assume.assumeTrue(Files.exists(modelRoot));
 

@@ -22,9 +22,6 @@ import com.github.tjake.jlama.model.bert.BertConfig;
 import com.github.tjake.jlama.model.bert.BertModel;
 import com.github.tjake.jlama.model.bert.BertTokenizer;
 import com.github.tjake.jlama.model.functions.Generator;
-import com.github.tjake.jlama.model.gemma.GemmaConfig;
-import com.github.tjake.jlama.model.gemma.GemmaModel;
-import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.gpt2.GPT2Config;
 import com.github.tjake.jlama.model.gpt2.GPT2Model;
 import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
@@ -39,13 +36,6 @@ import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
-import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.KvBufferCache;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.github.tjake.jlama.util.Pair;
-import com.google.common.primitives.Ints;
-import com.google.common.util.concurrent.AtomicDouble;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -56,12 +46,8 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import org.jctools.queues.MpmcArrayQueue;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -72,7 +58,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        //System.setProperty("jlama.force_panama_tensor_operations", "true");
+        // System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -289,11 +275,11 @@ public class TestModels {
 
         String prompt = "What is the best season to plant avocados?";
         PromptContext promptContext = model.promptSupport()
-                .get()
-                .builder()
-                .addSystemMessage("You are a helpful chatbot who writes short responses.")
-                .addUserMessage(prompt)
-                .build();
+            .get()
+            .builder()
+            .addSystemMessage("You are a helpful chatbot who writes short responses.")
+            .addUserMessage(prompt)
+            .build();
         model.generate(UUID.randomUUID(), promptContext, 0.0f, 256, makeOutHandler());
     }
 

@@ -33,7 +33,6 @@ import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.util.Pair;
 import com.google.protobuf.ByteString;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;

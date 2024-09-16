@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -33,9 +32,6 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -56,7 +52,7 @@ public class KvBufferCache {
     }
 
     public KvBuffer getKvBuffer(UUID session) {
-        return kvBufferCache.computeIfAbsent(session, s -> new KvBuffer(s, 1 << 24)); //16MB per page
+        return kvBufferCache.computeIfAbsent(session, s -> new KvBuffer(s, 1 << 24)); // 16MB per page
     }
 
     class KvPageContext {
@@ -75,22 +71,18 @@ public class KvBufferCache {
             this.layersPerPage = layersPerPage;
             this.contextLengthPerPage = contextLengthPerPage;
 
-            if (numberOfLayerPages < 1)
-                throw new IllegalArgumentException("totalPageCount must be >= 1");
+            if (numberOfLayerPages < 1) throw new IllegalArgumentException("totalPageCount must be >= 1");
 
-            if (numberOfContextPages < 1)
-                throw new IllegalArgumentException("numberOfContextPages must be >= 1");
+            if (numberOfContextPages < 1) throw new IllegalArgumentException("numberOfContextPages must be >= 1");
 
-            if (layersPerPage < 1)
-                throw new IllegalArgumentException("layersPerPage must be >= 1");
+            if (layersPerPage < 1) throw new IllegalArgumentException("layersPerPage must be >= 1");
 
-            if (contextLengthPerPage < 1)
-                throw new IllegalArgumentException("contextLengthPerPage must be >= 1");
+            if (contextLengthPerPage < 1) throw new IllegalArgumentException("contextLengthPerPage must be >= 1");
 
             TensorShape s;
             Config c = model.getConfig();
             DistributedContext dctx = c.dctx();
-            int[] rawShape = new int[] {layersPerPage, 2, contextLengthPerPage, c.kvLength};
+            int[] rawShape = new int[] { layersPerPage, 2, contextLengthPerPage, c.kvLength };
 
             // Adjust the shape to be relative to the kv cache size (in case of GQA)
             if (c.kvLength != dctx.kvSegmentLength) {
@@ -127,24 +119,28 @@ public class KvBufferCache {
             } else {
                 try {
                     raf = new RandomAccessFile(
-                            Paths.get(model.getConfig().workingDirectory().get().toString(), pageCtx.session.toString() + "-" + pageId + ".page").toFile(),
-                            "rw");
+                        Paths.get(
+                            model.getConfig().workingDirectory().get().toString(),
+                            pageCtx.session.toString() + "-" + pageId + ".page"
+                        ).toFile(),
+                        "rw"
+                    );
                     long bytes = pageCtx.pageShape.size() * model.getWorkingDType().size();
                     raf.setLength(bytes);
 
                     AbstractTensor t;
                     if (model.getWorkingDType() == DType.F32) {
                         FloatBuffer fb = raf.getChannel()
-                                .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                                .order(ByteOrder.LITTLE_ENDIAN)
-                                .asFloatBuffer();
+                            .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+                            .asFloatBuffer();
 
                         t = new FloatBufferTensor(fb, pageCtx.pageShape, true);
                     } else if (model.getWorkingDType() == DType.BF16) {
                         ShortBuffer sb = raf.getChannel()
-                                .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                                .order(ByteOrder.LITTLE_ENDIAN)
-                                .asShortBuffer();
+                            .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+                            .asShortBuffer();
 
                         t = new BFloat16BufferTensor("kvmem", sb, pageCtx.pageShape, true);
                     } else {
@@ -255,7 +251,9 @@ public class KvBufferCache {
             long pageSize = optimalLayersPerPage * optimalContextLengthPerPage * s;
 
             if (pageSize > maxPageSizeInBytes) {
-                throw new IllegalArgumentException("Calculation error: pageSize > maxPageSizeInBytes: " + pageSize + " > " + maxPageSizeInBytes);
+                throw new IllegalArgumentException(
+                    "Calculation error: pageSize > maxPageSizeInBytes: " + pageSize + " > " + maxPageSizeInBytes
+                );
             }
 
             return new KvPageContext(session, numberOfLayerPages, numberOfContextPages, optimalLayersPerPage, optimalContextLengthPerPage);
@@ -267,7 +265,7 @@ public class KvBufferCache {
         }
 
         public AbstractTensor getKeyTensorForPosition(int layerIndex, int position) {
-           return getTensorForPosition(layerIndex, position, 0);
+            return getTensorForPosition(layerIndex, position, 0);
         }
 
         public AbstractTensor getValTensorForPosition(int layerIndex, int position) {

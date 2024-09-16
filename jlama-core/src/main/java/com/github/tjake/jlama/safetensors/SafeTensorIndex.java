@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;

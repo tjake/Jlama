@@ -16,10 +16,7 @@
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
-import java.util.Optional;
-import java.util.function.BiFunction;
 
 public class LayerNorm {
 
@@ -40,11 +37,7 @@ public class LayerNorm {
         return forward(input, 0, m.c.embeddingLength);
     }
 
-    public AbstractTensor forward(
-        AbstractTensor input,
-        int offset,
-        int length
-    ) {
+    public AbstractTensor forward(AbstractTensor input, int offset, int length) {
 
         int batchSize = input.shape().first();
         AbstractTensor output = input.copyShape();

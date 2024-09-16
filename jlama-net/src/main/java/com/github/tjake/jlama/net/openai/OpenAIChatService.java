@@ -15,7 +15,6 @@
  */
 package com.github.tjake.jlama.net.openai;
 
-import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.openai.model.*;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;

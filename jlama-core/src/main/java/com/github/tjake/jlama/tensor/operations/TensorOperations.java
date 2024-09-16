@@ -109,7 +109,17 @@ public interface TensorOperations {
     /**
      * The value computed is Y[i] = (alpha[j] * X[j, i]) + Y[i]
      */
-    default void saxpy(AbstractTensor alpha, AbstractTensor x, AbstractTensor y, int xoffset, int yoffset, int limit, int aOffset, int xRowOffset, int batchSize) {
+    default void saxpy(
+        AbstractTensor alpha,
+        AbstractTensor x,
+        AbstractTensor y,
+        int xoffset,
+        int yoffset,
+        int limit,
+        int aOffset,
+        int xRowOffset,
+        int batchSize
+    ) {
         Preconditions.checkArgument(alpha.shape().last() == x.shape().first() && y.shape().first() == 1);
         int batchLimit = xRowOffset + batchSize;
         for (int xi = xRowOffset; xi < batchLimit; xi++) {

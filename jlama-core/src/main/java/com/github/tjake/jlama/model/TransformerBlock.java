@@ -21,10 +21,8 @@ import com.github.tjake.jlama.model.functions.FeedForward;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import com.github.tjake.jlama.util.Pair;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,8 +102,7 @@ public class TransformerBlock {
         debug("post_attn", postAttention, layerIndex);
 
         // residual connection
-        TensorOperationsProvider.get()
-            .accumulate(postAttention, embedding, 0, model.c.embeddingLength);
+        TensorOperationsProvider.get().accumulate(postAttention, embedding, 0, model.c.embeddingLength);
 
         debug("post_attn_res", postAttention, layerIndex);
 

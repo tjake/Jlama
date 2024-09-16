@@ -17,7 +17,6 @@ package com.github.tjake.jlama.cli.commands;
 
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
-import com.github.tjake.jlama.model.AbstractModel;
 import java.util.Optional;
 
 import com.github.tjake.jlama.model.functions.Generator;

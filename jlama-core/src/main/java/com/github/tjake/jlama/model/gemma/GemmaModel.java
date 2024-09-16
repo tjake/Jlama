@@ -123,8 +123,7 @@ public class GemmaModel extends LlamaModel {
         return (inputToken, position) -> {
             AbstractTensor embedding = makeDenseTensor(c.embeddingLength);
             AbstractTensor at = wte.slice(true, inputToken);
-            if (wte.dType() != embedding.dType())
-                at = TensorOperationsProvider.get().quantize(at, embedding.dType(), 0, c.embeddingLength);
+            if (wte.dType() != embedding.dType()) at = TensorOperationsProvider.get().quantize(at, embedding.dType(), 0, c.embeddingLength);
 
             embedding.copyFrom(at, 0, 0, c.embeddingLength);
 
@@ -140,7 +139,7 @@ public class GemmaModel extends LlamaModel {
         DType qType = modelQType.orElse(this.modelDType);
 
         if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType); // Don't quantize this, it's
-                                                                                                             // used for the embedding layer
+                                                                                                 // used for the embedding layer
 
         final LayerNorm layerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType), 1.0f);
 

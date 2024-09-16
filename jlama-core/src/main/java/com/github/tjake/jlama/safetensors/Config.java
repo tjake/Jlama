@@ -19,7 +19,6 @@ import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.TensorCache;
-import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 import java.io.File;
@@ -46,7 +45,6 @@ public class Config {
     public final Optional<float[][]> ropeFreqs;
     private volatile DistributedContext dctx;
     private volatile File workingDirectory;
-
 
     public final TensorCache tensorCache;
 

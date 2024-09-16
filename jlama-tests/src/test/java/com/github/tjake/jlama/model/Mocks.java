@@ -26,7 +26,6 @@ import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.util.Pair;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
