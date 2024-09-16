@@ -9,7 +9,6 @@
 [![Discord](https://img.shields.io/discord/1279855254812229642?style=flat-square&label=Discord&color=663399)](https://discord.gg/HsYXHrMu6J)
 
 
-
 ## 🚀 Features
 
 Model Support:
@@ -31,24 +30,54 @@ Implements:
   * Fast GEMM operations
   * Distributed Inference!
 
-Jlama is requires Java 20 or later and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
+Jlama requires Java 20 or later and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
 for faster inference.
-
-## ⭐ Give us a star!
-
-Like what you see? Please consider giving this a star (★)!
 
 ## 🤔 What is it used for? 
 
 Add LLM Inference directly to your Java application.
 
-## 🔬 Demo
+## 🔬 Quick Start
 
-Jlama includes a simple UI if you just want to chat with an llm.
+### 🕵️‍♀️ How to use as a local client
+Jlama includes a command line tool that makes it easy to use.
+The CLI can be run with [jbang](https://www.jbang.dev/download/).
 
+```shell
+#Install jbang (if you don't have it)
+curl -Ls https://sh.jbang.dev | bash -s - app setup
+
+#Install Jlama CLI (will ask if you trust the source)
+jbang app install -j 21 --name=jlama --force https://raw.githubusercontent.com/tjake/Jlama/main/jlama.java
+
+#Run the CLI
+Usage: jlama [COMMAND]
+Jlama is a modern LLM inference engine for Java!
+
+Quantized models are maintained at https://hf.co/tjake
+
+Commands:
+  download             Downloads a HuggingFace model - use owner/name format
+  quantize             Quantize the specified model
+  chat                 Interact with the specified model
+  complete             Completes a prompt using the specified model
+  restapi              Starts a openai compatible rest api for interacting with this model
+  cluster-coordinator  Starts a distributed rest api for a model using cluster workers
+  cluster-worker       Connects to a cluster coordinator to perform distributed inference
 ```
-./run-cli.sh download tjake/llama2-7b-chat-hf-jlama-Q4
-./run-cli.sh restapi models/llama2-7b-chat-hf-jlama-Q4
+
+Now that you have jlama installed you can download a model from huggingface and chat with it.
+Note I have pre-quantized models available at https://hf.co/tjake
+
+```shell
+# Download a small model (defaults to ./models)
+jlama download tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
+
+# Run the openai chat api and UI on this model
+jlama restapi models/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
+
+#Open browser to http://localhost:8080/
+open http://localhost:8080
 ```
 open browser to http://localhost:8080/
 
@@ -56,17 +85,12 @@ open browser to http://localhost:8080/
   <img src="docs/demo.png" alt="Demo chat">
 </p>
 
-## 👨‍💻 How to use in your Java project
+### 👨‍💻 How to use in your Java project
+The main purpose of Jlama is to provide a simple way to use large language models in Java.
 
-The simplest way to use Jlama is with the [Langchain4j Integration](https://github.com/langchain4j/langchain4j-examples/tree/main/jlama-examples).  
+The simplest way to embed Jlama in your app is with the [Langchain4j Integration](https://github.com/langchain4j/langchain4j-examples/tree/main/jlama-examples).  
 
-Jlama also includes an [OpenAI chat completion api](https://platform.openai.com/docs/guides/chat-completions/overview) that can be used with many tools in the AI ecosystem.
-
-```shell
-./run-cli.sh restapi tjake/llama2-7b-chat-hf-jlama-Q4
-```
-
-If you would like to embed Jlama directly, add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
+If you would like to embed Jlama without langchain4j, add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
 
 ```xml
 
@@ -124,49 +148,9 @@ Then you can use the Model classes to run models:
  }
 ```
 
-## 🕵️‍♀️ How to use as a local client
-Jlama includes a cli tool to run models via the `run-cli.sh` command. 
-Before you do that first download one or more models from huggingface.
+## ⭐ Give us a Star! 
 
-Use the `./run-cli.sh download` command to download models from huggingface.
-
-```shell
-./run-cli.sh download gpt2-medium
-./run-cli.sh download -t XXXXXXXX meta-llama/Llama-2-7b-chat-hf
-./run-cli.sh download intfloat/e5-small-v2
-```
-
-Then run the cli tool to chat with the model or complete a prompt.
-Quanitzation is supported with the `-q` flag. Or you can use pre-quantized models
-located in my [huggingface repo](https://huggingface.co/tjake).
-
-```shell
-./run-cli.sh complete -p "The best part of waking up is " -t 0.7 -tc 16 -q Q4 -wq I8 models/Llama-2-7b-chat-hf
-./run-cli.sh chat -s "You are a professional comedian" models/llama2-7b-chat-hf-jlama-Q4
-```
-
-## 🧪 Examples
-### Llama 2 7B
-
-```
-You: Tell me a joke about cats. Include emojis.
-
-Jlama:   Sure, here's a joke for you:
-Why did the cat join a band? 🎸🐱
-Because he wanted to be the purr-fect drummer! 😹🐾
-I hope you found that purr-fectly amusing! 😸🐱
-
-elapsed: 11s, prompt 38.0ms per token, gen 146.2ms per token
-
-You: Another one
-
-Jlama:   Of course! Here's another one:
-Why did the cat bring a ball of yarn to the party? 🎉🧶
-Because he wanted to have a paw-ty! 😹🎉
-I hope that one made you smile! 😊🐱
-
-elapsed: 11s, prompt 26.0ms per token, gen 148.4ms per token
-```
+If you like or are using this project to build your own, please give us a star. It's a free way to show your support.
 
 ## 🗺️ Roadmap
 
