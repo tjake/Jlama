@@ -51,6 +51,8 @@ curl -Ls https://sh.jbang.dev | bash -s - app setup
 jbang app install -j 21 --name=jlama --force https://raw.githubusercontent.com/tjake/Jlama/main/jlama.java
 
 #Run the CLI
+jlama
+
 Usage: jlama [COMMAND]
 Jlama is a modern LLM inference engine for Java!
 
