@@ -39,13 +39,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.github.tjake</groupId>
-            <artifactId>jlama-native</artifactId>
-            <version>${project.version}</version>
-            <classifier>${jni.classifier}</classifier>
-        </dependency>
-
-        <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
             <version>1.59.0</version>

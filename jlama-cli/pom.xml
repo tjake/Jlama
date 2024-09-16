@@ -49,18 +49,24 @@
     </dependency>
     <dependency>
       <groupId>com.github.tjake</groupId>
-      <artifactId>jlama-native</artifactId>
-      <version>${project.version}</version>
-      <classifier>${jni.classifier}</classifier>
-    </dependency>
-    <dependency>
-      <groupId>com.github.tjake</groupId>
       <artifactId>jlama-net</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.2.0</version> <!-- Use the latest version available -->
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>com.github.tjake.jlama.cli.JlamaCli</mainClass>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <version>3.0.2</version>
@@ -85,7 +91,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>3.4.1</version>
+        <version>3.6.0</version>
         <executions>
           <execution>
             <id>shade-cli</id>
@@ -94,6 +100,10 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <extraJars>
+                <jar>../jlama-native/target/jlama-native-${project.version}-${jni.classifier}.jar</jar>
+              </extraJars>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
               <outputFile>${project.basedir}/target/jlama-cli.jar</outputFile>
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
@@ -106,10 +116,6 @@
               </transformers>
               <filters>
                 <filter>
-                  <!--
-                      Shading signed JARs will fail without this.
-                      http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar
-                  -->
                   <artifact>*:*</artifact>
                   <excludes>
                     <exclude>META-INF/*.SF</exclude>

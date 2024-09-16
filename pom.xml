@@ -325,6 +325,8 @@
       <modules>
         <module>jlama-core</module>
         <module>jlama-native</module>
+        <module>jlama-net</module>
+        <module>jlama-cli</module>
       </modules>
       <distributionManagement>
         <snapshotRepository>

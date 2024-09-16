@@ -29,7 +29,7 @@ import me.tongfei.progressbar.ProgressBarBuilder;
 import me.tongfei.progressbar.ProgressBarStyle;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "download", description = "Downloads the specified model")
+@CommandLine.Command(name = "download", description = "Downloads a HuggingFace model - use owner/name format")
 public class DownloadCommand extends JlamaCli {
     @CommandLine.Option(names = { "-d",
         "--model-directory" }, description = "The directory to download the model to (default: ${DEFAULT-VALUE})", defaultValue = "models")
@@ -71,6 +71,7 @@ public class DownloadCommand extends JlamaCli {
                 modelDirectory.getAbsolutePath(),
                 Optional.ofNullable(owner),
                 name,
+                false,
                 Optional.ofNullable(URLEncoder.encode(branch)),
                 Optional.ofNullable(authToken),
                 Optional.of((n, c, t) -> {
