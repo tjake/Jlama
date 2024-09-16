@@ -362,7 +362,7 @@
                 <version>22</version>
               </jdkToolchain>
               <sourceFileExcludes>
-                <sourceFileExclude>**/generated-sources/*.java</sourceFileExclude>
+                <sourceFileExclude>**/generated-sources/**/*.java</sourceFileExclude>
               </sourceFileExcludes>
               <additionalJOptions>
                 <additionalJOption>--add-modules=jdk.incubator.vector</additionalJOption>
