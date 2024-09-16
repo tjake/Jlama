@@ -361,7 +361,7 @@
               <jdkToolchain>
                 <version>22</version>
               </jdkToolchain>
-              <skippedModules>jlama-tests,jlama-net</skippedModules>
+              <skippedModules>jlama-net</skippedModules>
               <additionalJOptions>
                 <additionalJOption>--add-modules=jdk.incubator.vector</additionalJOption>
               </additionalJOptions>
