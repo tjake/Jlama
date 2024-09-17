@@ -302,7 +302,7 @@ public class SafeTensorSupport {
             name = parts[1];
         }
 
-        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, false, Optional.empty(), Optional.empty(), Optional.empty());
+        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     /**
@@ -321,7 +321,6 @@ public class SafeTensorSupport {
         String modelDir,
         Optional<String> modelOwner,
         String modelName,
-        boolean metadataOnly,
         Optional<String> optionalBranch,
         Optional<String> optionalAuthHeader,
         Optional<TriConsumer<String, Long, Long>> optionalProgressReporter

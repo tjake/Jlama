@@ -71,7 +71,6 @@ public class DownloadCommand extends JlamaCli {
                 modelDirectory.getAbsolutePath(),
                 Optional.ofNullable(owner),
                 name,
-                false,
                 Optional.ofNullable(URLEncoder.encode(branch)),
                 Optional.ofNullable(authToken),
                 Optional.of((n, c, t) -> {
