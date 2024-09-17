@@ -48,7 +48,7 @@ The CLI can be run with [jbang](https://www.jbang.dev/download/).
 curl -Ls https://sh.jbang.dev | bash -s - app setup
 
 #Install Jlama CLI (will ask if you trust the source)
-jbang app install -j 21 --name=jlama --force https://raw.githubusercontent.com/tjake/Jlama/main/jlama.java
+jbang app install --force jlama@tjake
 
 #Run the CLI
 jlama
