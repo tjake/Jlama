@@ -56,9 +56,9 @@ public class TensorOperationsProvider {
                     "com.github.tjake.jlama.tensor.operations.NativeTensorOperations"
                 );
                 pick = nativeClazz.getConstructor().newInstance();
-                // This should break of no shared lib found
+                // This should break if no shared lib found
             } catch (Throwable t) {
-                logger.warn("Error loading native operations", t);
+                logger.warn("Native operations not available. Consider adding 'com.github.tjake:jlama-native' to the classpath");
             }
         }
 
