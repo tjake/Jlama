@@ -25,6 +25,10 @@ public interface WeightLoader extends AutoCloseable {
 
     Map<String, TensorInfo> tensorInfoMap();
 
+    default boolean isWeightPresent(String name) {
+        return tensorInfoMap().containsKey(name);
+    }
+
     default AbstractTensor load(String name) {
         return load(name, null, false, false);
     }
