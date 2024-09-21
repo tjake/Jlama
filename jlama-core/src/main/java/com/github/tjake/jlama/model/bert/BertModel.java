@@ -29,10 +29,13 @@ import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
 public class BertModel extends AbstractModel {
+
+    private static final String[] prefixes = new String[] {"", "bert."};
 
     public BertModel(Config c, WeightLoader w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
         super(InferenceType.FORWARD_PASS, c, w, tokenizer, workingDType, workingQType, modelQType);
@@ -50,6 +53,18 @@ public class BertModel extends AbstractModel {
         super(inferenceType, c, w, tokenizer, workingDType, workingQType, modelQType);
     }
 
+    protected AbstractTensor loadWeight(String name) {
+
+        for (String prefix : prefixes) {
+            String key = prefix + name;
+            if (weights.isWeightPresent(key)) {
+                return weights.load(key);
+            }
+        }
+
+        throw new NoSuchElementException(Arrays.toString(prefixes) + " " + name + " not found in weights");
+    }
+
     @Override
     public ModelSupport.ModelType getModelType() {
         return ModelSupport.ModelType.BERT;
@@ -57,14 +72,14 @@ public class BertModel extends AbstractModel {
 
     @Override
     protected EmbedInput loadInputWeights() {
-        AbstractTensor we = weights.load("embeddings.word_embeddings.weight");
-        AbstractTensor wte = weights.load("embeddings.token_type_embeddings.weight");
-        AbstractTensor wpe = weights.load("embeddings.position_embeddings.weight");
+        AbstractTensor we = loadWeight("embeddings.word_embeddings.weight");
+        AbstractTensor wte = loadWeight("embeddings.token_type_embeddings.weight");
+        AbstractTensor wpe = loadWeight("embeddings.position_embeddings.weight");
 
         LayerNorm inputLayerNorm = new LayerNorm(
             this,
-            weights.load("embeddings.LayerNorm.bias"),
-            weights.load("embeddings.LayerNorm.weight")
+                loadWeight("embeddings.LayerNorm.bias"),
+                loadWeight("embeddings.LayerNorm.weight")
         );
 
         return (inputToken, position) -> {
@@ -89,17 +104,17 @@ public class BertModel extends AbstractModel {
             String b = "encoder.layer." + i + ".";
             String prefix = b + "attention.";
 
-            AbstractTensor keyBias = weights.load(prefix + "self.key.bias");
-            AbstractTensor keyWeight = weights.load(prefix + "self.key.weight");
+            AbstractTensor keyBias = loadWeight(prefix + "self.key.bias");
+            AbstractTensor keyWeight = loadWeight(prefix + "self.key.weight");
 
-            AbstractTensor queryBias = weights.load(prefix + "self.query.bias");
-            AbstractTensor queryWeight = weights.load(prefix + "self.query.weight");
+            AbstractTensor queryBias = loadWeight(prefix + "self.query.bias");
+            AbstractTensor queryWeight = loadWeight(prefix + "self.query.weight");
 
-            AbstractTensor valueBias = weights.load(prefix + "self.value.bias");
-            AbstractTensor valueWeight = weights.load(prefix + "self.value.weight");
+            AbstractTensor valueBias = loadWeight(prefix + "self.value.bias");
+            AbstractTensor valueWeight = loadWeight(prefix + "self.value.weight");
 
-            AbstractTensor outputBias = weights.load(prefix + "output.dense.bias");
-            AbstractTensor outputWeight = weights.load(prefix + "output.dense.weight");
+            AbstractTensor outputBias = loadWeight(prefix + "output.dense.bias");
+            AbstractTensor outputWeight = loadWeight(prefix + "output.dense.weight");
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
                 i,
@@ -117,21 +132,21 @@ public class BertModel extends AbstractModel {
             MLPBlock mlpBlock = new MLPBlock(
                 this,
                 ActivationFunction.Type.GELU,
-                weights.load(prefix + "intermediate.dense.bias"),
-                weights.load(prefix + "intermediate.dense.weight"),
-                weights.load(prefix + "output.dense.bias"),
-                weights.load(prefix + "output.dense.weight")
+                    loadWeight(prefix + "intermediate.dense.bias"),
+                    loadWeight(prefix + "intermediate.dense.weight"),
+                    loadWeight(prefix + "output.dense.bias"),
+                    loadWeight(prefix + "output.dense.weight")
             );
 
             LayerNorm postAttentionNorm = new LayerNorm(
                 this,
-                weights.load(b + "attention.output.LayerNorm.bias"),
-                weights.load(b + "attention.output.LayerNorm.weight")
+                    loadWeight(b + "attention.output.LayerNorm.bias"),
+                    loadWeight(b + "attention.output.LayerNorm.weight")
             );
             LayerNorm postMlpNorm = new LayerNorm(
                 this,
-                weights.load(b + "output.LayerNorm.bias"),
-                weights.load(b + "output.LayerNorm.weight")
+                    loadWeight(b + "output.LayerNorm.bias"),
+                    loadWeight(b + "output.LayerNorm.weight")
             );
 
             transformerBlocks[i] = new TransformerBlock(this, i, attention, postAttentionNorm, mlpBlock, postMlpNorm);
@@ -143,28 +158,5 @@ public class BertModel extends AbstractModel {
     @Override
     protected SampleOutput loadOutputWeights() {
         throw new UnsupportedOperationException();
-    }
-
-    public float[] embed(String input) {
-        int[] encoded = Arrays.stream(tokenizer.encode(input)).mapToInt(Ints::checkedCast).toArray();
-        Preconditions.checkArgument(encoded.length < c.contextLength);
-        float[] outputEmbedding = new float[c.embeddingLength];
-
-        try (KvBufferCache.KvBuffer kvmem = kvBufferCache.getKvBuffer(UUID.randomUUID())) {
-            int promptLength = encoded.length;
-            float avgp = 1.0f / promptLength;
-
-            AbstractTensor r = batchForward(encoded, 0, kvmem);
-            for (int i = 0; i < promptLength; i++) {
-                AbstractTensor output = r.slice(i);
-
-                // Average Pooling
-                for (int ii = 0; ii < c.embeddingLength; ii++)
-                    outputEmbedding[ii] += output.get(0, ii) * avgp;
-            }
-            r.close();
-            VectorMath.l2normalize(outputEmbedding);
-        }
-        return outputEmbedding;
     }
 }

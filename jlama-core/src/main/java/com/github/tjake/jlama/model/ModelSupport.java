@@ -75,8 +75,14 @@ public class ModelSupport {
         }
     }
 
+    /** Shortcut for loading a model for token generation*/
     public static AbstractModel loadModel(File model, DType workingMemoryType, DType workingQuantizationType) {
         return loadModel(model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty());
+    }
+
+    /** Shortcut for loading a model for embeddings */
+    public static AbstractModel loadEmbeddingModel(File model, DType workingMemoryType, DType workingQuantizationType) {
+        return loadModel(AbstractModel.InferenceType.FORWARD_PASS, model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     public static AbstractModel loadModel(

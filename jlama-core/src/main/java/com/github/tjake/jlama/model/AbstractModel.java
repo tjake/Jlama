@@ -252,6 +252,30 @@ public abstract class AbstractModel implements Generator {
         return embedding;
     }
 
+    @Override
+    public float[] embed(String input) {
+        int[] encoded = Arrays.stream(tokenizer.encode(input)).mapToInt(Ints::checkedCast).toArray();
+        Preconditions.checkArgument(encoded.length < c.contextLength);
+        float[] outputEmbedding = new float[c.embeddingLength];
+
+        try (KvBufferCache.KvBuffer kvmem = kvBufferCache.getKvBuffer(UUID.randomUUID())) {
+            int promptLength = encoded.length;
+            float avgp = 1.0f / promptLength;
+
+            AbstractTensor r = batchForward(encoded, 0, kvmem);
+            for (int i = 0; i < promptLength; i++) {
+                AbstractTensor output = r.slice(i);
+
+                // Average Pooling
+                for (int ii = 0; ii < c.embeddingLength; ii++)
+                    outputEmbedding[ii] += output.get(0, ii) * avgp;
+            }
+            r.close();
+            VectorMath.l2normalize(outputEmbedding);
+        }
+        return outputEmbedding;
+    }
+
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
         try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
             // This is a mix of argmax and sampling with softmax
@@ -292,6 +316,9 @@ public abstract class AbstractModel implements Generator {
         }
     }
 
+
+
+    @Override
     public Response generate(
         UUID sessionId,
         PromptContext promptContext,
