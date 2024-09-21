@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 import java.util.List;
+import java.util.Map;
 
 public class BertConfig extends Config {
     @JsonCreator
@@ -31,7 +32,10 @@ public class BertConfig extends Config {
         @JsonProperty("num_hidden_layers") int numberOfLayers,
         @JsonProperty("layer_norm_eps") float layerNormEps,
         @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
-        @JsonProperty("vocab_size") int vocabularySize
+        @JsonProperty("vocab_size") int vocabularySize,
+        @JsonProperty("label2id") Map<String, Integer> classificationLabels,
+        @JsonProperty("sep_token") Integer sepToken,
+        @JsonProperty("cls_token") Integer clsToken
     ) {
         super(
             contextLength,
@@ -42,11 +46,12 @@ public class BertConfig extends Config {
             numberOfLayers,
             layerNormEps,
             vocabularySize,
-            0,
-            List.of(0),
+            sepToken == null ? 0 : sepToken,
+            clsToken == null ? List.of(0) : List.of(clsToken),
             activationFunction,
             null,
-            null
+            null,
+            classificationLabels
         );
     }
 }

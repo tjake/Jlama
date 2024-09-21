@@ -52,6 +52,7 @@ public class MistralConfig extends Config {
             activationFunction,
             ropeTheta,
             1.0,
+            null,
             headSize == null ? embeddingLength / numberOfHeads : headSize
         );
     }

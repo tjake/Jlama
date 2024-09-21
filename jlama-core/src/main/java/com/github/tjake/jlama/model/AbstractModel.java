@@ -18,10 +18,9 @@ package com.github.tjake.jlama.model;
 import static com.github.tjake.jlama.util.DebugSupport.debug;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
-import com.github.tjake.jlama.model.functions.EmbedInput;
-import com.github.tjake.jlama.model.functions.Generator;
-import com.github.tjake.jlama.model.functions.SampleOutput;
+import com.github.tjake.jlama.model.functions.*;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
@@ -30,15 +29,14 @@ import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.prompt.Tool;
 import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
-import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.KvBufferCache;
-import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
-import com.github.tjake.jlama.tensor.TensorShape;
+import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.JsonSupport;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+
+import java.nio.FloatBuffer;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -53,31 +51,28 @@ public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
 
     public enum InferenceType {
-        INPUT_TO_EMBEDDING(true, false, false),
-        OUTPUT_TO_TOKEN(false, true, false),
-        FORWARD_PASS(true, false, true),
-        FULL_GENERATION(true, true, true);
+        //Used for distributed inference
+        INPUT_TO_EMBEDDING(true, false, false, false, false),
+        OUTPUT_TO_TOKEN(false, false, true, false, false),
+        FORWARD_PASS(true, true, false, false, false),
+
+        //Used for different types of inference
+        FULL_GENERATION(true, true, true, false,false),
+        FULL_CLASSIFICATION(true, true, false, true, true),
+        FULL_EMBEDDING(true, true, false, false, true);
 
         final boolean isInput;
         final boolean isOutput;
+        final boolean isClassify;
         final boolean isFwdPass;
+        final boolean isPooling;
 
-        InferenceType(boolean isInput, boolean isOutput, boolean isFwdPass) {
+        InferenceType(boolean isInput, boolean isFwdPass, boolean isOutput, boolean isClassify, boolean isPooling) {
             this.isInput = isInput;
             this.isOutput = isOutput;
             this.isFwdPass = isFwdPass;
-        }
-
-        public boolean isEmbedding() {
-            return isInput;
-        }
-
-        public boolean isOutput() {
-            return isOutput;
-        }
-
-        public boolean isFwdPass() {
-            return isFwdPass;
+            this.isClassify = isClassify;
+            this.isPooling = isPooling;
         }
     }
 
@@ -91,6 +86,8 @@ public abstract class AbstractModel implements Generator {
     protected final Optional<DType> modelQType;
     protected EmbedInput embedInput;
     protected SampleOutput sampleOutput;
+    protected ClassifyOutput classifyOutput;
+    protected Optional<PoolingLayer> poolingLayer;
     protected TransformerBlock[] transformerBlocks;
     protected KvBufferCache kvBufferCache;
 
@@ -143,6 +140,8 @@ public abstract class AbstractModel implements Generator {
         this.embedInput = inferenceType.isInput ? loadInputWeights() : null;
         this.transformerBlocks = inferenceType.isFwdPass ? loadTransformerBlockWeights() : null;
         this.sampleOutput = inferenceType.isOutput ? loadOutputWeights() : null;
+        this.classifyOutput = inferenceType.isClassify ? loadClassifierWeights() : null;
+        this.poolingLayer = inferenceType.isPooling ? Optional.ofNullable(loadPoolingWeights()) : Optional.empty();
     }
 
     protected abstract EmbedInput loadInputWeights();
@@ -150,6 +149,14 @@ public abstract class AbstractModel implements Generator {
     protected abstract TransformerBlock[] loadTransformerBlockWeights();
 
     protected abstract SampleOutput loadOutputWeights();
+
+    protected ClassifyOutput loadClassifierWeights() {
+        throw new UnsupportedOperationException("Classification not supported by this model");
+    }
+
+    protected PoolingLayer loadPoolingWeights() {
+        return null;
+    }
 
     public abstract ModelSupport.ModelType getModelType();
 
@@ -167,6 +174,10 @@ public abstract class AbstractModel implements Generator {
 
     public Tokenizer getTokenizer() {
         return tokenizer;
+    }
+
+    public WeightLoader getWeights() {
+        return weights;
     }
 
     public Optional<PromptSupport> promptSupport() {
@@ -253,8 +264,9 @@ public abstract class AbstractModel implements Generator {
     }
 
     @Override
-    public float[] embed(String input) {
+    public float[] embed(String input, PoolingType poolingType) {
         int[] encoded = Arrays.stream(tokenizer.encode(input)).mapToInt(Ints::checkedCast).toArray();
+
         Preconditions.checkArgument(encoded.length < c.contextLength);
         float[] outputEmbedding = new float[c.embeddingLength];
 
@@ -262,18 +274,91 @@ public abstract class AbstractModel implements Generator {
             int promptLength = encoded.length;
             float avgp = 1.0f / promptLength;
 
-            AbstractTensor r = batchForward(encoded, 0, kvmem);
-            for (int i = 0; i < promptLength; i++) {
-                AbstractTensor output = r.slice(i);
+            try (AbstractTensor r = batchForward(encoded, 0, kvmem)) {
+                if (poolingType == PoolingType.MODEL) {
+                    if (poolingLayer.isPresent()) {
 
-                // Average Pooling
-                for (int ii = 0; ii < c.embeddingLength; ii++)
-                    outputEmbedding[ii] += output.get(0, ii) * avgp;
+                        // Get the last value should represent the sum of the prompt (due to attention)
+                        AbstractTensor output = r.slice(promptLength - 1);
+                        AbstractTensor pooled = makeDenseTensor(1, c.embeddingLength);
+
+                        // Pooling
+                        TensorOperationsProvider.get()
+                                .batchDotProduct(
+                                        pooled,
+                                        output,
+                                        poolingLayer.get().getPoolingWeights(),
+                                        0,
+                                        0,
+                                        c.embeddingLength);
+
+                        poolingLayer.get().getPoolingBias().ifPresent(bias -> {
+                            TensorOperationsProvider.get().accumulate(pooled, bias, 0, c.embeddingLength);
+                        });
+
+                        VectorMath.pfor(0, c.embeddingLength, i -> {
+                            //BERT seems to use tanh for pooling rather than gelu
+                            outputEmbedding[i] = ActivationFunction.eval(ActivationFunction.Type.TANH, pooled.get(0, i));
+                        });
+
+                        return outputEmbedding;
+                    }
+
+                    throw new UnsupportedOperationException("Pooling layer not found");
+                }
+
+                // No pooling layer, so we just pool manually embeddings
+                for (int i = 0; i < promptLength; i++) {
+                    AbstractTensor output = r.slice(i);
+                    // Pooling
+                    for (int ii = 0; ii < c.embeddingLength; ii++) {
+                        switch (poolingType) {
+                            case AVG:
+                                outputEmbedding[ii] += output.get(0, ii) * avgp;
+                                break;
+                            case MAX:
+                                outputEmbedding[ii] = Math.max(outputEmbedding[ii], output.get(0, ii));
+                                break;
+                            case SUM:
+                                outputEmbedding[ii] += output.get(0, ii);
+                                break;
+                        }
+                    }
+                }
             }
-            r.close();
             VectorMath.l2normalize(outputEmbedding);
+            return outputEmbedding;
         }
-        return outputEmbedding;
+    }
+
+    @Override
+    public Map<String, Float> classify(String input, PoolingType poolingType) {
+        if (!c.isClassifier() || classifyOutput == null) {
+            throw new UnsupportedOperationException("Classification not supported by this model");
+        }
+
+        float[] embedding = embed(input, poolingType);
+        FloatBufferTensor b = new FloatBufferTensor(FloatBuffer.wrap(embedding), TensorShape.of(embedding.length), false);
+
+        int classes = classifyOutput.getClassificationWeights().shape().first();
+        AbstractTensor scores = makeDenseTensor(classes);
+
+        TensorOperationsProvider.get().batchDotProduct(scores, b, classifyOutput.getClassificationWeights(), 0, 0, c.embeddingLength);
+
+        classifyOutput.getClassificationBias().ifPresent(bias -> {
+            TensorOperationsProvider.get().accumulate(scores, bias, 0, classes);
+        });
+
+        VectorMath.softMax(scores, 0, classes);
+        Map<String, Float> result = new HashMap<>();
+        for (int i = 0; i < classes; i++) {
+            String label = c.classifcationLabels.get().inverse().get(i);
+            Float score = scores.get(0, i);
+
+            result.put(label, score);
+        }
+
+        return result;
     }
 
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {

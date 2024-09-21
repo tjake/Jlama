@@ -19,10 +19,8 @@ import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.function.BiConsumer;
 
 /**
@@ -140,13 +138,31 @@ public interface Generator {
         BiConsumer<String, Float> onTokenWithTimings
     );
 
+
+    enum PoolingType {
+        MODEL, // Use the model's pooling layers
+        AVG,
+        MAX,
+        SUM
+    }
+
     /**
      * Embed a string
      *
      * @param input the input string
      * @return the embeddings
      */
-    float[] embed(String input);
+    float[] embed(String input, PoolingType poolingType);
+
+    /**
+     * Classify a string
+     *
+     * @param input the input string
+     * @return the classification (if supported)
+     */
+    default Map<String, Float> classify(String input, PoolingType poolingType) {
+        throw new UnsupportedOperationException("Classification not supported by this model");
+    }
 
     Tokenizer getTokenizer();
 

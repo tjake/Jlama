@@ -100,7 +100,7 @@ public class Coordinator implements Generator {
         }
     }
 
-    public float[] embed(String input) {
+    public float[] embed(String input, Generator.PoolingType poolingType) {
        throw new UnsupportedOperationException();
     }
 

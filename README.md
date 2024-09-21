@@ -24,6 +24,8 @@ Implements:
   * Paged Attention
   * Mixture of Experts
   * Tool Calling
+  * Generate Embeddings
+  * Classifier Support
   * Huggingface [SafeTensors](https://github.com/huggingface/safetensors) model and tokenizer format
   * Support for F32, F16, BF16 types
   * Support for Q8, Q4 model quantization
