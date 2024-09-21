@@ -122,6 +122,16 @@ public interface Generator {
         }
     }
 
+    /**
+     * Generate tokens from a prompt
+     *
+     * @param session the session id
+     * @param promptContext the prompt context
+     * @param temperature the temperature [0.0, 1.0]
+     * @param ntokens the number of tokens to generate
+     * @param onTokenWithTimings a callback for each token generated
+     * @return the response
+     */
     Response generate(
         UUID session,
         PromptContext promptContext,
@@ -129,6 +139,14 @@ public interface Generator {
         int ntokens,
         BiConsumer<String, Float> onTokenWithTimings
     );
+
+    /**
+     * Embed a string
+     *
+     * @param input the input string
+     * @return the embeddings
+     */
+    float[] embed(String input);
 
     Tokenizer getTokenizer();
 

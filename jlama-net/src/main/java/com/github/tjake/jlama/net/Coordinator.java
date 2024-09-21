@@ -100,6 +100,10 @@ public class Coordinator implements Generator {
         }
     }
 
+    public float[] embed(String input) {
+       throw new UnsupportedOperationException();
+    }
+
     public Generator.Response generate(
         UUID session,
         PromptContext promptContext,
