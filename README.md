@@ -39,20 +39,39 @@ Add LLM Inference directly to your Java application.
 
 ## 🔬 Quick Start
 
-### 🕵️‍♀️ How to use as a local client
+### 🕵️‍♀️ How to use as a local client (with jbang!)
 Jlama includes a command line tool that makes it easy to use.
+
 The CLI can be run with [jbang](https://www.jbang.dev/download/).
 
 ```shell
-#Install jbang (if you don't have it)
+#Install jbang (or https://www.jbang.dev/download/)
 curl -Ls https://sh.jbang.dev | bash -s - app setup
 
 #Install Jlama CLI (will ask if you trust the source)
-jbang app install -j 21 --name=jlama --force https://raw.githubusercontent.com/tjake/Jlama/main/jlama.java
+jbang app install --force jlama@tjake
 
-#Run the CLI
-jlama
+```
 
+Now that you have jlama installed you can download a model from huggingface and chat with it.
+Note I have pre-quantized models available at https://hf.co/tjake
+
+```shell
+# Download a small model (defaults to ./models)
+jlama download tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
+
+# Run the openai chat api and UI on this model
+jlama restapi models/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
+```
+
+open browser to http://localhost:8080/
+
+<p align="center">
+  <img src="docs/demo.png" alt="Demo chat">
+</p>
+
+
+```shell
 Usage: jlama [COMMAND]
 Jlama is a modern LLM inference engine for Java!
 
@@ -68,24 +87,6 @@ Commands:
   cluster-worker       Connects to a cluster coordinator to perform distributed inference
 ```
 
-Now that you have jlama installed you can download a model from huggingface and chat with it.
-Note I have pre-quantized models available at https://hf.co/tjake
-
-```shell
-# Download a small model (defaults to ./models)
-jlama download tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
-
-# Run the openai chat api and UI on this model
-jlama restapi models/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
-
-#Open browser to http://localhost:8080/
-open http://localhost:8080
-```
-open browser to http://localhost:8080/
-
-<p align="center">
-  <img src="docs/demo.png" alt="Demo chat">
-</p>
 
 ### 👨‍💻 How to use in your Java project
 The main purpose of Jlama is to provide a simple way to use large language models in Java.
