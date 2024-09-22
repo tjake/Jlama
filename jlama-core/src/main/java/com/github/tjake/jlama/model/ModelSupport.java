@@ -82,7 +82,12 @@ public class ModelSupport {
 
     /** Shortcut for loading a model for embeddings */
     public static AbstractModel loadEmbeddingModel(File model, DType workingMemoryType, DType workingQuantizationType) {
-        return loadModel(AbstractModel.InferenceType.FORWARD_PASS, model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty(), Optional.empty());
+        return loadModel(AbstractModel.InferenceType.FULL_EMBEDDING, model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    /** Shortcut for loading a model for embeddings */
+    public static AbstractModel loadClassifierModel(File model, DType workingMemoryType, DType workingQuantizationType) {
+        return loadModel(AbstractModel.InferenceType.FULL_CLASSIFICATION, model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     public static AbstractModel loadModel(

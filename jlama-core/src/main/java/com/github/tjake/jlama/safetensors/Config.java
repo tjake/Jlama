@@ -20,9 +20,13 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableBiMap;
 import com.google.common.io.Files;
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class Config {
@@ -43,10 +47,46 @@ public class Config {
     public final int bosToken;
     public final List<Integer> eosTokens;
     public final Optional<float[][]> ropeFreqs;
+    public final Optional<BiMap<String, Integer>> classifcationLabels;
+
     private volatile DistributedContext dctx;
     private volatile File workingDirectory;
 
     public final TensorCache tensorCache;
+
+    public Config(
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfKeyValueHeads,
+            int numberOfLayers,
+            float layerNormEps,
+            int vocabularySize,
+            int bosToken,
+            List<Integer> eosToken,
+            ActivationFunction.Type activationFunction,
+            Double ropeFreqsTheta,
+            Double ropeScalingFactor
+    ) {
+        this(
+                contextLength,
+                embeddingLength,
+                hiddenLength,
+                numberOfHeads,
+                numberOfKeyValueHeads,
+                numberOfLayers,
+                layerNormEps,
+                vocabularySize,
+                bosToken,
+                eosToken,
+                activationFunction,
+                ropeFreqsTheta,
+                ropeScalingFactor,
+                null,
+                embeddingLength / numberOfHeads
+        );
+    }
 
     public Config(
         int contextLength,
@@ -61,7 +101,8 @@ public class Config {
         List<Integer> eosToken,
         ActivationFunction.Type activationFunction,
         Double ropeFreqsTheta,
-        Double ropeScalingFactor
+        Double ropeScalingFactor,
+        Map<String, Integer> classifcationLabels
     ) {
         this(
             contextLength,
@@ -77,6 +118,7 @@ public class Config {
             activationFunction,
             ropeFreqsTheta,
             ropeScalingFactor,
+            classifcationLabels,
             embeddingLength / numberOfHeads
         );
     }
@@ -95,6 +137,7 @@ public class Config {
         ActivationFunction.Type activationFunction,
         Double ropeFreqsTheta,
         Double ropeScalingFactor,
+        Map<String, Integer> classifcationLabels,
         Integer headSize
     ) {
         this.contextLength = contextLength;
@@ -119,6 +162,9 @@ public class Config {
             : Optional.of(
                 VectorMath.precomputeFreqsCis(headSize, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor)
             );
+
+        this.classifcationLabels = classifcationLabels == null ? Optional.empty() :
+                Optional.of(ImmutableBiMap.copyOf(classifcationLabels));
 
         // Set default values
         this.dctx = DistributedContext.builder(this).build();
@@ -149,5 +195,9 @@ public class Config {
     public int maybeMapToGroupHead(int head) {
         if (!isGQA) return head;
         return Math.floorDiv(head, headGroupSize);
+    }
+
+    public boolean isClassifier() {
+        return classifcationLabels.isPresent();
     }
 }
