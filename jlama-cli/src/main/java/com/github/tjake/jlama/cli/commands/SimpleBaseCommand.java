@@ -36,23 +36,23 @@ import picocli.CommandLine;
 public class SimpleBaseCommand extends JlamaCli {
     static AtomicReference<ProgressBar> progressRef = new AtomicReference<>();
 
-    @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1", heading = "Download Options:%n")
+    @CommandLine.ArgGroup(exclusive = false, heading = "Download Options:%n", multiplicity = "1")
     protected DownloadSection downloadSection = new DownloadSection();
 
-    @CommandLine.Option(names = { "-md", "--model-directory" }, description = "The local model directory for all models (default: ${DEFAULT-VALUE})", defaultValue = "models")
+    @CommandLine.Option(names = { "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
     protected File modelDirectory = new File("models");
 
-    @CommandLine.Parameters(index = "0", arity = "1", description = "The huggingface model owner/name pair")
+    @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;
 
     static class DownloadSection {
-        @CommandLine.Option(names = {"-dl", "--auto-download" }, description = "Download the model if missing (default: ${DEFAULT-VALUE})", defaultValue = "false")
+        @CommandLine.Option(names = {"--auto-download" }, paramLabel = "ARG", description = "Download the model if missing (default: ${DEFAULT-VALUE})", defaultValue = "false")
         Boolean autoDownload = false;
 
-        @CommandLine.Option(names = { "-b", "--branch" }, description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
+        @CommandLine.Option(names = { "--branch" }, paramLabel = "ARG", description = "The model branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
         String branch = "main";
 
-        @CommandLine.Option(names = { "-at", "--auth-token" }, description = "The auth token to use for downloading the model (if required)")
+        @CommandLine.Option(names = { "--auth-token" }, paramLabel = "ARG", description = "HuggingFace auth token (for restricted models)")
         String authToken = null;
     }
 

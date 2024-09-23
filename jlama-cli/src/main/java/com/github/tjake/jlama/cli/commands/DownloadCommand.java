@@ -32,18 +32,18 @@ import picocli.CommandLine;
 import static com.github.tjake.jlama.cli.commands.SimpleBaseCommand.getName;
 import static com.github.tjake.jlama.cli.commands.SimpleBaseCommand.getOwner;
 
-@CommandLine.Command(name = "download", description = "Downloads a HuggingFace model - use owner/name format")
+@CommandLine.Command(name = "download", description = "Downloads a HuggingFace model - use owner/name format", abbreviateSynopsis = true)
 public class DownloadCommand extends JlamaCli {
-    @CommandLine.Option(names = { "-d", "--model-directory" }, description = "The local model directory for all models (default: ${DEFAULT-VALUE})", defaultValue = "models")
+    @CommandLine.Option(names = { "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
     protected File modelDirectory = new File("models");
 
-    @CommandLine.Option(names = { "-b", "--branch" }, description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
+    @CommandLine.Option(names = { "--branch" }, paramLabel = "ARG", description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
     protected String branch = "main";
 
-    @CommandLine.Option(names = { "-t", "--auth-token" }, description = "The auth token to use for downloading the model (if required)")
+    @CommandLine.Option(names = { "--auth-token" }, paramLabel = "ARG", description = "The auth token to use for downloading the model (if required)")
     protected String authToken = null;
 
-    @CommandLine.Parameters(index = "0", arity = "1", description = "The huggingface model owner/name pair")
+    @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;
 
     @Override

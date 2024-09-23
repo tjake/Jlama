@@ -23,16 +23,15 @@ import picocli.CommandLine.*;
 
 public class ModelBaseCommand extends BaseCommand {
 
-    @Option(names = { "-t",
-        "--temperature" }, description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})", defaultValue = "0.6")
+    @Option(names = {"--temperature" }, paramLabel = "ARG", description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})", defaultValue = "0.6")
     protected Float temperature;
 
-    @Option(names = {
-        "--top-p" }, description = "Controls how many different words the model considers per token [0,1] (default: ${DEFAULT-VALUE})", defaultValue = ".9")
+    @Option(names = { "--tokens" }, paramLabel = "ARG", description = "Number of tokens to generate (default: ${DEFAULT-VALUE})", defaultValue = "256")
+    protected Integer tokens;
+
+    @Option(names = { "--top-p" }, paramLabel = "ARG", description = "Controls how many different words the model considers per token [0,1] (default: ${DEFAULT-VALUE})", defaultValue = ".9")
     protected Float topp;
 
-    @Option(names = { "-n", "--tokens" }, description = "Number of tokens to generate (default: ${DEFAULT-VALUE})", defaultValue = "256")
-    protected Integer tokens;
 
     protected BiConsumer<String, Float> makeOutHandler() {
         PrintWriter out;

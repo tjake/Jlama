@@ -28,24 +28,25 @@ import picocli.CommandLine;
 import java.nio.file.Path;
 import java.util.Optional;
 
-@CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers")
+@CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers", abbreviateSynopsis = true)
 @SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
 @SpringBootConfiguration
 @Configuration
 public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMvcConfigurer {
 
-    @CommandLine.Option(names = { "-w", "--worker-count" }, description = "signifies this instance is a coordinator", required = true)
+    @CommandLine.Option(names = { "--worker-count" }, paramLabel = "ARG",
+            description = "signifies this instance is a coordinator", required = true)
     int workerCount = 1;
 
-    @CommandLine.Option(names = { "-g",
-        "--grpc-port" }, description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
+    @CommandLine.Option(names = {
+        "--grpc-port" }, paramLabel = "ARG", description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
     int grpcPort = 9777;
 
-    @CommandLine.Option(names = { "-p",
-        "--port" }, description = "http port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "8080")
+    @CommandLine.Option(names = {
+        "--port" }, paramLabel = "ARG", description = "http port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
-    @CommandLine.Option(names = { "-mt", "--model-type"}, description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
+    @CommandLine.Option(names = { "--model-type"}, paramLabel = "ARG", description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
     DType modelType = DType.F32;
 
     @Override

@@ -28,10 +28,10 @@ import java.util.UUID;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
-@Command(name = "complete", description = "Completes a prompt using the specified model")
+@Command(name = "complete", description = "Completes a prompt using the specified model", abbreviateSynopsis = true)
 public class CompleteCommand extends ModelBaseCommand {
 
-    @Option(names = { "-p", "--prompt" }, description = "Text to complete", required = true)
+    @Option(names = { "--prompt" }, description = "Text to complete", required = true)
     protected String prompt;
 
     @Override
@@ -41,10 +41,10 @@ public class CompleteCommand extends ModelBaseCommand {
         AbstractModel m = loadModel(
             modelPath.toFile(),
             workingDirectory,
-            workingMemoryType,
-            workingQuantizationType,
-            Optional.ofNullable(modelQuantization),
-            Optional.ofNullable(threadCount)
+            advancedSection.workingMemoryType,
+            advancedSection.workingQuantizationType,
+            Optional.ofNullable(advancedSection.modelQuantization),
+            Optional.ofNullable(advancedSection.threadCount)
         );
 
         m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());

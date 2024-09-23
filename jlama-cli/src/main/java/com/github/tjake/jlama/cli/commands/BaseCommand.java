@@ -21,20 +21,37 @@ import java.io.File;
 import picocli.CommandLine;
 
 public class BaseCommand extends SimpleBaseCommand {
-    @CommandLine.Option(names = { "-d", "--working-directory" }, description = "Working directory for attention cache")
+    @CommandLine.Option(names = { "--work-directory" }, paramLabel = "ARG", description = "Working directory for attention cache")
     protected File workingDirectory = null;
 
-    @CommandLine.Option(names = { "-wm",
-        "--working-dtype" }, description = "Working memory data type (default: ${DEFAULT-VALUE})", defaultValue = "F32")
-    protected DType workingMemoryType = DType.F32;
+    @CommandLine.ArgGroup(exclusive = false, heading = "Advanced Options:%n", multiplicity = "1")
+    protected AdvancedSection advancedSection = new AdvancedSection();
 
-    @CommandLine.Option(names = { "-wq",
-        "--working-qtype" }, description = "Working memory quantization data type (default: ${DEFAULT-VALUE})", defaultValue = "I8")
-    protected DType workingQuantizationType = DType.I8;
+    static class AdvancedSection {
+        @CommandLine.Option(
+                names = {"--working-dtype"},
+                paramLabel = "ARG",
+                description = "Working memory data type (default: ${DEFAULT-VALUE})",
+                defaultValue = "F32")
+        protected DType workingMemoryType = DType.F32;
 
-    @CommandLine.Option(names = { "-tc", "--threads" }, description = "Number of threads to use (default: number of cores)")
-    protected Integer threadCount = null;
+        @CommandLine.Option(
+                names = {"--working-qtype"},
+                paramLabel = "ARG",
+                description = "Working memory quantization data type (default: ${DEFAULT-VALUE})",
+                defaultValue = "I8")
+        protected DType workingQuantizationType = DType.I8;
 
-    @CommandLine.Option(names = { "-q", "--quantization" }, description = "Model quantization type")
-    protected DType modelQuantization;
+        @CommandLine.Option(
+                names = {"--threads"},
+                paramLabel = "ARG",
+                description = "Number of threads to use (default: number of physical cores)")
+        protected Integer threadCount = null;
+
+        @CommandLine.Option(
+                names = {"--quantize-to"},
+                paramLabel = "ARG",
+                description = "Runtime Model quantization type")
+        protected DType modelQuantization;
+    }
 }

@@ -35,12 +35,12 @@ import java.util.function.BiConsumer;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
-@Command(name = "chat", description = "Interact with the specified model")
+@Command(name = "chat", description = "Interact with the specified model", abbreviateSynopsis = true)
 public class ChatCommand extends ModelBaseCommand {
     private static final AnsiFormat chatText = new AnsiFormat(Attribute.CYAN_TEXT());
     private static final AnsiFormat statsColor = new AnsiFormat(Attribute.BLUE_TEXT());
 
-    @Option(names = { "-s", "--system-prompt" }, description = "Change the default system prompt for this model")
+    @Option(names = { "--system-prompt" }, paramLabel = "ARG", description = "Change the default system prompt for this model")
     String systemPrompt = null;
 
     @Override
@@ -49,10 +49,10 @@ public class ChatCommand extends ModelBaseCommand {
         AbstractModel m = loadModel(
             modelPath.toFile(),
             workingDirectory,
-            workingMemoryType,
-            workingQuantizationType,
-            Optional.ofNullable(modelQuantization),
-            Optional.ofNullable(threadCount)
+            advancedSection.workingMemoryType,
+            advancedSection.workingQuantizationType,
+            Optional.ofNullable(advancedSection.modelQuantization),
+            Optional.ofNullable(advancedSection.threadCount)
         );
 
         if (m.promptSupport().isEmpty()) {
