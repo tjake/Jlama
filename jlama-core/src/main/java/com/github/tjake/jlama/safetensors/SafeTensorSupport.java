@@ -27,6 +27,7 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q5ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.util.HttpSupport;
+import com.github.tjake.jlama.util.JsonSupport;
 import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -91,17 +92,38 @@ public class SafeTensorSupport {
         return ModelType.valueOf(rootNode.get("model_type").textValue().toUpperCase());
     }
 
-    public static WeightLoader loadWeights(File baseDir) throws IOException {
-        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON))) return SafeTensorIndex.loadWithWeights(
-            baseDir.toPath()
-        );
+    public static WeightLoader loadWeights(File baseDir) {
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON)))
+            return SafeTensorIndex.loadWithWeights(baseDir.toPath());
 
-        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME))) return SafeTensorIndex.loadSingleFile(
-            baseDir.toPath(),
-            SafeTensorIndex.SINGLE_MODEL_NAME
-        );
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME)))
+            return SafeTensorIndex.loadSingleFile(baseDir.toPath(), SafeTensorIndex.SINGLE_MODEL_NAME);
 
         throw new IllegalArgumentException("No safetensor model found in: " + baseDir);
+    }
+
+    public static boolean isModelLocal(Path modelRoot) {
+
+        if (Files.exists(modelRoot.resolve(SafeTensorIndex.SINGLE_MODEL_NAME)))
+            return true;
+        try {
+            if (Files.exists(modelRoot.resolve(SafeTensorIndex.MODEL_INDEX_JSON))) {
+                SafeTensorIndex index = om.readValue(modelRoot.resolve(SafeTensorIndex.MODEL_INDEX_JSON).toFile(), SafeTensorIndex.class);
+
+                for (String file : index.weightFileMap.values()) {
+                    if (!Files.exists(modelRoot.resolve(file))) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        } catch (IOException e) {
+            logger.error("Error reading model index", e);
+            return false;
+        }
+
+        return false;
     }
 
     public static TokenizerModel loadTokenizer(Path modelRoot) throws IOException {
@@ -302,8 +324,14 @@ public class SafeTensorSupport {
             name = parts[1];
         }
 
-        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, Optional.empty(), Optional.empty(), Optional.empty());
+        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, true, Optional.empty(), Optional.empty(), Optional.empty());
     }
+
+    public static Path constructLocalModelPath(String modelDir, String owner, String modelName) {
+        return Paths.get(modelDir, owner + "_" + modelName);
+    }
+
+    static String FINISHED_MARKER = ".finished";
 
     /**
      * Download a model from HuggingFace and return the path to the model directory
@@ -311,6 +339,7 @@ public class SafeTensorSupport {
      * @param modelDir The directory to save the model to
      * @param modelOwner The owner of the HF model (if any)
      * @param modelName The name of the HF model
+     * @param downloadWeights Include the weights or leave them out
      * @param optionalBranch The branch of the model to download
      * @param optionalAuthHeader The authorization header to use for the request
      * @param optionalProgressReporter A consumer to report download progress
@@ -318,17 +347,25 @@ public class SafeTensorSupport {
      * @throws IOException
      */
     public static File maybeDownloadModel(
-        String modelDir,
-        Optional<String> modelOwner,
-        String modelName,
-        Optional<String> optionalBranch,
-        Optional<String> optionalAuthHeader,
-        Optional<TriConsumer<String, Long, Long>> optionalProgressReporter
-    ) throws IOException {
+            String modelDir,
+            Optional<String> modelOwner,
+            String modelName,
+            boolean downloadWeights,
+            Optional<String> optionalBranch,
+            Optional<String> optionalAuthHeader,
+            Optional<TriConsumer<String, Long, Long>> optionalProgressReporter)
+            throws IOException {
+
+        Path localModelDir = constructLocalModelPath(modelDir, modelOwner.orElse("na"), modelName);
+        //Check if the model is already downloaded
+        if (Files.exists(localModelDir.resolve(FINISHED_MARKER))) {
+            return localModelDir.toFile();
+        }
+
         String hfModel = modelOwner.map(mo -> mo + "/" + modelName).orElse(modelName);
         InputStream modelInfoStream = HttpSupport.getResponse(
             "https://huggingface.co/api/models/" + hfModel + "/tree/" + optionalBranch.orElse("main"),
-            optionalAuthHeader
+            optionalAuthHeader, Optional.empty()
         ).left;
         String modelInfo = HttpSupport.readInputStream(modelInfoStream);
 
@@ -349,10 +386,16 @@ public class SafeTensorSupport {
                 || f.contains("readme")
                 || f.equals("config.json")
                 || f.contains("tokenizer")) {
-                tensorFiles.add(currFile);
+
                 if (f.contains("safetensor")) {
                     hasSafetensor = true;
                 }
+
+                if (!downloadWeights && f.contains("safetensor")) {
+                    continue;
+                }
+
+                tensorFiles.add(currFile);
             }
         }
 
@@ -360,7 +403,7 @@ public class SafeTensorSupport {
             throw new IOException("Model is not available in safetensor format");
         }
 
-        Path localModelDir = Paths.get(modelDir, modelName);
+
         Files.createDirectories(localModelDir);
 
         for (String currFile : tensorFiles) {
@@ -369,10 +412,14 @@ public class SafeTensorSupport {
                 currFile,
                 optionalBranch,
                 optionalAuthHeader,
+                Optional.empty(),
                 localModelDir.resolve(currFile),
                 optionalProgressReporter
             );
         }
+
+        //When fully downloaded, create a .finished file
+        Files.createFile(localModelDir.resolve(FINISHED_MARKER));
 
         return localModelDir.toFile();
     }

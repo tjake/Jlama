@@ -22,8 +22,6 @@ import java.util.function.BiConsumer;
 import picocli.CommandLine.*;
 
 public class ModelBaseCommand extends BaseCommand {
-    @Option(names = { "-p", "--prompt" }, description = "Text to complete", required = true)
-    protected String prompt;
 
     @Option(names = { "-t",
         "--temperature" }, description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})", defaultValue = "0.6")

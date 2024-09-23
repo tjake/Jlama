@@ -107,6 +107,11 @@ public abstract class AbstractModel implements Generator {
         this.c = c;
         this.weights = w;
         this.tokenizer = t;
+
+
+
+
+
         this.modelDType = w.getModelDType();
         this.workingDType = workingMemoryDType;
         this.modelQType = modelQType;
@@ -138,7 +143,7 @@ public abstract class AbstractModel implements Generator {
             this.workingQType = workingMemoryQType;
         }
 
-        logger.debug("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
+        logger.info("Model type = {}, Working memory type = {}, Quantized memory type = {}", this.modelDType, this.workingDType, this.workingQType);
 
         this.embedInput = inferenceType.isInput ? loadInputWeights() : null;
         this.transformerBlocks = inferenceType.isFwdPass ? loadTransformerBlockWeights() : null;

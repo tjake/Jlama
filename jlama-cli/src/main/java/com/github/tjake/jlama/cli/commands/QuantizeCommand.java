@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
+import com.github.tjake.jlama.cli.JlamaCli;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import java.io.File;
@@ -40,6 +41,9 @@ public class QuantizeCommand extends SimpleBaseCommand {
 
     @Override
     public void run() {
+
+        Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
+        File model = modelPath.toFile();
 
         if (!model.exists()) {
             System.err.println("Model location does not exist: " + model);

@@ -20,35 +20,34 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.diogonunes.jcolor.AnsiFormat;
 import com.diogonunes.jcolor.Attribute;
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
+
+import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+
+import picocli.CommandLine;
 import picocli.CommandLine.*;
 
 @Command(name = "chat", description = "Interact with the specified model")
-public class ChatCommand extends BaseCommand {
+public class ChatCommand extends ModelBaseCommand {
     private static final AnsiFormat chatText = new AnsiFormat(Attribute.CYAN_TEXT());
     private static final AnsiFormat statsColor = new AnsiFormat(Attribute.BLUE_TEXT());
 
     @Option(names = { "-s", "--system-prompt" }, description = "Change the default system prompt for this model")
     String systemPrompt = null;
 
-    @Option(names = { "-t",
-        "--temperature" }, description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})", defaultValue = "0.6")
-    protected Float temperature;
-
-    @Option(names = {
-        "--top-p" }, description = "Controls how many different words the model considers per token [0,1] (default: ${DEFAULT-VALUE})", defaultValue = ".9")
-    protected Float topp;
-
     @Override
     public void run() {
+        Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
         AbstractModel m = loadModel(
-            model,
+            modelPath.toFile(),
             workingDirectory,
             workingMemoryType,
             workingQuantizationType,
@@ -65,7 +64,7 @@ public class ChatCommand extends BaseCommand {
         PromptSupport promptSupport = m.promptSupport().get();
         PrintWriter out = System.console().writer();
 
-        out.println("Chatting with " + model + "...\n");
+        out.println("\nChatting with " + modelName + "...\n");
         out.flush();
         Scanner sc = new Scanner(System.in);
         boolean first = true;
@@ -86,7 +85,9 @@ public class ChatCommand extends BaseCommand {
             builder.addUserMessage(prompt);
             PromptContext builtPrompt = builder.build();
 
-            m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, makeOutHandler());
+            Generator.Response r = m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, makeOutHandler());
+
+            out.println("\n\n"+ statsColor.format(Math.round(r.promptTimeMs / (double)r.promptTokens) + " ms/tok (prompt), " +  Math.round(r.generateTimeMs / (double)r.generatedTokens) + " ms/tok (gen)"));
 
             first = false;
         }

@@ -28,7 +28,7 @@ JLAMA_RELATIVE_JAR="./jlama-cli/target/jlama-cli.jar"
 # Path to the logback.xml
 LOGBACK_CONFIG="./conf/logback.xml"
 
-JLAMA_JVM_ARGS="$JLAMA_JVM_ARGS -server -Dstdout.encoding=UTF-8 -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0 --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
+JLAMA_JVM_ARGS="$JLAMA_JVM_ARGS -server -Dstdout.encoding=UTF-8 -Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0 --add-opens=jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED --add-modules=jdk.incubator.vector --add-exports java.base/sun.nio.ch=ALL-UNNAMED --enable-preview --enable-native-access=ALL-UNNAMED \
  -XX:+UnlockDiagnosticVMOptions -XX:CompilerDirectivesFile=./inlinerules.json -XX:+AlignVector -XX:+UseStringDeduplication \
  -XX:+UseCompressedOops -XX:+UseCompressedClassPointers "
         
@@ -44,7 +44,7 @@ if [[ -z "$JLAMA_PREINSTALLED_JAR" ]]; then
     fi
   fi
   # Run the JAR in a relative directory
-  $JAVA $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA -Dlogback.configurationFile=$LOGBACK_CONFIG -jar $JLAMA_RELATIVE_JAR "$@"
+  $JAVA $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA  -jar $JLAMA_RELATIVE_JAR "$@"
 else
   # If PREINSTALLED_JAR is set, run the JAR specified by the variable
   $JAVA $JLAMA_JVM_ARGS $JLAMA_JVM_ARGS_EXTRA -jar $JLAMA_PREINSTALLED_JAR "$@"

@@ -16,7 +16,12 @@
 package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.net.Worker;
+
+import java.io.File;
+import java.nio.file.Path;
 import java.util.Optional;
+
+import com.github.tjake.jlama.safetensors.DType;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "cluster-worker", description = "Connects to a cluster coordinator to perform distributed inference")
@@ -36,20 +41,32 @@ public class ClusterWorkerCommand extends BaseCommand {
         "--worker-id" }, description = "consistent name to use when register this worker with the coordinator")
     String workerId = useHostnameAsWorkerId ? HOSTNAME : null;
 
+    @CommandLine.Option(names = { "-mt", "--model-type"}, description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
+    DType modelType = DType.F32;
+
     @Override
     public void run() {
         try {
             if (workerId != null) System.out.println("Using " + workerId + " as worker id");
+
+            Path model = SimpleBaseCommand.getModel(modelName, modelDirectory, true, downloadSection.branch, downloadSection.authToken, false);
+
             Worker w = new Worker(
-                model,
+                model.toFile(),
+                SimpleBaseCommand.getOwner(modelName),
+                SimpleBaseCommand.getName(modelName),
+                modelType,
                 host,
                 grpcPort,
                 workingDirectory,
                 workingMemoryType,
                 workingQuantizationType,
                 Optional.ofNullable(modelQuantization),
-                Optional.ofNullable(workerId)
+                Optional.ofNullable(workerId),
+                    Optional.ofNullable(downloadSection.authToken),
+                    Optional.ofNullable(downloadSection.branch)
             );
+
             w.run();
         } catch (Exception e) {
             e.printStackTrace();

@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
+import com.github.tjake.jlama.cli.JlamaCli;
 import com.github.tjake.jlama.safetensors.DType;
 import java.io.File;
 import picocli.CommandLine;

@@ -48,7 +48,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
     protected final TensorShape shape;
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
-    protected final Map<String, Object> metadata;
     private final int stride;
     private volatile TensorCache originCache = null;
 
@@ -56,7 +55,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
         Preconditions.checkArgument(shape != null && shape.dims() > 0);
         this.dType = dType;
         this.shape = shape;
-        this.metadata = new HashMap<>();
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
         this.stride = shape.first() > 1 && dims() == 2 ? getOffset(shape.sparseRowOffset() + 1, shape.sparseColumnOffset()) : 0;
     }
@@ -68,14 +66,6 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
             case I8 -> new Q8ByteBufferTensor(shape);
             default -> throw new RuntimeException("Unsupported tensor type: " + dType);
         };
-    }
-
-    public void setMetadata(String key, Object value) {
-        metadata.put(key, value);
-    }
-
-    public Object getMetadata(String key) {
-        return metadata.get(key);
     }
 
     /** Create a new tensor with the given shape of the same Tensor implementation */

@@ -41,42 +41,14 @@ public class DistributedServiceTest {
     }
 
     @Test
-    void oneWorkerTestLLama() throws Exception {
-        Path modelPath = Paths.get("../models/Llama-2-7b-chat-hf-jlama-Q4");
-        Assume.assumeTrue(Files.exists(modelPath));
-
-        Coordinator coordinator = new Coordinator(modelPath.toFile(), com.google.common.io.Files.createTempDir(), 8888, 1);
-        try {
-            new Thread(() -> {
-                try {
-                    coordinator.start();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }).start();
-
-            startWorker(modelPath);
-
-            coordinator.generate(
-                UUID.randomUUID(),
-                PromptContext.of("Simply put, the theory of relativity states that"),
-                0.7f,
-                256,
-                makeOutHandler()
-            );
-
-        } finally {
-            coordinator.stop();
-        }
-    }
-
-    @Test
     void manyWorkerTestLLama() throws Exception {
-        // Path modelRoot = Paths.get("../models/Mixtral-8x7B-Instruct-v0.1-jlama-Q4");
         Path modelRoot = Paths.get("../models/Meta-Llama-3.1-8B-Instruct-jlama-Q4");
+        String modelName = "Meta-Llama-3.1-8B-Instruct-jlama-Q4";
+        String modelOwner = "tjake";
+
         Assume.assumeTrue(Files.exists(modelRoot));
 
-        Coordinator coordinator = new Coordinator(modelRoot.toFile(), null, 8888, 4);
+        Coordinator coordinator = new Coordinator(modelRoot.toFile(), modelOwner, modelName, DType.Q4, null, 8888, 4, Optional.empty(), Optional.empty());
         try {
             new Thread(() -> {
                 try {
@@ -86,10 +58,10 @@ public class DistributedServiceTest {
                 }
             }).start();
 
-            startWorker(modelRoot);
-            startWorker(modelRoot);
-            startWorker(modelRoot);
-            startWorker(modelRoot);
+            startWorker(modelRoot, modelOwner, modelName);
+            startWorker(modelRoot, modelOwner, modelName);
+            startWorker(modelRoot, modelOwner, modelName);
+            startWorker(modelRoot, modelOwner, modelName);
 
             coordinator.generate(
                 UUID.randomUUID(),
@@ -103,8 +75,8 @@ public class DistributedServiceTest {
         }
     }
 
-    private void startWorker(Path modelRoot) throws Exception {
-        Worker worker = new Worker(modelRoot.toFile(), "localhost", 8888, null, DType.F32, DType.I8, Optional.empty(), Optional.empty());
+    private void startWorker(Path modelRoot, String modelOwner, String modelName) throws Exception {
+        Worker worker = new Worker(modelRoot.toFile(), modelOwner, modelName, DType.Q4,"localhost", 8888, null, DType.F32, DType.I8, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
         new Thread(() -> {
             try {
                 worker.run();

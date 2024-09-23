@@ -21,11 +21,14 @@ import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +44,11 @@ public class Weights implements WeightLoader {
         this.metadata = ImmutableMap.copyOf(metadata);
         this.tensorInfoMap = ImmutableMap.copyOf(tensorInfoMap);
         this.bytes = bytes.duplicate();
-        this.majorityDType = findDType();
+        this.majorityDType = findDType(tensorInfoMap);
         this.parent = parent;
     }
 
-    private DType findDType() {
+    public static DType findDType(Map<String, TensorInfo> tensorInfoMap) {
         EnumMap<DType, Integer> counts = new EnumMap<>(DType.class);
         for (Map.Entry<String, TensorInfo> e : tensorInfoMap.entrySet()) {
             if (!e.getKey().endsWith(".qb")) counts.put(e.getValue().dType, counts.getOrDefault(e.getValue().dType, 0) + 1);
@@ -75,8 +78,7 @@ public class Weights implements WeightLoader {
     }
 
     @Override
-    public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns)
-        throws NoSuchElementException {
+    public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) {
         TensorInfo info = tensorInfoMap.get(name);
         if (info == null) throw new NoSuchElementException(name + " not found in weights");
 
@@ -86,8 +88,19 @@ public class Weights implements WeightLoader {
             throw new RuntimeException("Invalid shape dimensions " + info.shape.length + " encountered for " + name + " with offset");
         }
 
-        int positionOffset = Ints.checkedCast(info.dataOffsets[0]);
-        int positionLimit = Ints.checkedCast(info.dataOffsets[1]);
+        Pair<TensorShape, Pair<Long, Long>> offsets = getLoadOffsets(info, dctx, sparseRows);
+
+        ByteBuffer b = bytes.duplicate()
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .position(Ints.checkedCast(offsets.right.left))
+            .limit(Ints.checkedCast(offsets.right.right));
+
+        return loadTensorFromBuffer(name, info.dType, majorityDType, offsets.left, b, sparseRows, sparseColumns, dctx, parent.orElse(this));
+    }
+
+    static Pair<TensorShape,Pair<Long, Long>> getLoadOffsets(TensorInfo info, DistributedContext dctx, boolean sparseRows) {
+        long positionOffset = info.dataOffsets[0];
+        long positionLimit = info.dataOffsets[1];
         TensorShape shape = TensorShape.of(info.shape);
 
         // If this is a sparse tensor, we need to fetch only the section of the tensor that is needed
@@ -98,21 +111,21 @@ public class Weights implements WeightLoader {
             // Hack for Q4
             if (info.dType == DType.Q4) columnLength /= 2;
 
-            positionOffset = Ints.checkedCast(info.dataOffsets[0]) + (dctx.getShardOffsetForLength(rows) * columnLength);
+            positionOffset = info.dataOffsets[0] + (dctx.getShardOffsetForLength(rows) * columnLength);
             positionLimit = positionOffset + (dctx.getShardLength(rows) * columnLength);
             shape = TensorShape.sparseRow(info.shape, Pair.of(dctx.getShardOffsetForLength(rows), dctx.getShardLength(rows)));
         }
+        return Pair.of(shape, Pair.of(positionOffset, positionLimit));
+    }
 
-        ByteBuffer b = bytes.duplicate()
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .position(Ints.checkedCast(positionOffset))
-            .limit(Ints.checkedCast(positionLimit));
-
+    static AbstractTensor loadTensorFromBuffer(String name, DType dType, DType majorityDType,
+                                               TensorShape shape, ByteBuffer b, boolean sparseRows, boolean sparseColumns,
+                                               DistributedContext dctx, WeightLoader loader) {
         int len;
         FloatBuffer fb;
         ShortBuffer sb;
         AbstractTensor t;
-        switch (info.dType) {
+        switch (dType) {
             case F32:
                 fb = b.asFloatBuffer().slice();
                 t = new FloatBufferTensor(name, fb, shape, true);
@@ -149,23 +162,20 @@ public class Weights implements WeightLoader {
                 }
                 break;
             case Q4:
-                FloatBufferTensor qb = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); // only need to
-                                                                                                                            // sparsify once
+                FloatBufferTensor qb = (FloatBufferTensor) loader.load(name + ".qb", dctx, sparseRows, false /*only need sparsify once*/);
                 t = new Q4ByteBufferTensor(name, b.slice(), qb, shape, true);
                 break;
             case I8:
-                FloatBufferTensor qb1 = (FloatBufferTensor) parent.orElse(this).load(name + ".qb", dctx, sparseRows, false); // only need to
-                                                                                                                             // sparsify
-                                                                                                                             // once
+                FloatBufferTensor qb1 = (FloatBufferTensor) loader.load(name + ".qb", dctx, sparseRows, false /*only need to sparsify once*/);
                 t = new Q8ByteBufferTensor(name, b.slice(), qb1, shape, true);
                 break;
             default:
-                throw new IllegalArgumentException("Unsupported Tensor type: " + info.dType.name() + " for " + name);
+                throw new IllegalArgumentException("Unsupported Tensor type: " + dType.name() + " for " + name);
         }
 
         return dctx != null && sparseColumns && dctx.hasModelShard()
-            ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
-            : t;
+                ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
+                : t;
     }
 
     @Override

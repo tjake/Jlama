@@ -44,6 +44,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +83,16 @@ public class ModelSupport {
 
     /** Shortcut for loading a model for embeddings */
     public static AbstractModel loadEmbeddingModel(File model, DType workingMemoryType, DType workingQuantizationType) {
-        return loadModel(AbstractModel.InferenceType.FORWARD_PASS, model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty(), Optional.empty());
+        return loadModel(
+                AbstractModel.InferenceType.FORWARD_PASS,
+                model,
+                null,
+                workingMemoryType,
+                workingQuantizationType,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                SafeTensorSupport::loadWeights);
     }
 
     public static AbstractModel loadModel(
@@ -101,7 +111,8 @@ public class ModelSupport {
             workingQuantizationType,
             modelQuantization,
             threadCount,
-            Optional.empty()
+            Optional.empty(),
+            SafeTensorSupport::loadWeights
         );
     }
 
@@ -113,7 +124,8 @@ public class ModelSupport {
         DType workingQuantizationType,
         Optional<DType> modelQuantization,
         Optional<Integer> threadCount,
-        Optional<Function<Config, DistributedContext>> distributedContextLoader
+        Optional<Function<Config, DistributedContext>> distributedContextLoader,
+        Function<File, WeightLoader> weightLoaderSupplier
     ) {
 
         if (!model.exists()) {
@@ -149,7 +161,7 @@ public class ModelSupport {
             c.setWorkingDirectory(workingDirectory);
 
             Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
-            WeightLoader wl = SafeTensorSupport.loadWeights(baseDir);
+            WeightLoader wl = weightLoaderSupplier.apply(baseDir);
 
             return modelType.modelClass.getConstructor(
                 AbstractModel.InferenceType.class,

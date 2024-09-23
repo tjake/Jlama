@@ -21,10 +21,14 @@ import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.grpc.JlamaService;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.HTTPSafeTensorLoader;
+import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.grpc.Server;
@@ -50,8 +54,15 @@ public class Coordinator implements Generator {
     private final AbstractModel model;
     private final JlamaService service;
 
-    public Coordinator(File modelPath, File workingDirectory, int port, int workerCount) {
+    public Coordinator(File modelPath, String modelOwner, String modelName, DType modelDType, File workingDirectory, int port,
+                       int workerCount, Optional<String> authToken,
+                       Optional<String> branch) {
         Preconditions.checkArgument(workerCount != 0 && ((workerCount & (workerCount - 1)) == 0), "worker count must be a power of 2");
+
+        Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
+                ? b -> SafeTensorSupport.loadWeights(modelPath)
+                : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
+
         this.model = loadModel(
             AbstractModel.InferenceType.OUTPUT_TO_TOKEN,
             modelPath,
@@ -60,7 +71,8 @@ public class Coordinator implements Generator {
             DType.I8,
             Optional.empty(),
             Optional.empty(),
-            Optional.empty()
+            Optional.empty(),
+                weightLoaderFunction
         );
         this.port = port;
         this.workerCount = workerCount;

@@ -17,9 +17,124 @@ package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.cli.JlamaCli;
 import java.io.File;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.file.Path;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.util.TriConsumer;
+import com.google.common.util.concurrent.Uninterruptibles;
+import me.tongfei.progressbar.ProgressBar;
+import me.tongfei.progressbar.ProgressBarBuilder;
+import me.tongfei.progressbar.ProgressBarStyle;
 import picocli.CommandLine;
 
 public class SimpleBaseCommand extends JlamaCli {
-    @CommandLine.Parameters(index = "0", arity = "1", description = "The model location")
-    protected File model;
+    static AtomicReference<ProgressBar> progressRef = new AtomicReference<>();
+
+    @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1", heading = "Download Options:%n")
+    protected DownloadSection downloadSection = new DownloadSection();
+
+    @CommandLine.Option(names = { "-md", "--model-directory" }, description = "The local model directory for all models (default: ${DEFAULT-VALUE})", defaultValue = "models")
+    protected File modelDirectory = new File("models");
+
+    @CommandLine.Parameters(index = "0", arity = "1", description = "The huggingface model owner/name pair")
+    protected String modelName;
+
+    static class DownloadSection {
+        @CommandLine.Option(names = {"-dl", "--auto-download" }, description = "Download the model if missing (default: ${DEFAULT-VALUE})", defaultValue = "false")
+        Boolean autoDownload = false;
+
+        @CommandLine.Option(names = { "-b", "--branch" }, description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
+        String branch = "main";
+
+        @CommandLine.Option(names = { "-at", "--auth-token" }, description = "The auth token to use for downloading the model (if required)")
+        String authToken = null;
+    }
+
+    static String getOwner(String modelName) {
+        String[] parts = modelName.split("/");
+        if (parts.length == 0 || parts.length > 2) {
+            System.err.println("Model name must be in the form owner/name");
+            System.exit(1);
+        }
+        return parts[0];
+    }
+
+    static String getName(String modelName) {
+        String[] parts = modelName.split("/");
+        if (parts.length == 0 || parts.length > 2) {
+            System.err.println("Model name must be in the form owner/name");
+            System.exit(1);
+        }
+        return parts[1];
+    }
+
+    static Optional<TriConsumer<String, Long, Long>> getProgressConsumer() {
+        if (System.console() == null)
+            return Optional.empty();
+
+        return Optional.of((n, c, t) -> {
+            if (progressRef.get() == null || !progressRef.get().getTaskName().equals(n)) {
+                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(n)
+                        .setInitialMax(t)
+                        .setStyle(ProgressBarStyle.ASCII);
+
+                if (t > 1000000) {
+                    builder.setUnit("MB", 1000000);
+                } else if (t > 1000) {
+                    builder.setUnit("KB", 1000);
+                } else {
+                    builder.setUnit("B", 1);
+                }
+
+                progressRef.set(builder.build());
+            }
+
+            progressRef.get().stepTo(c);
+            Uninterruptibles.sleepUninterruptibly(150, TimeUnit.MILLISECONDS);
+        });
+    }
+
+    static void downloadModel(String owner, String name, File modelDirectory, String branch, String authToken, boolean downloadWeights) {
+        try {
+            SafeTensorSupport.maybeDownloadModel(
+                    modelDirectory.getAbsolutePath(),
+                    Optional.ofNullable(owner),
+                    name,
+                    downloadWeights,
+                    Optional.ofNullable(URLEncoder.encode(branch)),
+                    Optional.ofNullable(authToken),
+                    getProgressConsumer()
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    static Path getModel(String modelName, File modelDirectory, boolean autoDownload, String branch, String authToken) {
+        return getModel(modelName, modelDirectory, autoDownload, branch, authToken, true);
+    }
+
+    static Path getModel(String modelName, File modelDirectory, boolean autoDownload, String branch, String authToken, boolean downloadWeights) {
+        String owner = getOwner(modelName);
+        String name = getName(modelName);
+
+        Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(), owner, name);
+
+        if (autoDownload) {
+            downloadModel(owner, name, modelDirectory, branch, authToken, downloadWeights);
+        } else if (!modelPath.toFile().exists()) {
+            System.err.println("Model not found: " + modelPath);
+            System.err.println("Use --auto-download to download the model");
+            System.exit(1);
+        }
+
+        return modelPath;
+    }
 }

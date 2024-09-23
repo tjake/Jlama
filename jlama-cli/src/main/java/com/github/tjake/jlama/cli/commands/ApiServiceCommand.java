@@ -17,6 +17,8 @@ package com.github.tjake.jlama.cli.commands;
 
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import com.github.tjake.jlama.model.functions.Generator;
@@ -56,8 +58,10 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     @Override
     public void run() {
         try {
+            Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
+
             m = loadModel(
-                model,
+                modelPath.toFile(),
                 workingDirectory,
                 workingMemoryType,
                 workingQuantizationType,

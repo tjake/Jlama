@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.net.Coordinator;
+import com.github.tjake.jlama.safetensors.DType;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -24,11 +25,14 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import picocli.CommandLine;
 
+import java.nio.file.Path;
+import java.util.Optional;
+
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers")
 @SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
 @SpringBootConfiguration
 @Configuration
-public class ClusterCoordinatorCommand extends BaseCommand implements WebMvcConfigurer {
+public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMvcConfigurer {
 
     @CommandLine.Option(names = { "-w", "--worker-count" }, description = "signifies this instance is a coordinator", required = true)
     int workerCount = 1;
@@ -41,6 +45,9 @@ public class ClusterCoordinatorCommand extends BaseCommand implements WebMvcConf
         "--port" }, description = "http port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
+    @CommandLine.Option(names = { "-mt", "--model-type"}, description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
+    DType modelType = DType.F32;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/ui/**").addResourceLocations("classpath:/static/ui/");
@@ -49,7 +56,20 @@ public class ClusterCoordinatorCommand extends BaseCommand implements WebMvcConf
     @Override
     public void run() {
         try {
-            Coordinator c = new Coordinator(model, workingDirectory, grpcPort, workerCount);
+
+            //Download the model metadata
+            Path model = SimpleBaseCommand.getModel(modelName, modelDirectory, true, downloadSection.branch, downloadSection.authToken, false);
+
+            Coordinator c = new Coordinator(
+                    model.toFile(),
+                    SimpleBaseCommand.getOwner(modelName),
+                    SimpleBaseCommand.getName(modelName),
+                    modelType,
+                    workingDirectory,
+                    grpcPort,
+                    workerCount,
+                    Optional.ofNullable(downloadSection.authToken),
+                    Optional.ofNullable(downloadSection.branch));
 
             // This wires up the bean for the rest api
             ApiServiceCommand.m = c;
