@@ -34,7 +34,7 @@ import static picocli.CommandLine.Model.UsageMessageSpec.*;
 
 @Command(name = "jlama",
         sortOptions = false,
-        headerHeading = "Usage:%n%n",
+        headerHeading = "Usage:%n",
         synopsisHeading = "%n",
         descriptionHeading = "%nDescription:%n%n",
         parameterListHeading = "%nParameters:%n",
@@ -42,7 +42,7 @@ import static picocli.CommandLine.Model.UsageMessageSpec.*;
         mixinStandardHelpOptions = true,
         usageHelpAutoWidth = true,
         requiredOptionMarker = '*',
-        description = "Jlama is a modern LLM inference engine for Java!\nQuantized models are maintained at https://hf.co/tjake\n",
+        description = "Jlama is a modern LLM inference engine for Java!\nQuantized models are maintained at https://hf.co/tjake\n\nChoose from the available commands:",
         defaultValueProvider = PropertiesDefaultProvider.class)
 public class JlamaCli implements Runnable {
     static {
@@ -64,7 +64,6 @@ public class JlamaCli implements Runnable {
 
         cli.getHelpSectionMap().remove(SECTION_KEY_COMMAND_LIST_HEADING);
         cli.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, getCommandRenderer());
-
 
         String[] pargs = args.length == 0 ? new String[] { "-h" } : args;
         cli.parseWithHandler(new RunLast(), pargs);
@@ -184,9 +183,6 @@ public class JlamaCli implements Runnable {
             return "";
         }
     }
-
-
-
 
     private static void setupLogging() {
         Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);

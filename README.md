@@ -74,19 +74,29 @@ open browser to http://localhost:8080/
 
 
 ```shell
-Usage: jlama [COMMAND]
-Jlama is a modern LLM inference engine for Java!
+Usage:
 
+jlama [COMMAND]
+
+Description:
+
+Jlama is a modern LLM inference engine for Java!
 Quantized models are maintained at https://hf.co/tjake
 
-Commands:
-  download             Downloads a HuggingFace model - use owner/name format
-  quantize             Quantize the specified model
+Choose from the available commands:
+
+Inference:
   chat                 Interact with the specified model
-  complete             Completes a prompt using the specified model
   restapi              Starts a openai compatible rest api for interacting with this model
+  complete             Completes a prompt using the specified model
+
+Distributed Inference:
   cluster-coordinator  Starts a distributed rest api for a model using cluster workers
   cluster-worker       Connects to a cluster coordinator to perform distributed inference
+
+Other:
+  download             Downloads a HuggingFace model - use owner/name format
+  quantize             Quantize the specified model
 ```
 
 
