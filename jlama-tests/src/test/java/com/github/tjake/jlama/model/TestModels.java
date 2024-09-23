@@ -294,12 +294,12 @@ public class TestModels {
             "Someone in a gorilla costume is playing a set of drums."
         };
 
-        float[] be = model.embed(base);
+        float[] be = model.embed(base, Generator.PoolingType.AVG);
         logger.info("base is {}", base);
         float maxc = 0.0f;
         String bestMatch = "";
         for (int i = 0; i < examples.length; i++) {
-            float vs = VectorMath.cosineSimilarity(be, model.embed(examples[i]));
+            float vs = VectorMath.cosineSimilarity(be, model.embed(examples[i], Generator.PoolingType.AVG));
             logger.info("vs {} => {}", examples[i], vs);
             if (vs > maxc) {
                 maxc = vs;
@@ -310,7 +310,7 @@ public class TestModels {
         logger.info("Best match for: '{}' is '{}'", base, bestMatch);
 
         long start = System.currentTimeMillis();
-        VectorMath.pfor(0, 1000, i -> model.embed(base));
+        VectorMath.pfor(0, 1000, i -> model.embed(base, Generator.PoolingType.AVG));
         long elapsed = System.currentTimeMillis() - start;
         logger.info("took {} seconds, {}ms per emb", elapsed / 1000f, elapsed / 1000f);
     }

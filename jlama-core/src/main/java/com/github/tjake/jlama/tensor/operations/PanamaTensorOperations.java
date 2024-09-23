@@ -2303,7 +2303,6 @@ public final class PanamaTensorOperations implements TensorOperations {
     @Override
     public void accumulate(AbstractTensor aBatch, AbstractTensor bBatch, int offset, int limit) {
         Preconditions.checkArgument(aBatch.dType() == bBatch.dType());
-        Preconditions.checkArgument(limit % 8 == 0);
 
         boolean isBatch = bBatch.shape().first() > 1;
         for (int ai = 0; ai < aBatch.shape().first(); ai++) {

@@ -18,7 +18,9 @@ package com.github.tjake.jlama.model.bert;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.*;
+import com.github.tjake.jlama.model.functions.ClassifyOutput;
 import com.github.tjake.jlama.model.functions.EmbedInput;
+import com.github.tjake.jlama.model.functions.PoolingLayer;
 import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
@@ -131,7 +133,7 @@ public class BertModel extends AbstractModel {
             prefix = b;
             MLPBlock mlpBlock = new MLPBlock(
                 this,
-                ActivationFunction.Type.GELU,
+                    c.activationFunction,
                     loadWeight(prefix + "intermediate.dense.bias"),
                     loadWeight(prefix + "intermediate.dense.weight"),
                     loadWeight(prefix + "output.dense.bias"),
@@ -158,5 +160,44 @@ public class BertModel extends AbstractModel {
     @Override
     protected SampleOutput loadOutputWeights() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected PoolingLayer loadPoolingWeights() {
+
+        final AbstractTensor poolerDenseWeight = loadWeight("pooler.dense.weight");
+        final AbstractTensor poolerDenseBias = loadWeight("pooler.dense.bias");
+
+        return new PoolingLayer() {
+            public AbstractTensor getPoolingWeights() {
+                return poolerDenseWeight;
+            }
+
+            public Optional<AbstractTensor> getPoolingBias() {
+                return Optional.of(poolerDenseBias);
+            }
+        };
+    }
+
+    @Override
+    protected ClassifyOutput loadClassifierWeights() {
+        if (c.isClassifier()) {
+            final AbstractTensor classifierWeight = loadWeight("classifier.weight");
+            final AbstractTensor classifierBias = loadWeight("classifier.bias");
+            
+            return new ClassifyOutput() {
+                @Override
+                public AbstractTensor getClassificationWeights() {
+                    return classifierWeight;
+                }
+
+                @Override
+                public Optional<AbstractTensor> getClassificationBias() {
+                    return Optional.of(classifierBias);
+                }
+            };
+        } else {
+            throw new UnsupportedOperationException("Classification not supported by this model");
+        }
     }
 }

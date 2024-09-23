@@ -95,6 +95,17 @@ public class VectorMath {
             x[i] /= sum;
     }
 
+    public static void l2normalize(AbstractTensor x) {
+        float sum = 0.0f;
+        for (int i = 0; i < x.shape().last(); i++) {
+            float v = x.get(0, i);
+            sum += v * v;
+        }
+        double magnitude = Math.sqrt(sum);
+        for (int i = 0; i < x.shape().last(); i++)
+            x.set((float)(x.get(0, i) / magnitude), 0, i);
+    }
+
     public static void l2normalize(float[] x) {
         float sum = 0.0f;
         for (int i = 0; i < x.length; i++)
