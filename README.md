@@ -52,18 +52,14 @@ curl -Ls https://sh.jbang.dev | bash -s - app setup
 
 #Install Jlama CLI (will ask if you trust the source)
 jbang app install --force jlama@tjake
-
 ```
 
 Now that you have jlama installed you can download a model from huggingface and chat with it.
 Note I have pre-quantized models available at https://hf.co/tjake
 
 ```shell
-# Download a small model (defaults to ./models)
-jlama download tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
-
-# Run the openai chat api and UI on this model
-jlama restapi models/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
+# Run the openai chat api and UI on a model
+jlama restapi tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4 --auto-download
 ```
 
 open browser to http://localhost:8080/
