@@ -62,7 +62,7 @@ public class TestSample {
 
     @Test
     public void sampleEmbed() throws IOException {
-        String model = "intfloat/e5-small-v2";
+        String model = "answerdotai/answerai-colbert-small-v1";
         String workingDirectory = "./models";
 
         // Downloads the model or just returns the local path if it's already downloaded
