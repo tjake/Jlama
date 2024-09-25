@@ -52,18 +52,14 @@ curl -Ls https://sh.jbang.dev | bash -s - app setup
 
 #Install Jlama CLI (will ask if you trust the source)
 jbang app install --force jlama@tjake
-
 ```
 
 Now that you have jlama installed you can download a model from huggingface and chat with it.
 Note I have pre-quantized models available at https://hf.co/tjake
 
 ```shell
-# Download a small model (defaults to ./models)
-jlama download tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
-
-# Run the openai chat api and UI on this model
-jlama restapi models/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4
+# Run the openai chat api and UI on a model
+jlama restapi tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4 --auto-download
 ```
 
 open browser to http://localhost:8080/
@@ -74,19 +70,29 @@ open browser to http://localhost:8080/
 
 
 ```shell
-Usage: jlama [COMMAND]
-Jlama is a modern LLM inference engine for Java!
+Usage:
 
+jlama [COMMAND]
+
+Description:
+
+Jlama is a modern LLM inference engine for Java!
 Quantized models are maintained at https://hf.co/tjake
 
-Commands:
-  download             Downloads a HuggingFace model - use owner/name format
-  quantize             Quantize the specified model
+Choose from the available commands:
+
+Inference:
   chat                 Interact with the specified model
-  complete             Completes a prompt using the specified model
   restapi              Starts a openai compatible rest api for interacting with this model
+  complete             Completes a prompt using the specified model
+
+Distributed Inference:
   cluster-coordinator  Starts a distributed rest api for a model using cluster workers
   cluster-worker       Connects to a cluster coordinator to perform distributed inference
+
+Other:
+  download             Downloads a HuggingFace model - use owner/name format
+  quantize             Quantize the specified model
 ```
 
 

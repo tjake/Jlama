@@ -20,8 +20,12 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.HTTPSafeTensorLoader;
+import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
@@ -54,14 +58,19 @@ public class Worker implements Closeable {
     private final RegisterResponse registerResponse;
 
     public Worker(
-        File modelPrefix,
+        File modelPath,
+        String modelOwner,
+        String modelName,
+        DType modelDType,
         String host,
         int port,
         File workingDirectory,
         DType workingMemoryType,
         DType workingQuantizationType,
         Optional<DType> modelQuantization,
-        Optional<String> optionalWorkerId
+        Optional<String> optionalWorkerId,
+        Optional<String> authToken,
+        Optional<String> branch
     ) {
         Channel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
 
@@ -79,9 +88,13 @@ public class Worker implements Closeable {
             registerResponse.getNumModelShards()
         );
 
+        Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
+            ? b -> SafeTensorSupport.loadWeights(modelPath)
+            : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
+
         this.model = loadModel(
             AbstractModel.InferenceType.FORWARD_PASS,
-            modelPrefix,
+            modelPath,
             workingDirectory,
             workingMemoryType,
             workingQuantizationType,
@@ -94,7 +107,8 @@ public class Worker implements Closeable {
                     .setLayerShard(registerResponse.getLayerShard())
                     .setNumLayerShards(registerResponse.getNumLayerShards())
                     .build()
-            )
+            ),
+            weightLoaderFunction
         );
     }
 

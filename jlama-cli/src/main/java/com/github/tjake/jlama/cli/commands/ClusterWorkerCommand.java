@@ -16,40 +16,64 @@
 package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.net.Worker;
+
+import java.nio.file.Path;
 import java.util.Optional;
+
+import com.github.tjake.jlama.safetensors.DType;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "cluster-worker", description = "Connects to a cluster coordinator to perform distributed inference")
+@CommandLine.Command(name = "cluster-worker", description = "Connects to a cluster coordinator to perform distributed inference", abbreviateSynopsis = true)
 public class ClusterWorkerCommand extends BaseCommand {
 
     private static final Boolean useHostnameAsWorkerId = Boolean.getBoolean("jlama.use_hostname_as_workerid");
     private static final String HOSTNAME = System.getenv("HOSTNAME");
 
-    @CommandLine.Option(names = { "-o", "--host" }, description = "hostname of coordinator", required = true)
+    @CommandLine.Option(names = { "--coordinator" }, paramLabel = "ARG", description = "hostname/ip of coordinator", required = true)
     String host;
 
-    @CommandLine.Option(names = { "-g",
-        "--grpc-port" }, description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
+    @CommandLine.Option(names = {
+        "--grpc-port" }, description = "grpc port to listen on (default: ${DEFAULT-VALUE})", paramLabel = "ARG", defaultValue = "9777")
     int grpcPort = 9777;
 
-    @CommandLine.Option(names = { "-w",
-        "--worker-id" }, description = "consistent name to use when register this worker with the coordinator")
+    @CommandLine.Option(names = {
+        "--worker-id" }, paramLabel = "ARG", description = "consistent name to use when register this worker with the coordinator")
     String workerId = useHostnameAsWorkerId ? HOSTNAME : null;
+
+    @CommandLine.Option(names = {
+        "--model-type" }, paramLabel = "ARG", description = "The models base type Q4/F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "Q4")
+    DType modelType = DType.Q4;
 
     @Override
     public void run() {
         try {
             if (workerId != null) System.out.println("Using " + workerId + " as worker id");
+
+            Path model = SimpleBaseCommand.getModel(
+                modelName,
+                modelDirectory,
+                true,
+                downloadSection.branch,
+                downloadSection.authToken,
+                false
+            );
+
             Worker w = new Worker(
-                model,
+                model.toFile(),
+                SimpleBaseCommand.getOwner(modelName),
+                SimpleBaseCommand.getName(modelName),
+                modelType,
                 host,
                 grpcPort,
                 workingDirectory,
-                workingMemoryType,
-                workingQuantizationType,
-                Optional.ofNullable(modelQuantization),
-                Optional.ofNullable(workerId)
+                advancedSection.workingMemoryType,
+                advancedSection.workingQuantizationType,
+                Optional.ofNullable(advancedSection.modelQuantization),
+                Optional.ofNullable(workerId),
+                Optional.ofNullable(downloadSection.authToken),
+                Optional.ofNullable(downloadSection.branch)
             );
+
             w.run();
         } catch (Exception e) {
             e.printStackTrace();

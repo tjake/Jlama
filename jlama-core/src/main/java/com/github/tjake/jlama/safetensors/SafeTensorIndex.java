@@ -42,7 +42,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     private final Map<String, String> metadata;
 
     // Map from weight name to file name (this is what's in the JSON file)
-    private final Map<String, String> weightFileMap;
+    final Map<String, String> weightFileMap;
 
     // Map from weight name to Weights data
     private final Map<String, Weights> weightMap = new HashMap<>();
@@ -50,20 +50,28 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     // Map from file name to RandomAccessFile
     private final Map<String, RandomAccessFile> fileMap = new HashMap<>();
 
-    public static SafeTensorIndex loadWithWeights(Path modelRoot) throws IOException {
-        File indexFile = Paths.get(modelRoot.toString(), MODEL_INDEX_JSON).toFile();
+    public static SafeTensorIndex loadWithWeights(Path modelRoot) {
+        try {
+            File indexFile = Paths.get(modelRoot.toString(), MODEL_INDEX_JSON).toFile();
 
-        SafeTensorIndex index = om.readValue(indexFile, SafeTensorIndex.class);
-        loadWeights(index, modelRoot);
+            SafeTensorIndex index = om.readValue(indexFile, SafeTensorIndex.class);
+            loadWeights(index, modelRoot);
 
-        return index;
+            return index;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public static SafeTensorIndex loadSingleFile(Path modelRoot, String modelFile) throws IOException {
-        SafeTensorIndex index = new SafeTensorIndex(Collections.emptyMap(), Map.of("model-file", modelFile));
-        loadWeights(index, modelRoot);
+    public static SafeTensorIndex loadSingleFile(Path modelRoot, String modelFile) {
+        try {
+            SafeTensorIndex index = new SafeTensorIndex(Collections.emptyMap(), Map.of("model-file", modelFile));
+            loadWeights(index, modelRoot);
 
-        return index;
+            return index;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     static void loadWeights(SafeTensorIndex index, Path modelRoot) throws IOException {

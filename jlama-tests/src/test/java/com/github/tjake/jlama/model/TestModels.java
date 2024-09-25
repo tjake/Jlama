@@ -18,13 +18,7 @@ package com.github.tjake.jlama.model;
 import static com.github.tjake.jlama.util.JsonSupport.om;
 
 import com.github.tjake.jlama.math.VectorMath;
-import com.github.tjake.jlama.model.bert.BertConfig;
-import com.github.tjake.jlama.model.bert.BertModel;
-import com.github.tjake.jlama.model.bert.BertTokenizer;
 import com.github.tjake.jlama.model.functions.Generator;
-import com.github.tjake.jlama.model.gpt2.GPT2Config;
-import com.github.tjake.jlama.model.gpt2.GPT2Model;
-import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
@@ -35,10 +29,7 @@ import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
-import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -67,23 +58,15 @@ public class TestModels {
     public void GPT2Run() throws IOException {
         String modelPrefix = "../models/gpt2-medium";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
-        try (RandomAccessFile sc = new RandomAccessFile(modelPrefix + "/model.safetensors", "r")) {
-            ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
 
-            Weights v = SafeTensorSupport.readWeights(bb);
-            Tokenizer tokenizer = new GPT2Tokenizer(Paths.get(modelPrefix));
-            Config c = om.readValue(new File(modelPrefix + "/config.json"), GPT2Config.class);
-            GPT2Model gpt2 = new GPT2Model(c, v, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
+        AbstractModel gpt2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
+        PromptContext prompt = PromptContext.of(
+            "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
+                + "previously unexplored valley, in the Andes Mountains. "
+                + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
+        );
 
-            PromptContext prompt = PromptContext.of(
-                "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
-                    + "previously unexplored valley, in the Andes Mountains. "
-                    + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
-            );
-
-            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
-            gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
-        }
+        gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
     }
 
     @Test
@@ -288,40 +271,32 @@ public class TestModels {
         String modelPrefix = "../models/e5-small-v2";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
-        try (RandomAccessFile sc = new RandomAccessFile(modelPrefix + "/model.safetensors", "r")) {
-            ByteBuffer bb = sc.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, sc.length());
+        AbstractModel model = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
 
-            Weights weights = SafeTensorSupport.readWeights(bb);
-            Tokenizer tokenizer = new BertTokenizer(Paths.get(modelPrefix));
-            Config c = om.readValue(new File(modelPrefix + "/config.json"), BertConfig.class);
-            BertModel model = new BertModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.of(DType.F32));
+        String base = "A man is eating food.";
+        String[] examples = new String[] { "A man is eating a piece of bread.", "The girl is carrying a baby.", "A man is riding a horse.",
+            "A woman is playing violin.", "Two men pushed carts through the woods.", "A man is riding a white horse on an enclosed ground.",
+            "A monkey is playing drums.", "Someone in a gorilla costume is playing a set of drums." };
 
-            String base = "A man is eating food.";
-            String[] examples = new String[] { "A man is eating a piece of bread.", "The girl is carrying a baby.",
-                "A man is riding a horse.", "A woman is playing violin.", "Two men pushed carts through the woods.",
-                "A man is riding a white horse on an enclosed ground.", "A monkey is playing drums.",
-                "Someone in a gorilla costume is playing a set of drums." };
-
-            float[] be = model.embed(base, Generator.PoolingType.AVG);
-            logger.info("base is {}", base);
-            float maxc = 0.0f;
-            String bestMatch = "";
-            for (int i = 0; i < examples.length; i++) {
-                float vs = VectorMath.cosineSimilarity(be, model.embed(examples[i], Generator.PoolingType.AVG));
-                logger.info("vs {} => {}", examples[i], vs);
-                if (vs > maxc) {
-                    maxc = vs;
-                    bestMatch = examples[i];
-                }
+        float[] be = model.embed(base, Generator.PoolingType.AVG);
+        logger.info("base is {}", base);
+        float maxc = 0.0f;
+        String bestMatch = "";
+        for (int i = 0; i < examples.length; i++) {
+            float vs = VectorMath.cosineSimilarity(be, model.embed(examples[i], Generator.PoolingType.AVG));
+            logger.info("vs {} => {}", examples[i], vs);
+            if (vs > maxc) {
+                maxc = vs;
+                bestMatch = examples[i];
             }
-
-            logger.info("Best match for: '{}' is '{}'", base, bestMatch);
-
-            long start = System.currentTimeMillis();
-            VectorMath.pfor(0, 1000, i -> model.embed(base, Generator.PoolingType.AVG));
-            long elapsed = System.currentTimeMillis() - start;
-            logger.info("took {} seconds, {}ms per emb", elapsed / 1000f, elapsed / 1000f);
         }
+
+        logger.info("Best match for: '{}' is '{}'", base, bestMatch);
+
+        long start = System.currentTimeMillis();
+        VectorMath.pfor(0, 1000, i -> model.embed(base, Generator.PoolingType.AVG));
+        long elapsed = System.currentTimeMillis() - start;
+        logger.info("took {} seconds, {}ms per emb", elapsed / 1000f, elapsed / 1000f);
     }
 
     private BiConsumer<String, Float> makeOutHandler() {

@@ -51,13 +51,13 @@ public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
 
     public enum InferenceType {
-        //Used for distributed inference
+        // Used for distributed inference
         INPUT_TO_EMBEDDING(true, false, false, false, false),
         OUTPUT_TO_TOKEN(false, false, true, false, false),
         FORWARD_PASS(true, true, false, false, false),
 
-        //Used for different types of inference
-        FULL_GENERATION(true, true, true, false,false),
+        // Used for different types of inference
+        FULL_GENERATION(true, true, true, false, false),
         FULL_CLASSIFICATION(true, true, false, true, true),
         FULL_EMBEDDING(true, true, false, false, true);
 
@@ -104,6 +104,7 @@ public abstract class AbstractModel implements Generator {
         this.c = c;
         this.weights = w;
         this.tokenizer = t;
+
         this.modelDType = w.getModelDType();
         this.workingDType = workingMemoryDType;
         this.modelQType = modelQType;
@@ -135,7 +136,12 @@ public abstract class AbstractModel implements Generator {
             this.workingQType = workingMemoryQType;
         }
 
-        logger.debug("Working memory type = {}, Quantized memory type = {}", this.workingDType, this.workingQType);
+        logger.info(
+            "Model type = {}, Working memory type = {}, Quantized memory type = {}",
+            this.modelDType,
+            this.workingDType,
+            this.workingQType
+        );
 
         this.embedInput = inferenceType.isInput ? loadInputWeights() : null;
         this.transformerBlocks = inferenceType.isFwdPass ? loadTransformerBlockWeights() : null;
@@ -284,20 +290,14 @@ public abstract class AbstractModel implements Generator {
 
                         // Pooling
                         TensorOperationsProvider.get()
-                                .batchDotProduct(
-                                        pooled,
-                                        output,
-                                        poolingLayer.get().getPoolingWeights(),
-                                        0,
-                                        0,
-                                        c.embeddingLength);
+                            .batchDotProduct(pooled, output, poolingLayer.get().getPoolingWeights(), 0, 0, c.embeddingLength);
 
-                        poolingLayer.get().getPoolingBias().ifPresent(bias -> {
-                            TensorOperationsProvider.get().accumulate(pooled, bias, 0, c.embeddingLength);
-                        });
+                        poolingLayer.get()
+                            .getPoolingBias()
+                            .ifPresent(bias -> { TensorOperationsProvider.get().accumulate(pooled, bias, 0, c.embeddingLength); });
 
                         VectorMath.pfor(0, c.embeddingLength, i -> {
-                            //BERT seems to use tanh for pooling rather than gelu
+                            // BERT seems to use tanh for pooling rather than gelu
                             outputEmbedding[i] = ActivationFunction.eval(ActivationFunction.Type.TANH, pooled.get(0, i));
                         });
 
@@ -345,9 +345,7 @@ public abstract class AbstractModel implements Generator {
 
         TensorOperationsProvider.get().batchDotProduct(scores, b, classifyOutput.getClassificationWeights(), 0, 0, c.embeddingLength);
 
-        classifyOutput.getClassificationBias().ifPresent(bias -> {
-            TensorOperationsProvider.get().accumulate(scores, bias, 0, classes);
-        });
+        classifyOutput.getClassificationBias().ifPresent(bias -> { TensorOperationsProvider.get().accumulate(scores, bias, 0, classes); });
 
         VectorMath.softMax(scores, 0, classes);
         Map<String, Float> result = new HashMap<>();
@@ -400,8 +398,6 @@ public abstract class AbstractModel implements Generator {
             return c.vocabularySize - 1;
         }
     }
-
-
 
     @Override
     public Response generate(

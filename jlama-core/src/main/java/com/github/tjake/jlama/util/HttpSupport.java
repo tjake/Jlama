@@ -30,28 +30,44 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.zip.GZIPInputStream;
 
 public class HttpSupport {
     public static final Logger logger = LoggerFactory.getLogger(HttpSupport.class);
 
-    public static Pair<InputStream, Long> getResponse(String urlString, Optional<String> optionalAuthHeader) throws IOException {
+    public static Pair<InputStream, Long> getResponse(
+        String urlString,
+        Optional<String> optionalAuthHeader,
+        Optional<Pair<Long, Long>> optionalByteRange
+    ) throws IOException {
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
         // Set the request method
         connection.setRequestMethod("GET");
+        connection.setRequestProperty("Accept-Encoding", "gzip");
 
         // Set the request header
         optionalAuthHeader.ifPresent(authHeader -> connection.setRequestProperty("Authorization", "Bearer " + authHeader));
+        optionalByteRange.ifPresent(byteRange -> connection.setRequestProperty("Range", "bytes=" + byteRange.left + "-" + byteRange.right));
 
         // Get the response code
         int responseCode = connection.getResponseCode();
 
-        if (responseCode == HttpURLConnection.HTTP_OK) {
+        if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_PARTIAL) {
             // If the response code is 200 (HTTP_OK), return the input stream
-            return Pair.of(connection.getInputStream(), connection.getContentLengthLong());
+
+            String encoding = connection.getContentEncoding();
+            InputStream inputStream;
+            if (encoding != null && encoding.equals("gzip")) {
+                inputStream = new GZIPInputStream(connection.getInputStream());
+            } else {
+                inputStream = connection.getInputStream();
+            }
+
+            return Pair.of(inputStream, connection.getContentLengthLong());
         } else {
-            // If the response code is not 200, throw an IOException
+            // If the response code is not 200/206, throw an IOException
             throw new IOException("HTTP response code: " + responseCode + " for URL: " + urlString);
         }
     }
@@ -76,13 +92,15 @@ public class HttpSupport {
         String currFile,
         Optional<String> optionalBranch,
         Optional<String> optionalAuthHeader,
+        Optional<Pair<Long, Long>> optionalByteRange,
         Path outputPath,
         Optional<TriConsumer<String, Long, Long>> optionalProgressConsumer
     ) throws IOException {
 
         Pair<InputStream, Long> stream = getResponse(
             "https://huggingface.co/" + hfModel + "/resolve/" + optionalBranch.orElse("main") + "/" + currFile,
-            optionalAuthHeader
+            optionalAuthHeader,
+            optionalByteRange
         );
 
         CountingInputStream inStream = new CountingInputStream(stream.left);

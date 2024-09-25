@@ -15,8 +15,6 @@
  */
 package com.github.tjake.jlama.model.bert;
 
-import com.github.tjake.jlama.math.ActivationFunction;
-import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.model.functions.ClassifyOutput;
 import com.github.tjake.jlama.model.functions.EmbedInput;
@@ -27,17 +25,13 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.KvBufferCache;
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.UUID;
 
 public class BertModel extends AbstractModel {
 
-    private static final String[] prefixes = new String[] {"", "bert."};
+    private static final String[] prefixes = new String[] { "", "bert." };
 
     public BertModel(Config c, WeightLoader w, Tokenizer tokenizer, DType workingDType, DType workingQType, Optional<DType> modelQType) {
         super(InferenceType.FORWARD_PASS, c, w, tokenizer, workingDType, workingQType, modelQType);
@@ -78,11 +72,7 @@ public class BertModel extends AbstractModel {
         AbstractTensor wte = loadWeight("embeddings.token_type_embeddings.weight");
         AbstractTensor wpe = loadWeight("embeddings.position_embeddings.weight");
 
-        LayerNorm inputLayerNorm = new LayerNorm(
-            this,
-                loadWeight("embeddings.LayerNorm.bias"),
-                loadWeight("embeddings.LayerNorm.weight")
-        );
+        LayerNorm inputLayerNorm = new LayerNorm(this, loadWeight("embeddings.LayerNorm.bias"), loadWeight("embeddings.LayerNorm.weight"));
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeDenseTensor(c.embeddingLength);
@@ -133,23 +123,19 @@ public class BertModel extends AbstractModel {
             prefix = b;
             MLPBlock mlpBlock = new MLPBlock(
                 this,
-                    c.activationFunction,
-                    loadWeight(prefix + "intermediate.dense.bias"),
-                    loadWeight(prefix + "intermediate.dense.weight"),
-                    loadWeight(prefix + "output.dense.bias"),
-                    loadWeight(prefix + "output.dense.weight")
+                c.activationFunction,
+                loadWeight(prefix + "intermediate.dense.bias"),
+                loadWeight(prefix + "intermediate.dense.weight"),
+                loadWeight(prefix + "output.dense.bias"),
+                loadWeight(prefix + "output.dense.weight")
             );
 
             LayerNorm postAttentionNorm = new LayerNorm(
                 this,
-                    loadWeight(b + "attention.output.LayerNorm.bias"),
-                    loadWeight(b + "attention.output.LayerNorm.weight")
+                loadWeight(b + "attention.output.LayerNorm.bias"),
+                loadWeight(b + "attention.output.LayerNorm.weight")
             );
-            LayerNorm postMlpNorm = new LayerNorm(
-                this,
-                    loadWeight(b + "output.LayerNorm.bias"),
-                    loadWeight(b + "output.LayerNorm.weight")
-            );
+            LayerNorm postMlpNorm = new LayerNorm(this, loadWeight(b + "output.LayerNorm.bias"), loadWeight(b + "output.LayerNorm.weight"));
 
             transformerBlocks[i] = new TransformerBlock(this, i, attention, postAttentionNorm, mlpBlock, postMlpNorm);
         }
@@ -184,7 +170,7 @@ public class BertModel extends AbstractModel {
         if (c.isClassifier()) {
             final AbstractTensor classifierWeight = loadWeight("classifier.weight");
             final AbstractTensor classifierBias = loadWeight("classifier.bias");
-            
+
             return new ClassifyOutput() {
                 @Override
                 public AbstractTensor getClassificationWeights() {

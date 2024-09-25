@@ -23,23 +23,32 @@ import java.nio.file.Path;
 import java.util.Optional;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "quantize", description = "Quantize the specified model")
+@CommandLine.Command(name = "quantize", description = "Quantize the specified model", abbreviateSynopsis = true)
 public class QuantizeCommand extends SimpleBaseCommand {
 
     @CommandLine.Parameters(index = "1", arity = "0..1", description = "The output location")
     protected Path output;
 
-    @CommandLine.Option(names = { "-q", "--quantization" }, description = "Model quantization type", arity = "1")
+    @CommandLine.Option(names = { "--quantization" }, paramLabel = "ARG", description = "Model quantization type", arity = "1")
     protected DType modelQuantization;
 
-    @CommandLine.Option(names = { "-s", "--skip-layer" }, description = "Layer name prefix to not quantize")
+    @CommandLine.Option(names = { "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize")
     protected String[] skipLayerPrefixes;
 
-    @CommandLine.Option(names = { "-d", "--drop-layer" }, description = "Layer name prefix to drop")
+    @CommandLine.Option(names = { "--drop-layer" }, paramLabel = "ARG", description = "Layer name prefix to drop")
     protected String[] dropLayerPrefixes;
 
     @Override
     public void run() {
+
+        Path modelPath = SimpleBaseCommand.getModel(
+            modelName,
+            modelDirectory,
+            downloadSection.autoDownload,
+            downloadSection.branch,
+            downloadSection.authToken
+        );
+        File model = modelPath.toFile();
 
         if (!model.exists()) {
             System.err.println("Model location does not exist: " + model);

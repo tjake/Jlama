@@ -17,7 +17,7 @@ services:
       - cluster-coordinator
       - --threads=2
       - --worker-count=8
-      - /models/Llama-2-7b-chat-hf-jlama-Q4/
+      - tjake/Mistral-7B-Instruct-v0.3-jlama-Q4
     volumes:
       - "./models:/models"
     healthcheck:
@@ -41,7 +41,7 @@ services:
     command:
       - cluster-worker
       - --threads=1
-      - --host=jlama-coordinator
-      - /models/Llama-2-7b-chat-hf-jlama-Q4/
+      - --coordinator=jlama-coordinator
+      - tjake/Mistral-7B-Instruct-v0.3-jlama-Q4
     volumes:
       - "./models:/models"

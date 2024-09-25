@@ -19,23 +19,38 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
+
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
+
 import picocli.CommandLine.*;
 
-@Command(name = "complete", description = "Completes a prompt using the specified model")
+@Command(name = "complete", description = "Completes a prompt using the specified model", abbreviateSynopsis = true)
 public class CompleteCommand extends ModelBaseCommand {
+
+    @Option(names = { "--prompt" }, description = "Text to complete", required = true)
+    protected String prompt;
 
     @Override
     public void run() {
-        AbstractModel m = loadModel(
-            model,
-            workingDirectory,
-            workingMemoryType,
-            workingQuantizationType,
-            Optional.ofNullable(modelQuantization),
-            Optional.ofNullable(threadCount)
+        Path modelPath = SimpleBaseCommand.getModel(
+            modelName,
+            modelDirectory,
+            downloadSection.autoDownload,
+            downloadSection.branch,
+            downloadSection.authToken
         );
+
+        AbstractModel m = loadModel(
+            modelPath.toFile(),
+            workingDirectory,
+            advancedSection.workingMemoryType,
+            advancedSection.workingQuantizationType,
+            Optional.ofNullable(advancedSection.modelQuantization),
+            Optional.ofNullable(advancedSection.threadCount)
+        );
+
         m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());
     }
 }
