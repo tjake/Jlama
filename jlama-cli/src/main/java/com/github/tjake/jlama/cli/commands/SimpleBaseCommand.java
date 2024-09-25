@@ -36,7 +36,7 @@ import picocli.CommandLine;
 public class SimpleBaseCommand extends JlamaCli {
     static AtomicReference<ProgressBar> progressRef = new AtomicReference<>();
 
-    @CommandLine.ArgGroup(exclusive = false, heading = "Download Options:%n", multiplicity = "1")
+    @CommandLine.ArgGroup(exclusive = false, heading = "Download Options:%n")
     protected DownloadSection downloadSection = new DownloadSection();
 
     @CommandLine.Option(names = { "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")

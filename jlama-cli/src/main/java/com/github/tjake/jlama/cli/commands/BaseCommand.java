@@ -24,7 +24,7 @@ public class BaseCommand extends SimpleBaseCommand {
     @CommandLine.Option(names = { "--work-directory" }, paramLabel = "ARG", description = "Working directory for attention cache")
     protected File workingDirectory = null;
 
-    @CommandLine.ArgGroup(exclusive = false, heading = "Advanced Options:%n", multiplicity = "1")
+    @CommandLine.ArgGroup(exclusive = false, heading = "Advanced Options:%n")
     protected AdvancedSection advancedSection = new AdvancedSection();
 
     static class AdvancedSection {

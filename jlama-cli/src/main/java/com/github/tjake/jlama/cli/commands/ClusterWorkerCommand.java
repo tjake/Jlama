@@ -30,7 +30,7 @@ public class ClusterWorkerCommand extends BaseCommand {
     private static final Boolean useHostnameAsWorkerId = Boolean.getBoolean("jlama.use_hostname_as_workerid");
     private static final String HOSTNAME = System.getenv("HOSTNAME");
 
-    @CommandLine.Option(names = { "--host" }, paramLabel = "ARG", description = "hostname of coordinator", required = true)
+    @CommandLine.Option(names = { "--coordinator" }, paramLabel = "ARG", description = "hostname/ip of coordinator", required = true)
     String host;
 
     @CommandLine.Option(names = {
