@@ -22,7 +22,6 @@ import com.github.tjake.jlama.util.Pair;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -98,7 +97,7 @@ public class Weights implements WeightLoader {
         return loadTensorFromBuffer(name, info.dType, majorityDType, offsets.left, b, sparseRows, sparseColumns, dctx, parent.orElse(this));
     }
 
-    static Pair<TensorShape,Pair<Long, Long>> getLoadOffsets(TensorInfo info, DistributedContext dctx, boolean sparseRows) {
+    static Pair<TensorShape, Pair<Long, Long>> getLoadOffsets(TensorInfo info, DistributedContext dctx, boolean sparseRows) {
         long positionOffset = info.dataOffsets[0];
         long positionLimit = info.dataOffsets[1];
         TensorShape shape = TensorShape.of(info.shape);
@@ -118,9 +117,17 @@ public class Weights implements WeightLoader {
         return Pair.of(shape, Pair.of(positionOffset, positionLimit));
     }
 
-    static AbstractTensor loadTensorFromBuffer(String name, DType dType, DType majorityDType,
-                                               TensorShape shape, ByteBuffer b, boolean sparseRows, boolean sparseColumns,
-                                               DistributedContext dctx, WeightLoader loader) {
+    static AbstractTensor loadTensorFromBuffer(
+        String name,
+        DType dType,
+        DType majorityDType,
+        TensorShape shape,
+        ByteBuffer b,
+        boolean sparseRows,
+        boolean sparseColumns,
+        DistributedContext dctx,
+        WeightLoader loader
+    ) {
         int len;
         FloatBuffer fb;
         ShortBuffer sb;
@@ -166,7 +173,12 @@ public class Weights implements WeightLoader {
                 t = new Q4ByteBufferTensor(name, b.slice(), qb, shape, true);
                 break;
             case I8:
-                FloatBufferTensor qb1 = (FloatBufferTensor) loader.load(name + ".qb", dctx, sparseRows, false /*only need to sparsify once*/);
+                FloatBufferTensor qb1 = (FloatBufferTensor) loader.load(
+                    name + ".qb",
+                    dctx,
+                    sparseRows,
+                    false /*only need to sparsify once*/
+                );
                 t = new Q8ByteBufferTensor(name, b.slice(), qb1, shape, true);
                 break;
             default:
@@ -174,8 +186,8 @@ public class Weights implements WeightLoader {
         }
 
         return dctx != null && sparseColumns && dctx.hasModelShard()
-                ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
-                : t;
+            ? t.sparsify(dctx.getShardOffsetForLength(shape.last()), dctx.getShardLength(shape.last()))
+            : t;
     }
 
     @Override

@@ -20,12 +20,10 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 
-import picocli.CommandLine;
 import picocli.CommandLine.*;
 
 @Command(name = "complete", description = "Completes a prompt using the specified model", abbreviateSynopsis = true)
@@ -36,7 +34,13 @@ public class CompleteCommand extends ModelBaseCommand {
 
     @Override
     public void run() {
-        Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
+        Path modelPath = SimpleBaseCommand.getModel(
+            modelName,
+            modelDirectory,
+            downloadSection.autoDownload,
+            downloadSection.branch,
+            downloadSection.authToken
+        );
 
         AbstractModel m = loadModel(
             modelPath.toFile(),

@@ -54,14 +54,22 @@ public class Coordinator implements Generator {
     private final AbstractModel model;
     private final JlamaService service;
 
-    public Coordinator(File modelPath, String modelOwner, String modelName, DType modelDType, File workingDirectory, int port,
-                       int workerCount, Optional<String> authToken,
-                       Optional<String> branch) {
+    public Coordinator(
+        File modelPath,
+        String modelOwner,
+        String modelName,
+        DType modelDType,
+        File workingDirectory,
+        int port,
+        int workerCount,
+        Optional<String> authToken,
+        Optional<String> branch
+    ) {
         Preconditions.checkArgument(workerCount != 0 && ((workerCount & (workerCount - 1)) == 0), "worker count must be a power of 2");
 
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
-                ? b -> SafeTensorSupport.loadWeights(modelPath)
-                : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
+            ? b -> SafeTensorSupport.loadWeights(modelPath)
+            : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
 
         this.model = loadModel(
             AbstractModel.InferenceType.OUTPUT_TO_TOKEN,
@@ -72,7 +80,7 @@ public class Coordinator implements Generator {
             Optional.empty(),
             Optional.empty(),
             Optional.empty(),
-                weightLoaderFunction
+            weightLoaderFunction
         );
         this.port = port;
         this.workerCount = workerCount;
@@ -113,7 +121,7 @@ public class Coordinator implements Generator {
     }
 
     public float[] embed(String input, Generator.PoolingType poolingType) {
-       throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException();
     }
 
     public Generator.Response generate(

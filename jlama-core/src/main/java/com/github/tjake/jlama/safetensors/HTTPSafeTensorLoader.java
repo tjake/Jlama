@@ -1,3 +1,18 @@
+/*
+ * Copyright 2024 T Jake Luciani
+ *
+ * The Jlama Project licenses this file to you under the Apache License,
+ * version 2.0 (the "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at:
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ */
 package com.github.tjake.jlama.safetensors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,7 +35,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +54,6 @@ public class HTTPSafeTensorLoader implements WeightLoader {
     private final Map<String, Integer> tensorFileOffsets;
     private final DType modelDType;
 
-
     /**
      * Used for distributed inference
      *
@@ -53,14 +66,21 @@ public class HTTPSafeTensorLoader implements WeightLoader {
      * @param authToken
      * @throws JsonProcessingException
      */
-    public HTTPSafeTensorLoader(Path modelRoot, String owner, String modelName, DType modelDType, Optional<String> branch, Optional<String> authToken) {
+    public HTTPSafeTensorLoader(
+        Path modelRoot,
+        String owner,
+        String modelName,
+        DType modelDType,
+        Optional<String> branch,
+        Optional<String> authToken
+    ) {
         this.modelRoot = modelRoot;
         this.modelName = owner + "/" + modelName;
         this.branch = branch;
-        this.indexFile = String.format("%s/%s", modelRoot,  SafeTensorIndex.MODEL_INDEX_JSON);
+        this.indexFile = String.format("%s/%s", modelRoot, SafeTensorIndex.MODEL_INDEX_JSON);
         this.authToken = authToken;
 
-        //Check we have the index file
+        // Check we have the index file
         if (!new File(indexFile).exists()) {
             this.index = new SafeTensorIndex(Collections.emptyMap(), Map.of("model-file", SafeTensorIndex.SINGLE_MODEL_NAME));
         } else {
@@ -115,36 +135,47 @@ public class HTTPSafeTensorLoader implements WeightLoader {
             Path weightPath = modelRoot.resolve(weightFile + ".part." + positionOffset + "_" + positionLimit);
 
             if (!weightPath.toFile().exists()) {
-                logger.info("Downloading file: {} for {} {}MB", weightPath, name, (positionLimit - positionOffset)/1024/1024);
+                logger.info("Downloading file: {} for {} {}MB", weightPath, name, (positionLimit - positionOffset) / 1024 / 1024);
                 HttpSupport.downloadFile(
-                        modelName,
-                        weightFile,
-                        branch,
-                        authToken,
-                        Optional.of(Pair.of(positionOffset, positionLimit)),
-                        weightPath,
-                        Optional.empty());
+                    modelName,
+                    weightFile,
+                    branch,
+                    authToken,
+                    Optional.of(Pair.of(positionOffset, positionLimit)),
+                    weightPath,
+                    Optional.empty()
+                );
             }
 
             int length = Ints.checkedCast(positionLimit - positionOffset);
 
             RandomAccessFile raf = new RandomAccessFile(weightPath.toFile(), "r");
             ByteBuffer buf = raf.getChannel()
-                    .map(FileChannel.MapMode.READ_ONLY, 0, raf.length())
-                    .duplicate()
-                    .order(ByteOrder.LITTLE_ENDIAN)
-                    .position(0)
-                    .limit(length);
-
+                .map(FileChannel.MapMode.READ_ONLY, 0, raf.length())
+                .duplicate()
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .position(0)
+                .limit(length);
 
             if (raf.length() < length) {
-                throw new RuntimeException("Failed to download the correct number of bytes: " + raf.length() + " != " + length + " for " + weightPath);
+                throw new RuntimeException(
+                    "Failed to download the correct number of bytes: " + raf.length() + " != " + length + " for " + weightPath
+                );
             }
 
             logger.debug("Loading tensor: {} from {} with offsets: {} {}", name, weightPath, positionOffset, positionLimit);
 
             AbstractTensor tensor = Weights.loadTensorFromBuffer(
-                    name, info.dType, modelDType, shape, buf, sparseRows, sparseColumns, dctx, this);
+                name,
+                info.dType,
+                modelDType,
+                shape,
+                buf,
+                sparseRows,
+                sparseColumns,
+                dctx,
+                this
+            );
 
             layerFiles.put(name, Pair.of(raf, tensor));
 
@@ -165,10 +196,18 @@ public class HTTPSafeTensorLoader implements WeightLoader {
 
         if (!Files.exists(headerFile)) {
             // Download the first 1MB of the file to get the tensor info
-            HttpSupport.downloadFile(modelName, weightFile, branch, authToken, Optional.of(Pair.of(0L, (long)1 << 20)), headerFile, Optional.empty());
+            HttpSupport.downloadFile(
+                modelName,
+                weightFile,
+                branch,
+                authToken,
+                Optional.of(Pair.of(0L, (long) 1 << 20)),
+                headerFile,
+                Optional.empty()
+            );
         }
 
-        try(RandomAccessFile raf = new RandomAccessFile(headerFile.toFile(), "r")) {
+        try (RandomAccessFile raf = new RandomAccessFile(headerFile.toFile(), "r")) {
             ByteBuffer header = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, 0, Math.min(1 << 20, raf.length()));
             Map<String, TensorInfo> info = SafeTensorSupport.readTensorInfoMap(header, Optional.empty());
             int endOfHeaderPosition = header.position();

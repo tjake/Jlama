@@ -27,7 +27,6 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q5ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.util.HttpSupport;
-import com.github.tjake.jlama.util.JsonSupport;
 import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -93,19 +92,21 @@ public class SafeTensorSupport {
     }
 
     public static WeightLoader loadWeights(File baseDir) {
-        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON)))
-            return SafeTensorIndex.loadWithWeights(baseDir.toPath());
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.MODEL_INDEX_JSON))) return SafeTensorIndex.loadWithWeights(
+            baseDir.toPath()
+        );
 
-        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME)))
-            return SafeTensorIndex.loadSingleFile(baseDir.toPath(), SafeTensorIndex.SINGLE_MODEL_NAME);
+        if (Files.exists(Paths.get(baseDir.getAbsolutePath(), SafeTensorIndex.SINGLE_MODEL_NAME))) return SafeTensorIndex.loadSingleFile(
+            baseDir.toPath(),
+            SafeTensorIndex.SINGLE_MODEL_NAME
+        );
 
         throw new IllegalArgumentException("No safetensor model found in: " + baseDir);
     }
 
     public static boolean isModelLocal(Path modelRoot) {
 
-        if (Files.exists(modelRoot.resolve(SafeTensorIndex.SINGLE_MODEL_NAME)))
-            return true;
+        if (Files.exists(modelRoot.resolve(SafeTensorIndex.SINGLE_MODEL_NAME))) return true;
         try {
             if (Files.exists(modelRoot.resolve(SafeTensorIndex.MODEL_INDEX_JSON))) {
                 SafeTensorIndex index = om.readValue(modelRoot.resolve(SafeTensorIndex.MODEL_INDEX_JSON).toFile(), SafeTensorIndex.class);
@@ -347,17 +348,17 @@ public class SafeTensorSupport {
      * @throws IOException
      */
     public static File maybeDownloadModel(
-            String modelDir,
-            Optional<String> modelOwner,
-            String modelName,
-            boolean downloadWeights,
-            Optional<String> optionalBranch,
-            Optional<String> optionalAuthHeader,
-            Optional<TriConsumer<String, Long, Long>> optionalProgressReporter)
-            throws IOException {
+        String modelDir,
+        Optional<String> modelOwner,
+        String modelName,
+        boolean downloadWeights,
+        Optional<String> optionalBranch,
+        Optional<String> optionalAuthHeader,
+        Optional<TriConsumer<String, Long, Long>> optionalProgressReporter
+    ) throws IOException {
 
         Path localModelDir = constructLocalModelPath(modelDir, modelOwner.orElse("na"), modelName);
-        //Check if the model is already downloaded
+        // Check if the model is already downloaded
         if (Files.exists(localModelDir.resolve(FINISHED_MARKER))) {
             return localModelDir.toFile();
         }
@@ -365,7 +366,8 @@ public class SafeTensorSupport {
         String hfModel = modelOwner.map(mo -> mo + "/" + modelName).orElse(modelName);
         InputStream modelInfoStream = HttpSupport.getResponse(
             "https://huggingface.co/api/models/" + hfModel + "/tree/" + optionalBranch.orElse("main"),
-            optionalAuthHeader, Optional.empty()
+            optionalAuthHeader,
+            Optional.empty()
         ).left;
         String modelInfo = HttpSupport.readInputStream(modelInfoStream);
 
@@ -403,7 +405,6 @@ public class SafeTensorSupport {
             throw new IOException("Model is not available in safetensor format");
         }
 
-
         Files.createDirectories(localModelDir);
 
         for (String currFile : tensorFiles) {
@@ -418,7 +419,7 @@ public class SafeTensorSupport {
             );
         }
 
-        //When fully downloaded, create a .finished file
+        // When fully downloaded, create a .finished file
         Files.createFile(localModelDir.resolve(FINISHED_MARKER));
 
         return localModelDir.toFile();

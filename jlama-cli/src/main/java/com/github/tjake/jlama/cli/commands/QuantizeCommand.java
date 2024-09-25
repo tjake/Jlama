@@ -15,7 +15,6 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-import com.github.tjake.jlama.cli.JlamaCli;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import java.io.File;
@@ -33,16 +32,22 @@ public class QuantizeCommand extends SimpleBaseCommand {
     @CommandLine.Option(names = { "--quantization" }, paramLabel = "ARG", description = "Model quantization type", arity = "1")
     protected DType modelQuantization;
 
-    @CommandLine.Option(names = {  "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize")
+    @CommandLine.Option(names = { "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize")
     protected String[] skipLayerPrefixes;
 
-    @CommandLine.Option(names = {  "--drop-layer" }, paramLabel = "ARG", description = "Layer name prefix to drop")
+    @CommandLine.Option(names = { "--drop-layer" }, paramLabel = "ARG", description = "Layer name prefix to drop")
     protected String[] dropLayerPrefixes;
 
     @Override
     public void run() {
 
-        Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
+        Path modelPath = SimpleBaseCommand.getModel(
+            modelName,
+            modelDirectory,
+            downloadSection.autoDownload,
+            downloadSection.branch,
+            downloadSection.authToken
+        );
         File model = modelPath.toFile();
 
         if (!model.exists()) {

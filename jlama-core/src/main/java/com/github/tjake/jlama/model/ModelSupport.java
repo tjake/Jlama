@@ -44,7 +44,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,20 +82,32 @@ public class ModelSupport {
 
     /** Shortcut for loading a model for embeddings */
     public static AbstractModel loadEmbeddingModel(File model, DType workingMemoryType, DType workingQuantizationType) {
-        return loadModel(AbstractModel.InferenceType.FULL_EMBEDDING, model, null, workingMemoryType, workingQuantizationType, Optional.empty(), Optional.empty(), Optional.empty(), SafeTensorSupport::loadWeights);
+        return loadModel(
+            AbstractModel.InferenceType.FULL_EMBEDDING,
+            model,
+            null,
+            workingMemoryType,
+            workingQuantizationType,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            SafeTensorSupport::loadWeights
+        );
     }
 
     /** Shortcut for loading a model for embeddings */
     public static AbstractModel loadClassifierModel(File model, DType workingMemoryType, DType workingQuantizationType) {
-        return loadModel(AbstractModel.InferenceType.FULL_CLASSIFICATION,
-                model,
-                null,
-                workingMemoryType,
-                workingQuantizationType,
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                SafeTensorSupport::loadWeights);
+        return loadModel(
+            AbstractModel.InferenceType.FULL_CLASSIFICATION,
+            model,
+            null,
+            workingMemoryType,
+            workingQuantizationType,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            SafeTensorSupport::loadWeights
+        );
     }
 
     public static AbstractModel loadModel(

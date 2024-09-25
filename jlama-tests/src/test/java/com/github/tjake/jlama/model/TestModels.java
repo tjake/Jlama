@@ -18,13 +18,7 @@ package com.github.tjake.jlama.model;
 import static com.github.tjake.jlama.util.JsonSupport.om;
 
 import com.github.tjake.jlama.math.VectorMath;
-import com.github.tjake.jlama.model.bert.BertConfig;
-import com.github.tjake.jlama.model.bert.BertModel;
-import com.github.tjake.jlama.model.bert.BertTokenizer;
 import com.github.tjake.jlama.model.functions.Generator;
-import com.github.tjake.jlama.model.gpt2.GPT2Config;
-import com.github.tjake.jlama.model.gpt2.GPT2Model;
-import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
@@ -35,10 +29,7 @@ import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.BPETokenizer;
-import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -70,9 +61,9 @@ public class TestModels {
 
         AbstractModel gpt2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
         PromptContext prompt = PromptContext.of(
-                "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
-                        + "previously unexplored valley, in the Andes Mountains. "
-                        + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
+            "In a shocking finding, scientist discovered a herd of unicorns living in a remote, "
+                + "previously unexplored valley, in the Andes Mountains. "
+                + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
         );
 
         gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
@@ -283,16 +274,9 @@ public class TestModels {
         AbstractModel model = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
 
         String base = "A man is eating food.";
-        String[] examples = new String[] {
-            "A man is eating a piece of bread.",
-            "The girl is carrying a baby.",
-            "A man is riding a horse.",
-            "A woman is playing violin.",
-            "Two men pushed carts through the woods.",
-            "A man is riding a white horse on an enclosed ground.",
-            "A monkey is playing drums.",
-            "Someone in a gorilla costume is playing a set of drums."
-        };
+        String[] examples = new String[] { "A man is eating a piece of bread.", "The girl is carrying a baby.", "A man is riding a horse.",
+            "A woman is playing violin.", "Two men pushed carts through the woods.", "A man is riding a white horse on an enclosed ground.",
+            "A monkey is playing drums.", "Someone in a gorilla costume is playing a set of drums." };
 
         float[] be = model.embed(base, Generator.PoolingType.AVG);
         logger.info("base is {}", base);

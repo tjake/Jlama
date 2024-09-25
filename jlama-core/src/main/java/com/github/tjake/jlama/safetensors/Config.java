@@ -21,7 +21,6 @@ import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.TensorCache;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.io.Files;
 import java.io.File;
@@ -55,36 +54,36 @@ public class Config {
     public final TensorCache tensorCache;
 
     public Config(
-            int contextLength,
-            int embeddingLength,
-            int hiddenLength,
-            int numberOfHeads,
-            int numberOfKeyValueHeads,
-            int numberOfLayers,
-            float layerNormEps,
-            int vocabularySize,
-            int bosToken,
-            List<Integer> eosToken,
-            ActivationFunction.Type activationFunction,
-            Double ropeFreqsTheta,
-            Double ropeScalingFactor
+        int contextLength,
+        int embeddingLength,
+        int hiddenLength,
+        int numberOfHeads,
+        int numberOfKeyValueHeads,
+        int numberOfLayers,
+        float layerNormEps,
+        int vocabularySize,
+        int bosToken,
+        List<Integer> eosToken,
+        ActivationFunction.Type activationFunction,
+        Double ropeFreqsTheta,
+        Double ropeScalingFactor
     ) {
         this(
-                contextLength,
-                embeddingLength,
-                hiddenLength,
-                numberOfHeads,
-                numberOfKeyValueHeads,
-                numberOfLayers,
-                layerNormEps,
-                vocabularySize,
-                bosToken,
-                eosToken,
-                activationFunction,
-                ropeFreqsTheta,
-                ropeScalingFactor,
-                null,
-                embeddingLength / numberOfHeads
+            contextLength,
+            embeddingLength,
+            hiddenLength,
+            numberOfHeads,
+            numberOfKeyValueHeads,
+            numberOfLayers,
+            layerNormEps,
+            vocabularySize,
+            bosToken,
+            eosToken,
+            activationFunction,
+            ropeFreqsTheta,
+            ropeScalingFactor,
+            null,
+            embeddingLength / numberOfHeads
         );
     }
 
@@ -163,8 +162,7 @@ public class Config {
                 VectorMath.precomputeFreqsCis(headSize, contextLength, ropeFreqsTheta, ropeScalingFactor == null ? 1.0 : ropeScalingFactor)
             );
 
-        this.classifcationLabels = classifcationLabels == null ? Optional.empty() :
-                Optional.of(ImmutableBiMap.copyOf(classifcationLabels));
+        this.classifcationLabels = classifcationLabels == null ? Optional.empty() : Optional.of(ImmutableBiMap.copyOf(classifcationLabels));
 
         // Set default values
         this.dctx = DistributedContext.builder(this).build();

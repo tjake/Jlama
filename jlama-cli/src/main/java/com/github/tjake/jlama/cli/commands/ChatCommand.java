@@ -24,7 +24,6 @@ import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 
-import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -32,7 +31,6 @@ import java.util.Scanner;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
-import picocli.CommandLine;
 import picocli.CommandLine.*;
 
 @Command(name = "chat", description = "Interact with the specified model", abbreviateSynopsis = true)
@@ -45,7 +43,13 @@ public class ChatCommand extends ModelBaseCommand {
 
     @Override
     public void run() {
-        Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
+        Path modelPath = SimpleBaseCommand.getModel(
+            modelName,
+            modelDirectory,
+            downloadSection.autoDownload,
+            downloadSection.branch,
+            downloadSection.authToken
+        );
         AbstractModel m = loadModel(
             modelPath.toFile(),
             workingDirectory,
@@ -87,7 +91,15 @@ public class ChatCommand extends ModelBaseCommand {
 
             Generator.Response r = m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, makeOutHandler());
 
-            out.println("\n\n"+ statsColor.format(Math.round(r.promptTimeMs / (double)r.promptTokens) + " ms/tok (prompt), " +  Math.round(r.generateTimeMs / (double)r.generatedTokens) + " ms/tok (gen)"));
+            out.println(
+                "\n\n"
+                    + statsColor.format(
+                        Math.round(r.promptTimeMs / (double) r.promptTokens)
+                            + " ms/tok (prompt), "
+                            + Math.round(r.generateTimeMs / (double) r.generatedTokens)
+                            + " ms/tok (gen)"
+                    )
+            );
 
             first = false;
         }

@@ -48,7 +48,17 @@ public class DistributedServiceTest {
 
         Assume.assumeTrue(Files.exists(modelRoot));
 
-        Coordinator coordinator = new Coordinator(modelRoot.toFile(), modelOwner, modelName, DType.Q4, null, 8888, 4, Optional.empty(), Optional.empty());
+        Coordinator coordinator = new Coordinator(
+            modelRoot.toFile(),
+            modelOwner,
+            modelName,
+            DType.Q4,
+            null,
+            8888,
+            4,
+            Optional.empty(),
+            Optional.empty()
+        );
         try {
             new Thread(() -> {
                 try {
@@ -76,7 +86,21 @@ public class DistributedServiceTest {
     }
 
     private void startWorker(Path modelRoot, String modelOwner, String modelName) throws Exception {
-        Worker worker = new Worker(modelRoot.toFile(), modelOwner, modelName, DType.Q4,"localhost", 8888, null, DType.F32, DType.I8, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        Worker worker = new Worker(
+            modelRoot.toFile(),
+            modelOwner,
+            modelName,
+            DType.Q4,
+            "localhost",
+            8888,
+            null,
+            DType.F32,
+            DType.I8,
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty(),
+            Optional.empty()
+        );
         new Thread(() -> {
             try {
                 worker.run();

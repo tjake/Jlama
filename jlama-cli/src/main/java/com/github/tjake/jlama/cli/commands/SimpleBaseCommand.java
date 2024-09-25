@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -39,17 +38,20 @@ public class SimpleBaseCommand extends JlamaCli {
     @CommandLine.ArgGroup(exclusive = false, heading = "Download Options:%n")
     protected DownloadSection downloadSection = new DownloadSection();
 
-    @CommandLine.Option(names = { "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
+    @CommandLine.Option(names = {
+        "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
     protected File modelDirectory = new File("models");
 
     @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;
 
     static class DownloadSection {
-        @CommandLine.Option(names = {"--auto-download" }, paramLabel = "ARG", description = "Download the model if missing (default: ${DEFAULT-VALUE})", defaultValue = "false")
+        @CommandLine.Option(names = {
+            "--auto-download" }, paramLabel = "ARG", description = "Download the model if missing (default: ${DEFAULT-VALUE})", defaultValue = "false")
         Boolean autoDownload = false;
 
-        @CommandLine.Option(names = { "--branch" }, paramLabel = "ARG", description = "The model branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
+        @CommandLine.Option(names = {
+            "--branch" }, paramLabel = "ARG", description = "The model branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")
         String branch = "main";
 
         @CommandLine.Option(names = { "--auth-token" }, paramLabel = "ARG", description = "HuggingFace auth token (for restricted models)")
@@ -75,14 +77,11 @@ public class SimpleBaseCommand extends JlamaCli {
     }
 
     static Optional<TriConsumer<String, Long, Long>> getProgressConsumer() {
-        if (System.console() == null)
-            return Optional.empty();
+        if (System.console() == null) return Optional.empty();
 
         return Optional.of((n, c, t) -> {
             if (progressRef.get() == null || !progressRef.get().getTaskName().equals(n)) {
-                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(n)
-                        .setInitialMax(t)
-                        .setStyle(ProgressBarStyle.ASCII);
+                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(n).setInitialMax(t).setStyle(ProgressBarStyle.ASCII);
 
                 if (t > 1000000) {
                     builder.setUnit("MB", 1000000);
@@ -103,13 +102,13 @@ public class SimpleBaseCommand extends JlamaCli {
     static void downloadModel(String owner, String name, File modelDirectory, String branch, String authToken, boolean downloadWeights) {
         try {
             SafeTensorSupport.maybeDownloadModel(
-                    modelDirectory.getAbsolutePath(),
-                    Optional.ofNullable(owner),
-                    name,
-                    downloadWeights,
-                    Optional.ofNullable(URLEncoder.encode(branch)),
-                    Optional.ofNullable(authToken),
-                    getProgressConsumer()
+                modelDirectory.getAbsolutePath(),
+                Optional.ofNullable(owner),
+                name,
+                downloadWeights,
+                Optional.ofNullable(URLEncoder.encode(branch)),
+                Optional.ofNullable(authToken),
+                getProgressConsumer()
             );
         } catch (IOException e) {
             e.printStackTrace();
@@ -121,7 +120,14 @@ public class SimpleBaseCommand extends JlamaCli {
         return getModel(modelName, modelDirectory, autoDownload, branch, authToken, true);
     }
 
-    static Path getModel(String modelName, File modelDirectory, boolean autoDownload, String branch, String authToken, boolean downloadWeights) {
+    static Path getModel(
+        String modelName,
+        File modelDirectory,
+        boolean autoDownload,
+        String branch,
+        String authToken,
+        boolean downloadWeights
+    ) {
         String owner = getOwner(modelName);
         String name = getName(modelName);
 

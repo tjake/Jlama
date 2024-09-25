@@ -72,16 +72,9 @@ public class TestSample {
         AbstractModel m = ModelSupport.loadEmbeddingModel(localModelPath, DType.F32, DType.I8);
 
         String base = "A man is eating food.";
-        String[] examples = new String[] {
-                "A man is eating a piece of bread.",
-                "The girl is carrying a baby.",
-                "A man is riding a horse.",
-                "A woman is playing violin.",
-                "Two men pushed carts through the woods.",
-                "A man is riding a white horse on an enclosed ground.",
-                "A monkey is playing drums.",
-                "Someone in a gorilla costume is playing a set of drums."
-        };
+        String[] examples = new String[] { "A man is eating a piece of bread.", "The girl is carrying a baby.", "A man is riding a horse.",
+            "A woman is playing violin.", "Two men pushed carts through the woods.", "A man is riding a white horse on an enclosed ground.",
+            "A monkey is playing drums.", "Someone in a gorilla costume is playing a set of drums." };
 
         float[] be = m.embed(base, Generator.PoolingType.AVG);
         float maxc = 0.0f;

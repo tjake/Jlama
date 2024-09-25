@@ -138,7 +138,6 @@ public interface Generator {
         BiConsumer<String, Float> onTokenWithTimings
     );
 
-
     enum PoolingType {
         MODEL, // Use the model's pooling layers
         AVG,

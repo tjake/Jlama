@@ -17,7 +17,6 @@ package com.github.tjake.jlama.cli.commands;
 
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -40,7 +39,8 @@ import picocli.CommandLine;
 public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(ApiServiceCommand.class);
 
-    @CommandLine.Option(names = { "--port" }, paramLabel = "ARG", description = "http port (default: ${DEFAULT-VALUE})", defaultValue = "8080")
+    @CommandLine.Option(names = {
+        "--port" }, paramLabel = "ARG", description = "http port (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
     protected static volatile Generator m;
@@ -58,7 +58,13 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     @Override
     public void run() {
         try {
-            Path modelPath = SimpleBaseCommand.getModel(modelName, modelDirectory, downloadSection.autoDownload, downloadSection.branch, downloadSection.authToken);
+            Path modelPath = SimpleBaseCommand.getModel(
+                modelName,
+                modelDirectory,
+                downloadSection.autoDownload,
+                downloadSection.branch,
+                downloadSection.authToken
+            );
 
             m = loadModel(
                 modelPath.toFile(),

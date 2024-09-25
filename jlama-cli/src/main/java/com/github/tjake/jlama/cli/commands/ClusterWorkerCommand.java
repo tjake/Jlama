@@ -17,7 +17,6 @@ package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.net.Worker;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -41,7 +40,8 @@ public class ClusterWorkerCommand extends BaseCommand {
         "--worker-id" }, paramLabel = "ARG", description = "consistent name to use when register this worker with the coordinator")
     String workerId = useHostnameAsWorkerId ? HOSTNAME : null;
 
-    @CommandLine.Option(names = { "--model-type"}, paramLabel = "ARG", description = "The models base type Q4/F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "Q4")
+    @CommandLine.Option(names = {
+        "--model-type" }, paramLabel = "ARG", description = "The models base type Q4/F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "Q4")
     DType modelType = DType.Q4;
 
     @Override
@@ -49,7 +49,14 @@ public class ClusterWorkerCommand extends BaseCommand {
         try {
             if (workerId != null) System.out.println("Using " + workerId + " as worker id");
 
-            Path model = SimpleBaseCommand.getModel(modelName, modelDirectory, true, downloadSection.branch, downloadSection.authToken, false);
+            Path model = SimpleBaseCommand.getModel(
+                modelName,
+                modelDirectory,
+                true,
+                downloadSection.branch,
+                downloadSection.authToken,
+                false
+            );
 
             Worker w = new Worker(
                 model.toFile(),
@@ -63,8 +70,8 @@ public class ClusterWorkerCommand extends BaseCommand {
                 advancedSection.workingQuantizationType,
                 Optional.ofNullable(advancedSection.modelQuantization),
                 Optional.ofNullable(workerId),
-                    Optional.ofNullable(downloadSection.authToken),
-                    Optional.ofNullable(downloadSection.branch)
+                Optional.ofNullable(downloadSection.authToken),
+                Optional.ofNullable(downloadSection.branch)
             );
 
             w.run();

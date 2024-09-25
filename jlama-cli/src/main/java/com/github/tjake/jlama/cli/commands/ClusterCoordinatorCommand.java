@@ -34,8 +34,8 @@ import java.util.Optional;
 @Configuration
 public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMvcConfigurer {
 
-    @CommandLine.Option(names = { "--worker-count" }, paramLabel = "ARG",
-            description = "signifies this instance is a coordinator", required = true)
+    @CommandLine.Option(names = {
+        "--worker-count" }, paramLabel = "ARG", description = "signifies this instance is a coordinator", required = true)
     int workerCount = 1;
 
     @CommandLine.Option(names = {
@@ -46,7 +46,8 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
         "--port" }, paramLabel = "ARG", description = "http port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "8080")
     int port = 8080;
 
-    @CommandLine.Option(names = { "--model-type"}, paramLabel = "ARG", description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
+    @CommandLine.Option(names = {
+        "--model-type" }, paramLabel = "ARG", description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
     DType modelType = DType.F32;
 
     @Override
@@ -58,19 +59,27 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
     public void run() {
         try {
 
-            //Download the model metadata
-            Path model = SimpleBaseCommand.getModel(modelName, modelDirectory, true, downloadSection.branch, downloadSection.authToken, false);
+            // Download the model metadata
+            Path model = SimpleBaseCommand.getModel(
+                modelName,
+                modelDirectory,
+                true,
+                downloadSection.branch,
+                downloadSection.authToken,
+                false
+            );
 
             Coordinator c = new Coordinator(
-                    model.toFile(),
-                    SimpleBaseCommand.getOwner(modelName),
-                    SimpleBaseCommand.getName(modelName),
-                    modelType,
-                    workingDirectory,
-                    grpcPort,
-                    workerCount,
-                    Optional.ofNullable(downloadSection.authToken),
-                    Optional.ofNullable(downloadSection.branch));
+                model.toFile(),
+                SimpleBaseCommand.getOwner(modelName),
+                SimpleBaseCommand.getName(modelName),
+                modelType,
+                workingDirectory,
+                grpcPort,
+                workerCount,
+                Optional.ofNullable(downloadSection.authToken),
+                Optional.ofNullable(downloadSection.branch)
+            );
 
             // This wires up the bean for the rest api
             ApiServiceCommand.m = c;

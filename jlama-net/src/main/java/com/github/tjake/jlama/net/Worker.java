@@ -38,7 +38,6 @@ import java.io.*;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -90,8 +89,8 @@ public class Worker implements Closeable {
         );
 
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
-                ? b -> SafeTensorSupport.loadWeights(modelPath)
-                : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
+            ? b -> SafeTensorSupport.loadWeights(modelPath)
+            : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
 
         this.model = loadModel(
             AbstractModel.InferenceType.FORWARD_PASS,

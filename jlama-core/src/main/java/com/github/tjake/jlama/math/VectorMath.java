@@ -103,7 +103,7 @@ public class VectorMath {
         }
         double magnitude = Math.sqrt(sum);
         for (int i = 0; i < x.shape().last(); i++)
-            x.set((float)(x.get(0, i) / magnitude), 0, i);
+            x.set((float) (x.get(0, i) / magnitude), 0, i);
     }
 
     public static void l2normalize(float[] x) {

@@ -19,7 +19,6 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.core.ConsoleAppender;
 import com.github.tjake.jlama.cli.commands.*;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,18 +31,7 @@ import static java.util.Arrays.asList;
 import static picocli.CommandLine.Help.Column.Overflow.*;
 import static picocli.CommandLine.Model.UsageMessageSpec.*;
 
-@Command(name = "jlama",
-        sortOptions = false,
-        headerHeading = "Usage:%n",
-        synopsisHeading = "%n",
-        descriptionHeading = "%nDescription:%n%n",
-        parameterListHeading = "%nParameters:%n",
-        optionListHeading = "%nCommand Options:%n",
-        mixinStandardHelpOptions = true,
-        usageHelpAutoWidth = true,
-        requiredOptionMarker = '*',
-        description = "Jlama is a modern LLM inference engine for Java!\nQuantized models are maintained at https://hf.co/tjake\n\nChoose from the available commands:",
-        defaultValueProvider = PropertiesDefaultProvider.class)
+@Command(name = "jlama", sortOptions = false, headerHeading = "Usage:%n", synopsisHeading = "%n", descriptionHeading = "%nDescription:%n%n", parameterListHeading = "%nParameters:%n", optionListHeading = "%nCommand Options:%n", mixinStandardHelpOptions = true, usageHelpAutoWidth = true, requiredOptionMarker = '*', description = "Jlama is a modern LLM inference engine for Java!\nQuantized models are maintained at https://hf.co/tjake\n\nChoose from the available commands:", defaultValueProvider = PropertiesDefaultProvider.class)
 public class JlamaCli implements Runnable {
     static {
         setupLogging();
@@ -156,20 +144,21 @@ public class JlamaCli implements Runnable {
             // prepare layout: two columns
             // the left column overflows, the right column wraps if text is too long
             int commandLength = maxLength(spec.subcommands(), 37);
-            Help.TextTable textTable = Help.TextTable.forColumns(help.colorScheme(),
-                    new CommandLine.Help.Column(commandLength + 2, 2, SPAN),
-                    new CommandLine.Help.Column(spec.usageMessage().width() - (commandLength + 2), 2, WRAP));
-            textTable.setAdjustLineBreaksForWideCJKCharacters(
-                    spec.usageMessage().adjustLineBreaksForWideCJKCharacters());
+            Help.TextTable textTable = Help.TextTable.forColumns(
+                help.colorScheme(),
+                new CommandLine.Help.Column(commandLength + 2, 2, SPAN),
+                new CommandLine.Help.Column(spec.usageMessage().width() - (commandLength + 2), 2, WRAP)
+            );
+            textTable.setAdjustLineBreaksForWideCJKCharacters(spec.usageMessage().adjustLineBreaksForWideCJKCharacters());
             return textTable;
         }
 
         private static int maxLength(Map<String, CommandLine> subcommands, int max) {
             int result = subcommands.values()
-                    .stream()
-                    .map(cmd -> cmd.getCommandSpec().names().toString().length() - 2)
-                    .max(Integer::compareTo)
-                    .get();
+                .stream()
+                .map(cmd -> cmd.getCommandSpec().names().toString().length() - 2)
+                .max(Integer::compareTo)
+                .get();
             return Math.min(max, result);
         }
 

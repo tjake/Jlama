@@ -35,7 +35,11 @@ import java.util.zip.GZIPInputStream;
 public class HttpSupport {
     public static final Logger logger = LoggerFactory.getLogger(HttpSupport.class);
 
-    public static Pair<InputStream, Long> getResponse(String urlString, Optional<String> optionalAuthHeader, Optional<Pair<Long, Long>> optionalByteRange) throws IOException {
+    public static Pair<InputStream, Long> getResponse(
+        String urlString,
+        Optional<String> optionalAuthHeader,
+        Optional<Pair<Long, Long>> optionalByteRange
+    ) throws IOException {
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
@@ -95,7 +99,8 @@ public class HttpSupport {
 
         Pair<InputStream, Long> stream = getResponse(
             "https://huggingface.co/" + hfModel + "/resolve/" + optionalBranch.orElse("main") + "/" + currFile,
-            optionalAuthHeader, optionalByteRange
+            optionalAuthHeader,
+            optionalByteRange
         );
 
         CountingInputStream inStream = new CountingInputStream(stream.left);
