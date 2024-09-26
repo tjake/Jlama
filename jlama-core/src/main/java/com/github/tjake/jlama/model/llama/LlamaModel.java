@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 public class LlamaModel extends AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
+    private AbstractTensor wte;
 
     public LlamaModel(
         Config config,
@@ -66,7 +67,7 @@ public class LlamaModel extends AbstractModel {
     protected EmbedInput loadInputWeights() {
 
         // Don't quantize this, it's used for the embedding layer
-        final AbstractTensor wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
+        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
 
         return (inputToken, position) -> {
             AbstractTensor embedding = makeDenseTensor(1, c.embeddingLength);
@@ -130,8 +131,11 @@ public class LlamaModel extends AbstractModel {
     protected SampleOutput loadOutputWeights() {
         DType qType = modelQType.orElse(this.modelDType);
         final LayerNorm outputLayerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType));
-        final AbstractTensor classificationWeights = weights.load("lm_head.weight").quantize(workingDType); // Don't quantize this, it's the
-                                                                                                            // output layer
+
+        //Some llama models don't have a classification head
+        AbstractTensor classificationWeights = weights.isWeightPresent("lm_head.weight")
+                ? weights.load("lm_head.weight").quantize(workingDType)
+                : wte == null ? wte = weights.load("model.embed_tokens.weight") : wte;
 
         return new SampleOutput() {
             @Override
