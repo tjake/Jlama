@@ -15,6 +15,8 @@
  */
 package com.github.tjake.jlama.math;
 
+import net.jafama.FastMath;
+
 public class ActivationFunction {
 
     public enum Type {
@@ -25,15 +27,9 @@ public class ActivationFunction {
 
     public static float eval(Type t, float x) {
         return switch (t) {
-            case SILU -> (float) (x * (1.0f / (1.0f + exp(-x))));
-            case GELU -> (float) (0.5 * x * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (x + 0.044715 * Math.pow(x, 3)))));
-            case TANH -> (float) Math.tanh(x);
+            case SILU -> (float) (x * (1.0f / (1.0f + FastMath.exp(-x))));
+            case GELU -> (float) (0.5 * x * (1 + FastMath.tanh(FastMath.sqrt(2 / Math.PI) * (x + 0.044715 * FastMath.pow(x, 3)))));
+            case TANH -> (float) FastMath.tanh(x);
         };
-    }
-
-    // https://martin.ankerl.com/2007/02/11/optimized-exponential-functions-for-java/
-    public static double exp(float val) {
-        final long tmp = (long) (1512775 * val) + (1072693248 - 60801);
-        return Double.longBitsToDouble(tmp << 32);
     }
 }

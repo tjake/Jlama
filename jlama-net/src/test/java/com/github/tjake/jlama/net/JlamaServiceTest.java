@@ -60,7 +60,7 @@ public class JlamaServiceTest {
         grpcCleanup.register(
             InProcessServerBuilder.forName(serverName)
                 .directExecutor()
-                .addService(new JlamaService(new MockModel(modelConfig), 4))
+                .addService(new JlamaService(new MockModel(modelConfig), 4, true, false))
                 .build()
                 .start()
         );

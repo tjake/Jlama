@@ -51,12 +51,12 @@ RUN apt-get update
 RUN apt-get install -y procps curl gzip
 
 LABEL org.opencontainers.image.source=https://github.com/tjake/Jlama
+RUN mkdir -p /profiler && curl -s -L https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz | tar zxvf - -C /profiler
 
 COPY inlinerules.json inlinerules.json
 COPY run-cli.sh run-cli.sh
 COPY conf/logback.xml logback.xml
 COPY --from=builder /build/jlama-cli/target/jlama-cli.jar ./jlama-cli.jar
-RUN mkdir -p /profiler && curl -s -L https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz | tar zxvf - -C /profiler
 
 ENV JLAMA_PREINSTALLED_JAR=/jlama-cli.jar
 ENV JLAMA_JVM_ARGS="-Dlogback.configurationFile=./logback.xml"

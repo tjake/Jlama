@@ -50,6 +50,8 @@ public class Coordinator implements Generator {
     private static final ConcurrentMap<UUID, Integer> sessionPositions = new ConcurrentHashMap<>();
     private final int port;
     private final int workerCount;
+    private final boolean splitHeads;
+    private final boolean splitLayers;
     private final Server server;
     private final AbstractModel model;
     private final JlamaService service;
@@ -62,10 +64,12 @@ public class Coordinator implements Generator {
         File workingDirectory,
         int port,
         int workerCount,
+        boolean splitHeads,
+        boolean splitLayers,
         Optional<String> authToken,
         Optional<String> branch
     ) {
-        Preconditions.checkArgument(workerCount != 0 && ((workerCount & (workerCount - 1)) == 0), "worker count must be a power of 2");
+        Preconditions.checkArgument(workerCount > 0 && (workerCount % 2 == 0), "worker count must be a positive even number");
 
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
             ? b -> SafeTensorSupport.loadWeights(modelPath)
@@ -84,7 +88,12 @@ public class Coordinator implements Generator {
         );
         this.port = port;
         this.workerCount = workerCount;
-        this.service = new JlamaService(model, workerCount);
+        this.splitHeads = splitHeads;
+        this.splitLayers = splitLayers;
+        if (!splitHeads && !splitLayers) {
+            throw new IllegalArgumentException("Must split by heads and/or layers");
+        }
+        this.service = new JlamaService(model, workerCount, splitHeads, splitLayers);
         this.server = ServerBuilder.forPort(port).addService(service).build();
     }
 
@@ -137,7 +146,7 @@ public class Coordinator implements Generator {
             StringBuilder responseWithSpecialTokens = new StringBuilder();
 
             int startPos = sessionPositions.computeIfAbsent(session, s -> 0);
-
+            logger.info("Generating tokens for session {} starting at position {}", session, startPos);
             FinishReason finishReason = FinishReason.MAX_TOKENS;
             long[] encoded = model.getTokenizer().encode(promptContext.getPrompt());
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
@@ -187,6 +196,8 @@ public class Coordinator implements Generator {
                 tokensGenerated++;
                 sessionPositions.put(session, lastPosition++);
             }
+
+            logger.info("Ended session {} at position {}", session, lastPosition);
 
             return new Generator.Response(
                 responseBuilder.toString(),

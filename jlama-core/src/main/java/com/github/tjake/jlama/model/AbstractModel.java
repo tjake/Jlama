@@ -230,13 +230,7 @@ public abstract class AbstractModel implements Generator {
         debug("EMBEDDING TOKEN", token_id);
         debug("TOKEN POSITION", pos);
 
-        for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
-            AbstractTensor ref = embedding; // reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, pos, kvbuf, tensorReducer);
-            ref.close();
-        }
-
-        return embedding;
+        return forward(embedding, pos, kvbuf, tensorReducer);
     }
 
     protected AbstractTensor batchForwardSlow(int[] token_ids, int startPos, KvBufferCache.KvBuffer kvbuf) {
@@ -260,9 +254,19 @@ public abstract class AbstractModel implements Generator {
         Optional<Consumer<List<AbstractTensor>>> tensorReducer
     ) {
         AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
+        return forward(embedding, startPos, kvbuf, tensorReducer);
+    }
+
+    public AbstractTensor forward(
+            AbstractTensor embedding,
+            int startPos,
+            KvBufferCache.KvBuffer kvbuf,
+            Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+
         for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
+            int relativeLayer = i - c.dctx().layerStart;
             AbstractTensor ref = embedding; // reference so we can free
-            embedding = transformerBlocks[i].forward(embedding, startPos, kvbuf, tensorReducer);
+            embedding = transformerBlocks[relativeLayer].forward(embedding, startPos, kvbuf, tensorReducer);
             ref.close();
         }
 

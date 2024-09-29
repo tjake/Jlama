@@ -93,11 +93,14 @@ public class LlamaModel extends AbstractModel {
         TransformerBlock[] transformerBlocks = new TransformerBlock[c.dctx().numberOfLayers];
 
         IntStream.range(c.dctx().layerStart, c.dctx().layerEnd).parallel().forEach(i -> {
+
+            int relativeLayer = i - c.dctx().layerStart; //FIXME: add a helper to the context
+
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
                 this,
-                i,
+                relativeLayer,
                 weights.load(prefix + "q_proj.weight", c.dctx(), true, false).quantize(qType),
                 weights.load(prefix + "k_proj.weight", c.dctx(), true, false).quantize(qType),
                 weights.load(prefix + "v_proj.weight", c.dctx(), true, false).quantize(qType),
@@ -114,9 +117,9 @@ public class LlamaModel extends AbstractModel {
                 weights.load(prefix + "up_proj.weight", c.dctx(), true, false).quantize(qType)
             ); // w3
 
-            transformerBlocks[i] = new TransformerBlock(
+            transformerBlocks[relativeLayer] = new TransformerBlock(
                 this,
-                i,
+                relativeLayer,
                 new RMSNorm(this, weights.load(base + "input_layernorm.weight").quantize(qType)),
                 attention,
                 new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight").quantize(qType)),

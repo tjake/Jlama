@@ -16,6 +16,7 @@
 package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import net.jafama.FastMath;
 
 public class RMSNorm extends LayerNorm {
     private final float weightAdjustment;
@@ -45,7 +46,7 @@ public class RMSNorm extends LayerNorm {
 
             ss /= m.c.embeddingLength;
             ss += m.c.layerNormEps;
-            ss = (1.0 / StrictMath.sqrt(ss));
+            ss = (1.0 / FastMath.sqrt(ss));
             // normalize and scale
             for (int j = offset; j < limit; j++) {
                 output.set((weightAdjustment + weights.get(0, j)) * ((float) ss * input.get(b, j)), b, j);

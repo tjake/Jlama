@@ -17,7 +17,9 @@ package com.github.tjake.jlama.net.grpc;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.net.*;
+import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -40,22 +42,76 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(JlamaService.class);
     private final AbstractModel model;
     private final int workerCount;
+    private final boolean splitHeads;
+    private final boolean splitLayers;
+    private final int headsPerLayerSplit;
+    private final int layersPerWorker;
     private final ConcurrentMap<UUID, RegisterResponse> workers;
+    private final ConcurrentMap<UUID, Runnable> discoveryActions;
 
     private final GeneratorGroup generatorGroup;
 
     private final ConcurrentMap<String, MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>>> combinations;
 
-    public JlamaService(AbstractModel model, int workerCount) {
+    public JlamaService(AbstractModel model, int workerCount, boolean splitHeads, boolean splitLayers) {
         Preconditions.checkArgument(
-            workerCount <= model.getConfig().numberOfKeyValueHeads,
-            "Worker count must be less than or equal to number of KV heads"
+            !splitHeads || splitLayers || workerCount <= model.getConfig().numberOfKeyValueHeads,
+            "Worker count must be less than or equal to number of KV heads if not splitting layers"
         );
         this.model = model;
         this.workerCount = workerCount;
+        this.splitHeads = splitHeads;
+        this.splitLayers = splitLayers;
         this.workers = new ConcurrentHashMap<>();
+        this.discoveryActions = new ConcurrentHashMap<>();
         this.combinations = new ConcurrentHashMap<>();
         this.generatorGroup = new GeneratorGroup();
+
+        int tmpHeadsPerLayerSplit = splitHeads ? model.getConfig().numberOfKeyValueHeads / workerCount : model.getConfig().numberOfKeyValueHeads;
+        int tmpLayersPerWorker = splitLayers ? model.getConfig().numberOfLayers / workerCount : model.getConfig().numberOfLayers;
+
+        // Calculate the number of parameters per layer and use it to determine the number of heads to split per worker
+        if (splitLayers && splitHeads) {
+            throw new RuntimeException("Not yet supporting splitting layers and heads together");
+
+            /*Config c = model.getConfig();
+            long queryParams = (long) c.numberOfKeyValueHeads * c.embeddingLength * c.embeddingLength;
+            long keyValueParams = 2L * c.numberOfHeads * c.embeddingLength * c.embeddingLength;
+
+            // Total attention parameters with GQA
+            long attentionParams = queryParams + keyValueParams;
+
+            // Calculate the parameters for the feedforward network
+            long feedforwardParams =
+                    2L * ((long) c.embeddingLength * c.hiddenLength + (long) c.hiddenLength * c.embeddingLength);
+
+            // Calculate the parameters for layer normalization (2 * hiddenSize for scaling and shifting)
+            long layerNormParams = 2L * c.embeddingLength;
+
+            // Parameters per transformer layer
+            long paramsPerLayer = attentionParams + feedforwardParams + layerNormParams;
+
+            // Calculate the number of heads per layer split
+
+            // Aim for ~3B parameters per worker
+            long idealParamsPerWorker = 3L * 1_000_000_000L;
+            long paramsPerWorker = tmpLayersPerWorker * paramsPerLayer;
+
+            if (paramsPerWorker > idealParamsPerWorker)
+            {
+                tmpHeadsPerLayerSplit = Math.min(c.numberOfKeyValueHeads, (int) (idealParamsPerWorker / paramsPerLayer));
+            }
+            else
+            {
+                tmpHeadsPerLayerSplit = c.numberOfKeyValueHeads;
+            }*/
+        }
+
+        this.layersPerWorker = tmpLayersPerWorker;
+        this.headsPerLayerSplit = tmpHeadsPerLayerSplit;
+
+        logger.info("Layers per worker {}/{} headsPerLayerSplit {}/{}", layersPerWorker, model.getConfig().numberOfLayers,
+                headsPerLayerSplit, model.getConfig().numberOfKeyValueHeads);
     }
 
     public void waitForReady() {
@@ -100,10 +156,12 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 int workerNum = workers.size();
 
                 RegisterResponse r = RegisterResponse.newBuilder()
-                    .setModelShard(workerNum)
-                    .setNumModelShards(workerCount)
-                    .setLayerShard(0)
-                    .setNumLayerShards(1)
+                        .setHostname(request.getHostname())
+                        .setPeerPort(request.getPeerPort())
+                    .setModelShard(splitHeads ? workerNum : 0)
+                    .setNumModelShards(splitHeads ? workerCount : 1)
+                    .setLayerShard(splitLayers ? workerNum : 0)
+                    .setNumLayerShards(splitLayers ? workerCount : 1)
                     .build();
 
                 workers.put(wid, r);
@@ -111,6 +169,70 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
                 responseObserver.onNext(r);
                 responseObserver.onCompleted();
+            }
+        }
+    }
+
+    /**
+     * Sends to the requesting peer the other peer it should connect to.
+     * @param request
+     * @param responseObserver
+     */
+    @Override
+    public void discover(RegisterRequest request, StreamObserver<PeerInfo> responseObserver) {
+        ByteBuffer bb = request.getWorkerid().asReadOnlyByteBuffer();
+        UUID wid = new UUID(bb.getLong(), bb.getLong());
+        //Register should have been called before this
+        if (!workers.containsKey(wid)) {
+            responseObserver.onError(new RuntimeException("Worker not registered"));
+        } else {
+
+            if (!splitLayers) {
+                logger.error("Discover called when splitting layers = false");
+                responseObserver.onError(new RuntimeException("Not splitting layers"));
+            }
+
+            Runnable action = () -> {
+                RegisterResponse worker = workers.get(wid);
+                int thisWorkersLayerShard = worker.getLayerShard();
+                if (worker.getLayerShard() == workerCount - 1) {
+                    responseObserver.onNext(PeerInfo.newBuilder()
+                            .setWorkerid(request.getWorkerid())
+                            .setHostname(request.getHostname())
+                            .setPeerPort(request.getPeerPort())
+                            .setIsCoordinator(true)
+                            .build());
+
+                    responseObserver.onCompleted();
+                } else {
+                    for (RegisterResponse r : workers.values()) {
+                        if (r.getLayerShard() == thisWorkersLayerShard + 1) {
+                            responseObserver.onNext(PeerInfo.newBuilder()
+                                    .setWorkerid(r.getHostnameBytes())
+                                    .setIsCoordinator(false)
+                                    .setHostname(r.getHostname())
+                                    .setPeerPort(r.getPeerPort())
+                                    .build());
+
+                            responseObserver.onCompleted();
+                            return;
+                        }
+                    }
+
+                    responseObserver.onError(new RuntimeException("No peer found"));
+                }
+            };
+
+            // Once we have all the workers, then we can calculate the result and send it back to each worker that's waiting
+            synchronized (discoveryActions) {
+                discoveryActions.put(wid, action);
+
+                if (workers.size() == workerCount) {
+                    for (Runnable r : discoveryActions.values()) {
+                        r.run();
+                    }
+                    discoveryActions.clear();
+                }
             }
         }
     }
@@ -242,23 +364,37 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 .setStartPosition(startPosition)
                 .build();
             for (Generator g : generators) {
-                g.registerLatch(session);
-                g.responseObserver.onNext(gr);
-            }
+                if (splitLayers) {
+                    //The last worker sends back to coordinator from ring
+                    if (g.workerAssignment.getLayerShard() == workerCount - 1)
+                        g.registerLatch(session);
 
-            AbstractTensor output = model.makeDenseTensor(model.getConfig().embeddingLength);
-
-            for (int j = 0; j < workerCount; j++) {
-                Generator g = generators.get(j);
-                ByteString v = g.waitForOutput(session);
-                RegisterResponse r = workers.get(g.workerId);
-
-                if (j == 0) {
-                    output.getMemorySegment().copyFrom(MemorySegment.ofBuffer(v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
+                    // The first worker gets the request from the coordinator
+                    if (g.workerAssignment.getLayerShard() == 0)
+                        g.responseObserver.onNext(gr);
+                } else {
+                    g.registerLatch(session);
+                    g.responseObserver.onNext(gr);
                 }
             }
 
-            // logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
+            AbstractTensor output = model.makeDenseTensor(model.getConfig().embeddingLength);
+            boolean found = false;
+            for (int j = 0; j < workerCount; j++) {
+                Generator g = generators.get(j);
+                if (splitLayers && g.workerAssignment.getLayerShard() != workerCount - 1) continue;
+
+                ByteString v = g.waitForOutput(session);
+                output.getMemorySegment().copyFrom(MemorySegment.ofBuffer(v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));
+                found = true;
+                break;
+            }
+
+            if (!found) {
+                throw new RuntimeException("No output received from workers");
+            }
+
+            //logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
 
             return output;
         }
@@ -268,6 +404,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         private static final Logger logger = LoggerFactory.getLogger(Generator.class);
 
         private volatile UUID workerId;
+        private volatile RegisterResponse workerAssignment;
         private CountDownLatch readyLatch;
         private final StreamObserver<GenerateResponse> responseObserver;
         private final ConcurrentMap<UUID, ByteString> outputs;
@@ -275,6 +412,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         public Generator(StreamObserver<GenerateResponse> responseObserver) {
             this.workerId = null;
+            this.workerAssignment = null;
             this.readyLatch = new CountDownLatch(1);
             this.responseObserver = responseObserver;
             this.outputs = new ConcurrentHashMap<>();
@@ -286,6 +424,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             if (workerId == null) {
                 ByteBuffer bb = generateRequest.getWorkerid().asReadOnlyByteBuffer();
                 workerId = new UUID(bb.getLong(), bb.getLong());
+                workerAssignment = workers.get(workerId);
                 readyLatch.countDown();
                 logger.info("Worker {} ready", workerId);
                 return;
@@ -294,9 +433,9 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             ByteBuffer bb = generateRequest.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
 
-            if (outputs.containsKey(session)) {
+            /*if (outputs.containsKey(session)) {
                 logger.error("Previous output not consumed from worker {}", workerId);
-            }
+            }*/
 
             outputs.put(session, generateRequest.getTensor());
 

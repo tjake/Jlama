@@ -17,6 +17,7 @@ package com.github.tjake.jlama.model;
 
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Preconditions;
+import net.jafama.FastMath;
 
 public class LayerNorm {
 
@@ -54,7 +55,7 @@ public class LayerNorm {
 
             float mean = sum / m.c.embeddingLength;
             float variance = sumSq / m.c.embeddingLength - mean * mean;
-            float invStddev = 1.0f / (float) Math.sqrt(variance + m.c.layerNormEps);
+            float invStddev = 1.0f / (float) FastMath.sqrt(variance + m.c.layerNormEps);
 
             for (int i = offset; i < limit; i++) {
                 float v = (input.get(b, i) - mean) * invStddev * weights.get(0, i) + bias.get(0, i);

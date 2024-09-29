@@ -65,6 +65,7 @@ public class ClusterWorkerCommand extends BaseCommand {
                 modelType,
                 host,
                 grpcPort,
+                grpcPort,
                 workingDirectory,
                 advancedSection.workingMemoryType,
                 advancedSection.workingQuantizationType,

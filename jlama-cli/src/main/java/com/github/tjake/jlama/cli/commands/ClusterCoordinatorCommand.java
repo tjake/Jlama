@@ -39,6 +39,14 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
     int workerCount = 1;
 
     @CommandLine.Option(names = {
+            "--split-heads" }, paramLabel = "ARG", description = "Should coordinator split work across attention heads (default: ${DEFAULT-VALUE})", required = true)
+    boolean splitHeads = true;
+
+    @CommandLine.Option(names = {
+            "--split-layers" }, paramLabel = "ARG", description = "Should coordinator split work across layers (default: ${DEFAULT-VALUE})", required = false)
+    boolean splitLayers = false;
+
+    @CommandLine.Option(names = {
         "--grpc-port" }, paramLabel = "ARG", description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
     int grpcPort = 9777;
 
@@ -77,6 +85,8 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                 workingDirectory,
                 grpcPort,
                 workerCount,
+                splitHeads,
+                splitLayers,
                 Optional.ofNullable(downloadSection.authToken),
                 Optional.ofNullable(downloadSection.branch)
             );

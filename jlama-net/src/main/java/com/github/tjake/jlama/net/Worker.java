@@ -19,6 +19,8 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.DistributedContext;
+import com.github.tjake.jlama.net.grpc.JlamaRingWorkerService;
+import com.github.tjake.jlama.net.grpc.JlamaService;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.HTTPSafeTensorLoader;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
@@ -30,14 +32,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
-import io.grpc.Channel;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import java.io.*;
 import java.lang.foreign.MemorySegment;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -46,16 +48,39 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Worker implements Closeable {
-    private static final Logger logger = org.slf4j.LoggerFactory.getLogger(Worker.class);
+
+    private static final String HOSTNAME;
+    static {
+        try {
+            HOSTNAME = System.getenv("HOSTNAME") == null ? InetAddress.getLocalHost().getHostName() : System.getenv("HOSTNAME");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static final Logger logger = LoggerFactory.getLogger(Worker.class);
     private final UUID workerId;
+    private final KvBufferCache kvBufferCache;
     private final ByteString workerIdBytes;
-    private final AbstractModel model;
+    public final AbstractModel model;
     private final JlamaServiceGrpc.JlamaServiceStub client;
     private final JlamaServiceGrpc.JlamaServiceBlockingStub blockingClient;
     private final RegisterResponse registerResponse;
+
+    public final PeerInfo peerInfo;
+    private final JlamaWorkerRingGrpc.JlamaWorkerRingStub peerClient;
+    private final StreamObserver<PassRecord> peerStream;
+
+    private volatile StreamObserver<GenerateRequest> outputStream;
+
+    private final Server peerServer;
+    private final JlamaRingWorkerService peerService;
 
     public Worker(
         File modelPath,
@@ -63,7 +88,8 @@ public class Worker implements Closeable {
         String modelName,
         DType modelDType,
         String host,
-        int port,
+        int coordinatorPort,
+        int peerPort,
         File workingDirectory,
         DType workingMemoryType,
         DType workingQuantizationType,
@@ -72,22 +98,63 @@ public class Worker implements Closeable {
         Optional<String> authToken,
         Optional<String> branch
     ) {
-        Channel channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build();
+        Channel channel = ManagedChannelBuilder.forAddress(host, coordinatorPort).usePlaintext().build();
 
+        //Start the ring service
+        this.peerService = new JlamaRingWorkerService(this);
+        this.peerServer = ServerBuilder.forPort(peerPort).addService(peerService).build();
+        try{
+            this.peerServer.start();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        //Setup via coordinator
         this.workerId = optionalWorkerId.map(s -> new UUID(s.hashCode(), s.hashCode())).orElse(UUID.randomUUID());
         this.client = JlamaServiceGrpc.newStub(channel);
         this.blockingClient = JlamaServiceGrpc.newBlockingStub(channel);
         this.workerIdBytes = ByteString.copyFrom(
             ByteBuffer.allocate(128).putLong(workerId.getMostSignificantBits()).putLong(workerId.getLeastSignificantBits()).flip()
         );
-        this.registerResponse = blockingClient.register(RegisterRequest.newBuilder().setWorkerid(workerIdBytes).build());
+
+        RegisterRequest rr = RegisterRequest.newBuilder()
+            .setWorkerid(workerIdBytes)
+            .setHostname(HOSTNAME)
+            .setPeerPort(peerPort)
+            .build();
+
+        this.registerResponse = blockingClient.register(rr);
+
         logger.info(
-            "Registered worker {} with shard {} of {}",
+            "Registered worker {} with model shard {} of {}, layer shard {} of {}",
             workerId,
             registerResponse.getModelShard(),
-            registerResponse.getNumModelShards()
+            registerResponse.getNumModelShards(),
+            registerResponse.getLayerShard(),
+            registerResponse.getNumLayerShards()
         );
 
+        //Setup peer
+        this.peerInfo = registerResponse.getNumLayerShards() == 1 ? null : blockingClient.discover(rr);
+        this.peerClient = peerInfo == null || peerInfo.getIsCoordinator() ? null : JlamaWorkerRingGrpc.newStub(
+            ManagedChannelBuilder.forAddress(peerInfo.getHostname(), peerInfo.getPeerPort()).usePlaintext().build()
+        );
+        this.peerStream = peerInfo == null || peerInfo.getIsCoordinator() ? null : peerClient.pass(new StreamObserver<>() {
+            @Override
+            public void onNext(Empty empty) {}
+
+            @Override
+            public void onError(Throwable throwable) {
+                logger.error("Error in peer", throwable);
+            }
+
+            @Override
+            public void onCompleted() {
+                logger.info("PeerResponseStream completed");
+            }
+        });
+
+        //Load the model
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
             ? b -> SafeTensorSupport.loadWeights(modelPath)
             : b -> new HTTPSafeTensorLoader(modelPath.toPath(), modelOwner, modelName, modelDType, authToken, branch);
@@ -110,6 +177,61 @@ public class Worker implements Closeable {
             ),
             weightLoaderFunction
         );
+
+        this.kvBufferCache = new KvBufferCache(model);
+
+        logger.info("Model loaded");
+        logger.info(model.getConfig().dctx().toString());
+    }
+
+    public StreamObserver<PassRecord> getPeerStream() {
+        return peerStream;
+    }
+
+    public StreamObserver<GenerateRequest> getOutputStream() {
+        return outputStream;
+    }
+    private ByteString getTensorBytes(AbstractTensor tensor) {
+        Preconditions.checkArgument(tensor.dims() == 2 && tensor.dType() == DType.F32);
+        return UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer());
+    }
+
+    public void pass(ByteString sessionBytes, int startPosition, AbstractTensor tensor) {
+        ByteBuffer bb = sessionBytes.asReadOnlyByteBuffer();
+        UUID session = new UUID(bb.getLong(), bb.getLong());
+
+        //logger.info("From Peer: {} token(s) from position {} for session {}", tensor.shape().first(), startPosition, session);
+
+        Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1
+                ? t -> {}
+                : t -> {
+        };
+
+        AbstractTensor output = model.forward(tensor, startPosition, kvBufferCache.getKvBuffer(session), Optional.of(combineCallback));
+
+        processOutput(sessionBytes, startPosition, tensor.shape().first(), output);
+    }
+
+    public void processOutput(ByteString session, int startPosition, int batchSize, AbstractTensor output) {
+        if (peerInfo == null || peerInfo.getIsCoordinator()) {
+            outputStream.onNext(GenerateRequest.newBuilder()
+                    .setSession(session)
+                    .setWorkerid(workerIdBytes)
+                    .setTensor(getTensorBytes(output.slice(output.shape().first() - 1))) // keep only the last token
+                    .build());
+        } else {
+            // Send the last token to the next worker
+            PassRecord peerRequest = PassRecord.newBuilder()
+                    .setSession(session)
+                    .setStartPosition(startPosition)
+                    .setBatchSize(batchSize)
+                    .setTensor(getTensorBytes(output))
+                    .build();
+
+            peerStream.onNext(peerRequest);
+        }
+
+        output.close();
     }
 
     @Override
@@ -166,7 +288,6 @@ public class Worker implements Closeable {
 
     class GenerateObserver implements StreamObserver<GenerateResponse> {
         private final CountDownLatch finishedLatch;
-        private final KvBufferCache kvBufferCache;
         private final ConcurrentMap<UUID, AtomicInteger> requestCount;
         private final ConcurrentMap<UUID, CombineObserver> combineStreams;
 
@@ -174,7 +295,6 @@ public class Worker implements Closeable {
 
         private GenerateObserver(CountDownLatch finishedLatch) {
             this.finishedLatch = finishedLatch;
-            this.kvBufferCache = new KvBufferCache(model);
             this.requestCount = new ConcurrentHashMap<>();
             this.combineStreams = new ConcurrentHashMap<>();
         }
@@ -187,90 +307,42 @@ public class Worker implements Closeable {
             return combineStreams.computeIfAbsent(session, s -> new CombineObserver(session));
         }
 
-        private ByteString getTensorBytes(AbstractTensor tensor) {
-            Preconditions.checkArgument(tensor.dims() == 2 && tensor.dType() == DType.F32);
-            return UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer());
-        }
 
-        public void onNextBatch(GenerateResponse generateResponse) {
+
+        @Override
+        public void onNext(GenerateResponse generateResponse) {
             int[] tokens = generateResponse.getTokensList().stream().mapToInt(Integer::intValue).toArray();
             int startPosition = generateResponse.getStartPosition();
             ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
 
-            logger.info("Processing batch of {} starting at position {} for session {}", tokens, startPosition, session);
+            //logger.info("From Coordinator: {} token(s) from position {} for session {}", tokens.length, startPosition, session);
 
-            AbstractTensor output = model.batchForward(tokens, startPosition, kvBufferCache.getKvBuffer(session), Optional.of(t -> {
-                CombineRequest.Builder nrb = CombineRequest.newBuilder()
-                    .setUuid(generateResponse.getSession())
-                    .setWorkerid(workerIdBytes)
-                    .setLayer(getNextRequestCount(session));
-                for (int i = 0; i < t.size(); i++)
-                    nrb = nrb.addTensor(getTensorBytes(t.get(i)));
+            Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1
+                ? t -> {}
+                : t -> {
+                    CombineRequest.Builder nrb = CombineRequest.newBuilder()
+                        .setUuid(generateResponse.getSession())
+                        .setWorkerid(workerIdBytes)
+                        .setLayer(getNextRequestCount(session));
+                    for (int i = 0; i < t.size(); i++)
+                        nrb = nrb.addTensor(getTensorBytes(t.get(i)));
 
-                CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
+                    CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
 
-                for (int i = 0; i < t.size(); i++)
-                    t.get(i)
-                        .getMemorySegment()
-                        .copyFrom(
-                            MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
-                        );
-            }));
+                    for (int i = 0; i < t.size(); i++)
+                        t.get(i)
+                            .getMemorySegment()
+                            .copyFrom(
+                                MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
+                            );
+                };
 
-            outputStream.onNext(
-                GenerateRequest.newBuilder()
-                    .setSession(generateResponse.getSession())
-                    .setWorkerid(workerIdBytes)
-                    .setTensor(getTensorBytes(output.slice(output.shape().first() - 1))) // keep only the last token
-                    .build()
-            );
+            AbstractTensor output = model.batchForward(tokens, startPosition, kvBufferCache.getKvBuffer(session), Optional.of(combineCallback));
 
-            output.close();
+            processOutput(generateResponse.getSession(), startPosition, tokens.length, output);
         }
 
-        @Override
-        public void onNext(GenerateResponse generateResponse) {
-            if (generateResponse.getTokensCount() > 1) {
-                onNextBatch(generateResponse);
-                return;
-            }
-
-            int token = generateResponse.getTokens(0);
-            int position = generateResponse.getStartPosition();
-            ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
-            UUID session = new UUID(bb.getLong(), bb.getLong());
-
-            logger.info("Processing token {} at position {} for session {}", token, position, session);
-
-            AbstractTensor output = model.forward(token, position, kvBufferCache.getKvBuffer(session), Optional.of(t -> {
-                CombineRequest.Builder nrb = CombineRequest.newBuilder()
-                    .setUuid(generateResponse.getSession())
-                    .setWorkerid(workerIdBytes)
-                    .setLayer(getNextRequestCount(session));
-                for (int i = 0; i < t.size(); i++)
-                    nrb = nrb.addTensor(getTensorBytes(t.get(i)));
-
-                CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
-
-                for (int i = 0; i < t.size(); i++)
-                    t.get(i)
-                        .getMemorySegment()
-                        .copyFrom(
-                            MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
-                        );
-            }));
-
-            outputStream.onNext(
-                GenerateRequest.newBuilder()
-                    .setSession(generateResponse.getSession())
-                    .setWorkerid(workerIdBytes)
-                    .setTensor(getTensorBytes(output))
-                    .build()
-            );
-
-            output.close();
-        }
 
         @Override
         public void onError(Throwable throwable) {
@@ -290,12 +362,17 @@ public class Worker implements Closeable {
     public void run() {
         CountDownLatch finishedLatch = new CountDownLatch(1);
         GenerateObserver observer = new GenerateObserver(finishedLatch);
-        StreamObserver<GenerateRequest> request = client.generate(observer);
-        observer.setOutputStream(request);
+        this.outputStream = client.generate(observer);
+        observer.setOutputStream(outputStream);
 
         // Request first token
-        request.onNext(GenerateRequest.newBuilder().setWorkerid(workerIdBytes).build());
+        outputStream.onNext(GenerateRequest.newBuilder().setWorkerid(workerIdBytes).build());
 
         Uninterruptibles.awaitUninterruptibly(finishedLatch);
+
+        //Cleanup
+        if (peerStream != null) peerStream.onCompleted();
+        if (peerClient != null) ((ManagedChannel) peerClient.getChannel()).shutdown();
+        peerServer.shutdown();
     }
 }
