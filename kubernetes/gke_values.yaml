@@ -1,0 +1,59 @@
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "jlama-admin"
+
+image:
+  repository: docker.io/tjake/jlama
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "0.5.0-snap5"
+
+#model: "tjake/Llama-3.1-70B-Instruct-Jlama-Q4"
+model: "tjake/Meta-Llama-3.1-8B-Instruct-Jlama-Q4"
+
+
+coordinator:
+  splitByLayer: false
+  splitByHead: true
+  includeWorker: false
+  jvmArgs: -Djava.net.preferIPv4Stack=true
+  port: 8080
+
+worker:
+  replicas: 4
+  threads: 14
+  jvmArgs: -Djava.net.preferIPv4Stack=true -Djlama.use_hostname_as_workerid=true
+
+securityContext:
+  privileged: true
+  capabilities:
+    add:
+      - SYS_ADMIN
+
+podAnnotations: {}
+podLabels: {}
+
+resources: 
+  limits:
+    cpu: "15"
+    memory: 12000Mi
+  requests:
+    cpu: "15"
+    memory: 12000Mi
+
+# Additional volumes on the output Deployment definition.
+volumes: 
+  - name: cache-volume
+    emptyDir: {}
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: 
+  - name: cache-volume
+    mountPath: /models
