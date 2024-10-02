@@ -42,10 +42,7 @@ import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -64,6 +61,7 @@ public class Worker implements Closeable {
         }
     }
 
+
     private static final Logger logger = LoggerFactory.getLogger(Worker.class);
     private final UUID workerId;
     private final KvBufferCache kvBufferCache;
@@ -78,6 +76,7 @@ public class Worker implements Closeable {
     private final StreamObserver<PassRecord> peerStream;
 
     private volatile StreamObserver<GenerateRequest> outputStream;
+    private final ConcurrentMap<UUID, CombineObserver> combineStreams;
 
     private final Server peerServer;
     private final JlamaRingWorkerService peerService;
@@ -102,7 +101,7 @@ public class Worker implements Closeable {
 
         //Start the ring service
         this.peerService = new JlamaRingWorkerService(this);
-        this.peerServer = ServerBuilder.forPort(peerPort).addService(peerService).build();
+        this.peerServer = ServerBuilder.forPort(peerPort).executor(ForkJoinPool.commonPool()).addService(peerService).build();
         try{
             this.peerServer.start();
         } catch (IOException e) {
@@ -154,6 +153,8 @@ public class Worker implements Closeable {
             }
         });
 
+       this.combineStreams = new ConcurrentHashMap<>();
+
         //Load the model
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
             ? b -> SafeTensorSupport.loadWeights(modelPath)
@@ -184,13 +185,10 @@ public class Worker implements Closeable {
         logger.info(model.getConfig().dctx().toString());
     }
 
-    public StreamObserver<PassRecord> getPeerStream() {
-        return peerStream;
+    private CombineObserver getCombineResponseStream(UUID session) {
+        return combineStreams.computeIfAbsent(session, s -> new CombineObserver(session));
     }
 
-    public StreamObserver<GenerateRequest> getOutputStream() {
-        return outputStream;
-    }
     private ByteString getTensorBytes(AbstractTensor tensor) {
         Preconditions.checkArgument(tensor.dims() == 2 && tensor.dType() == DType.F32);
         return UnsafeByteOperations.unsafeWrap(tensor.getMemorySegment().asByteBuffer());
@@ -205,6 +203,27 @@ public class Worker implements Closeable {
         Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1
                 ? t -> {}
                 : t -> {
+            CombineRequest.Builder nrb = CombineRequest.newBuilder()
+                    .setUuid(sessionBytes)
+                    .setWorkerid(workerIdBytes)
+                    .setLayerShard(registerResponse.getLayerShard())
+                    .setModelShard(registerResponse.getModelShard());
+
+            for (int i = 0; i < t.size(); i++)
+                nrb = nrb.addTensor(getTensorBytes(t.get(i)));
+
+            //logger.info("1)Sending combine request for session {}", session);
+            CombineResponse combineResponse = getCombineResponseStream(session)
+                    .request(nrb.build())
+                    .join();
+
+            for (int i = 0; i < t.size(); i++)
+                t.get(i)
+                        .getMemorySegment()
+                        .copyFrom(MemorySegment.ofBuffer(combineResponse
+                                .getTensor(i)
+                                .asReadOnlyByteBuffer()
+                                .order(ByteOrder.LITTLE_ENDIAN)));
         };
 
         AbstractTensor output = model.forward(tensor, startPosition, kvBufferCache.getKvBuffer(session), Optional.of(combineCallback));
@@ -288,23 +307,11 @@ public class Worker implements Closeable {
 
     class GenerateObserver implements StreamObserver<GenerateResponse> {
         private final CountDownLatch finishedLatch;
-        private final ConcurrentMap<UUID, AtomicInteger> requestCount;
-        private final ConcurrentMap<UUID, CombineObserver> combineStreams;
 
         private volatile StreamObserver<GenerateRequest> outputStream;
 
         private GenerateObserver(CountDownLatch finishedLatch) {
             this.finishedLatch = finishedLatch;
-            this.requestCount = new ConcurrentHashMap<>();
-            this.combineStreams = new ConcurrentHashMap<>();
-        }
-
-        private int getNextRequestCount(UUID session) {
-            return requestCount.computeIfAbsent(session, s -> new AtomicInteger(0)).incrementAndGet();
-        }
-
-        private CombineObserver getCombineResponseStream(UUID session) {
-            return combineStreams.computeIfAbsent(session, s -> new CombineObserver(session));
         }
 
 
@@ -316,27 +323,33 @@ public class Worker implements Closeable {
             ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
 
-            //logger.info("From Coordinator: {} token(s) from position {} for session {}", tokens.length, startPosition, session);
+            // logger.info("From Coordinator: {} token(s) from position {} for session {}", tokens.length,
+            // startPosition, session);
 
             Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1
-                ? t -> {}
-                : t -> {
-                    CombineRequest.Builder nrb = CombineRequest.newBuilder()
-                        .setUuid(generateResponse.getSession())
-                        .setWorkerid(workerIdBytes)
-                        .setLayer(getNextRequestCount(session));
-                    for (int i = 0; i < t.size(); i++)
-                        nrb = nrb.addTensor(getTensorBytes(t.get(i)));
+                    ? t -> {}
+                    : t -> {
+                        CombineRequest.Builder nrb = CombineRequest.newBuilder()
+                                .setUuid(generateResponse.getSession())
+                                .setWorkerid(workerIdBytes)
+                                .setLayerShard(registerResponse.getLayerShard())
+                                .setModelShard(registerResponse.getModelShard());
+                        for (int i = 0; i < t.size(); i++) nrb = nrb.addTensor(getTensorBytes(t.get(i)));
 
-                    CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
+                //logger.info("2){} Sending combine request for session {}", registerResponse.getWorkerOrd(), session);
 
-                    for (int i = 0; i < t.size(); i++)
-                        t.get(i)
-                            .getMemorySegment()
-                            .copyFrom(
-                                MemorySegment.ofBuffer(combineResponse.getTensor(i).asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
-                            );
-                };
+                CombineResponse combineResponse = getCombineResponseStream(session)
+                                .request(nrb.build())
+                                .join();
+
+                        for (int i = 0; i < t.size(); i++)
+                            t.get(i)
+                                    .getMemorySegment()
+                                    .copyFrom(MemorySegment.ofBuffer(combineResponse
+                                            .getTensor(i)
+                                            .asReadOnlyByteBuffer()
+                                            .order(ByteOrder.LITTLE_ENDIAN)));
+                    };
 
             AbstractTensor output = model.batchForward(tokens, startPosition, kvBufferCache.getKvBuffer(session), Optional.of(combineCallback));
 

@@ -192,7 +192,6 @@ public class CausalSelfAttention {
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
                 int finalPostion = position;
-                logger.debug("layer {}", layerIndex);
                 AbstractTensor key = kvMem.getKeyTensorForPosition(layerIndex, position);
                 AbstractTensor val = kvMem.getValTensorForPosition(layerIndex, position);
 

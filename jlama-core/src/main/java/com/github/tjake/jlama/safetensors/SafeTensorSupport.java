@@ -38,6 +38,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,10 +69,16 @@ public class SafeTensorSupport {
                 }
             }
 
+            // Sort by value using a lambda expression
+            Map<String, TensorInfo> sortedMap = tensorInfoMap.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue())
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+
             final Map<String, String> finalMetadata = metadata;
             saveMetadata.ifPresent(m -> m.putAll(finalMetadata));
 
-            return tensorInfoMap;
+            return sortedMap;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

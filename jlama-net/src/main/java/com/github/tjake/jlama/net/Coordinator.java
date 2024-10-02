@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
@@ -94,7 +95,7 @@ public class Coordinator implements Generator {
             throw new IllegalArgumentException("Must split by heads and/or layers");
         }
         this.service = new JlamaService(model, workerCount, splitHeads, splitLayers);
-        this.server = ServerBuilder.forPort(port).addService(service).build();
+        this.server = ServerBuilder.forPort(port).executor(ForkJoinPool.commonPool()).addService(service).build();
     }
 
     public Tokenizer getTokenizer() {

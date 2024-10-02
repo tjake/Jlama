@@ -57,7 +57,7 @@ public class DistributedServiceTest {
             8888,
             4,
             true,
-            false,
+            true,
             Optional.empty(),
             Optional.empty()
         );

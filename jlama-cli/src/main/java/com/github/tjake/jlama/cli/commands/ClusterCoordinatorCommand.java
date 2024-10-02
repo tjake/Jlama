@@ -16,7 +16,9 @@
 package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.net.Coordinator;
+import com.github.tjake.jlama.net.Worker;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -58,6 +60,10 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
         "--model-type" }, paramLabel = "ARG", description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
     DType modelType = DType.F32;
 
+    @CommandLine.Option(names = {
+        "--include-worker" }, paramLabel = "ARG", description = "Start a worker in the same jvm (default: ${DEFAULT-VALUE})", defaultValue = "true")
+    Boolean includeWorker = false;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/ui/**").addResourceLocations("classpath:/static/ui/");
@@ -66,6 +72,10 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
     @Override
     public void run() {
         try {
+
+            if (this.advancedSection.threadCount != null) {
+                PhysicalCoreExecutor.overrideThreadCount(this.advancedSection.threadCount);
+            }
 
             // Download the model metadata
             Path model = SimpleBaseCommand.getModel(
@@ -101,6 +111,32 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                     e.printStackTrace();
                 }
             }).start();
+
+            if (includeWorker) {
+                Worker w = new Worker(
+                        model.toFile(),
+                        SimpleBaseCommand.getOwner(modelName),
+                        SimpleBaseCommand.getName(modelName),
+                        modelType,
+                        "localhost",
+                        grpcPort,
+                        grpcPort + 1,
+                        workingDirectory,
+                        advancedSection.workingMemoryType,
+                        advancedSection.workingQuantizationType,
+                        Optional.ofNullable(advancedSection.modelQuantization),
+                        Optional.ofNullable("in-jvm-worker"),
+                        Optional.ofNullable(downloadSection.authToken),
+                        Optional.ofNullable(downloadSection.branch));
+
+                new Thread(() -> {
+                            try {
+                                w.run();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+            }
 
             System.out.println("Chat UI: http://localhost:" + port);
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");

@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.net.grpc;
 
+import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.net.*;
 import com.github.tjake.jlama.safetensors.Config;
@@ -39,13 +40,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
+
+    private static final int LAYER_IDX = 0;
+    private static final int HEAD_IDX = 1;
+
     private static final Logger logger = LoggerFactory.getLogger(JlamaService.class);
     private final AbstractModel model;
     private final int workerCount;
     private final boolean splitHeads;
     private final boolean splitLayers;
-    private final int headsPerLayerSplit;
-    private final int layersPerWorker;
+    private final int headsPerLayerShard;
+    private final int numHeadShards;
+    private final int layersPerShard;
+    private final int numLayerShards;
+    private final List<int[]> ordinalCombinations;
     private final ConcurrentMap<UUID, RegisterResponse> workers;
     private final ConcurrentMap<UUID, Runnable> discoveryActions;
 
@@ -66,17 +74,17 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         this.discoveryActions = new ConcurrentHashMap<>();
         this.combinations = new ConcurrentHashMap<>();
         this.generatorGroup = new GeneratorGroup();
+        Config c = model.getConfig();
 
-        int tmpHeadsPerLayerSplit = splitHeads ? model.getConfig().numberOfKeyValueHeads / workerCount : model.getConfig().numberOfKeyValueHeads;
-        int tmpLayersPerWorker = splitLayers ? model.getConfig().numberOfLayers / workerCount : model.getConfig().numberOfLayers;
+        int tmpHeadsPerLayerShard = splitHeads ? c.numberOfKeyValueHeads / workerCount : c.numberOfKeyValueHeads;
+        int tmpLayersPerShard = splitLayers ? c.numberOfLayers / workerCount : c.numberOfLayers;
 
         // Calculate the number of parameters per layer and use it to determine the number of heads to split per worker
         if (splitLayers && splitHeads) {
-            throw new RuntimeException("Not yet supporting splitting layers and heads together");
+            //throw new RuntimeException("Not yet supporting splitting layers and heads together");
 
-            /*Config c = model.getConfig();
-            long queryParams = (long) c.numberOfKeyValueHeads * c.embeddingLength * c.embeddingLength;
-            long keyValueParams = 2L * c.numberOfHeads * c.embeddingLength * c.embeddingLength;
+            long queryParams = (long) c.embeddingLength * c.embeddingLength;
+            long keyValueParams = 2L * c.numberOfKeyValueHeads * c.embeddingLength * c.embeddingLength;
 
             // Total attention parameters with GQA
             long attentionParams = queryParams + keyValueParams;
@@ -93,25 +101,54 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
             // Calculate the number of heads per layer split
 
-            // Aim for ~3B parameters per worker
+            // Aim for ~nB parameters per worker
             long idealParamsPerWorker = 3L * 1_000_000_000L;
-            long paramsPerWorker = tmpLayersPerWorker * paramsPerLayer;
+            long paramsPerWorker = tmpLayersPerShard * paramsPerLayer;
 
             if (paramsPerWorker > idealParamsPerWorker)
             {
-                tmpHeadsPerLayerSplit = Math.min(c.numberOfKeyValueHeads, (int) (idealParamsPerWorker / paramsPerLayer));
+                tmpHeadsPerLayerShard = Math.min(Math.min(workerCount, c.numberOfKeyValueHeads), (int) Math.ceilDivExact(paramsPerLayer, idealParamsPerWorker));
+                //Round up to the nearest power of 2
+                tmpHeadsPerLayerShard = nextPowerOfTwo(tmpHeadsPerLayerShard);
+                tmpHeadsPerLayerShard = c.numberOfKeyValueHeads / tmpHeadsPerLayerShard;
+                tmpLayersPerShard = tmpLayersPerShard * (c.numberOfKeyValueHeads / tmpHeadsPerLayerShard);
             }
             else
             {
-                tmpHeadsPerLayerSplit = c.numberOfKeyValueHeads;
-            }*/
+                tmpHeadsPerLayerShard = c.numberOfKeyValueHeads;
+            }
         }
 
-        this.layersPerWorker = tmpLayersPerWorker;
-        this.headsPerLayerSplit = tmpHeadsPerLayerSplit;
+        this.headsPerLayerShard = tmpHeadsPerLayerShard;
+        this.numHeadShards = c.numberOfKeyValueHeads / headsPerLayerShard;
+        this.layersPerShard = tmpLayersPerShard;
+        this.numLayerShards = c.numberOfLayers / layersPerShard;
 
-        logger.info("Layers per worker {}/{} headsPerLayerSplit {}/{}", layersPerWorker, model.getConfig().numberOfLayers,
-                headsPerLayerSplit, model.getConfig().numberOfKeyValueHeads);
+        logger.info("{} Layer Shards of {}, {} Head Shards of {}", numLayerShards, layersPerShard, numHeadShards, headsPerLayerShard);
+
+        this.ordinalCombinations = new ArrayList<>(workerCount);
+        for (int i = 0; i < numLayerShards; i++) {
+            for (int j = 0; j < numHeadShards; j++) {
+                ordinalCombinations.add(new int[]{i, j});
+            }
+        }
+    }
+
+    public static int nextPowerOfTwo(int n) {
+        if (n <= 1) {
+            return 2; // Corner case for n = 0/1
+        }
+
+        // If n is already a power of 2, return n
+        if ((n & (n - 1)) == 0) {
+            return n;
+        }
+
+        // Find the position of the highest set bit
+        int leadingZeros = Integer.numberOfLeadingZeros(n);
+
+        // Calculate the next power of 2
+        return 1 << (32 - leadingZeros);
     }
 
     public void waitForReady() {
@@ -158,14 +195,15 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 RegisterResponse r = RegisterResponse.newBuilder()
                         .setHostname(request.getHostname())
                         .setPeerPort(request.getPeerPort())
-                    .setModelShard(splitHeads ? workerNum : 0)
-                    .setNumModelShards(splitHeads ? workerCount : 1)
-                    .setLayerShard(splitLayers ? workerNum : 0)
-                    .setNumLayerShards(splitLayers ? workerCount : 1)
-                    .build();
+                        .setModelShard(ordinalCombinations.get(workerNum)[HEAD_IDX])
+                        .setNumModelShards(numHeadShards)
+                        .setLayerShard(ordinalCombinations.get(workerNum)[LAYER_IDX])
+                        .setNumLayerShards(numLayerShards)
+                        .setWorkerOrd(workerNum)
+                        .build();
 
                 workers.put(wid, r);
-                logger.info("Registered worker {} with workerNum {} of {}", wid, workerNum, workerCount);
+                logger.info("Registered worker {} with workerNum {} of {} with {}", wid, workerNum, workerCount, r);
 
                 responseObserver.onNext(r);
                 responseObserver.onCompleted();
@@ -195,7 +233,10 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             Runnable action = () -> {
                 RegisterResponse worker = workers.get(wid);
                 int thisWorkersLayerShard = worker.getLayerShard();
-                if (worker.getLayerShard() == workerCount - 1) {
+                int thisWorkersHeadShard = worker.getModelShard();
+
+                // If this is the last worker in the layer, then it should connect to the coordinator
+                if (thisWorkersLayerShard == numLayerShards - 1) {
                     responseObserver.onNext(PeerInfo.newBuilder()
                             .setWorkerid(request.getWorkerid())
                             .setHostname(request.getHostname())
@@ -206,7 +247,8 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     responseObserver.onCompleted();
                 } else {
                     for (RegisterResponse r : workers.values()) {
-                        if (r.getLayerShard() == thisWorkersLayerShard + 1) {
+                        // If this worker is the next layer shard and the same head shard, then connect to it
+                        if (r.getLayerShard() == thisWorkersLayerShard + 1 && r.getModelShard() == thisWorkersHeadShard) {
                             responseObserver.onNext(PeerInfo.newBuilder()
                                     .setWorkerid(r.getHostnameBytes())
                                     .setIsCoordinator(false)
@@ -259,15 +301,15 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         return new StreamObserver<>() {
             @Override
             public void onNext(CombineRequest request) {
-                String key = String.format("%s:%d", UUID.nameUUIDFromBytes(request.getUuid().toByteArray()), request.getLayer());
+                String key = String.format("%s:%d", UUID.nameUUIDFromBytes(request.getUuid().toByteArray()), request.getLayerShard());
                 MpmcArrayQueue<Pair<CombineRequest, StreamObserver<CombineResponse>>> members = combinations.computeIfAbsent(
                     key,
                     k -> new MpmcArrayQueue<>(workerCount + 1)
                 );
                 members.add(Pair.of(request, responseObserver));
-
+                //logger.info("GOT COMBINE REQUEST {} {}", key, members.size());
                 // If we have all the workers, then we can calculate the result and send it back
-                if (members.size() == workerCount && combinations.remove(key, members)) {
+                if (members.size() == numHeadShards && combinations.remove(key, members)) {
                     MemorySegment[] tensors = null;
                     for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
                         if (f.left.getTensorCount() > 0) {
@@ -302,7 +344,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
                         f.right.onNext(response);
                     }
-
+                    //logger.info("Sent response to {} members", members.size());
                     members.clear();
                 }
             }
@@ -365,11 +407,11 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 .build();
             for (Generator g : generators) {
                 if (splitLayers) {
-                    //The last worker sends back to coordinator from ring
-                    if (g.workerAssignment.getLayerShard() == workerCount - 1)
+                    //The last layer shard sends back to coordinator from ring
+                    if (g.workerAssignment.getLayerShard() == numLayerShards - 1)
                         g.registerLatch(session);
 
-                    // The first worker gets the request from the coordinator
+                    // The first layer shard gets the request from the coordinator
                     if (g.workerAssignment.getLayerShard() == 0)
                         g.responseObserver.onNext(gr);
                 } else {
@@ -382,7 +424,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             boolean found = false;
             for (int j = 0; j < workerCount; j++) {
                 Generator g = generators.get(j);
-                if (splitLayers && g.workerAssignment.getLayerShard() != workerCount - 1) continue;
+                if (splitLayers && g.workerAssignment.getLayerShard() != numLayerShards - 1) continue;
 
                 ByteString v = g.waitForOutput(session);
                 output.getMemorySegment().copyFrom(MemorySegment.ofBuffer(v.asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN)));

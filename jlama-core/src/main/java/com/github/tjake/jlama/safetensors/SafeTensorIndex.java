@@ -118,47 +118,58 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
      *
      */
     private Map<List<Long>, List<String>> computeMmapSplits(Map<String, TensorInfo> tensorInfoMap, long fileLength) {
-        Set<String> added = new HashSet<>();
         Map<List<Long>, List<String>> splits = new HashMap<>();
         long lastSplitOffset = 0;
-        while (added.size() < tensorInfoMap.size()) {
-            List<String> tensors = new ArrayList<>();
+        int tensorsInFile = tensorInfoMap.size();
+        int tensorsSplit = 0;
+        List<String> tensors = new ArrayList<>();
+
+        Iterator<Map.Entry<String, TensorInfo>> it = tensorInfoMap.entrySet().iterator();
+        Map.Entry<String, TensorInfo> next = null;
+        while (tensorsSplit < tensorsInFile && it.hasNext() ) {
+            tensors.clear();
             long limit = lastSplitOffset + Integer.MAX_VALUE;
             long startOffset = fileLength;
             long endOffset = 0;
 
-            for (Map.Entry<String, TensorInfo> e : tensorInfoMap.entrySet()) {
-                if (added.contains(e.getKey())) continue;
-
-                TensorInfo info = e.getValue();
-
+            while (it.hasNext() || next != null) {
+                next = next == null ? it.next() : next;
+                TensorInfo info = next.getValue();
+                logger.debug("Tensor {} {} {}", next.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
                 if (info.dataOffsets[1] < limit) {
-                    tensors.add(e.getKey());
-                    added.add(e.getKey());
+                    tensors.add(next.getKey());
+                    tensorsSplit++;
 
                     if (info.dataOffsets[1] > endOffset) endOffset = info.dataOffsets[1];
-
                     if (info.dataOffsets[0] < startOffset) startOffset = info.dataOffsets[0];
 
                     // Adjust the offset to be relative to the start of the split
                     info.dataOffsets[0] -= lastSplitOffset;
                     info.dataOffsets[1] -= lastSplitOffset;
 
-                    logger.debug("Adding tensor {} to split {}-{}", e.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
+                    logger.debug("Adding tensor {} to split {}-{}", next.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
+
+                    //Used so fetch the tensor from the mmap
+                    next = null;
+                } else {
+                    break;
                 }
             }
 
-            logger.debug("Adding split {}-{} with {} tensors", startOffset, endOffset, tensors.size());
+            assert tensors.size() > 0 : "No tensors in split";
+            logger.debug("Adding split {}-{} with {} tensors of {}", startOffset, endOffset, tensors.size(), tensorsSplit);
             assert endOffset - startOffset < Integer.MAX_VALUE : "Mmap split too large "
                 + (endOffset - startOffset)
                 + " > "
                 + Integer.MAX_VALUE
                 + " "
                 + lastSplitOffset;
-            splits.put(List.of(startOffset, endOffset), tensors);
+            splits.put(List.of(startOffset, endOffset), new ArrayList<>(tensors));
             lastSplitOffset = endOffset;
         }
 
+
+        assert tensorsInFile == tensorsSplit : "Not all tensors were split";
         return splits;
     }
 

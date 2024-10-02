@@ -5,8 +5,9 @@ package com.github.tjake.jlama.net;
 message CombineRequest {
   bytes workerid = 1;
   bytes uuid = 2;
-  int32 layer = 3;
-  repeated bytes tensor = 4;
+  int32 modelShard = 3;
+  int32 layerShard = 4;
+  repeated bytes tensor = 5;
 }
 
 message CombineResponse {
@@ -44,6 +45,7 @@ message RegisterResponse {
   int32 numModelShards = 4;
   int32 layerShard = 5;
   int32 numLayerShards = 6;
+  int32 workerOrd = 7;
 }
 
 message PeerInfo {
