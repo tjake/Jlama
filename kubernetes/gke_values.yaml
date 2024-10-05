@@ -13,10 +13,10 @@ image:
   repository: docker.io/tjake/jlama
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "0.5.0-snap5"
+  tag: "0.5.0-snap8"
 
-#model: "tjake/Llama-3.1-70B-Instruct-Jlama-Q4"
-model: "tjake/Meta-Llama-3.1-8B-Instruct-Jlama-Q4"
+model: "tjake/Llama-3.1-70B-Instruct-Jlama-Q4"
+#model: "tjake/Meta-Llama-3.1-8B-Instruct-Jlama-Q4"
 
 
 coordinator:
@@ -28,7 +28,7 @@ coordinator:
 
 worker:
   replicas: 4
-  threads: 14
+  threads: 28
   jvmArgs: -Djava.net.preferIPv4Stack=true -Djlama.use_hostname_as_workerid=true
 
 securityContext:
@@ -42,11 +42,11 @@ podLabels: {}
 
 resources: 
   limits:
-    cpu: "15"
-    memory: 12000Mi
+    cpu: "31"
+    memory: 24000Mi
   requests:
-    cpu: "15"
-    memory: 12000Mi
+    cpu: "31"
+    memory: 24000Mi
 
 # Additional volumes on the output Deployment definition.
 volumes: 

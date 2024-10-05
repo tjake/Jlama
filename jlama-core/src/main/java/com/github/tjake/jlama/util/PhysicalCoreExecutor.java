@@ -32,6 +32,8 @@ public class PhysicalCoreExecutor {
      * @param threadCount number of physical cores to use
      */
     public static void overrideThreadCount(int threadCount) {
+        assert threadCount > 0 && threadCount <= Runtime.getRuntime().availableProcessors() : "Threads must be < cores: " + threadCount;
+
         if (!started.compareAndSet(false, true)) throw new IllegalStateException("Executor already started");
 
         physicalCoreCount = threadCount;

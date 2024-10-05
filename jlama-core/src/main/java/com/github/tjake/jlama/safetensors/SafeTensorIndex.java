@@ -20,7 +20,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.SegmentedTensor;
+
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -40,6 +44,8 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     public static final String MODEL_INDEX_JSON = "model.safetensors.index.json";
 
     private final Map<String, String> metadata;
+
+    final Map<String, TensorInfo> allTensorInfoMap = new HashMap<>();
 
     // Map from weight name to file name (this is what's in the JSON file)
     final Map<String, String> weightFileMap;
@@ -86,6 +92,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
                 Map<String, String> metadata = new HashMap<>();
                 Map<String, TensorInfo> tensorInfoMap = SafeTensorSupport.readTensorInfoMap(header, Optional.of(metadata));
+                index.allTensorInfoMap.putAll(tensorInfoMap);
                 int endOfHeaderPosition = header.position();
 
                 Map<List<Long>, List<String>> splits = index.computeMmapSplits(tensorInfoMap, raf.length());
@@ -93,8 +100,9 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     long offset = split.getKey().get(0);
                     long length = split.getKey().get(1);
                     List<String> tensors = split.getValue();
+                    int lengthInt = Ints.checkedCast(length - offset);
 
-                    ByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, (length - offset));
+                    ByteBuffer buf = raf.getChannel().map(FileChannel.MapMode.READ_ONLY, endOfHeaderPosition + offset, lengthInt);
 
                     Map<String, TensorInfo> mmapTensorInfoMap = tensorInfoMap.entrySet()
                         .stream()
@@ -124,7 +132,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
         int tensorsSplit = 0;
         List<String> tensors = new ArrayList<>();
 
-        Iterator<Map.Entry<String, TensorInfo>> it = tensorInfoMap.entrySet().iterator();
+        Iterator<Map.Entry<String, TensorInfo>> it = new ArrayList<>(tensorInfoMap.entrySet()).iterator();
         Map.Entry<String, TensorInfo> next = null;
         while (tensorsSplit < tensorsInFile && it.hasNext() ) {
             tensors.clear();
@@ -152,19 +160,62 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                     //Used so fetch the tensor from the mmap
                     next = null;
                 } else {
+                    //Split large tensors up (they will be reassembled in the Weights class)
+                    if (tensors.size() == 0) {
+
+                        int bytesPerColumn = info.dType.size() * info.shape[1];
+
+                        // This tensor is too large to fit in a single split
+                        // We'll split it up into smaller chunks
+                        if (info.dataOffsets[1] > endOffset) endOffset = info.dataOffsets[1];
+                        if (info.dataOffsets[0] < startOffset) startOffset = info.dataOffsets[0];
+
+                        // Adjust the offset to be relative to the start of the split
+                        info.dataOffsets[0] -= lastSplitOffset;
+                        info.dataOffsets[1] -= lastSplitOffset;
+
+                        long offset = info.dataOffsets[0];
+                        long length = info.dataOffsets[1] - offset;
+
+                        //Chunk size needs to be a multiple of the column size
+                        long chunkSize = Integer.MAX_VALUE - (Integer.MAX_VALUE % bytesPerColumn);
+                        long offsetAdded = 0;
+                        int chunk = 0;
+                        while (length > 0) {
+                            long chunkEnd = Math.min(offset + chunkSize, endOffset);
+                            String chunkName = next.getKey() + "-part-" + chunk++;
+                            logger.debug("Adding chunk {} to split {}-{} {}", chunkName, offset, chunkEnd, Ints.checkedCast(chunkEnd - offset));
+                            splits.put(List.of(offset, chunkEnd), List.of(chunkName));
+
+                            //Add TensorInfo for the chunk
+                            assert info.shape.length == 2 : "Only 2D tensors supported";
+                            int numRowsInChunk = Ints.checkedCast((chunkEnd - offset) / bytesPerColumn);
+
+                            //This tensorInfo is relative to the split which we know is at least the mmap limit
+                            // We track the offsetAdded so we can make the offset relative to the current split
+                            TensorInfo chunkInfo = new TensorInfo(info.dType, new long[]{numRowsInChunk, info.shape[1]}, new long[] { offset - offsetAdded, chunkEnd - offsetAdded });
+                            tensorInfoMap.put(chunkName, chunkInfo);
+                            offsetAdded += chunkEnd - offset;
+
+                            offset = chunkEnd;
+                            length -= chunkSize;
+                        }
+
+                        tensorsSplit++;
+                        next = null;
+                    }
+
                     break;
                 }
             }
 
-            assert tensors.size() > 0 : "No tensors in split";
+            assert tensorsSplit > 0 : "No tensors in split";
             logger.debug("Adding split {}-{} with {} tensors of {}", startOffset, endOffset, tensors.size(), tensorsSplit);
-            assert endOffset - startOffset < Integer.MAX_VALUE : "Mmap split too large "
-                + (endOffset - startOffset)
-                + " > "
-                + Integer.MAX_VALUE
-                + " "
-                + lastSplitOffset;
-            splits.put(List.of(startOffset, endOffset), new ArrayList<>(tensors));
+
+            // Add any sections that were split
+            if (!tensors.isEmpty())
+                splits.put(List.of(startOffset, endOffset), new ArrayList<>(tensors));
+
             lastSplitOffset = endOffset;
         }
 
@@ -186,21 +237,28 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
     @Override
     public Map<String, TensorInfo> tensorInfoMap() {
-        Map<String, TensorInfo> tensorInfoMap = new HashMap<>();
-        for (String name : weightMap.keySet()) {
-            Weights w = weightMap.get(name);
-            if (w == null) throw new NoSuchElementException(name);
-
-            tensorInfoMap.put(name, w.tensorInfoMap().get(name));
-        }
-
-        return tensorInfoMap;
+        return allTensorInfoMap;
     }
 
     @Override
     public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) {
         Weights w = weightMap.get(name);
-        if (w == null) throw new NoSuchElementException(name);
+        if (w == null) {
+            //Maybe assemble the tensor from segments
+            List<AbstractTensor> segments = new ArrayList<>();
+            int idx = 0;
+            while (true) {
+                String segmentName = name + "-part-" + idx++;
+                if (!weightMap.containsKey(segmentName)) break;
+                segments.add(weightMap.get(segmentName).load(segmentName, dctx, sparseRows, sparseColumns));
+            }
+
+            if (segments.size() > 0) {
+                return SegmentedTensor.wrap(segments);
+            }
+
+            throw new NoSuchElementException(name);
+        }
 
         return w.load(name, dctx, sparseRows, sparseColumns);
     }
@@ -222,5 +280,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
             }
         });
         fileMap.clear();
+        allTensorInfoMap.clear();
     }
 }

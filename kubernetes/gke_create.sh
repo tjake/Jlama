@@ -41,12 +41,11 @@ gcloud config set project $PROJECT >/dev/null
 echo "Creating cluster..."
 gcloud container clusters create $CLUSTER \
     --cluster-version=1.30 \
-    --disk-type=pd-balanced \
+    --disk-type=hyperdisk-balanced \
     --disk-size=100 \
-    --machine-type n2-highcpu-16 \
-    --num-nodes 5 \
+    --machine-type n4-highcpu-32 \
+    --num-nodes 9 \
     --zone us-central1-c \
-    --placement-type=COMPACT \
     --workload-pool=$PROJECT.svc.id.goog \
     --spot
 

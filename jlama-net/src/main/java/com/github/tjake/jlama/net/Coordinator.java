@@ -47,6 +47,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Coordinator implements Generator {
+    private static final Integer MESSAGE_SIZE = 1024 * 1024 * 1024;
+
     private static final Logger logger = LoggerFactory.getLogger(Coordinator.class);
     private static final ConcurrentMap<UUID, Integer> sessionPositions = new ConcurrentHashMap<>();
     private final int port;
@@ -95,7 +97,7 @@ public class Coordinator implements Generator {
             throw new IllegalArgumentException("Must split by heads and/or layers");
         }
         this.service = new JlamaService(model, workerCount, splitHeads, splitLayers);
-        this.server = ServerBuilder.forPort(port).executor(ForkJoinPool.commonPool()).addService(service).build();
+        this.server = ServerBuilder.forPort(port).maxInboundMessageSize(MESSAGE_SIZE).addService(service).build();
     }
 
     public Tokenizer getTokenizer() {

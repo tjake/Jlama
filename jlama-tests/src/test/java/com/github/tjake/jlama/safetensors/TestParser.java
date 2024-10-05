@@ -187,4 +187,23 @@ public class TestParser {
             Assert.assertEquals(-0.027689, slice.get(1), 0.00001f);
         }
     }
+
+    @Test
+    public void testSegmentedTensor() throws IOException {
+        String file = "../models/model-00001-of-00191.safetensors";
+        Assume.assumeTrue(Files.exists(Paths.get(file)));
+
+        SafeTensorIndex l = SafeTensorIndex.loadSingleFile(Paths.get("../models"), "model-00001-of-00191.safetensors");
+
+        AbstractTensor t = l.load("model.embed_tokens.weight");
+        TensorInfo orig = l.tensorInfoMap().get("model.embed_tokens.weight");
+
+        Assert.assertEquals(2, t.dims());
+        Assert.assertEquals(orig.shape[0], t.shape().dim(0));
+        Assert.assertEquals(orig.shape[1], t.shape().dim(1));
+
+        //Make sure we can slice the last row
+        AbstractTensor s = t.slice(orig.shape[0] - 1);
+
+    }
 }

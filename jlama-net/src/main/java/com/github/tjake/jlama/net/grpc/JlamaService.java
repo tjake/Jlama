@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
+    private static final long idealBillionParamsPerWorker = Integer.getInteger("jlama.ideal_b_params", 1);
 
     private static final int LAYER_IDX = 0;
     private static final int HEAD_IDX = 1;
@@ -102,7 +103,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             // Calculate the number of heads per layer split
 
             // Aim for ~nB parameters per worker
-            long idealParamsPerWorker = 3L * 1_000_000_000L;
+            long idealParamsPerWorker = idealBillionParamsPerWorker * 1_000_000_000L;
             long paramsPerWorker = tmpLayersPerShard * paramsPerLayer;
 
             if (paramsPerWorker > idealParamsPerWorker)

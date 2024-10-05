@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 public class Worker implements Closeable {
 
+    private static final Integer MESSAGE_SIZE = 1024 * 1024 * 1024;
     private static final String HOSTNAME;
     static {
         try {
@@ -97,11 +98,13 @@ public class Worker implements Closeable {
         Optional<String> authToken,
         Optional<String> branch
     ) {
-        Channel channel = ManagedChannelBuilder.forAddress(host, coordinatorPort).usePlaintext().build();
+        Channel channel = ManagedChannelBuilder.forAddress(host, coordinatorPort).usePlaintext()
+                .maxInboundMessageSize(MESSAGE_SIZE)
+                .build();
 
         //Start the ring service
         this.peerService = new JlamaRingWorkerService(this);
-        this.peerServer = ServerBuilder.forPort(peerPort).executor(ForkJoinPool.commonPool()).addService(peerService).build();
+        this.peerServer = ServerBuilder.forPort(peerPort).addService(peerService).maxInboundMessageSize(MESSAGE_SIZE).build();
         try{
             this.peerServer.start();
         } catch (IOException e) {
@@ -110,8 +113,8 @@ public class Worker implements Closeable {
 
         //Setup via coordinator
         this.workerId = optionalWorkerId.map(s -> new UUID(s.hashCode(), s.hashCode())).orElse(UUID.randomUUID());
-        this.client = JlamaServiceGrpc.newStub(channel);
-        this.blockingClient = JlamaServiceGrpc.newBlockingStub(channel);
+        this.client = JlamaServiceGrpc.newStub(channel).withMaxInboundMessageSize(MESSAGE_SIZE).withMaxOutboundMessageSize(MESSAGE_SIZE);
+        this.blockingClient = JlamaServiceGrpc.newBlockingStub(channel).withMaxInboundMessageSize(MESSAGE_SIZE).withMaxOutboundMessageSize(MESSAGE_SIZE);
         this.workerIdBytes = ByteString.copyFrom(
             ByteBuffer.allocate(128).putLong(workerId.getMostSignificantBits()).putLong(workerId.getLeastSignificantBits()).flip()
         );
