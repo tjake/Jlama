@@ -94,9 +94,10 @@
                         newEdges.push({ from: 0, to: ord + 1, label:  'Head Group ' + head_shard, arrows: 'from', color: {color: 'green'}, width: 2 });
                     }
 
+                    if (layer_shard == 0)
+                        newEdges.push({ from: 0, to: ord + 1,  arrows: 'to', width:2 });
+
                     if (num_layer_shards > 1) {
-                        if (layer_shard == 0)
-                            newEdges.push({ from: 0, to: ord + 1,  arrows: 'to', width:2 });
                         if (layer_shard == num_layer_shards - 1)
                             newEdges.push({ from: ord + 1, to: 0, arrows: 'to', width:2 });
 
