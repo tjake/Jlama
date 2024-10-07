@@ -91,21 +91,28 @@
 
                     newNodes.push({ id: ord + 1, label: "W" + ord, group: 'worker' });
                     if (num_head_shards > 1) {
-                        newEdges.push({ from: 0, to: ord + 1, label: 'join ' + (num_heads/num_head_shards) + ' tensors' });
+                        newEdges.push({ from: 0, to: ord + 1, label:  'Head Group ' + head_shard, arrows: 'from', color: {color: 'green'}, width: 2 });
                     }
 
                     if (num_layer_shards > 1) {
                         if (layer_shard == 0)
-                            newEdges.push({ from: 0, to: ord + 1, label: '' + (num_layers/num_layer_shards) + ' layers' });
-                        else if (layer_shard == num_layer_shards - 1)
-                            newEdges.push({ from: ord + 1, to: 0, label: '' + (num_layers/num_layer_shards) + ' layers' });
-                        else {
-                            let cons = ordinalCombinations[ord + 1];
-                            newEdges.push({
-                                from: ord + 1,
-                                to: cons[0] + 1,
-                                label: '' + (num_layers / num_layer_shards) + ' layers'
-                            });
+                            newEdges.push({ from: 0, to: ord + 1,  arrows: 'to', width:2 });
+                        if (layer_shard == num_layer_shards - 1)
+                            newEdges.push({ from: ord + 1, to: 0, arrows: 'to', width:2 });
+
+                        if (ord < ordinalCombinations.length - 1) {
+                            //Find node with same head shard and next layer shard
+                            for (let j = 0; j < ordinalCombinations.length; j++) {
+                                if (j > i && ordinalCombinations[j][0] == layer_shard + 1 && ordinalCombinations[j][1] == head_shard ) {
+                                    newEdges.push({
+                                        from: ord + 1,
+                                        to: j + 1,
+                                        arrows: 'to',
+                                        width: 2
+                                    });
+
+                                }
+                            }
                         }
                     }
                 }

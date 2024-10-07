@@ -13,7 +13,7 @@ image:
   repository: docker.io/tjake/jlama
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "0.5.1-snap1"
+  tag: "0.5.1-snap2"
 
 model: "tjake/Llama-3.1-70B-Instruct-Jlama-Q4"
 #model: "tjake/Meta-Llama-3.1-8B-Instruct-Jlama-Q4"
@@ -23,7 +23,7 @@ coordinator:
   splitByLayer: true
   splitByHead: true
   includeWorker: false
-  jvmArgs: -Djava.net.preferIPv4Stack=true
+  jvmArgs: -Djava.net.preferIPv4Stack=true -Djlama.ideal_b_params=1
   port: 8080
 
 worker:
