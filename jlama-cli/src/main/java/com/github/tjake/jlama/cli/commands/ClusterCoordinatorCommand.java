@@ -31,7 +31,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers", abbreviateSynopsis = true)
-@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
+@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands", "com.github.tjake.jlama.net.grpc" })
 @SpringBootConfiguration
 @Configuration
 public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMvcConfigurer {
@@ -66,6 +66,7 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/admin/**").addResourceLocations("classpath:/static/admin/");
         registry.addResourceHandler("/ui/**").addResourceLocations("classpath:/static/ui/");
     }
 

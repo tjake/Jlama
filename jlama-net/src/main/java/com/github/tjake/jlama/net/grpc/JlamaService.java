@@ -23,6 +23,7 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.Pair;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
@@ -170,6 +171,10 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 logger.debug("Exception when shutting down", e);
             }
         }
+    }
+
+    public ImmutableMap<UUID, RegisterResponse> getWorkers() {
+        return ImmutableMap.copyOf(workers);
     }
 
     /**

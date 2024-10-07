@@ -134,7 +134,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
         Iterator<Map.Entry<String, TensorInfo>> it = new ArrayList<>(tensorInfoMap.entrySet()).iterator();
         Map.Entry<String, TensorInfo> next = null;
-        while (tensorsSplit < tensorsInFile && it.hasNext() ) {
+        while (tensorsSplit < tensorsInFile && (it.hasNext() || next != null)) {
             tensors.clear();
             long limit = lastSplitOffset + Integer.MAX_VALUE;
             long startOffset = fileLength;
@@ -143,7 +143,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
             while (it.hasNext() || next != null) {
                 next = next == null ? it.next() : next;
                 TensorInfo info = next.getValue();
-                logger.debug("Tensor {} {} {}", next.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
+                logger.debug("Tensor {} {} {} limit {}", next.getKey(), info.dataOffsets[0], info.dataOffsets[1], limit);
                 if (info.dataOffsets[1] < limit) {
                     tensors.add(next.getKey());
                     tensorsSplit++;
@@ -162,7 +162,6 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                 } else {
                     //Split large tensors up (they will be reassembled in the Weights class)
                     if (tensors.size() == 0) {
-
                         int bytesPerColumn = info.dType.size() * info.shape[1];
 
                         // This tensor is too large to fit in a single split
@@ -181,6 +180,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                         long chunkSize = Integer.MAX_VALUE - (Integer.MAX_VALUE % bytesPerColumn);
                         long offsetAdded = 0;
                         int chunk = 0;
+                        boolean added = false;
                         while (length > 0) {
                             long chunkEnd = Math.min(offset + chunkSize, endOffset);
                             String chunkName = next.getKey() + "-part-" + chunk++;
@@ -195,14 +195,17 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                             // We track the offsetAdded so we can make the offset relative to the current split
                             TensorInfo chunkInfo = new TensorInfo(info.dType, new long[]{numRowsInChunk, info.shape[1]}, new long[] { offset - offsetAdded, chunkEnd - offsetAdded });
                             tensorInfoMap.put(chunkName, chunkInfo);
+                            added = true;
                             offsetAdded += chunkEnd - offset;
 
                             offset = chunkEnd;
                             length -= chunkSize;
                         }
 
-                        tensorsSplit++;
-                        next = null;
+                        if (added) {
+                            tensorsSplit++;
+                            next = null;
+                        }
                     }
 
                     break;
@@ -216,11 +219,12 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
             if (!tensors.isEmpty())
                 splits.put(List.of(startOffset, endOffset), new ArrayList<>(tensors));
 
-            lastSplitOffset = endOffset;
+            if (endOffset > lastSplitOffset)
+                lastSplitOffset = endOffset;
         }
 
 
-        assert tensorsInFile == tensorsSplit : "Not all tensors were split";
+        assert tensorsInFile == tensorsSplit : "Not all tensors were split: " + tensorsSplit + " != " + tensorsInFile;
         return splits;
     }
 

@@ -20,6 +20,7 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.grpc.JlamaService;
+import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.HTTPSafeTensorLoader;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
@@ -30,6 +31,7 @@ import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -98,6 +100,14 @@ public class Coordinator implements Generator {
         }
         this.service = new JlamaService(model, workerCount, splitHeads, splitLayers);
         this.server = ServerBuilder.forPort(port).maxInboundMessageSize(MESSAGE_SIZE).addService(service).build();
+    }
+
+    public ImmutableMap<UUID, RegisterResponse> getWorkers() {
+        return service.getWorkers();
+    }
+
+    public Config getConfig() {
+        return model.getConfig();
     }
 
     public Tokenizer getTokenizer() {
