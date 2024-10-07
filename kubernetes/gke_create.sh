@@ -4,6 +4,8 @@ PROJECT=$1
 CLUSTER=$2
 
 
+REGION=europe-west1-c
+
 function usage() {
 cat << EOF
     usage: $0 [GCLOUD_PROJECT_NAME] [GKE_CLUSTER_NAME]
@@ -45,7 +47,7 @@ gcloud container clusters create $CLUSTER \
     --disk-size=100 \
     --machine-type n4-highcpu-32 \
     --num-nodes 9 \
-    --zone us-central1-c \
+    --zone $REGION \
     --workload-pool=$PROJECT.svc.id.goog \
     --spot
 
@@ -60,7 +62,7 @@ echo "Cluster created successfully"
 # gcloud projects add-iam-policy-binding $PROJECT     --member "serviceAccount:jlama-admin@$PROJECT.iam.gserviceaccount.com"     --role "roles/storage.objectViewer"
 # gcloud iam service-accounts add-iam-policy-binding jlama-admin@jlama-414804.iam.gserviceaccount.com     --role roles/iam.workloadIdentityUser     --member "serviceAccount:$PROJECT.svc.id.goog[jlama/jlama-admin]"
 
-gcloud container clusters get-credentials $CLUSTER --zone us-central1-c 
+gcloud container clusters get-credentials $CLUSTER --zone $REGION
 
 kubectl create namespace jlama
 kubectl create serviceaccount jlama-admin --namespace jlama

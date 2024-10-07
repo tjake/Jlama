@@ -96,15 +96,15 @@
 
                     if (num_layer_shards > 1) {
                         if (layer_shard == 0)
-                            newEdges.push({ from: 0, to: ord + 1, label: '' + (num_layers/num_head_shards) + ' layers' });
-                        else if (layer_shard == layer_shard_total - 1)
-                            newEdges.push({ from: ord + 1, to: 0, label: '' + (num_layers/num_head_shards) + ' layers' });
+                            newEdges.push({ from: 0, to: ord + 1, label: '' + (num_layers/num_layer_shards) + ' layers' });
+                        else if (layer_shard == num_layer_shards - 1)
+                            newEdges.push({ from: ord + 1, to: 0, label: '' + (num_layers/num_layer_shards) + ' layers' });
                         else {
                             let cons = ordinalCombinations[ord + 1];
                             newEdges.push({
                                 from: ord + 1,
                                 to: cons[0] + 1,
-                                label: '' + (num_layers / num_head_shards) + ' layers'
+                                label: '' + (num_layers / num_layer_shards) + ' layers'
                             });
                         }
                     }
