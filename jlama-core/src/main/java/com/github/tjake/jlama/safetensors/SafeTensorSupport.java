@@ -284,16 +284,11 @@ public class SafeTensorSupport {
         );
 
         try (RandomAccessFile raf = new RandomAccessFile(qPath.resolve("model.safetensors").toFile(), "rw")) {
-            FileChannel chan = raf.getChannel();
-
             byte[] header = om.writeValueAsBytes(writtenInfo);
-            logger.debug("pos = {}", chan.position());
             byte[] hsize = new byte[Long.BYTES];
             ByteBuffer.wrap(hsize).order(ByteOrder.LITTLE_ENDIAN).putLong(header.length);
             raf.write(hsize);
-            logger.debug("pos = {}", chan.position());
             raf.write(header);
-            logger.debug("pos = {}", chan.position());
 
             Files.copy(tmp.toPath(), new OutputStream() {
                 @Override
