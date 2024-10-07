@@ -74,7 +74,7 @@ public class Coordinator implements Generator {
         Optional<String> authToken,
         Optional<String> branch
     ) {
-        Preconditions.checkArgument(workerCount > 0 && (workerCount % 2 == 0), "worker count must be a positive even number");
+        Preconditions.checkArgument(workerCount > 0 && (workerCount == 1 || workerCount % 2 == 0), "worker count must be a positive even number");
 
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
             ? b -> SafeTensorSupport.loadWeights(modelPath)

@@ -80,16 +80,11 @@ public class SafeTensorSplitter {
 
                 AbstractTensor t = wl.load(name);
                 FileChannel ch = chunkFile.right;
-                long start = ch.position();
-                t.save(ch);
-                long end = ch.position();
-                System.out.println("Wrote " + name + " to " + chunkName + " at " + start + " to " + end);
-                tensorInfo.dataOffsets[0] = start;
-                tensorInfo.dataOffsets[1] = end;
-
+                TensorInfo newInfo = t.save(ch);
+                System.out.println("Wrote " + name + " to " + chunkName + " at " + newInfo.dataOffsets[0] + " to " + newInfo.dataOffsets[1]);
 
                 Map<String, TensorInfo> tensors = tensorsInChunk.computeIfAbsent(chunkName, n -> new LinkedHashMap<>());
-                tensors.put(name, tensorInfo);
+                tensors.put(name, newInfo);
             }
 
 

@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.net.grpc;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,7 +44,7 @@ public class TopologyService
         Config config = ((Coordinator) model).getConfig();
         Map<UUID, RegisterResponse> workers = ((Coordinator) model).getWorkers();
 
-        List<Map<String, String>> workerList = List.of();
+        List<Map<String, String>> workerList = new ArrayList<>();
         for (Map.Entry<UUID, RegisterResponse> entry : workers.entrySet()) {
             String id = entry.getKey().toString();
             RegisterResponse w = entry.getValue();

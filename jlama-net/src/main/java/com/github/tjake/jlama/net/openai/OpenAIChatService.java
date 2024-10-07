@@ -135,7 +135,7 @@ public class OpenAIChatService {
                                 List.of(
                                     new CreateChatCompletionStreamResponseChoicesInner().finishReason(
                                         CreateChatCompletionStreamResponseChoicesInner.FinishReasonEnum.STOP
-                                    )
+                                    ).delta(new ChatCompletionStreamResponseDelta().content(""))
                                 )
                             )
                     );
