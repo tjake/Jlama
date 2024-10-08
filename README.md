@@ -122,6 +122,15 @@ If you would like to embed Jlama without langchain4j, add the following [maven](
 
 ```
 
+jlama uses Java 21 preview features. You can enable the features globally with:
+
+```shell
+export JDK_JAVA_OPTIONS="--add-modules jdk.incubator.vector --enable-preview"
+```
+or enable the preview features by configuring maven compiler and failsafe plugins.
+
+
+
 Then you can use the Model classes to run models:
 
 ```java
