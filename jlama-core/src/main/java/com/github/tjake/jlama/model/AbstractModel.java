@@ -423,7 +423,7 @@ public abstract class AbstractModel implements Generator {
         KvBufferCache.KvBuffer kvmem = kvBufferCache.getKvBuffer(sessionId); // k and v for context window
         int startPos = kvmem.getCurrentContextPosition(); // Number of tokens in the buffer
 
-        logger.info("Starting at token {} for session {} with prompt {}", startPos, sessionId, promptContext.getPrompt());
+        logger.debug("Starting at token {} for session {} with prompt {}", startPos, sessionId, promptContext.getPrompt());
 
         if (ntokens > c.contextLength) ntokens = c.contextLength;
 
