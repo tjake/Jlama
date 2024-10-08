@@ -96,6 +96,9 @@
             </goals>
             <configuration>
               <archive>
+                <manifestEntries>
+                  <Multi-Release>true</Multi-Release>
+                </manifestEntries>
                 <manifest>
                   <mainClass>org.openjdk.jmh.Main</mainClass>
                 </manifest>
