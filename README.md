@@ -41,6 +41,14 @@ Add LLM Inference directly to your Java application.
 
 ## 🔬 Quick Start
 
+### 😌 Easy Start [optional]
+
+jlama relies on Java 21 preview features. You can enable the features globally with:
+
+```shell
+export JDK_JAVA_OPTIONS="--add-modules jdk.incubator.vector --enable-preview"
+```
+
 ### 🕵️‍♀️ How to use as a local client (with jbang!)
 Jlama includes a command line tool that makes it easy to use.
 
