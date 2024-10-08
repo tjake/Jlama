@@ -5,20 +5,24 @@ package com.github.tjake.jlama.net;
 message CombineRequest {
   bytes workerid = 1;
   bytes uuid = 2;
-  int32 layer = 3;
-  repeated bytes tensor = 4;
+  int32 modelShard = 3;
+  int32 layerShard = 4;
+  repeated bytes tensor = 5;
 }
 
 message CombineResponse {
   repeated bytes tensor = 1;
 }
 
+// Due to streaming nature of the service, the workers send this message to indicate they are ready to generate
+// Or to indicate they are done with the previous token
 message GenerateRequest {
   bytes workerid = 1;
   bytes session = 2;
   bytes tensor = 3;
 }
 
+// This kicks off a token to be generated
 message GenerateResponse {
   bytes session = 1;
   int32 startPosition = 2;
@@ -30,17 +34,54 @@ message GenerateResponse {
  */
 message RegisterRequest {
   bytes workerid = 1;
+  string hostname = 2;
+  int32 peerPort = 3;
 }
 
 message RegisterResponse {
-  int32 modelShard = 1;
-  int32 numModelShards = 2;
-  int32 layerShard = 3;
-  int32 numLayerShards = 4;
+  string hostname = 1;
+  int32 peerPort = 2;
+  int32 modelShard = 3;
+  int32 numModelShards = 4;
+  int32 layerShard = 5;
+  int32 numLayerShards = 6;
+  int32 workerOrd = 7;
 }
 
+message PeerInfo {
+  bytes workerid = 1;
+  string hostname = 2;
+  int32 peerPort = 3;
+  bool isCoordinator = 4; //Means worker terminates the ring and sends to coordinator
+}
+
+// This is the main service, which is used to generate tokens via a coorindator
 service JlamaService {
   rpc register(RegisterRequest) returns (RegisterResponse);
+  rpc discover(RegisterRequest) returns (PeerInfo);
   rpc generate(stream GenerateRequest) returns (stream GenerateResponse);
   rpc combine(stream CombineRequest) returns (stream CombineResponse);
+}
+
+/**
+ * Workers register with their corresponding members of the ring
+ */
+message RingRegisterRequest {
+  int32 modelShard = 1;
+  int32 layerShard = 3;
+}
+
+message PassRecord {
+  bytes session = 1;
+  int32 startPosition = 2;
+  int32 batchSize = 3;
+  bytes tensor = 4;
+}
+
+message Empty {
+}
+
+// This is the ring service, which is used to allow workers to communicate with each other
+service JlamaWorkerRing {
+  rpc pass(stream PassRecord) returns (stream Empty);
 }

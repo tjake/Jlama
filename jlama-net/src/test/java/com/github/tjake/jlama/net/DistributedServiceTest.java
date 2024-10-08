@@ -56,6 +56,8 @@ public class DistributedServiceTest {
             null,
             8888,
             4,
+            true,
+            true,
             Optional.empty(),
             Optional.empty()
         );
@@ -68,10 +70,10 @@ public class DistributedServiceTest {
                 }
             }).start();
 
-            startWorker(modelRoot, modelOwner, modelName);
-            startWorker(modelRoot, modelOwner, modelName);
-            startWorker(modelRoot, modelOwner, modelName);
-            startWorker(modelRoot, modelOwner, modelName);
+            startWorker(modelRoot, modelOwner, modelName, 1);
+            startWorker(modelRoot, modelOwner, modelName, 2);
+            startWorker(modelRoot, modelOwner, modelName, 3);
+            startWorker(modelRoot, modelOwner, modelName, 4);
 
             coordinator.generate(
                 UUID.randomUUID(),
@@ -85,29 +87,32 @@ public class DistributedServiceTest {
         }
     }
 
-    private void startWorker(Path modelRoot, String modelOwner, String modelName) throws Exception {
-        Worker worker = new Worker(
-            modelRoot.toFile(),
-            modelOwner,
-            modelName,
-            DType.Q4,
-            "localhost",
-            8888,
-            null,
-            DType.F32,
-            DType.I8,
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty(),
-            Optional.empty()
-        );
+    private void startWorker(Path modelRoot, String modelOwner, String modelName, int workerNumber) throws Exception {
+
         new Thread(() -> {
             try {
+                Worker worker = new Worker(
+                        modelRoot.toFile(),
+                        modelOwner,
+                        modelName,
+                        DType.Q4,
+                        "localhost",
+                        8888,
+                        8888 + workerNumber,
+                        null,
+                        DType.F32,
+                        DType.I8,
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty()
+                );
+
                 worker.run();
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-                worker.close();
+                //worker.close();
             }
         }).start();
     }

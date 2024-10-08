@@ -20,6 +20,7 @@ import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 import com.github.tjake.jlama.model.AbstractModel;
 import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.net.grpc.JlamaService;
+import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.HTTPSafeTensorLoader;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
@@ -30,6 +31,7 @@ import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -40,16 +42,21 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Coordinator implements Generator {
+    private static final Integer MESSAGE_SIZE = 1024 * 1024 * 1024;
+
     private static final Logger logger = LoggerFactory.getLogger(Coordinator.class);
     private static final ConcurrentMap<UUID, Integer> sessionPositions = new ConcurrentHashMap<>();
     private final int port;
     private final int workerCount;
+    private final boolean splitHeads;
+    private final boolean splitLayers;
     private final Server server;
     private final AbstractModel model;
     private final JlamaService service;
@@ -62,10 +69,12 @@ public class Coordinator implements Generator {
         File workingDirectory,
         int port,
         int workerCount,
+        boolean splitHeads,
+        boolean splitLayers,
         Optional<String> authToken,
         Optional<String> branch
     ) {
-        Preconditions.checkArgument(workerCount != 0 && ((workerCount & (workerCount - 1)) == 0), "worker count must be a power of 2");
+        Preconditions.checkArgument(workerCount > 0 && (workerCount == 1 || workerCount % 2 == 0), "worker count must be a positive even number");
 
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
             ? b -> SafeTensorSupport.loadWeights(modelPath)
@@ -84,8 +93,21 @@ public class Coordinator implements Generator {
         );
         this.port = port;
         this.workerCount = workerCount;
-        this.service = new JlamaService(model, workerCount);
-        this.server = ServerBuilder.forPort(port).addService(service).build();
+        this.splitHeads = splitHeads;
+        this.splitLayers = splitLayers;
+        if (!splitHeads && !splitLayers) {
+            throw new IllegalArgumentException("Must split by heads and/or layers");
+        }
+        this.service = new JlamaService(model, workerCount, splitHeads, splitLayers);
+        this.server = ServerBuilder.forPort(port).maxInboundMessageSize(MESSAGE_SIZE).addService(service).build();
+    }
+
+    public ImmutableMap<UUID, RegisterResponse> getWorkers() {
+        return service.getWorkers();
+    }
+
+    public Config getConfig() {
+        return model.getConfig();
     }
 
     public Tokenizer getTokenizer() {
@@ -137,7 +159,7 @@ public class Coordinator implements Generator {
             StringBuilder responseWithSpecialTokens = new StringBuilder();
 
             int startPos = sessionPositions.computeIfAbsent(session, s -> 0);
-
+            logger.info("Generating tokens for session {} starting at position {}", session, startPos);
             FinishReason finishReason = FinishReason.MAX_TOKENS;
             long[] encoded = model.getTokenizer().encode(promptContext.getPrompt());
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
@@ -187,6 +209,8 @@ public class Coordinator implements Generator {
                 tokensGenerated++;
                 sessionPositions.put(session, lastPosition++);
             }
+
+            logger.info("Ended session {} at position {}", session, lastPosition);
 
             return new Generator.Response(
                 responseBuilder.toString(),

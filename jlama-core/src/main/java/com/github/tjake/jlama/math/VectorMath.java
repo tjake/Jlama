@@ -22,6 +22,8 @@ import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import com.google.common.base.Preconditions;
 import java.util.function.IntConsumer;
 import java.util.stream.IntStream;
+
+import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +79,7 @@ public class VectorMath {
         // exp and sum
         float sum = 0.0f;
         for (int i = offset; i < size; i++) {
-            x.set((float) StrictMath.exp(x.get(0, i) - max_val), 0, i);
+            x.set((float) FastMath.exp(x.get(0, i) - max_val), 0, i);
             sum += x.get(0, i);
         }
         // normalize
@@ -89,7 +91,7 @@ public class VectorMath {
     public static void l1normalize(float[] x) {
         float sum = 0.0f;
         for (int i = 0; i < x.length; i++)
-            sum += Math.abs(x[i]);
+            sum += FastMath.abs(x[i]);
 
         for (int i = 0; i < x.length; i++)
             x[i] /= sum;
@@ -101,7 +103,7 @@ public class VectorMath {
             float v = x.get(0, i);
             sum += v * v;
         }
-        double magnitude = Math.sqrt(sum);
+        double magnitude = FastMath.sqrt(sum);
         for (int i = 0; i < x.shape().last(); i++)
             x.set((float) (x.get(0, i) / magnitude), 0, i);
     }
@@ -111,7 +113,7 @@ public class VectorMath {
         for (int i = 0; i < x.length; i++)
             sum += x[i] * x[i];
 
-        double magnitude = Math.sqrt(sum);
+        double magnitude = FastMath.sqrt(sum);
         for (int i = 0; i < x.length; i++)
             x[i] /= magnitude;
     }
@@ -126,7 +128,7 @@ public class VectorMath {
             bMagnitude += b[i] * b[i];
         }
 
-        return (float) (dotProduct / (Math.sqrt(aMagnitude) * Math.sqrt(bMagnitude)));
+        return (float) (dotProduct / (FastMath.sqrt(aMagnitude) * FastMath.sqrt(bMagnitude)));
     }
 
     public static float[] outerProduct(float[] xs, float[] ys) {
@@ -146,7 +148,7 @@ public class VectorMath {
         float[] freqs = new float[dim / 2];
         float step = 0.0f;
         for (int i = 0; i < freqs.length; i++, step += 2.0)
-            freqs[i] = (float) ((1.0 / Math.pow(theta, step / dim)) / scaling_factor);
+            freqs[i] = (float) ((1.0 / FastMath.pow(theta, step / dim)) / scaling_factor);
 
         float[] t = new float[end];
         for (int i = 0; i < end; i++)
@@ -156,7 +158,7 @@ public class VectorMath {
 
         float[][] r = new float[freqs_cis.length][];
         for (int i = 0; i < freqs_cis.length; i++)
-            r[i] = new float[] { (float) Math.cos(freqs_cis[i]), (float) Math.sin(freqs_cis[i]) };
+            r[i] = new float[] { (float) FastMath.cos(freqs_cis[i]), (float) FastMath.sin(freqs_cis[i]) };
 
         return r;
     }

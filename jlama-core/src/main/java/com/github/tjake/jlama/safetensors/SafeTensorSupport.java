@@ -38,6 +38,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,10 +69,16 @@ public class SafeTensorSupport {
                 }
             }
 
+            // Sort by value using a lambda expression
+            Map<String, TensorInfo> sortedMap = tensorInfoMap.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue())
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+
             final Map<String, String> finalMetadata = metadata;
             saveMetadata.ifPresent(m -> m.putAll(finalMetadata));
 
-            return tensorInfoMap;
+            return sortedMap;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -276,16 +284,11 @@ public class SafeTensorSupport {
         );
 
         try (RandomAccessFile raf = new RandomAccessFile(qPath.resolve("model.safetensors").toFile(), "rw")) {
-            FileChannel chan = raf.getChannel();
-
             byte[] header = om.writeValueAsBytes(writtenInfo);
-            logger.debug("pos = {}", chan.position());
             byte[] hsize = new byte[Long.BYTES];
             ByteBuffer.wrap(hsize).order(ByteOrder.LITTLE_ENDIAN).putLong(header.length);
             raf.write(hsize);
-            logger.debug("pos = {}", chan.position());
             raf.write(header);
-            logger.debug("pos = {}", chan.position());
 
             Files.copy(tmp.toPath(), new OutputStream() {
                 @Override

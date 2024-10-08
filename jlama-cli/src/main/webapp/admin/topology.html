@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <title>Jlama Cluster Topology</title>
+    <style>
+        #network {
+            width: 1024px;
+            height: 768px;
+            border: 1px solid #ccc;
+        }
+        #addNodesButton {
+            margin-top: 10px;
+            padding: 8px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+<div id="network"></div>
+<button id="addNodesButton">Refresh</button>
+<script>
+    // Create initial nodes and edges
+    var nodes = new vis.DataSet([]);
+    var edges = new vis.DataSet([]);
+
+    var container = document.getElementById('network');
+    var data = {
+        nodes: nodes,
+        edges: edges
+    };
+
+    // Network options to maximize distance between nodes
+    var options = {
+        groups: {
+            worker: { color: { background: 'blue' }, shape: 'dot' },
+            coordinator: { color: { background: 'green' }, shape: 'dot' }
+        },
+        physics: {
+            enabled: true,
+            solver: 'barnesHut',
+            barnesHut: {
+                gravitationalConstant: -8000,
+                centralGravity: 0.1,
+                springLength: 300,
+                springConstant: 0.01
+            },
+            stabilization: {
+                enabled: true,
+                iterations: 1000
+            }
+        },
+        interaction: {
+            dragNodes: true,
+            dragView: true,
+            zoomView: true
+        }
+    };
+
+    // Create the network
+    var network = new vis.Network(container, data, options);
+
+    // Function to add nodes from server
+    function addNodesFromServer() {
+        // Example AJAX call using Fetch API
+        fetch('/cluster/topology')  // Replace with your actual endpoint
+            .then(response => response.json())
+            .then(newData => {
+                //Coordinator is always the first node
+                let newNodes = [{ id: 0, label: 'C', group: 'coordinator' }];
+                let newEdges = [];
+
+                const t = newData.workers;
+                const num_heads = newData.num_heads;
+                const num_layers = newData.num_layers;
+                const num_layer_shards = t[0].layer_shard_total;
+                const num_head_shards = t[0].head_shard_total;
+
+                let ordinalCombinations = [];
+                for (let i = 0; i < num_layer_shards; i++) {
+                    for (let j = 0; j < num_head_shards; j++) {
+                        ordinalCombinations.push([i, j]);
+                    }
+                }
+
+                for (let i = 0; i < t.length; i++) {
+                    let ord = parseInt(t[i].ordinal);
+                    let head_shard = t[i].head_shard;
+                    let layer_shard = t[i].layer_shard;
+
+                    newNodes.push({ id: ord + 1, label: "W" + ord, group: 'worker' });
+                    if (num_head_shards > 1) {
+                        newEdges.push({ from: 0, to: ord + 1, label:  'Head Group ' + head_shard, arrows: 'from', color: {color: 'green'}, width: 2 });
+                    }
+
+                    if (layer_shard == 0)
+                        newEdges.push({ from: 0, to: ord + 1,  arrows: 'to', width:2 });
+
+                    if (num_layer_shards > 1) {
+                        if (layer_shard == num_layer_shards - 1)
+                            newEdges.push({ from: ord + 1, to: 0, arrows: 'to', width:2 });
+
+                        if (ord < ordinalCombinations.length - 1) {
+                            //Find node with same head shard and next layer shard
+                            for (let j = 0; j < ordinalCombinations.length; j++) {
+                                if (j > i && ordinalCombinations[j][0] == layer_shard + 1 && ordinalCombinations[j][1] == head_shard ) {
+                                    newEdges.push({
+                                        from: ord + 1,
+                                        to: j + 1,
+                                        arrows: 'to',
+                                        width: 2
+                                    });
+
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Assuming the response format is like:
+                // { nodes: [{id: 5, label: 'E', group: 'group1'}], edges: [{from: 4, to: 5}] }
+
+                // Re-draw the network with updated nodes and edges
+                network.setData({ nodes: newNodes, edges: newEdges });
+            })
+            .catch(error => {
+                console.error('Error fetching new nodes:', error);
+            });
+    }
+
+    // Attach the click event to the button to trigger the AJAX call
+    document.getElementById('addNodesButton').addEventListener('click', addNodesFromServer);
+
+    // Add initial nodes
+    addNodesFromServer();
+</script>
+</body>
+</html>

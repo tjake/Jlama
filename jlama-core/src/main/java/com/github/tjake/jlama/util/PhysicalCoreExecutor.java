@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * Executor that uses a fixed number of physical cores
  */
 public class PhysicalCoreExecutor {
-    private static volatile int physicalCoreCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+    private static volatile int physicalCoreCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
     private static final AtomicBoolean started = new AtomicBoolean(false);
 
     /**
@@ -32,6 +32,8 @@ public class PhysicalCoreExecutor {
      * @param threadCount number of physical cores to use
      */
     public static void overrideThreadCount(int threadCount) {
+        assert threadCount > 0 && threadCount <= Runtime.getRuntime().availableProcessors() : "Threads must be < cores: " + threadCount;
+
         if (!started.compareAndSet(false, true)) throw new IllegalStateException("Executor already started");
 
         physicalCoreCount = threadCount;

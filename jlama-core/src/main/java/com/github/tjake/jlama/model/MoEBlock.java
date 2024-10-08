@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * A Mixed of Experts block. See https://huggingface.co/blog/moe for more details
+ * A Mixture of Experts block. See https://huggingface.co/blog/moe for more details
  */
 public class MoEBlock implements FeedForward {
 
@@ -43,7 +43,6 @@ public class MoEBlock implements FeedForward {
 
     private final AbstractTensor[] batchResults;
     private final AbstractTensor[] batchWeights;
-    private final List<AbstractTensor> tmpTensors1;
 
     public MoEBlock(
         AbstractModel model,
@@ -68,7 +67,6 @@ public class MoEBlock implements FeedForward {
         this.selectedExperts = new int[numberOfExpertsPerToken];
         this.batchResults = new AbstractTensor[2];
         this.batchWeights = new AbstractTensor[2];
-        this.tmpTensors1 = new ArrayList<>(2);
     }
 
     @Override

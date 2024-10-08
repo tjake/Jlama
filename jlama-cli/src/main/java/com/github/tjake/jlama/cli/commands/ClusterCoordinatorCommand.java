@@ -16,7 +16,10 @@
 package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.net.Coordinator;
+import com.github.tjake.jlama.net.Worker;
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -27,16 +30,25 @@ import picocli.CommandLine;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers", abbreviateSynopsis = true)
-@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
+@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands", "com.github.tjake.jlama.net.grpc" })
 @SpringBootConfiguration
 @Configuration
 public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMvcConfigurer {
 
     @CommandLine.Option(names = {
-        "--worker-count" }, paramLabel = "ARG", description = "signifies this instance is a coordinator", required = true)
+        "--worker-count" }, paramLabel = "ARG", description = "signifies this instance is a coordinator")
     int workerCount = 1;
+
+    @CommandLine.Option(names = {
+            "--split-heads" }, paramLabel = "ARG", description = "Should coordinator split work across attention heads (default: ${DEFAULT-VALUE})")
+    boolean splitHeads = true;
+
+    @CommandLine.Option(names = {
+            "--split-layers" }, paramLabel = "ARG", description = "Should coordinator split work across layers (default: ${DEFAULT-VALUE})")
+    boolean splitLayers = false;
 
     @CommandLine.Option(names = {
         "--grpc-port" }, paramLabel = "ARG", description = "grpc port to listen on (default: ${DEFAULT-VALUE})", defaultValue = "9777")
@@ -50,14 +62,23 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
         "--model-type" }, paramLabel = "ARG", description = "The models base type F32/BF16 (default: ${DEFAULT-VALUE})", defaultValue = "F32")
     DType modelType = DType.F32;
 
+    @CommandLine.Option(names = {
+        "--include-worker" }, paramLabel = "ARG", description = "Start a worker in the same jvm (default: ${DEFAULT-VALUE})", defaultValue = "true")
+    Boolean includeWorker = false;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/admin/**").addResourceLocations("classpath:/static/admin/");
         registry.addResourceHandler("/ui/**").addResourceLocations("classpath:/static/ui/");
     }
 
     @Override
     public void run() {
         try {
+
+            if (this.advancedSection.threadCount != null) {
+                PhysicalCoreExecutor.overrideThreadCount(this.advancedSection.threadCount);
+            }
 
             // Download the model metadata
             Path model = SimpleBaseCommand.getModel(
@@ -77,6 +98,8 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                 workingDirectory,
                 grpcPort,
                 workerCount,
+                splitHeads,
+                splitLayers,
                 Optional.ofNullable(downloadSection.authToken),
                 Optional.ofNullable(downloadSection.branch)
             );
@@ -91,6 +114,32 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                     e.printStackTrace();
                 }
             }).start();
+
+            if (includeWorker) {
+                Worker w = new Worker(
+                        model.toFile(),
+                        SimpleBaseCommand.getOwner(modelName),
+                        SimpleBaseCommand.getName(modelName),
+                        modelType,
+                        "localhost",
+                        grpcPort,
+                        grpcPort + 1,
+                        workingDirectory,
+                        advancedSection.workingMemoryType,
+                        advancedSection.workingQuantizationType,
+                        Optional.ofNullable(advancedSection.modelQuantization),
+                        Optional.ofNullable("in-jvm-worker"),
+                        Optional.ofNullable(downloadSection.authToken),
+                        Optional.ofNullable(downloadSection.branch));
+
+                new Thread(() -> {
+                            try {
+                                w.run();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+            }
 
             System.out.println("Chat UI: http://localhost:" + port);
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");

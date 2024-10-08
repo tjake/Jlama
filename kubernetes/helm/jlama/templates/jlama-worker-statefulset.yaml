@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+  labels:
+    app.kubernetes.io/name: jlama-worker
+    app.kubernetes.io/part-of: jlama
+  name: jlama-worker
+spec:
+  serviceName: jlama-worker
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jlama-worker
+      app.kubernetes.io/part-of: jlama
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/name: jlama-worker
+        app.kubernetes.io/part-of: jlama
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+      - args:
+        - cluster-worker
+        - --coordinator=jlama-coordinator-0
+        {{- if .Values.worker.threads }}
+        - --threads={{ .Values.worker.threads }}
+        {{- end }}
+        - {{ .Values.model }}
+        env:
+        - name: JLAMA_JVM_ARGS_EXTRA
+          value: {{ .Values.worker.jvmArgs }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        name: jlama-worker
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        ports:
+          - containerPort: {{ .Values.coordinator.grpcPort }}
+            name: grpc
+        resources:
+        {{- toYaml .Values.resources | nindent 12 }}
+        {{- with .Values.volumeMounts }}
+        volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      dnsConfig:
+        searches:
+          - jlama-coordinator.{{ .Release.Namespace }}.svc.cluster.local
+          - jlama-worker.{{ .Release.Namespace }}.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jlama-worker
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.coordinator.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: jlama-worker
+    app.kubernetes.io/part-of: jlama

@@ -23,10 +23,15 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 import java.util.function.Consumer;
 
 public class CausalSelfAttention {
+    private static final Logger logger = LoggerFactory.getLogger(CausalSelfAttention.class);
+
     private final AbstractModel m;
     private final Config c;
     private final int layerIndex;
@@ -187,7 +192,6 @@ public class CausalSelfAttention {
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
                 int finalPostion = position;
-
                 AbstractTensor key = kvMem.getKeyTensorForPosition(layerIndex, position);
                 AbstractTensor val = kvMem.getValTensorForPosition(layerIndex, position);
 

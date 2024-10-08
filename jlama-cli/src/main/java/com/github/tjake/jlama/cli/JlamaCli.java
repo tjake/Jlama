@@ -192,6 +192,6 @@ public class JlamaCli implements Runnable {
 
         root.addAppender(logConsoleAppender);
         root.setAdditive(false);
-        root.setLevel(Level.INFO);
+        root.setLevel(Boolean.getBoolean("jlama.debug") ? Level.DEBUG : Level.INFO);
     }
 }

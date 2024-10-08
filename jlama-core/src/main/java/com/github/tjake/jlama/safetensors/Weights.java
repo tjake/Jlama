@@ -154,19 +154,8 @@ public class Weights implements WeightLoader {
                 }
                 break;
             case BF16:
-                if (majorityDType == DType.F32) {
-                    len = b.remaining() / DType.BF16.size();
-                    ByteBuffer bb = ByteBuffer.allocate(len * DType.F32.size()).order(ByteOrder.LITTLE_ENDIAN);
-                    for (int i = 0; i < len * DType.F32.size(); i += DType.F32.size()) {
-                        short s = b.getShort();
-                        float v = FloatConversions.bFloat16ToFloat32(s);
-                        bb.putFloat(i, v);
-                    }
-                    t = new FloatBufferTensor(bb.asFloatBuffer(), shape, true);
-                } else {
-                    sb = b.asShortBuffer().slice();
-                    t = new BFloat16BufferTensor(name, sb, shape, true);
-                }
+                sb = b.asShortBuffer().slice();
+                t = new BFloat16BufferTensor(name, sb, shape, true);
                 break;
             case Q4:
                 FloatBufferTensor qb = (FloatBufferTensor) loader.load(name + ".qb", dctx, sparseRows, false /*only need sparsify once*/);

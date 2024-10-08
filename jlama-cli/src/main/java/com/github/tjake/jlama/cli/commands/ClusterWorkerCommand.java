@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "cluster-worker", description = "Connects to a cluster coordinator to perform distributed inference", abbreviateSynopsis = true)
@@ -58,6 +59,10 @@ public class ClusterWorkerCommand extends BaseCommand {
                 false
             );
 
+            if (this.advancedSection.threadCount != null) {
+                PhysicalCoreExecutor.overrideThreadCount(this.advancedSection.threadCount);
+            }
+
             Worker w = new Worker(
                 model.toFile(),
                 SimpleBaseCommand.getOwner(modelName),
@@ -65,6 +70,7 @@ public class ClusterWorkerCommand extends BaseCommand {
                 modelType,
                 host,
                 grpcPort,
+                grpcPort + 1,
                 workingDirectory,
                 advancedSection.workingMemoryType,
                 advancedSection.workingQuantizationType,
