@@ -67,6 +67,9 @@
             </goals>
             <configuration>
               <archive>
+                <manifestEntries>
+                  <Multi-Release>true</Multi-Release>
+                </manifestEntries>
                 <manifest>
                   <addClasspath>true</addClasspath>
                   <mainClass>org.openjdk.jmh.Main</mainClass>
