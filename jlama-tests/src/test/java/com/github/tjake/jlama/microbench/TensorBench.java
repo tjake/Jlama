@@ -19,6 +19,7 @@ import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
+import com.github.tjake.jlama.tensor.operations.NaiveTensorOperations;
 import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
@@ -35,7 +36,7 @@ import org.openjdk.jmh.infra.Blackhole;
     "-XX:CompilerDirectivesFile=inlinerules.json", "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector" })
 public class TensorBench {
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
-
+    private static final TensorOperations n2ops = new NaiveTensorOperations();
     private static final TensorOperations nops = TensorOperationsProvider.get();
 
     private static final int SIZE = 8192;
@@ -53,8 +54,8 @@ public class TensorBench {
         public Parameters() {
 
             for (int i = 0; i < SIZE; i++) {
-                f.set(ThreadLocalRandom.current().nextFloat(), i);
-                f2.set(ThreadLocalRandom.current().nextFloat(), i);
+                f.set(ThreadLocalRandom.current().nextFloat(), 0, i);
+                f2.set(ThreadLocalRandom.current().nextFloat(), 0, i);
             }
             this.bf = new BFloat16BufferTensor(f);
             this.q81 = new Q8ByteBufferTensor(f);
@@ -111,6 +112,24 @@ public class TensorBench {
     public void f32dotf32(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Threads(8)
+    public void f32dotf32nops(Parameters p, Blackhole bh) {
+        bh.consume(nops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+    }
+
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Threads(8)
+    public void f32dotf32na(Parameters p, Blackhole bh) {
+        bh.consume(n2ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+    }
+
 
     public static void main(String[] args) throws Exception {
         org.openjdk.jmh.Main.main(new String[] { "-prof", "gc", "TensorBench" });

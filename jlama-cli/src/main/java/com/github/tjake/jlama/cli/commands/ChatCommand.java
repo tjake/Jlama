@@ -94,10 +94,10 @@ public class ChatCommand extends ModelBaseCommand {
             out.println(
                 "\n\n"
                     + statsColor.format(
-                        Math.round(r.promptTimeMs / (double) r.promptTokens)
-                            + " ms/tok (prompt), "
-                            + Math.round(r.generateTimeMs / (double) r.generatedTokens)
-                            + " ms/tok (gen)"
+                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000))
+                            + " tokens/s (prompt), "
+                            + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000))
+                            + " tokens/s (gen)"
                     )
             );
 
