@@ -2171,12 +2171,20 @@ public final class PanamaTensorOperations implements TensorOperations {
                     }
                     break;
                 case BF16:
-                    switch (vectorType) {
-                        case AVX_512:
-                            accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
-                            break;
-                        case AVX_256:
-                            accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                    switch (b.dType()) {
+                        case BF16:
+                            switch (vectorType) {
+                                case AVX_512:
+                                    accumulateBF16_512(
+                                            (BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                                    break;
+                                case AVX_256:
+                                    accumulateBF16_256(
+                                            (BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                                    break;
+                                default:
+                                    throw new UnsupportedOperationException();
+                            }
                             break;
                         default:
                             throw new UnsupportedOperationException();
