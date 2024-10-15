@@ -24,8 +24,6 @@ public class UnsafeDirectByteBuffer {
     private static final long addressOffset;
     public static final int CACHE_LINE_SIZE = 64;
 
-    public static final int PAGE_SIZE = UnsafeAccess.UNSAFE.pageSize();
-
     static {
         try {
             addressOffset = UnsafeAccess.UNSAFE.objectFieldOffset(Buffer.class.getDeclaredField("address"));

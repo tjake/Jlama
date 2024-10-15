@@ -89,14 +89,14 @@ public class ChatCommand extends ModelBaseCommand {
             builder.addUserMessage(prompt);
             PromptContext builtPrompt = builder.build();
 
-            Generator.Response r = m.generate(session, builtPrompt, temperature, Integer.MAX_VALUE, makeOutHandler());
+            Generator.Response r = m.generate(session, builtPrompt, temperature, tokens == null ? m.getConfig().contextLength : tokens, makeOutHandler());
 
             out.println(
                 "\n\n"
                     + statsColor.format(
-                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000))
+                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
                             + " tokens/s (prompt), "
-                            + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000))
+                            + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
                             + " tokens/s (gen)"
                     )
             );

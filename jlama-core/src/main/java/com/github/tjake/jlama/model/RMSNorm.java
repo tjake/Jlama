@@ -34,7 +34,7 @@ public class RMSNorm extends LayerNorm {
     public AbstractTensor forward(AbstractTensor input, int offset, int length) {
 
         int batchSize = input.shape().first();
-        AbstractTensor output = input.copyShape();
+        AbstractTensor output = m.makeDenseTensor(input.shape());
 
         int limit = offset + length;
         for (int b = 0; b < batchSize; b++) {

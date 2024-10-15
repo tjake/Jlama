@@ -44,6 +44,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,6 +198,10 @@ public abstract class AbstractModel implements Generator {
 
     public AbstractTensor makeDenseTensor(int... shape) {
         return c.tensorCache.get(workingDType, TensorShape.of(shape));
+    }
+
+    public AbstractTensor makeDenseTensor(TensorShape s) {
+        return c.tensorCache.get(workingDType, s);
     }
 
     protected AbstractTensor maybeQuantize(AbstractTensor t) {
@@ -387,7 +392,7 @@ public abstract class AbstractModel implements Generator {
 
             float sum = 0;
             for (int i = 0; i < c.vocabularySize; i++) {
-                float v = (float) Math.exp((logits.get(0, i) - maxv) / temperature);
+                float v = (float) FastMath.exp((logits.get(0, i) - maxv) / temperature);
                 sum += v;
                 logits.set(v, 0, i);
             }

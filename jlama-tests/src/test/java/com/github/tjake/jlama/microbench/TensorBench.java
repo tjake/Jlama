@@ -24,10 +24,22 @@ import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.MachineSpec;
+
+import java.lang.foreign.MemorySegment;
+import java.lang.reflect.Field;
+import java.nio.ByteOrder;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+
+import jdk.incubator.vector.ByteVector;
+import jdk.incubator.vector.FloatVector;
+import jdk.incubator.vector.VectorOperators;
+import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
+import sun.misc.Unsafe;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
@@ -39,12 +51,14 @@ public class TensorBench {
     private static final TensorOperations n2ops = new NaiveTensorOperations();
     private static final TensorOperations nops = TensorOperationsProvider.get();
 
-    private static final int SIZE = 8192;
+    private static final int SIZE = 2048;
 
     @State(Scope.Benchmark)
     public static class Parameters {
+
         final FloatBufferTensor f = new FloatBufferTensor(SIZE);
         final FloatBufferTensor f2 = new FloatBufferTensor(SIZE);
+        final FloatBufferTensor r = new FloatBufferTensor(1,1);
         final BFloat16BufferTensor bf;
         final Q8ByteBufferTensor q81;
         final Q8ByteBufferTensor q82;
@@ -53,19 +67,28 @@ public class TensorBench {
 
         public Parameters() {
 
-            for (int i = 0; i < SIZE; i++) {
-                f.set(ThreadLocalRandom.current().nextFloat(), 0, i);
-                f2.set(ThreadLocalRandom.current().nextFloat(), 0, i);
-            }
-            this.bf = new BFloat16BufferTensor(f);
-            this.q81 = new Q8ByteBufferTensor(f);
-            this.q82 = new Q8ByteBufferTensor(f2);
+            try {
+                float[] arr = new float[SIZE];
 
-            this.q4 = new Q4ByteBufferTensor(f2);
+                for (int i = 0; i < SIZE; i++) {
+                    f.set(ThreadLocalRandom.current().nextFloat(), 0, i);
+                    f2.set(ThreadLocalRandom.current().nextFloat(), 0, i);
+                    arr[i] = ThreadLocalRandom.current().nextFloat();
+                }
+
+                this.bf = new BFloat16BufferTensor(f);
+                this.q81 = new Q8ByteBufferTensor(f);
+                this.q82 = new Q8ByteBufferTensor(f2);
+
+                this.q4 = new Q4ByteBufferTensor(f2);
+
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
         }
     }
 
-    @Benchmark
+   /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
@@ -87,17 +110,25 @@ public class TensorBench {
     @Threads(8)
     public void a_q8dotq8(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.q81, p.q82, 0, 0, SIZE));
+    }*/
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Threads(8)
+    public void native_f32dotq4(Parameters p, Blackhole bh) {
+        bh.consume(nops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
 
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
-    public void b_f32dotq4(Parameters p, Blackhole bh) {
-        bh.consume(nops.dotProduct(p.f, p.q4, 0, 0, SIZE));
+    public void panama_f32dotq4(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
 
-    @Benchmark
+   /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
@@ -128,8 +159,7 @@ public class TensorBench {
     @Threads(8)
     public void f32dotf32na(Parameters p, Blackhole bh) {
         bh.consume(n2ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
-    }
-
+    }*/
 
     public static void main(String[] args) throws Exception {
         org.openjdk.jmh.Main.main(new String[] { "-prof", "gc", "TensorBench" });

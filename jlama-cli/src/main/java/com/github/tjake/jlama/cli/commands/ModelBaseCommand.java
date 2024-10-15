@@ -28,7 +28,7 @@ public class ModelBaseCommand extends BaseCommand {
     protected Float temperature;
 
     @Option(names = {
-        "--tokens" }, paramLabel = "ARG", description = "Number of tokens to generate (default: ${DEFAULT-VALUE})", defaultValue = "256")
+        "--tokens" }, paramLabel = "ARG", description = "Number of tokens to generate (default: ${DEFAULT-VALUE})", defaultValue = "128000")
     protected Integer tokens;
 
     @Option(names = {
