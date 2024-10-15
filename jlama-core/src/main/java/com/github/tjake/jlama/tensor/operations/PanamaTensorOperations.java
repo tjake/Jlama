@@ -181,11 +181,11 @@ public final class PanamaTensorOperations implements TensorOperations {
                 nc = 1;
                 kernel(m0, m, 4, n0, n, 1, matmul4x1);
             }
-            else*/ if (m - m0 >= 1 && n - n0 >= 2) {
+            else if (m - m0 >= 1 && n - n0 >= 2) {
                 mc = 1;
                 nc = 2;
                 kernel(m0, m, 1, n0, n, 2, matmul1x4);
-            } else {
+            } else*/ {
                 mc = 1;
                 nc = 1;
                 kernel(m0, m, 1, n0, n, 1, matmul1x1);
@@ -262,7 +262,7 @@ public final class PanamaTensorOperations implements TensorOperations {
                     {
                         // Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
                         var bf0 = b.getVector(ByteVector.SPECIES_128, j + 1, boffset);
-                        var lo0 = bf0.and(Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_128);
+                        var lo0 = bf0.and(Q4_BYTE_MASK_128).sub(Q4_BYTE_SUB_128);
                         var hi0 = bf0.lanewise(VectorOperators.LSHR, Q4_BYTE_SHIFT_128).sub(Q4_BYTE_SUB_128);
 
                         var af0l = af0.mul(lo0.castShape(FloatVector.SPECIES_256, 0));
