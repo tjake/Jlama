@@ -92,27 +92,27 @@ public class DistributedServiceTest {
         new Thread(() -> {
             try {
                 Worker worker = new Worker(
-                        modelRoot.toFile(),
-                        modelOwner,
-                        modelName,
-                        DType.Q4,
-                        "localhost",
-                        8888,
-                        8888 + workerNumber,
-                        null,
-                        DType.F32,
-                        DType.I8,
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty()
+                    modelRoot.toFile(),
+                    modelOwner,
+                    modelName,
+                    DType.Q4,
+                    "localhost",
+                    8888,
+                    8888 + workerNumber,
+                    null,
+                    DType.F32,
+                    DType.I8,
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty()
                 );
 
                 worker.run();
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-                //worker.close();
+                // worker.close();
             }
         }).start();
     }

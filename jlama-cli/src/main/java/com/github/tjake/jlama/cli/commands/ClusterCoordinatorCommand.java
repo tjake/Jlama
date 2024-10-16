@@ -19,7 +19,6 @@ import com.github.tjake.jlama.net.Coordinator;
 import com.github.tjake.jlama.net.Worker;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -30,24 +29,23 @@ import picocli.CommandLine;
 
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers", abbreviateSynopsis = true)
-@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands", "com.github.tjake.jlama.net.grpc" })
+@SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands",
+    "com.github.tjake.jlama.net.grpc" })
 @SpringBootConfiguration
 @Configuration
 public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMvcConfigurer {
 
-    @CommandLine.Option(names = {
-        "--worker-count" }, paramLabel = "ARG", description = "signifies this instance is a coordinator")
+    @CommandLine.Option(names = { "--worker-count" }, paramLabel = "ARG", description = "signifies this instance is a coordinator")
     int workerCount = 1;
 
     @CommandLine.Option(names = {
-            "--split-heads" }, paramLabel = "ARG", description = "Should coordinator split work across attention heads (default: ${DEFAULT-VALUE})")
+        "--split-heads" }, paramLabel = "ARG", description = "Should coordinator split work across attention heads (default: ${DEFAULT-VALUE})")
     boolean splitHeads = true;
 
     @CommandLine.Option(names = {
-            "--split-layers" }, paramLabel = "ARG", description = "Should coordinator split work across layers (default: ${DEFAULT-VALUE})")
+        "--split-layers" }, paramLabel = "ARG", description = "Should coordinator split work across layers (default: ${DEFAULT-VALUE})")
     boolean splitLayers = false;
 
     @CommandLine.Option(names = {
@@ -117,28 +115,29 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
 
             if (includeWorker) {
                 Worker w = new Worker(
-                        model.toFile(),
-                        SimpleBaseCommand.getOwner(modelName),
-                        SimpleBaseCommand.getName(modelName),
-                        modelType,
-                        "localhost",
-                        grpcPort,
-                        grpcPort + 1,
-                        workingDirectory,
-                        advancedSection.workingMemoryType,
-                        advancedSection.workingQuantizationType,
-                        Optional.ofNullable(advancedSection.modelQuantization),
-                        Optional.ofNullable("in-jvm-worker"),
-                        Optional.ofNullable(downloadSection.authToken),
-                        Optional.ofNullable(downloadSection.branch));
+                    model.toFile(),
+                    SimpleBaseCommand.getOwner(modelName),
+                    SimpleBaseCommand.getName(modelName),
+                    modelType,
+                    "localhost",
+                    grpcPort,
+                    grpcPort + 1,
+                    workingDirectory,
+                    advancedSection.workingMemoryType,
+                    advancedSection.workingQuantizationType,
+                    Optional.ofNullable(advancedSection.modelQuantization),
+                    Optional.ofNullable("in-jvm-worker"),
+                    Optional.ofNullable(downloadSection.authToken),
+                    Optional.ofNullable(downloadSection.branch)
+                );
 
                 new Thread(() -> {
-                            try {
-                                w.run();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        }).start();
+                    try {
+                        w.run();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
             }
 
             System.out.println("Chat UI: http://localhost:" + port);

@@ -202,7 +202,7 @@ public class TestParser {
         Assert.assertEquals(orig.shape[0], t.shape().dim(0));
         Assert.assertEquals(orig.shape[1], t.shape().dim(1));
 
-        //Make sure we can slice the last row
+        // Make sure we can slice the last row
         AbstractTensor s = t.slice(orig.shape[0] - 1);
 
     }

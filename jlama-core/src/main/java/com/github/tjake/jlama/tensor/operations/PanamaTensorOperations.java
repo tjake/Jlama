@@ -212,10 +212,14 @@ public final class PanamaTensorOperations implements TensorOperations {
                     var b0hi = b0.lanewise(VectorOperators.LSHR, Q4_BYTE_SHIFT_128).sub(Q4_BYTE_SUB_128);
 
                     // BLOCK_SIZE Floats
-                    var af0 = a.getVector(FloatVector.SPECIES_256, i, aoffset).mul(b0lo.castShape(FloatVector.SPECIES_256, 0));;
-                    var af1 = a.getVector(FloatVector.SPECIES_256, i, aoffset + 8).mul(b0lo.castShape(FloatVector.SPECIES_256, 1));;
-                    var af2 = a.getVector(FloatVector.SPECIES_256, i, aoffset + Q4ByteBufferTensor.HALF_BLOCK).mul(b0hi.castShape(FloatVector.SPECIES_256, 0));
-                    var af3 = a.getVector(FloatVector.SPECIES_256, i, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8).mul(b0hi.castShape(FloatVector.SPECIES_256, 1));
+                    var af0 = a.getVector(FloatVector.SPECIES_256, i, aoffset).mul(b0lo.castShape(FloatVector.SPECIES_256, 0));
+                    ;
+                    var af1 = a.getVector(FloatVector.SPECIES_256, i, aoffset + 8).mul(b0lo.castShape(FloatVector.SPECIES_256, 1));
+                    ;
+                    var af2 = a.getVector(FloatVector.SPECIES_256, i, aoffset + Q4ByteBufferTensor.HALF_BLOCK)
+                        .mul(b0hi.castShape(FloatVector.SPECIES_256, 0));
+                    var af3 = a.getVector(FloatVector.SPECIES_256, i, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8)
+                        .mul(b0hi.castShape(FloatVector.SPECIES_256, 1));
 
                     acc = af0.add(af1).add(af2).add(af3).fma(scale, acc);
                 }
@@ -237,7 +241,6 @@ public final class PanamaTensorOperations implements TensorOperations {
                 for (; aoffset < alim && boffset < blim; aoffset += slen, boffset += slen) {
                     FloatVector scale0 = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 0, boffset));
                     FloatVector scale1 = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(j + 1, boffset));
-
 
                     // BLOCK_SIZE Floats
                     var af0 = a.getVector(FloatVector.SPECIES_256, i, aoffset);
@@ -272,7 +275,6 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                         acc1 = af0l.add(af1l).add(af2l).add(af3l).fma(scale1, acc1);
                     }
-
 
                 }
 
@@ -729,8 +731,10 @@ public final class PanamaTensorOperations implements TensorOperations {
 
                 // First take the scaling factors of both tensors and multiply them in SIMD
                 for (int bi = 0; bi < blocksNeeded; bi += FloatVector.SPECIES_256.length()) {
-                    final var ablock = a.getBlockF().getVector(FloatVector.SPECIES_256, i, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * aoffset));
-                    final var bblock = b.getBlockF().getVector(FloatVector.SPECIES_256, j, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * boffset));
+                    final var ablock = a.getBlockF()
+                        .getVector(FloatVector.SPECIES_256, i, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * aoffset));
+                    final var bblock = b.getBlockF()
+                        .getVector(FloatVector.SPECIES_256, j, (int) (Q8ByteBufferTensor.I_BLOCK_SIZE * boffset));
                     final var scales = ablock.mul(bblock);
 
                     // Now for each scalar fetch the corresponding block of data and dot product them
@@ -2175,12 +2179,10 @@ public final class PanamaTensorOperations implements TensorOperations {
                         case BF16:
                             switch (vectorType) {
                                 case AVX_512:
-                                    accumulateBF16_512(
-                                            (BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                                    accumulateBF16_512((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
                                     break;
                                 case AVX_256:
-                                    accumulateBF16_256(
-                                            (BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                                    accumulateBF16_256((BFloat16BufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
                                     break;
                                 default:
                                     throw new UnsupportedOperationException();
@@ -2212,7 +2214,6 @@ public final class PanamaTensorOperations implements TensorOperations {
         }
     }
 
-
     void accumulateF32Q4_256(FloatBufferTensor a, Q4ByteBufferTensor b, int offset, int limit) {
         int aoffset = offset;
         int boffset = offset;
@@ -2221,7 +2222,7 @@ public final class PanamaTensorOperations implements TensorOperations {
         int slen = Q4ByteBufferTensor.BLOCK_SIZE;
 
         for (; aoffset < alim; aoffset += slen, boffset += slen) {
-            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_256,  b.getFactorForIndex(0, boffset));
+            FloatVector scale = FloatVector.broadcast(FloatVector.SPECIES_256, b.getFactorForIndex(0, boffset));
 
             // Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
             var wBytes = b.getVector(ByteVector.SPECIES_128, 0, boffset);
@@ -2231,8 +2232,10 @@ public final class PanamaTensorOperations implements TensorOperations {
             // BLOCK_SIZE Floats
             var af0 = a.getVector(FloatVector.SPECIES_256, 0, aoffset).add(loBytes.castShape(FloatVector.SPECIES_256, 0).mul(scale));
             var af1 = a.getVector(FloatVector.SPECIES_256, 0, aoffset + 8).add(loBytes.castShape(FloatVector.SPECIES_256, 1).mul(scale));
-            var af2 = a.getVector(FloatVector.SPECIES_256, 0, aoffset + Q4ByteBufferTensor.HALF_BLOCK).add(hiBytes.castShape(FloatVector.SPECIES_256, 0).mul(scale));
-            var af3 = a.getVector(FloatVector.SPECIES_256, 0, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8).add(hiBytes.castShape(FloatVector.SPECIES_256, 1).mul(scale));
+            var af2 = a.getVector(FloatVector.SPECIES_256, 0, aoffset + Q4ByteBufferTensor.HALF_BLOCK)
+                .add(hiBytes.castShape(FloatVector.SPECIES_256, 0).mul(scale));
+            var af3 = a.getVector(FloatVector.SPECIES_256, 0, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8)
+                .add(hiBytes.castShape(FloatVector.SPECIES_256, 1).mul(scale));
 
             a.intoTensor(af0, 0, aoffset);
             a.intoTensor(af1, 0, aoffset + 8);

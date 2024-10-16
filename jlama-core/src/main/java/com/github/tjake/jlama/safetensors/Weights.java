@@ -15,7 +15,6 @@
  */
 package com.github.tjake.jlama.safetensors;
 
-import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.model.DistributedContext;
 import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.util.Pair;

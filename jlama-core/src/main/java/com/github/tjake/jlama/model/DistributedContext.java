@@ -115,14 +115,20 @@ public class DistributedContext {
     }
 
     public String toString() {
-        return "DistributedContext{" +
-            ", embeddingSegmentStart=" + embeddingSegmentStart +
-            ", embeddingSegmentEnd=" + embeddingSegmentEnd +
-            ", headStart=" + headStart +
-            ", headEnd=" + headEnd +
-            ", layerStart=" + layerStart +
-            ", layerEnd=" + layerEnd +
-            '}';
+        return "DistributedContext{"
+            + ", embeddingSegmentStart="
+            + embeddingSegmentStart
+            + ", embeddingSegmentEnd="
+            + embeddingSegmentEnd
+            + ", headStart="
+            + headStart
+            + ", headEnd="
+            + headEnd
+            + ", layerStart="
+            + layerStart
+            + ", layerEnd="
+            + layerEnd
+            + '}';
     }
 
     public static Builder builder(Config c) {

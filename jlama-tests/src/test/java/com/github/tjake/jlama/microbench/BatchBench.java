@@ -19,7 +19,6 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.tensor.operations.NaiveTensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperations;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +35,7 @@ import org.openjdk.jmh.runner.options.TimeValue;
 @Fork(warmups = 1, value = 1, jvmArgsPrepend = { "--add-modules=jdk.incubator.vector", "--enable-preview",
     "-Djlama.force_panama_tensor_operations=true" })
 public class BatchBench {
-    private static final TensorOperations ops = new NaiveTensorOperations(); //TensorOperationsProvider.get();
+    private static final TensorOperations ops = new NaiveTensorOperations(); // TensorOperationsProvider.get();
 
     private static final int BATCH_SIZE = 1024;
     private static final int SIZE = 1024;

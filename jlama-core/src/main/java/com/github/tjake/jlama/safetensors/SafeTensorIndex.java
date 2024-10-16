@@ -157,10 +157,10 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
 
                     logger.debug("Adding tensor {} to split {}-{}", next.getKey(), info.dataOffsets[0], info.dataOffsets[1]);
 
-                    //Used so fetch the tensor from the mmap
+                    // Used so fetch the tensor from the mmap
                     next = null;
                 } else {
-                    //Split large tensors up (they will be reassembled in the Weights class)
+                    // Split large tensors up (they will be reassembled in the Weights class)
                     if (tensors.size() == 0) {
                         int bytesPerColumn = info.dType.size() * info.shape[1];
 
@@ -176,7 +176,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                         long offset = info.dataOffsets[0];
                         long length = info.dataOffsets[1] - offset;
 
-                        //Chunk size needs to be a multiple of the column size
+                        // Chunk size needs to be a multiple of the column size
                         long chunkSize = Integer.MAX_VALUE - (Integer.MAX_VALUE % bytesPerColumn);
                         long offsetAdded = 0;
                         int chunk = 0;
@@ -184,16 +184,26 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
                         while (length > 0) {
                             long chunkEnd = Math.min(offset + chunkSize, endOffset);
                             String chunkName = next.getKey() + "-part-" + chunk++;
-                            logger.debug("Adding chunk {} to split {}-{} {}", chunkName, offset, chunkEnd, Ints.checkedCast(chunkEnd - offset));
+                            logger.debug(
+                                "Adding chunk {} to split {}-{} {}",
+                                chunkName,
+                                offset,
+                                chunkEnd,
+                                Ints.checkedCast(chunkEnd - offset)
+                            );
                             splits.put(List.of(offset, chunkEnd), List.of(chunkName));
 
-                            //Add TensorInfo for the chunk
+                            // Add TensorInfo for the chunk
                             assert info.shape.length == 2 : "Only 2D tensors supported";
                             int numRowsInChunk = Ints.checkedCast((chunkEnd - offset) / bytesPerColumn);
 
-                            //This tensorInfo is relative to the split which we know is at least the mmap limit
+                            // This tensorInfo is relative to the split which we know is at least the mmap limit
                             // We track the offsetAdded so we can make the offset relative to the current split
-                            TensorInfo chunkInfo = new TensorInfo(info.dType, new long[]{numRowsInChunk, info.shape[1]}, new long[] { offset - offsetAdded, chunkEnd - offsetAdded });
+                            TensorInfo chunkInfo = new TensorInfo(
+                                info.dType,
+                                new long[] { numRowsInChunk, info.shape[1] },
+                                new long[] { offset - offsetAdded, chunkEnd - offsetAdded }
+                            );
                             tensorInfoMap.put(chunkName, chunkInfo);
                             added = true;
                             offsetAdded += chunkEnd - offset;
@@ -216,13 +226,10 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
             logger.debug("Adding split {}-{} with {} tensors of {}", startOffset, endOffset, tensors.size(), tensorsSplit);
 
             // Add any sections that were split
-            if (!tensors.isEmpty())
-                splits.put(List.of(startOffset, endOffset), new ArrayList<>(tensors));
+            if (!tensors.isEmpty()) splits.put(List.of(startOffset, endOffset), new ArrayList<>(tensors));
 
-            if (endOffset > lastSplitOffset)
-                lastSplitOffset = endOffset;
+            if (endOffset > lastSplitOffset) lastSplitOffset = endOffset;
         }
-
 
         assert tensorsInFile == tensorsSplit : "Not all tensors were split: " + tensorsSplit + " != " + tensorsInFile;
         return splits;
@@ -248,7 +255,7 @@ public class SafeTensorIndex implements WeightLoader, AutoCloseable {
     public AbstractTensor load(String name, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) {
         Weights w = weightMap.get(name);
         if (w == null) {
-            //Maybe assemble the tensor from segments
+            // Maybe assemble the tensor from segments
             List<AbstractTensor> segments = new ArrayList<>();
             int idx = 0;
             while (true) {

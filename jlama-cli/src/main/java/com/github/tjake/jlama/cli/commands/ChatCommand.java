@@ -89,7 +89,13 @@ public class ChatCommand extends ModelBaseCommand {
             builder.addUserMessage(prompt);
             PromptContext builtPrompt = builder.build();
 
-            Generator.Response r = m.generate(session, builtPrompt, temperature, tokens == null ? m.getConfig().contextLength : tokens, makeOutHandler());
+            Generator.Response r = m.generate(
+                session,
+                builtPrompt,
+                temperature,
+                tokens == null ? m.getConfig().contextLength : tokens,
+                makeOutHandler()
+            );
 
             out.println(
                 "\n\n"

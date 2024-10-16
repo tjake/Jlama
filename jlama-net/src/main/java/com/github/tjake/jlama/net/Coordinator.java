@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
@@ -74,7 +73,10 @@ public class Coordinator implements Generator {
         Optional<String> authToken,
         Optional<String> branch
     ) {
-        Preconditions.checkArgument(workerCount > 0 && (workerCount == 1 || workerCount % 2 == 0), "worker count must be a positive even number");
+        Preconditions.checkArgument(
+            workerCount > 0 && (workerCount == 1 || workerCount % 2 == 0),
+            "worker count must be a positive even number"
+        );
 
         Function<File, WeightLoader> weightLoaderFunction = SafeTensorSupport.isModelLocal(modelPath.toPath())
             ? b -> SafeTensorSupport.loadWeights(modelPath)

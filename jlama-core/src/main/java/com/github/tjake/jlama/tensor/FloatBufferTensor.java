@@ -16,7 +16,6 @@
 package com.github.tjake.jlama.tensor;
 
 import com.github.tjake.jlama.safetensors.DType;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.UnsafeDirectByteBuffer;
 import com.google.common.base.Preconditions;
@@ -64,9 +63,9 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
         super(DType.F32, shape, true);
         this.name = "tmp";
         this.b = UnsafeDirectByteBuffer.allocateAlignedByteBuffer(
-                    Ints.checkedCast(shape.size() * dType().size()),
-                    UnsafeDirectByteBuffer.CACHE_LINE_SIZE
-                ).asFloatBuffer();
+            Ints.checkedCast(shape.size() * dType().size()),
+            UnsafeDirectByteBuffer.CACHE_LINE_SIZE
+        ).asFloatBuffer();
 
         this.segment = MemorySegment.ofBuffer(b);
     }
@@ -137,8 +136,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (b.hasArray())
-            return FloatVector.fromArray(species, b.array(), offset);
+        if (b.hasArray()) return FloatVector.fromArray(species, b.array(), offset);
 
         return FloatVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
@@ -148,10 +146,8 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
         // Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
 
-        if (b.hasArray())
-            vector.intoArray(b.array(), offset);
-        else
-            vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        if (b.hasArray()) vector.intoArray(b.array(), offset);
+        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override

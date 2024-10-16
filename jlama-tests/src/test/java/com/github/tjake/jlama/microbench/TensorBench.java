@@ -25,21 +25,11 @@ import com.github.tjake.jlama.tensor.operations.TensorOperations;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.MachineSpec;
 
-import java.lang.foreign.MemorySegment;
-import java.lang.reflect.Field;
-import java.nio.ByteOrder;
-import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import jdk.incubator.vector.ByteVector;
-import jdk.incubator.vector.FloatVector;
-import jdk.incubator.vector.VectorOperators;
-import jdk.incubator.vector.VectorSpecies;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
-import sun.misc.Unsafe;
 
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
@@ -58,7 +48,7 @@ public class TensorBench {
 
         final FloatBufferTensor f = new FloatBufferTensor(SIZE);
         final FloatBufferTensor f2 = new FloatBufferTensor(SIZE);
-        final FloatBufferTensor r = new FloatBufferTensor(1,1);
+        final FloatBufferTensor r = new FloatBufferTensor(1, 1);
         final BFloat16BufferTensor bf;
         final Q8ByteBufferTensor q81;
         final Q8ByteBufferTensor q82;
@@ -88,14 +78,14 @@ public class TensorBench {
         }
     }
 
-   /* @Benchmark
+    /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
     public void a_aq8dotq4(Parameters p, Blackhole bh) {
         bh.consume(nops.dotProduct(p.q81, p.q4, 0, 0, SIZE));
     }
-
+    
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -103,7 +93,7 @@ public class TensorBench {
     public void a_pq8dotq4(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.q81, p.q4, 0, 0, SIZE));
     }
-
+    
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -128,14 +118,14 @@ public class TensorBench {
         bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
 
-   /* @Benchmark
+    /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
     public void a_f32dotq8(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.f, p.q82, 0, 0, SIZE));
     }
-
+    
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -143,7 +133,7 @@ public class TensorBench {
     public void f32dotf32(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
-
+    
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -151,8 +141,8 @@ public class TensorBench {
     public void f32dotf32nops(Parameters p, Blackhole bh) {
         bh.consume(nops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
-
-
+    
+    
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)

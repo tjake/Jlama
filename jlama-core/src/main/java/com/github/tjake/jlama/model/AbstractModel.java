@@ -263,10 +263,11 @@ public abstract class AbstractModel implements Generator {
     }
 
     public AbstractTensor forward(
-            AbstractTensor embedding,
-            int startPos,
-            KvBufferCache.KvBuffer kvbuf,
-            Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+        AbstractTensor embedding,
+        int startPos,
+        KvBufferCache.KvBuffer kvbuf,
+        Optional<Consumer<List<AbstractTensor>>> tensorReducer
+    ) {
 
         for (int i = c.dctx().layerStart; i < c.dctx().layerEnd; i++) {
             int relativeLayer = i - c.dctx().layerStart;

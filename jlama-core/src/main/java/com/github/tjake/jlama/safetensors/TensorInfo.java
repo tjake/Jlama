@@ -75,7 +75,7 @@ public class TensorInfo implements Comparable<TensorInfo> {
 
     @Override
     public int compareTo(TensorInfo o) {
-        //In the case we are reading in order of dataOffsets
+        // In the case we are reading in order of dataOffsets
         return Long.compare(dataOffsets[0], o.dataOffsets[0]);
     }
 }

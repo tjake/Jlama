@@ -23,7 +23,6 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import com.github.tjake.jlama.tensor.TensorCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -72,8 +71,7 @@ public class LlamaModel extends AbstractModel {
 
         return (inputToken, position) -> {
 
-
-            AbstractTensor at        = wte.slice(true, inputToken);
+            AbstractTensor at = wte.slice(true, inputToken);
             AbstractTensor embedding = at.copyShape();
 
             // Always copy the entire embedding
@@ -94,7 +92,7 @@ public class LlamaModel extends AbstractModel {
 
         IntStream.range(c.dctx().layerStart, c.dctx().layerEnd).parallel().forEach(i -> {
 
-            int relativeLayer = i - c.dctx().layerStart; //FIXME: add a helper to the context
+            int relativeLayer = i - c.dctx().layerStart; // FIXME: add a helper to the context
 
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
@@ -135,10 +133,11 @@ public class LlamaModel extends AbstractModel {
         DType qType = modelQType.orElse(this.modelDType);
         final LayerNorm outputLayerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType));
 
-        //Some llama models don't have a classification head
+        // Some llama models don't have a classification head
         AbstractTensor classificationWeights = weights.isWeightPresent("lm_head.weight")
-                ? weights.load("lm_head.weight").quantize(workingDType)
-                : wte == null ? wte = weights.load("model.embed_tokens.weight") : wte;
+            ? weights.load("lm_head.weight").quantize(workingDType)
+            : wte == null ? wte = weights.load("model.embed_tokens.weight")
+            : wte;
 
         return new SampleOutput() {
             @Override

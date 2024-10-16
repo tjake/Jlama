@@ -136,20 +136,32 @@ public class HTTPSafeTensorLoader implements WeightLoader {
             long length = positionLimit - positionOffset;
 
             if (length > Integer.MAX_VALUE) {
-                //Make a segmented tensor
+                // Make a segmented tensor
                 assert info.shape.length == 2 : "Only 2D tensors supported";
 
                 List<AbstractTensor> tensors = new ArrayList<>();
                 int bytesPerColumn = info.dType.size() * info.shape[1];
                 long offset = positionOffset;
-                //Chunk size needs to be a multiple of the column size
+                // Chunk size needs to be a multiple of the column size
                 long chunkSize = Integer.MAX_VALUE - (Integer.MAX_VALUE % bytesPerColumn);
                 int chunkNum = 0;
                 while (offset < positionLimit) {
                     long chunkEnd = Math.min(offset + chunkSize, positionLimit);
                     int numRowsInChunk = Ints.checkedCast((chunkEnd - offset) / bytesPerColumn);
                     TensorShape chunkShape = TensorShape.of(numRowsInChunk, info.shape[1]);
-                    tensors.add(downloadAndLoadTensor(name + ".part." + chunkNum++, weightFile, info, chunkShape, offset, chunkEnd, dctx, sparseRows, sparseColumns));
+                    tensors.add(
+                        downloadAndLoadTensor(
+                            name + ".part." + chunkNum++,
+                            weightFile,
+                            info,
+                            chunkShape,
+                            offset,
+                            chunkEnd,
+                            dctx,
+                            sparseRows,
+                            sparseColumns
+                        )
+                    );
                     offset = chunkEnd;
                 }
 
@@ -165,20 +177,29 @@ public class HTTPSafeTensorLoader implements WeightLoader {
         }
     }
 
-    private AbstractTensor downloadAndLoadTensor(String name, String weightFile, TensorInfo info, TensorShape shape, long positionOffset, long positionLimit, DistributedContext dctx, boolean sparseRows, boolean sparseColumns) throws IOException
-    {
+    private AbstractTensor downloadAndLoadTensor(
+        String name,
+        String weightFile,
+        TensorInfo info,
+        TensorShape shape,
+        long positionOffset,
+        long positionLimit,
+        DistributedContext dctx,
+        boolean sparseRows,
+        boolean sparseColumns
+    ) throws IOException {
         Path weightPath = modelRoot.resolve(weightFile + ".part." + positionOffset + "_" + positionLimit);
 
         if (!weightPath.toFile().exists()) {
             logger.info("Downloading file: {} for {} {}MB", weightPath, name, (positionLimit - positionOffset) / 1024 / 1024);
             HttpSupport.downloadFile(
-                    modelName,
-                    weightFile,
-                    branch,
-                    authToken,
-                    Optional.of(Pair.of(positionOffset, positionLimit)),
-                    weightPath,
-                    Optional.empty()
+                modelName,
+                weightFile,
+                branch,
+                authToken,
+                Optional.of(Pair.of(positionOffset, positionLimit)),
+                weightPath,
+                Optional.empty()
             );
         }
 
@@ -186,30 +207,30 @@ public class HTTPSafeTensorLoader implements WeightLoader {
 
         RandomAccessFile raf = new RandomAccessFile(weightPath.toFile(), "r");
         ByteBuffer buf = raf.getChannel()
-                .map(FileChannel.MapMode.READ_ONLY, 0, raf.length())
-                .duplicate()
-                .order(ByteOrder.LITTLE_ENDIAN)
-                .position(0)
-                .limit(length);
+            .map(FileChannel.MapMode.READ_ONLY, 0, raf.length())
+            .duplicate()
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .position(0)
+            .limit(length);
 
         if (raf.length() < length) {
             throw new RuntimeException(
-                    "Failed to download the correct number of bytes: " + raf.length() + " != " + length + " for " + weightPath
+                "Failed to download the correct number of bytes: " + raf.length() + " != " + length + " for " + weightPath
             );
         }
 
         logger.debug("Loading tensor: {} from {} with offsets: {} {}", name, weightPath, positionOffset, positionLimit);
 
         AbstractTensor tensor = Weights.loadTensorFromBuffer(
-                name,
-                info.dType,
-                modelDType,
-                shape,
-                buf,
-                sparseRows,
-                sparseColumns,
-                dctx,
-                this
+            name,
+            info.dType,
+            modelDType,
+            shape,
+            buf,
+            sparseRows,
+            sparseColumns,
+            dctx,
+            this
         );
 
         layerFiles.put(name, Pair.of(raf, tensor));
@@ -262,8 +283,7 @@ public class HTTPSafeTensorLoader implements WeightLoader {
     public void close() {
         for (Pair<RandomAccessFile, AbstractTensor> pair : layerFiles.values()) {
             try {
-                if (pair.left() != null)
-                    pair.left().close();
+                if (pair.left() != null) pair.left().close();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

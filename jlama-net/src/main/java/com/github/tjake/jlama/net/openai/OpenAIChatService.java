@@ -107,27 +107,24 @@ public class OpenAIChatService {
         AtomicInteger index = new AtomicInteger(0);
         if (request.getStream() != null && request.getStream()) {
             SseEmitter emitter = new SseEmitter(-1L);
-            CompletableFuture.supplyAsync(() -> model.generate(sessionId, builder.build(), temperature, maxTokens, (t, f) ->
-                CompletableFuture.supplyAsync(() -> {
-                    try
-                    {
+            CompletableFuture.supplyAsync(
+                () -> model.generate(sessionId, builder.build(), temperature, maxTokens, (t, f) -> CompletableFuture.supplyAsync(() -> {
+                    try {
                         emitter.send(
-                                new CreateChatCompletionStreamResponse().id(sessionId.toString())
-                                        .choices(
-                                                List.of(
-                                                        new CreateChatCompletionStreamResponseChoicesInner().index(index.getAndIncrement())
-                                                                .delta(new ChatCompletionStreamResponseDelta().content(t))
-                                                )
-                                        )
+                            new CreateChatCompletionStreamResponse().id(sessionId.toString())
+                                .choices(
+                                    List.of(
+                                        new CreateChatCompletionStreamResponseChoicesInner().index(index.getAndIncrement())
+                                            .delta(new ChatCompletionStreamResponseDelta().content(t))
+                                    )
+                                )
                         );
-                    }
-                    catch (IOException e)
-                    {
+                    } catch (IOException e) {
                         emitter.completeWithError(e);
                     }
                     return null;
-                })
-            )).handle((r, ex) -> {
+                }))
+            ).handle((r, ex) -> {
                 try {
                     emitter.send(
                         new CreateChatCompletionStreamResponse().id(sessionId.toString())
@@ -142,9 +139,11 @@ public class OpenAIChatService {
 
                     emitter.complete();
 
-                    logger.info("Stats: {} ms/tok (prompt), {}  ms/tok (gen)",
-                            Math.round(r.promptTimeMs / (double) r.promptTokens),
-                            Math.round(r.generateTimeMs / (double) r.generatedTokens));
+                    logger.info(
+                        "Stats: {} ms/tok (prompt), {}  ms/tok (gen)",
+                        Math.round(r.promptTimeMs / (double) r.promptTokens),
+                        Math.round(r.generateTimeMs / (double) r.generatedTokens)
+                    );
 
                 } catch (IOException e) {
                     emitter.completeWithError(e);

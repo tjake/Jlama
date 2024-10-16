@@ -122,8 +122,8 @@ public class MLPBlock implements FeedForward {
                 bias -> TensorOperationsProvider.get().accumulate(buf, bias, dctx.hiddenSegmentStart, dctx.hiddenSegmentLength)
             );
 
-            //Not using pfor because we can use all cores
-            IntStream.range(dctx.hiddenSegmentStart, dctx.hiddenSegmentEnd).parallel().forEach( i -> {
+            // Not using pfor because we can use all cores
+            IntStream.range(dctx.hiddenSegmentStart, dctx.hiddenSegmentEnd).parallel().forEach(i -> {
                 for (int j = 0; j < batchSize; j++) {
                     float w1 = buf.get(j, i);
                     float w1a = ActivationFunction.eval(activationFunction, w1);
