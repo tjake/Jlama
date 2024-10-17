@@ -2170,8 +2170,18 @@ public final class PanamaTensorOperations implements TensorOperations {
                                     throw new UnsupportedOperationException();
                             }
                             break;
+                        case BF16:
+                            switch (vectorType) {
+                                case AVX_512:
+                                case AVX_256:
+                                    accumulateF32BF16_256((FloatBufferTensor) a, (BFloat16BufferTensor) b, offset, limit);
+                                    break;
+                                default:
+                                    throw new UnsupportedOperationException();
+                            }
+                            break;
                         default:
-                            throw new UnsupportedOperationException();
+                            throw new UnsupportedOperationException("F32 => " + b.dType());
                     }
                     break;
                 case BF16:
@@ -2241,6 +2251,31 @@ public final class PanamaTensorOperations implements TensorOperations {
             a.intoTensor(af1, 0, aoffset + 8);
             a.intoTensor(af2, 0, aoffset + Q4ByteBufferTensor.HALF_BLOCK);
             a.intoTensor(af3, 0, aoffset + Q4ByteBufferTensor.HALF_BLOCK + 8);
+        }
+    }
+
+    void accumulateF32BF16_256(FloatBufferTensor a, BFloat16BufferTensor b, int offset, int limit) {
+        int upperBound = offset + FloatVector.SPECIES_256.loopBound(limit);
+
+        int i = offset;
+        for (; i < upperBound; i += FloatVector.SPECIES_256.length()) {
+
+            // F32
+            var af = a.getVector(FloatVector.SPECIES_256, 0, i);
+
+            // Convert BF16 to F32
+            var bf = b.getVector(ShortVector.SPECIES_128, 0, i)
+                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                    .reinterpretAsFloats();
+
+            var res = af.add(bf);
+            a.intoTensor(res, 0, i);
+        }
+
+        // tail
+        for (; i < offset + limit; i++) {
+            a.set(a.get(0, i) + b.get(0, i), 0, i);
         }
     }
 
