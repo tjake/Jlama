@@ -15,6 +15,7 @@
  */
 package com.github.tjake.jlama.model.functions;
 
+import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.prompt.ToolCall;
@@ -162,6 +163,8 @@ public interface Generator {
     default Map<String, Float> classify(String input, PoolingType poolingType) {
         throw new UnsupportedOperationException("Classification not supported by this model");
     }
+
+    Config getConfig();
 
     Tokenizer getTokenizer();
 

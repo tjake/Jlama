@@ -101,9 +101,10 @@ public class OpenAIChatService {
             }
         }
 
-        float temperature = request.getTemperature() == null ? 0.3f : request.getTemperature().floatValue();
-        int maxTokens = request.getMaxTokens() == null ? 1024 : request.getMaxTokens();
+        float temperature =  0.3f;
+        int maxTokens = request.getMaxTokens() == null ? model.getConfig().contextLength : request.getMaxTokens();
 
+        logger.info("Generating completion for session {} with temperature {} and max tokens {}", sessionId, temperature, maxTokens);
         AtomicInteger index = new AtomicInteger(0);
         if (request.getStream() != null && request.getStream()) {
             SseEmitter emitter = new SseEmitter(-1L);
@@ -139,11 +140,9 @@ public class OpenAIChatService {
 
                     emitter.complete();
 
-                    logger.info(
-                        "Stats: {} ms/tok (prompt), {}  ms/tok (gen)",
-                        Math.round(r.promptTimeMs / (double) r.promptTokens),
-                        Math.round(r.generateTimeMs / (double) r.generatedTokens)
-                    );
+                    logger.info("{} tokens/s (prompt), {} tokens/s (gen)",
+                            Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f)),
+                            Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f)));
 
                 } catch (IOException e) {
                     emitter.completeWithError(e);
