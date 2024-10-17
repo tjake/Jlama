@@ -310,7 +310,7 @@ public class SafeTensorSupport {
         return qPath;
     }
 
-    public static File maybeDownloadModel(String modelDir, String fullModelName) throws IOException {
+    public static File maybeDownloadModel(String modelDir, String fullModelName, TriConsumer<String, Long, Long> progressReporter) throws IOException {
         String[] parts = fullModelName.split("/");
         if (parts.length == 0 || parts.length > 2) {
             throw new IllegalArgumentException("Model must be in the form owner/name");
@@ -327,7 +327,11 @@ public class SafeTensorSupport {
             name = parts[1];
         }
 
-        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, true, Optional.empty(), Optional.empty(), Optional.empty());
+        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, true, Optional.empty(), Optional.empty(), Optional.ofNullable(progressReporter));
+    }
+
+    public static File maybeDownloadModel(String modelDir, String fullModelName) throws IOException {
+        return maybeDownloadModel(modelDir, fullModelName, null);
     }
 
     public static Path constructLocalModelPath(String modelDir, String owner, String modelName) {
