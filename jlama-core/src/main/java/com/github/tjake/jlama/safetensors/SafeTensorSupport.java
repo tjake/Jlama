@@ -27,6 +27,7 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q5ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.util.HttpSupport;
+import com.github.tjake.jlama.util.ProgressReporter;
 import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
@@ -310,7 +311,7 @@ public class SafeTensorSupport {
         return qPath;
     }
 
-    public static File maybeDownloadModel(String modelDir, String fullModelName, TriConsumer<String, Long, Long> progressReporter) throws IOException {
+    public static File maybeDownloadModel(String modelDir, String fullModelName, ProgressReporter progressReporter) throws IOException {
         String[] parts = fullModelName.split("/");
         if (parts.length == 0 || parts.length > 2) {
             throw new IllegalArgumentException("Model must be in the form owner/name");
@@ -327,7 +328,9 @@ public class SafeTensorSupport {
             name = parts[1];
         }
 
-        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name, true, Optional.empty(), Optional.empty(), Optional.ofNullable(progressReporter));
+        return maybeDownloadModel(modelDir, Optional.ofNullable(owner), name,
+                true, Optional.empty(), Optional.empty(),
+                Optional.ofNullable(progressReporter));
     }
 
     public static File maybeDownloadModel(String modelDir, String fullModelName) throws IOException {
@@ -360,7 +363,7 @@ public class SafeTensorSupport {
         boolean downloadWeights,
         Optional<String> optionalBranch,
         Optional<String> optionalAuthHeader,
-        Optional<TriConsumer<String, Long, Long>> optionalProgressReporter
+        Optional<ProgressReporter> optionalProgressReporter
     ) throws IOException {
 
         Path localModelDir = constructLocalModelPath(modelDir, modelOwner.orElse("na"), modelName);
