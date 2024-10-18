@@ -94,7 +94,7 @@ public class HttpSupport {
         Optional<String> optionalAuthHeader,
         Optional<Pair<Long, Long>> optionalByteRange,
         Path outputPath,
-        Optional<TriConsumer<String, Long, Long>> optionalProgressConsumer
+        Optional<ProgressReporter> optionalProgressConsumer
     ) throws IOException {
 
         Pair<InputStream, Long> stream = getResponse(
@@ -114,7 +114,7 @@ public class HttpSupport {
 
         if (optionalProgressConsumer.isEmpty()) logger.info("Downloading file: {}", outputPath);
 
-        optionalProgressConsumer.ifPresent(p -> p.accept(currFile, 0L, totalBytes));
+        optionalProgressConsumer.ifPresent(p -> p.update(currFile, 0L, totalBytes));
 
         CompletableFuture<Long> result = CompletableFuture.supplyAsync(() -> {
             try {
@@ -126,11 +126,11 @@ public class HttpSupport {
 
         optionalProgressConsumer.ifPresent(p -> {
             while (!result.isDone()) {
-                p.accept(currFile, inStream.getCount(), totalBytes);
+                p.update(currFile, inStream.getCount(), totalBytes);
             }
 
-            if (result.isCompletedExceptionally()) p.accept(currFile, inStream.getCount(), totalBytes);
-            else p.accept(currFile, totalBytes, totalBytes);
+            if (result.isCompletedExceptionally()) p.update(currFile, inStream.getCount(), totalBytes);
+            else p.update(currFile, totalBytes, totalBytes);
         });
 
         try {

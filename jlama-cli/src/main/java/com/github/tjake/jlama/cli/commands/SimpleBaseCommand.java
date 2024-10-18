@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
+import com.github.tjake.jlama.util.ProgressReporter;
 import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.util.concurrent.Uninterruptibles;
 import me.tongfei.progressbar.ProgressBar;
@@ -76,16 +77,16 @@ public class SimpleBaseCommand extends JlamaCli {
         return parts[1];
     }
 
-    static Optional<TriConsumer<String, Long, Long>> getProgressConsumer() {
+    static Optional<ProgressReporter> getProgressConsumer() {
         if (System.console() == null) return Optional.empty();
 
-        return Optional.of((n, c, t) -> {
-            if (progressRef.get() == null || !progressRef.get().getTaskName().equals(n)) {
-                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(n).setInitialMax(t).setStyle(ProgressBarStyle.ASCII);
+        return Optional.of((ProgressReporter) (filename, sizeDownloaded, totalSize) -> {
+            if (progressRef.get() == null || !progressRef.get().getTaskName().equals(filename)) {
+                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(filename).setInitialMax(totalSize).setStyle(ProgressBarStyle.ASCII);
 
-                if (t > 1000000) {
+                if (totalSize > 1000000) {
                     builder.setUnit("MB", 1000000);
-                } else if (t > 1000) {
+                } else if (totalSize > 1000) {
                     builder.setUnit("KB", 1000);
                 } else {
                     builder.setUnit("B", 1);
@@ -94,7 +95,7 @@ public class SimpleBaseCommand extends JlamaCli {
                 progressRef.set(builder.build());
             }
 
-            progressRef.get().stepTo(c);
+            progressRef.get().stepTo(sizeDownloaded);
             Uninterruptibles.sleepUninterruptibly(150, TimeUnit.MILLISECONDS);
         });
     }
