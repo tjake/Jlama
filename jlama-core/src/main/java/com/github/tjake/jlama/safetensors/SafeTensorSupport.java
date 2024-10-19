@@ -316,6 +316,7 @@ public class SafeTensorSupport {
     }
 
     private static void addJlamaHeader(String modelName, Path readmePath) throws IOException {
+        String cleanName = modelName.replaceAll("_", "/");
         String header = String.format(
                         "# Quantized Version of %s \n\n" +
                         "This model is a quantized variant of the %s model, optimized for use with Jlama, a Java-based inference engine. " +
@@ -323,12 +324,28 @@ public class SafeTensorSupport {
                         "for efficient deployment in production environments.\n\n" +
                         "For more information on Jlama, visit the [Jlama GitHub repository](https://github.com/tjake/jlama).\n\n" +
                         "---\n\n",
-                modelName, modelName
+                cleanName, cleanName
         );
         String readme = new String(Files.readAllBytes(readmePath));
-        readme = header + readme;
+        boolean startMeta = false;
+        boolean finishedMeta = false;
+        int linenum = 0;
+        StringBuilder finalReadme = new StringBuilder();
+        for (String line : readme.split("\n")) {
+            if (linenum++ == 0) {
+                if  (line.startsWith("---")) {
+                    startMeta = true;
+                } else {
+                    finalReadme.append(header);
+                }
+            } else if (startMeta && !finishedMeta && line.startsWith("---")) {
+                finishedMeta = true;
+                line += "\n\n" + header;
+            }
+            finalReadme.append(line).append("\n");
+        }
 
-        Files.write(readmePath, readme.getBytes());
+        Files.write(readmePath, finalReadme.toString().getBytes());
     }
 
     public static File maybeDownloadModel(String modelDir, String fullModelName, ProgressReporter progressReporter) throws IOException {

@@ -32,7 +32,7 @@ public class QuantizeCommand extends SimpleBaseCommand {
     @CommandLine.Option(names = { "--quantization" }, paramLabel = "ARG", description = "Model quantization type (default: ${DEFAULT-VALUE})", arity = "1", defaultValue = "Q4")
     protected DType modelQuantization = DType.Q4;
 
-    @CommandLine.Option(names = { "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize")
+    @CommandLine.Option(names = { "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize (default: ${DEFAULT-VALUE})", defaultValue = "norm")
     protected String[] skipLayerPrefixes;
 
     @CommandLine.Option(names = { "--drop-layer" }, paramLabel = "ARG", description = "Layer name prefix to drop")
