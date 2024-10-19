@@ -269,7 +269,7 @@ public class SafeTensorSupport {
         String baseDirName = modelRoot.getName(modelRoot.getNameCount() - 1).toString();
         Path parentPath = modelRoot.getParent();
 
-        Path qPath = outputRoot.orElseGet(() -> Paths.get(parentPath.toString(), baseDirName + "-Jlama-" + modelQuantization.name()));
+        Path qPath = outputRoot.orElseGet(() -> Paths.get(parentPath.toString(), baseDirName + "-J" + modelQuantization.name()));
         File qDir = qPath.toFile();
         qDir.mkdirs();
 
@@ -277,6 +277,10 @@ public class SafeTensorSupport {
         Files.copy(modelRoot.resolve("config.json"), qPath.resolve("config.json"));
         Files.copy(modelRoot.resolve("tokenizer.json"), qPath.resolve("tokenizer.json"));
         Files.copy(modelRoot.resolve("README.md"), qPath.resolve("README.md"));
+
+        // Copy README.md and add jlama header
+        addJlamaHeader(baseDirName, qPath.resolve("README.md"));
+
 
         if (Files.exists(modelRoot.resolve("tokenizer_config.json"))) Files.copy(
             modelRoot.resolve("tokenizer_config.json"),
@@ -309,6 +313,22 @@ public class SafeTensorSupport {
         }
 
         return qPath;
+    }
+
+    private static void addJlamaHeader(String modelName, Path readmePath) throws IOException {
+        String header = String.format(
+                        "# Quantized Version of %s \n\n" +
+                        "This model is a quantized variant of the %s model, optimized for use with Jlama, a Java-based inference engine. " +
+                        "The quantization process reduces the model's size and improves inference speed, while maintaining high accuracy " +
+                        "for efficient deployment in production environments.\n\n" +
+                        "For more information on Jlama, visit the [Jlama GitHub repository](https://github.com/tjake/jlama).\n\n" +
+                        "---\n\n",
+                modelName, modelName
+        );
+        String readme = new String(Files.readAllBytes(readmePath));
+        readme = header + readme;
+
+        Files.write(readmePath, readme.getBytes());
     }
 
     public static File maybeDownloadModel(String modelDir, String fullModelName, ProgressReporter progressReporter) throws IOException {
