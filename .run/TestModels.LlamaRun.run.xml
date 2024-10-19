@@ -2,7 +2,7 @@
   <configuration default="false" name="TestModels.LlamaRun" type="JUnit" factoryName="JUnit">
     <classpathModifications>
       <entry exclude="true" path="$PROJECT_DIR$/jlama-native/target/classes" />
-      <entry path="$PROJECT_DIR$/jlama-native/target/jlama-native-0.4.0-linux-x86_64.jar" />
+      <entry path="$PROJECT_DIR$/jlama-native/target/jlama-native-0.6.0-linux-x86_64.jar" />
     </classpathModifications>
     <module name="jlama-tests" />
     <extension name="coverage">

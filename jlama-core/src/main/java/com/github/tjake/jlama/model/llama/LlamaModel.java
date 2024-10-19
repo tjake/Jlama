@@ -70,14 +70,28 @@ public class LlamaModel extends AbstractModel {
         if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
 
         return (inputToken, position) -> {
+            if (wte.dType() == DType.BF16) {
+                //Handle old style model with BF16 embeddings
+                AbstractTensor embedding = makeDenseTensor(1, c.embeddingLength);
+                AbstractTensor at = wte.slice(true, inputToken);
 
-            AbstractTensor at = wte.slice(true, inputToken);
-            AbstractTensor embedding = at.copyShape();
+                if (wte.dType() != embedding.dType()) {
+                    at = TensorOperationsProvider.get().quantize(at, embedding.dType(), 0, c.embeddingLength);
+                }
 
-            // Always copy the entire embedding
-            embedding.copyFrom(at, 0, 0, c.embeddingLength);
+                // Always copy the entire embedding
+                embedding.copyFrom(at, 0, 0, c.embeddingLength);
 
-            return embedding;
+                return embedding;
+            } else {
+                AbstractTensor at = wte.slice(true, inputToken);
+                AbstractTensor embedding = at.copyShape();
+
+                // Always copy the entire embedding
+                embedding.copyFrom(at, 0, 0, c.embeddingLength);
+
+                return embedding;
+            }
         };
     }
 

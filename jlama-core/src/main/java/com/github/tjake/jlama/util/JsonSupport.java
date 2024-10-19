@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  */
 public class JsonSupport {
     private static final String JSON_REGEX =
-        "\\{\\s*\"name\"\\s*:\\s*\"[^\"]+\"\\s*(,\\s*\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\]))*\\s*\\}";
+            "(\\{\\s*(\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\])\\s*,?\\s*)+\\})|(\\[\\s*(\\{\\s*(\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\])\\s*,?\\s*)+\\}\\s*,?\\s*)+\\])";
     private static final Pattern JSON_PATTERN = Pattern.compile(JSON_REGEX);
     public static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
         .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
