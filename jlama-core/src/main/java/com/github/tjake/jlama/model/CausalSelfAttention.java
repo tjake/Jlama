@@ -23,6 +23,7 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.KvBufferCache;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
+import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -324,6 +325,16 @@ public class CausalSelfAttention {
                         }
 
                         TensorOperationsProvider.get().scale(attentionScale, attn, 0, finalPostion + 1);
+
+                        if (c.attnLogitSoftCapping != null) {
+                            for (int i = 0; i < finalPostion + 1; i++) {
+                                float v = attn.get(0, i);
+                                v /= c.attnLogitSoftCapping;
+                                v = (float) FastMath.tanh(v);
+                                v *= c.attnLogitSoftCapping;
+                                attn.set(v, 0, i);
+                            }
+                        }
 
                         // softmax the scores to get attention weights, from 0..pos inclusively
                         VectorMath.softMax(attn, 0, finalPostion + 1);

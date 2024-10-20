@@ -42,6 +42,8 @@ public class Config {
     public final boolean isGQA;
     public final int numberOfLayers;
     public final float layerNormEps;
+    public Float finalLogitSoftCapping;
+    public Float attnLogitSoftCapping;
     public final int vocabularySize;
     public final int bosToken;
     public final List<Integer> eosTokens;
@@ -52,6 +54,45 @@ public class Config {
     private volatile File workingDirectory;
 
     public final TensorCache tensorCache;
+
+    public Config(
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfKeyValueHeads,
+            int numberOfLayers,
+            float layerNormEps,
+            int vocabularySize,
+            int bosToken,
+            List<Integer> eosToken,
+            ActivationFunction.Type activationFunction,
+            Double ropeFreqsTheta,
+            Double ropeScalingFactor,
+            Integer headSize,
+            Float attnLogitSoftCapping,
+            Float finalLogitSoftCapping
+    ) {
+        this(
+                contextLength,
+                embeddingLength,
+                hiddenLength,
+                numberOfHeads,
+                numberOfKeyValueHeads,
+                numberOfLayers,
+                layerNormEps,
+                vocabularySize,
+                bosToken,
+                eosToken,
+                activationFunction,
+                ropeFreqsTheta,
+                ropeScalingFactor,
+                null,
+                headSize == null ? embeddingLength / numberOfHeads : headSize,
+                attnLogitSoftCapping,
+                finalLogitSoftCapping
+        );
+    }
 
     public Config(
         int contextLength,
@@ -83,7 +124,8 @@ public class Config {
             ropeFreqsTheta,
             ropeScalingFactor,
             null,
-            embeddingLength / numberOfHeads
+            embeddingLength / numberOfHeads,
+                null, null
         );
     }
 
@@ -118,7 +160,8 @@ public class Config {
             ropeFreqsTheta,
             ropeScalingFactor,
             classifcationLabels,
-            embeddingLength / numberOfHeads
+            embeddingLength / numberOfHeads,
+                null, null
         );
     }
 
@@ -137,7 +180,9 @@ public class Config {
         Double ropeFreqsTheta,
         Double ropeScalingFactor,
         Map<String, Integer> classifcationLabels,
-        Integer headSize
+        Integer headSize,
+        Float finalLogitSoftCapping,
+        Float attnLogitSoftCapping
     ) {
         this.contextLength = contextLength;
         this.attentionLength = numberOfHeads * headSize;
@@ -163,6 +208,9 @@ public class Config {
             );
 
         this.classifcationLabels = classifcationLabels == null ? Optional.empty() : Optional.of(ImmutableBiMap.copyOf(classifcationLabels));
+
+        this.finalLogitSoftCapping = finalLogitSoftCapping;
+        this.attnLogitSoftCapping = attnLogitSoftCapping;
 
         // Set default values
         this.dctx = DistributedContext.builder(this).build();

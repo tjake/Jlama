@@ -88,9 +88,9 @@ public class DistributedContext {
         this.hiddenSegmentStart = hiddenSegmentLength * modelShard;
         this.hiddenSegmentEnd = hiddenSegmentStart + hiddenSegmentLength;
 
-        this.kvSegmentStart = embeddingSegmentStart / c.headGroupSize;
-        this.kvSegmentEnd = embeddingSegmentEnd / c.headGroupSize;
-        this.kvSegmentLength = embeddingSegmentLength / c.headGroupSize;
+        this.kvSegmentStart = attentionSegmentStart / c.headGroupSize;
+        this.kvSegmentEnd = attentionSegmentEnd / c.headGroupSize;
+        this.kvSegmentLength = attentionSegmentLength / c.headGroupSize;
 
         this.headStart = embeddingSegmentStart / c.headSize;
         this.headEnd = embeddingSegmentEnd / c.headSize;

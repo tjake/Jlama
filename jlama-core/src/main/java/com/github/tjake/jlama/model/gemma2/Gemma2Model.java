@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.github.tjake.jlama.model.gemma;
+package com.github.tjake.jlama.model.gemma2;
 
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.FloatConversions;
@@ -27,18 +27,19 @@ import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import java.util.Optional;
-import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GemmaModel extends LlamaModel {
-    private static final Logger logger = LoggerFactory.getLogger(GemmaModel.class);
+import java.util.Optional;
+import java.util.stream.IntStream;
+
+public class Gemma2Model extends LlamaModel {
+    private static final Logger logger = LoggerFactory.getLogger(Gemma2Model.class);
 
     private final float embeddingScalingFactor;
     private AbstractTensor wte;
 
-    public GemmaModel(
+    public Gemma2Model(
         Config config,
         WeightLoader weights,
         Tokenizer tokenizer,
@@ -49,7 +50,7 @@ public class GemmaModel extends LlamaModel {
         this(InferenceType.FULL_GENERATION, config, weights, tokenizer, workingDType, workingQType, modelQType);
     }
 
-    public GemmaModel(
+    public Gemma2Model(
         InferenceType inferenceType,
         Config config,
         WeightLoader weights,
@@ -68,7 +69,7 @@ public class GemmaModel extends LlamaModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.GEMMA;
+        return ModelSupport.ModelType.GEMMA2;
     }
 
     @Override
@@ -108,7 +109,9 @@ public class GemmaModel extends LlamaModel {
                 new RMSNorm(this, weights.load(base + "input_layernorm.weight").quantize(qType), 1.0f),
                 attention,
                 new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight").quantize(qType), 1.0f),
-                mlp
+                new RMSNorm(this, weights.load(base + "pre_feedforward_layernorm.weight").quantize(qType), 1.0f),
+                mlp,
+                new RMSNorm(this, weights.load(base + "post_feedforward_layernorm.weight").quantize(qType), 1.0f)
             );
         });
 
@@ -138,8 +141,7 @@ public class GemmaModel extends LlamaModel {
     protected SampleOutput loadOutputWeights() {
         DType qType = modelQType.orElse(this.modelDType);
 
-        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType); // Don't quantize this, it's
-                                                                                                 // used for the embedding layer
+        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
 
         final LayerNorm layerNorm = new RMSNorm(this, weights.load("model.norm.weight").quantize(qType), 1.0f);
 

@@ -398,6 +398,12 @@ public abstract class AbstractModel implements Generator {
             double maxv = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < c.vocabularySize; i++) {
                 float v = logits.get(0, i);
+                if (c.finalLogitSoftCapping != null) {
+                    v /= c.finalLogitSoftCapping;
+                    v = (float) FastMath.tanh(v);
+                    v = v * c.finalLogitSoftCapping;
+                    logits.set(v, 0, i);
+                }
                 if (v > maxv) {
                     maxi = i;
                     maxv = v;

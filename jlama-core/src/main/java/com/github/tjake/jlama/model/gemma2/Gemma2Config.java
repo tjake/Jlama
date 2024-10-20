@@ -13,17 +13,18 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.github.tjake.jlama.model.mistral;
+package com.github.tjake.jlama.model.gemma2;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.safetensors.Config;
 import java.util.List;
+import java.util.Map;
 
-public class MistralConfig extends Config {
+public class Gemma2Config extends Config {
     @JsonCreator
-    public MistralConfig(
+    public Gemma2Config(
         @JsonProperty("max_position_embeddings") int contextLength,
         @JsonProperty("hidden_size") int embeddingLength,
         @JsonProperty("intermediate_size") int hiddenLength,
@@ -33,10 +34,13 @@ public class MistralConfig extends Config {
         @JsonProperty("rms_norm_eps") float layerNormEps,
         @JsonProperty("vocab_size") int vocabularySize,
         @JsonProperty("bos_token_id") int bosToken,
-        @JsonProperty("eos_token_id") int eosToken,
+        @JsonProperty("eos_token_id") List<Integer> eosTokens,
         @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
-        @JsonProperty("rope_theta") Double ropeTheta,
-        @JsonProperty("head_dim") Integer headSize
+        @JsonProperty("rope_theta") Double ropeFreqsTheta,
+        @JsonProperty("rope_scaling") Map<String, String> ropeScaling,
+        @JsonProperty("head_dim") Integer headDim,
+        @JsonProperty("final_logit_softcapping") Float finalLogitSoftCapping,
+        @JsonProperty("attn_logit_softcapping") Float attnLogitSoftCapping
     ) {
         super(
             contextLength,
@@ -48,13 +52,12 @@ public class MistralConfig extends Config {
             layerNormEps,
             vocabularySize,
             bosToken,
-            List.of(eosToken),
+            eosTokens,
             activationFunction,
-            ropeTheta,
-            1.0,
-            null,
-            headSize == null ? embeddingLength / numberOfHeads : headSize,
-                null, null
+            ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
+            ropeScaling == null ? 1.0 : Double.parseDouble(ropeScaling.get("factor")),
+                headDim,
+                finalLogitSoftCapping, attnLogitSoftCapping
         );
     }
 }
