@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
 public class TestModels {
 
     static {
-        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "2");
         //System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
@@ -212,15 +212,15 @@ public class TestModels {
 
     @Test
     public void GemmaRun() throws Exception {
-        String modelPrefix = "../models/Yi-Coder-1.5B-Chat";
+        String modelPrefix = "../models/01-ai_Yi-Coder-1.5B-Chat-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             LlamaConfig c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.BF16, Optional.empty());
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
             String prompt = "Write a java function that takes a list of integers and returns the sum of all the integers in the list.";
             PromptContext p = model.promptSupport().get().builder().addUserMessage(prompt).build();
-            model.generate(UUID.randomUUID(), p, 0.3f, c.contextLength, makeOutHandler());
+            model.generate(UUID.randomUUID(), p, 0.7f, c.contextLength, makeOutHandler());
         }
     }
 

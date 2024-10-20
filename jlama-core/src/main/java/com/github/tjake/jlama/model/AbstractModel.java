@@ -126,6 +126,14 @@ public abstract class AbstractModel implements Generator {
         // Check to make sure the model is big enough to support Q4I8 computations
         // If not, fall back to F32
         if (modelDType == DType.Q4 && workingMemoryQType == DType.I8 &&
+                ((c.embeddingLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0 ||
+                        (c.hiddenLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0)){
+            workingMemoryQType = DType.F32;
+        }
+
+        // Check to make sure the model is big enough to support Q4I8 computations
+        // If not, fall back to F32
+        if (modelDType == DType.Q4 && workingMemoryQType == DType.I8 &&
                 (c.embeddingLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0){
             workingMemoryQType = DType.F32;
         }
