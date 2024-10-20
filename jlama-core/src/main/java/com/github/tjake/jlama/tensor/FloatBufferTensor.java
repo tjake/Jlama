@@ -104,7 +104,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
     public float get(int... dims) {
         Preconditions.checkArgument(dims.length <= shape.dims(), "Too many dimensions specified");
         Preconditions.checkArgument(dims.length == shape.dims(), "Must specify all dimensions");
-        return b.hasArray() ? b.array()[b.arrayOffset() + getOffset(dims)] : b.get(getOffset(dims));
+        return b.get(getOffset(dims));
     }
 
     @Override
@@ -136,8 +136,6 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
     @Override
     public FloatVector getVector(VectorSpecies<Float> species, int... voffset) {
         int offset = getOffset(voffset);
-        if (b.hasArray()) return FloatVector.fromArray(species, b.array(), offset);
-
         return FloatVector.fromMemorySegment(species, segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
@@ -145,9 +143,7 @@ public final class FloatBufferTensor extends AbstractTensor<FloatVector, Float> 
     public void intoTensor(FloatVector vector, int... aoffset) {
         // Preconditions.checkArgument(!b.isReadOnly());
         int offset = getOffset(aoffset);
-
-        if (b.hasArray()) vector.intoArray(b.array(), offset);
-        else vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
+        vector.intoMemorySegment(segment, getMemorySegmentOffset(offset), ByteOrder.LITTLE_ENDIAN);
     }
 
     @Override

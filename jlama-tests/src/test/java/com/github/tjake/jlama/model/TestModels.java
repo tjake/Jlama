@@ -49,7 +49,7 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        // System.setProperty("jlama.force_panama_tensor_operations", "true");
+        //System.setProperty("jlama.force_panama_tensor_operations", "true");
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -70,13 +70,25 @@ public class TestModels {
     }
 
     @Test
+    public void Qwen2Run() throws IOException {
+        String modelPrefix = "../models/Qwen_Qwen2.5-0.5B-Instruct-JQ4";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.I8);
+        PromptContext prompt = qwen2.promptSupport().get().builder().addUserMessage("What is the capital of France?").build();
+
+        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt, 0.9f, 1024, makeOutHandler());
+        logger.info("Response: {}", r);
+    }
+
+    @Test
     public void LlamaRun() throws Exception {
         String modelPrefix = "../models/tjake_Llama-3.2-1B-Instruct-Jlama-Q4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
             Config c = om.readValue(new File(modelPrefix + "/config.json"), LlamaConfig.class);
-            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
+            LlamaModel model = new LlamaModel(c, weights, tokenizer, DType.F32, DType.F32, Optional.empty());
 
             PromptSupport.Builder builder = model.promptSupport().get().builder();
 
