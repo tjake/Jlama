@@ -33,6 +33,7 @@ import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.JsonSupport;
+import com.github.tjake.jlama.util.MachineSpec;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
@@ -44,6 +45,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import jdk.incubator.vector.FloatVector;
 import net.jafama.FastMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,6 +121,13 @@ public abstract class AbstractModel implements Generator {
         // FIXME: This is a hack to support Avoid Q8BF16 evals
         if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && modelQType.isEmpty()) {
             workingMemoryQType = DType.BF16;
+        }
+
+        // Check to make sure the model is big enough to support Q4I8 computations
+        // If not, fall back to F32
+        if (modelDType == DType.Q4 && workingMemoryQType == DType.I8 &&
+                (c.embeddingLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0){
+            workingMemoryQType = DType.F32;
         }
 
         if (workingMemoryQType != workingMemoryDType) {
