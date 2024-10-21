@@ -142,7 +142,7 @@ Then you can use the Model classes to run models:
     String prompt = "What is the best season to plant avocados?";
 
     // Downloads the model or just returns the local path if it's already downloaded
-    File localModelPath = SafeTensorSupport.maybeDownloadModel(workingDirectory, model);
+    File localModelPath = new Downloader(workingDirectory, model).huggingFaceModel();
     
     // Loads the quantized model and specified use of quantized memory
     AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
