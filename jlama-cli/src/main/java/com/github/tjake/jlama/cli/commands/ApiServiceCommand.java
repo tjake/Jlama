@@ -28,10 +28,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.server.ConfigurableWebServerFactory;
-import org.springframework.boot.web.server.WebServerFactoryCustomizer;
-import org.springframework.context.ApplicationContextInitializer;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -67,35 +63,32 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     public void run() {
         try {
             Path modelPath = SimpleBaseCommand.getModel(
-                    modelName,
-                    modelDirectory,
-                    downloadSection.autoDownload,
-                    downloadSection.branch,
-                    downloadSection.authToken);
+                modelName,
+                modelDirectory,
+                downloadSection.autoDownload,
+                downloadSection.branch,
+                downloadSection.authToken
+            );
 
             m = loadModel(
-                    modelPath.toFile(),
-                    workingDirectory,
-                    advancedSection.workingMemoryType,
-                    advancedSection.workingQuantizationType,
-                    Optional.ofNullable(advancedSection.modelQuantization),
-                    Optional.ofNullable(advancedSection.threadCount));
+                modelPath.toFile(),
+                workingDirectory,
+                advancedSection.workingMemoryType,
+                advancedSection.workingQuantizationType,
+                Optional.ofNullable(advancedSection.modelQuantization),
+                Optional.ofNullable(advancedSection.threadCount)
+            );
 
             System.out.println("Chat UI: http://localhost:" + port);
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
 
             // Use SpringApplicationBuilder with ApplicationContextInitializer to set the port dynamically
-            new SpringApplicationBuilder(ApiServiceCommand.class)
-                    .initializers(applicationContext -> {
-                        ConfigurableEnvironment environment = applicationContext.getEnvironment();
-                        Map<String, Object> props = new HashMap<>();
-                        props.put("server.port", port); // Set the port here before the server starts
-                        environment.getPropertySources().addFirst(new MapPropertySource("customProps", props));
-                    })
-                    .properties("logging.level.org.springframework.web", "info")
-                    .lazyInitialization(true)
-                    .build()
-                    .run();
+            new SpringApplicationBuilder(ApiServiceCommand.class).initializers(applicationContext -> {
+                ConfigurableEnvironment environment = applicationContext.getEnvironment();
+                Map<String, Object> props = new HashMap<>();
+                props.put("server.port", port); // Set the port here before the server starts
+                environment.getPropertySources().addFirst(new MapPropertySource("customProps", props));
+            }).properties("logging.level.org.springframework.web", "info").lazyInitialization(true).build().run();
 
         } catch (Exception e) {
             e.printStackTrace();

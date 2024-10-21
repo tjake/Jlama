@@ -54,7 +54,8 @@ public class MistralConfig extends Config {
             1.0,
             null,
             headSize == null ? embeddingLength / numberOfHeads : headSize,
-                null, null
+            null,
+            null
         );
     }
 }

@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.util.ProgressReporter;
-import com.github.tjake.jlama.util.TriConsumer;
 import com.google.common.util.concurrent.Uninterruptibles;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarBuilder;
@@ -82,7 +81,9 @@ public class SimpleBaseCommand extends JlamaCli {
 
         return Optional.of((ProgressReporter) (filename, sizeDownloaded, totalSize) -> {
             if (progressRef.get() == null || !progressRef.get().getTaskName().equals(filename)) {
-                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(filename).setInitialMax(totalSize).setStyle(ProgressBarStyle.ASCII);
+                ProgressBarBuilder builder = new ProgressBarBuilder().setTaskName(filename)
+                    .setInitialMax(totalSize)
+                    .setStyle(ProgressBarStyle.ASCII);
 
                 if (totalSize > 1000000) {
                     builder.setUnit("MB", 1000000);

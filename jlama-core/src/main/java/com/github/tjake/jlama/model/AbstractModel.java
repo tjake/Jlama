@@ -33,7 +33,6 @@ import com.github.tjake.jlama.tensor.*;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.github.tjake.jlama.util.DebugSupport;
 import com.github.tjake.jlama.util.JsonSupport;
-import com.github.tjake.jlama.util.MachineSpec;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
@@ -125,16 +124,18 @@ public abstract class AbstractModel implements Generator {
 
         // Check to make sure the model is big enough to support Q4I8 computations
         // If not, fall back to F32
-        if (modelDType == DType.Q4 && workingMemoryQType == DType.I8 &&
-                ((c.embeddingLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0 ||
-                        (c.hiddenLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0)){
+        if (modelDType == DType.Q4
+            && workingMemoryQType == DType.I8
+            && ((c.embeddingLength / Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize() / Float.SIZE) != 0
+                || (c.hiddenLength / Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize() / Float.SIZE) != 0)) {
             workingMemoryQType = DType.F32;
         }
 
         // Check to make sure the model is big enough to support Q4I8 computations
         // If not, fall back to F32
-        if (modelDType == DType.Q4 && workingMemoryQType == DType.I8 &&
-                (c.embeddingLength/Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize()/Float.SIZE) != 0){
+        if (modelDType == DType.Q4
+            && workingMemoryQType == DType.I8
+            && (c.embeddingLength / Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize() / Float.SIZE) != 0) {
             workingMemoryQType = DType.F32;
         }
 

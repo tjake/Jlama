@@ -71,7 +71,7 @@ public class LlamaModel extends AbstractModel {
 
         return (inputToken, position) -> {
             if (wte.dType() == DType.BF16) {
-                //Handle old style model with BF16 embeddings
+                // Handle old style model with BF16 embeddings
                 AbstractTensor embedding = makeDenseTensor(1, c.embeddingLength);
                 AbstractTensor at = wte.slice(true, inputToken);
 

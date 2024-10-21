@@ -42,94 +42,103 @@ public class TransformerBlock {
     final Optional<LayerNorm> preResponseNorm; // After the residual connection
 
     public TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            LayerNorm preAttentionNorm,
-            CausalSelfAttention attention,
-            LayerNorm postAttentionNorm,
-            FeedForward ffBlock) {
+        AbstractModel model,
+        int layerIndex,
+        LayerNorm preAttentionNorm,
+        CausalSelfAttention attention,
+        LayerNorm postAttentionNorm,
+        FeedForward ffBlock
+    ) {
         this(
-                model,
-                layerIndex,
-                Optional.of(preAttentionNorm),
-                attention,
-                Optional.empty(),
-                Optional.of(postAttentionNorm),
-                ffBlock,
-                Optional.empty(),
-                Optional.empty());
+            model,
+            layerIndex,
+            Optional.of(preAttentionNorm),
+            attention,
+            Optional.empty(),
+            Optional.of(postAttentionNorm),
+            ffBlock,
+            Optional.empty(),
+            Optional.empty()
+        );
     }
 
     public TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            CausalSelfAttention attention,
-            LayerNorm postAttentionNorm,
-            FeedForward ffBlock,
-            LayerNorm postFFNorm) {
+        AbstractModel model,
+        int layerIndex,
+        CausalSelfAttention attention,
+        LayerNorm postAttentionNorm,
+        FeedForward ffBlock,
+        LayerNorm postFFNorm
+    ) {
         this(
-                model,
-                layerIndex,
-                Optional.empty(),
-                attention,
-                Optional.empty(),
-                Optional.of(postAttentionNorm),
-                ffBlock,
-                Optional.empty(),
-                Optional.of(postFFNorm));
+            model,
+            layerIndex,
+            Optional.empty(),
+            attention,
+            Optional.empty(),
+            Optional.of(postAttentionNorm),
+            ffBlock,
+            Optional.empty(),
+            Optional.of(postFFNorm)
+        );
     }
 
     public TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            LayerNorm preAttentionNorm,
-            CausalSelfAttention attention,
-            LayerNorm postAttentionNorm,
-            FeedForward ffBlock,
-            LayerNorm postFFNorm) {
+        AbstractModel model,
+        int layerIndex,
+        LayerNorm preAttentionNorm,
+        CausalSelfAttention attention,
+        LayerNorm postAttentionNorm,
+        FeedForward ffBlock,
+        LayerNorm postFFNorm
+    ) {
         this(
-                model,
-                layerIndex,
-                Optional.of(preAttentionNorm),
-                attention,
-                Optional.empty(),
-                Optional.of(postAttentionNorm),
-                ffBlock,
-                Optional.empty(),
-                Optional.of(postFFNorm));
+            model,
+            layerIndex,
+            Optional.of(preAttentionNorm),
+            attention,
+            Optional.empty(),
+            Optional.of(postAttentionNorm),
+            ffBlock,
+            Optional.empty(),
+            Optional.of(postFFNorm)
+        );
     }
 
     public TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            LayerNorm preAttentionNorm,
-            CausalSelfAttention attention,
-            LayerNorm postAttentionNorm,
-            LayerNorm preFFNorm,
-            FeedForward ffBlock,
-            LayerNorm postFFNorm) {
+        AbstractModel model,
+        int layerIndex,
+        LayerNorm preAttentionNorm,
+        CausalSelfAttention attention,
+        LayerNorm postAttentionNorm,
+        LayerNorm preFFNorm,
+        FeedForward ffBlock,
+        LayerNorm postFFNorm
+    ) {
         this(
-                model,
-                layerIndex,
-                Optional.of(preAttentionNorm),
-                attention,
-                Optional.of(postAttentionNorm),
-                Optional.of(preFFNorm),
-                ffBlock,
-                Optional.of(postFFNorm),
-                Optional.empty());
+            model,
+            layerIndex,
+            Optional.of(preAttentionNorm),
+            attention,
+            Optional.of(postAttentionNorm),
+            Optional.of(preFFNorm),
+            ffBlock,
+            Optional.of(postFFNorm),
+            Optional.empty()
+        );
     }
 
     protected TransformerBlock(
-            AbstractModel model,
-            int layerIndex,
-            Optional<LayerNorm> preAttentionNorm,
-            CausalSelfAttention attention,
-            Optional<LayerNorm> postAttentionNorm,
-            Optional<LayerNorm> preFFNorm,
-            FeedForward ffBlock,
-            Optional<LayerNorm> postFFNorm,
-            Optional<LayerNorm> preResponseNorm) {
+        AbstractModel model,
+        int layerIndex,
+        Optional<LayerNorm> preAttentionNorm,
+        CausalSelfAttention attention,
+        Optional<LayerNorm> postAttentionNorm,
+        Optional<LayerNorm> preFFNorm,
+        FeedForward ffBlock,
+        Optional<LayerNorm> postFFNorm,
+        Optional<LayerNorm> preResponseNorm
+    ) {
 
         this.model = model;
         this.layerIndex = layerIndex;
@@ -147,10 +156,11 @@ public class TransformerBlock {
     }
 
     public AbstractTensor forward(
-            AbstractTensor embedding,
-            int position,
-            KvBufferCache.KvBuffer kvBuffer,
-            Optional<Consumer<List<AbstractTensor>>> tensorReducer) {
+        AbstractTensor embedding,
+        int position,
+        KvBufferCache.KvBuffer kvBuffer,
+        Optional<Consumer<List<AbstractTensor>>> tensorReducer
+    ) {
 
         debug("input_emb", embedding, layerIndex);
 
@@ -190,18 +200,19 @@ public class TransformerBlock {
 
         // Release any tmp buffers (embedding is released by caller)
         if (lnemb != embedding) lnemb.close();
-        if (lnattn != postAttention) lnattn.close(); else postAttention.close();
-        if (lnpreFF != lnattn) lnpreFF.close(); else lnattn.close();
+        if (lnattn != postAttention) lnattn.close();
+        else postAttention.close();
+        if (lnpreFF != lnattn) lnpreFF.close();
+        else lnattn.close();
 
         return maybeApplyNorm(lnpostFF, preResponseNorm);
     }
 
     private AbstractTensor maybeApplyNorm(AbstractTensor tensor, Optional<LayerNorm> norm) {
         return norm.map(ln -> {
-                    AbstractTensor o = ln.forward(tensor);
-                    tensor.close();
-                    return o;
-                }).orElse(tensor);
+            AbstractTensor o = ln.forward(tensor);
+            tensor.close();
+            return o;
+        }).orElse(tensor);
     }
 }
-

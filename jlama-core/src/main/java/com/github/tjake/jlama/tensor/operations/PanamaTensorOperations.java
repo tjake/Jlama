@@ -2265,9 +2265,9 @@ public final class PanamaTensorOperations implements TensorOperations {
 
             // Convert BF16 to F32
             var bf = b.getVector(ShortVector.SPECIES_128, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_256, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_256)
+                .reinterpretAsFloats();
 
             var res = af.add(bf);
             a.intoTensor(res, 0, i);

@@ -29,10 +29,12 @@ public class QuantizeCommand extends SimpleBaseCommand {
     @CommandLine.Parameters(index = "1", arity = "0..1", description = "The output location")
     protected Path output;
 
-    @CommandLine.Option(names = { "--quantization" }, paramLabel = "ARG", description = "Model quantization type (default: ${DEFAULT-VALUE})", arity = "1", defaultValue = "Q4")
+    @CommandLine.Option(names = {
+        "--quantization" }, paramLabel = "ARG", description = "Model quantization type (default: ${DEFAULT-VALUE})", arity = "1", defaultValue = "Q4")
     protected DType modelQuantization = DType.Q4;
 
-    @CommandLine.Option(names = { "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize (default: ${DEFAULT-VALUE})", defaultValue = "norm")
+    @CommandLine.Option(names = {
+        "--skip-layer" }, paramLabel = "ARG", description = "Layer name prefix to not quantize (default: ${DEFAULT-VALUE})", defaultValue = "norm")
     protected String[] skipLayerPrefixes;
 
     @CommandLine.Option(names = { "--drop-layer" }, paramLabel = "ARG", description = "Layer name prefix to drop")

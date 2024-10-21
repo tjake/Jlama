@@ -56,41 +56,41 @@ public class Config {
     public final TensorCache tensorCache;
 
     public Config(
-            int contextLength,
-            int embeddingLength,
-            int hiddenLength,
-            int numberOfHeads,
-            int numberOfKeyValueHeads,
-            int numberOfLayers,
-            float layerNormEps,
-            int vocabularySize,
-            int bosToken,
-            List<Integer> eosToken,
-            ActivationFunction.Type activationFunction,
-            Double ropeFreqsTheta,
-            Double ropeScalingFactor,
-            Integer headSize,
-            Float attnLogitSoftCapping,
-            Float finalLogitSoftCapping
+        int contextLength,
+        int embeddingLength,
+        int hiddenLength,
+        int numberOfHeads,
+        int numberOfKeyValueHeads,
+        int numberOfLayers,
+        float layerNormEps,
+        int vocabularySize,
+        int bosToken,
+        List<Integer> eosToken,
+        ActivationFunction.Type activationFunction,
+        Double ropeFreqsTheta,
+        Double ropeScalingFactor,
+        Integer headSize,
+        Float attnLogitSoftCapping,
+        Float finalLogitSoftCapping
     ) {
         this(
-                contextLength,
-                embeddingLength,
-                hiddenLength,
-                numberOfHeads,
-                numberOfKeyValueHeads,
-                numberOfLayers,
-                layerNormEps,
-                vocabularySize,
-                bosToken,
-                eosToken,
-                activationFunction,
-                ropeFreqsTheta,
-                ropeScalingFactor,
-                null,
-                headSize == null ? embeddingLength / numberOfHeads : headSize,
-                attnLogitSoftCapping,
-                finalLogitSoftCapping
+            contextLength,
+            embeddingLength,
+            hiddenLength,
+            numberOfHeads,
+            numberOfKeyValueHeads,
+            numberOfLayers,
+            layerNormEps,
+            vocabularySize,
+            bosToken,
+            eosToken,
+            activationFunction,
+            ropeFreqsTheta,
+            ropeScalingFactor,
+            null,
+            headSize == null ? embeddingLength / numberOfHeads : headSize,
+            attnLogitSoftCapping,
+            finalLogitSoftCapping
         );
     }
 
@@ -125,7 +125,8 @@ public class Config {
             ropeScalingFactor,
             null,
             embeddingLength / numberOfHeads,
-                null, null
+            null,
+            null
         );
     }
 
@@ -161,7 +162,8 @@ public class Config {
             ropeScalingFactor,
             classifcationLabels,
             embeddingLength / numberOfHeads,
-                null, null
+            null,
+            null
         );
     }
 

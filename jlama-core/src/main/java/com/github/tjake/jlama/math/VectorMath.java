@@ -39,7 +39,7 @@ public class VectorMath {
         int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
         int chunkSize = length / splits;
         int remainder = 0;
-        
+
         // Non optimal case, just run in parallel
         if (splits == 1) {
             splits = length;

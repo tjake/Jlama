@@ -15,7 +15,6 @@
  */
 package com.github.tjake.jlama.model.gemma;
 
-import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.model.functions.EmbedInput;

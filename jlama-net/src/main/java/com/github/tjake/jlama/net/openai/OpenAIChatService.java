@@ -101,7 +101,7 @@ public class OpenAIChatService {
             }
         }
 
-        float temperature =  0.3f;
+        float temperature = 0.3f;
         int maxTokens = request.getMaxTokens() == null ? model.getConfig().contextLength : request.getMaxTokens();
 
         logger.info("Generating completion for session {} with temperature {} and max tokens {}", sessionId, temperature, maxTokens);
@@ -140,9 +140,11 @@ public class OpenAIChatService {
 
                     emitter.complete();
 
-                    logger.info("{} tokens/s (prompt), {} tokens/s (gen)",
-                            Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f)),
-                            Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f)));
+                    logger.info(
+                        "{} tokens/s (prompt), {} tokens/s (gen)",
+                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f)),
+                        Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
+                    );
 
                 } catch (IOException e) {
                     emitter.completeWithError(e);

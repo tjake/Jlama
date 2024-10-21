@@ -56,8 +56,9 @@ public class Gemma2Config extends Config {
             activationFunction,
             ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
             ropeScaling == null ? 1.0 : Double.parseDouble(ropeScaling.get("factor")),
-                headDim,
-                finalLogitSoftCapping, attnLogitSoftCapping
+            headDim,
+            finalLogitSoftCapping,
+            attnLogitSoftCapping
         );
     }
 }
