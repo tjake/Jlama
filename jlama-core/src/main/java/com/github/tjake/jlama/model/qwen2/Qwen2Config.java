@@ -38,7 +38,8 @@ public class Qwen2Config extends Config {
                 ropeTheta,
                 1.0,
                 null,
-                embeddingLength / numberOfHeads
+                embeddingLength / numberOfHeads,
+                null, null
         );
     }
 }

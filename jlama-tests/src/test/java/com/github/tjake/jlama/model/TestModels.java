@@ -19,6 +19,9 @@ import static com.github.tjake.jlama.util.JsonSupport.om;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.Generator;
+import com.github.tjake.jlama.model.gemma.GemmaConfig;
+import com.github.tjake.jlama.model.gemma.GemmaModel;
+import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
 import com.github.tjake.jlama.model.llama.LlamaConfig;
 import com.github.tjake.jlama.model.llama.LlamaModel;
 import com.github.tjake.jlama.model.llama.LlamaTokenizer;
@@ -39,6 +42,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+
+import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -78,6 +83,18 @@ public class TestModels {
         PromptContext prompt = qwen2.promptSupport().get().builder().addUserMessage("What is the capital of France?").build();
 
         Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt, 0.9f, 1024, makeOutHandler());
+        logger.info("Response: {}", r);
+    }
+
+    @Test
+    public void Gemma2Run() throws IOException {
+        String modelPrefix = "../models/google_gemma-2-2b-it";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        AbstractModel gemma2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
+        PromptContext prompt = gemma2.promptSupport().get().builder().addUserMessage("What is the capital of France?").build();
+
+        Generator.Response r = gemma2.generate(UUID.randomUUID(), prompt, 0.0f, 1024, makeOutHandler());
         logger.info("Response: {}", r);
     }
 
@@ -212,7 +229,20 @@ public class TestModels {
 
     @Test
     public void GemmaRun() throws Exception {
-        String modelPrefix = "../models/01-ai_Yi-Coder-1.5B-Chat-JQ4";
+        String modelPrefix = "../models/google_codegemma-2b-JQ4";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+        try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
+            Tokenizer tokenizer = new GemmaTokenizer(Paths.get(modelPrefix));
+            Config c = om.readValue(new File(modelPrefix + "/config.json"), GemmaConfig.class);
+            AbstractModel model = new GemmaModel(c, weights, tokenizer, DType.F32, DType.I8, Optional.empty());
+            PromptContext p = PromptContext.of("<|fim_prefix|>public void fibonocci(int n) {<|fim_suffix|><|fim_middle|>");
+            model.generate(UUID.randomUUID(), p, 0.3f, c.contextLength, makeOutHandler());
+        }
+    }
+
+    @Test
+    public void YiCoderRun() throws Exception {
+        String modelPrefix = "../models/01-ai_Yi-Coder-9B-Chat-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             LlamaTokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));

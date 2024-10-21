@@ -1,0 +1,25 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="TestModels.Gemma2Run" type="JUnit" factoryName="JUnit">
+    <classpathModifications>
+      <entry exclude="true" path="$PROJECT_DIR$/jlama-native/target/classes" />
+      <entry path="$PROJECT_DIR$/jlama-native/target/jlama-native-0.6.0-linux-x86_64.jar" />
+    </classpathModifications>
+    <module name="jlama-tests" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="com.github.tjake.jlama.model.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="ALTERNATIVE_JRE_PATH" value="graalvm-22" />
+    <option name="PACKAGE_NAME" value="com.github.tjake.jlama.model" />
+    <option name="MAIN_CLASS_NAME" value="com.github.tjake.jlama.model.TestModels" />
+    <option name="METHOD_NAME" value="Gemma2Run" />
+    <option name="TEST_OBJECT" value="method" />
+    <option name="VM_PARAMETERS" value="-ea --add-modules=jdk.incubator.vector -Djava.library.path=../jlama-native/target/native-lib-only --enable-preview" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

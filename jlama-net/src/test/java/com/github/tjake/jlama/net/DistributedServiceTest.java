@@ -42,8 +42,8 @@ public class DistributedServiceTest {
 
     @Test
     void manyWorkerTestLLama() throws Exception {
-        Path modelRoot = Paths.get("../models/Meta-Llama-3.1-8B-Instruct-jlama-Q4");
-        String modelName = "Meta-Llama-3.1-8B-Instruct-jlama-Q4";
+        Path modelRoot = Paths.get("../models/Meta-Llama-3-8B-Instruct-jlama-Q4");
+        String modelName = "Meta-Llama-3-8B-Instruct-jlama-Q4";
         String modelOwner = "tjake";
 
         Assume.assumeTrue(Files.exists(modelRoot));
