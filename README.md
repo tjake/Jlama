@@ -12,9 +12,10 @@
 ## 🚀 Features
 
 Model Support:
-  * Gemma Models
+  * Gemma & Gemma 2 Models
   * Llama & Llama2 & Llama3 Models
   * Mistral & Mixtral Models
+  * Qwen2 Models
   * GPT-2 Models
   * BERT Models
   * BPE Tokenizers
@@ -59,7 +60,7 @@ Note I have pre-quantized models available at https://hf.co/tjake
 
 ```shell
 # Run the openai chat api and UI on a model
-jlama restapi tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4 --auto-download
+jlama restapi tjake/Llama-3.2-1B-Instruct-JQ4 --auto-download
 ```
 
 open browser to http://localhost:8080/
@@ -135,7 +136,7 @@ Then you can use the Model classes to run models:
 
 ```java
  public void sample() throws IOException {
-    String model = "tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4";
+    String model = "tjake/Llama-3.2-1B-Instruct-JQ4";
     String workingDirectory = "./models";
 
     String prompt = "What is the best season to plant avocados?";
