@@ -43,7 +43,7 @@ public class JlamaRingWorkerService extends JlamaWorkerRingGrpc.JlamaWorkerRingI
         return new StreamObserver<>() {
             @Override
             public void onNext(PassRecord value) {
-                // logger.info("Recieved pass record from peer");
+                // logger.info("Received pass record from peer");
                 int startPosition = value.getStartPosition();
                 FloatBuffer buffer = value.getTensor().asReadOnlyByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
                 AbstractTensor tensor = new FloatBufferTensor(
@@ -58,7 +58,7 @@ public class JlamaRingWorkerService extends JlamaWorkerRingGrpc.JlamaWorkerRingI
 
             @Override
             public void onError(Throwable t) {
-                logger.error("Recieved error from peer", t);
+                logger.error("Received error from peer", t);
             }
 
             @Override
