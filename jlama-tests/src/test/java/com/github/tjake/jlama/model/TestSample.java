@@ -123,7 +123,7 @@ public class TestSample {
 
     @Test
     public void sampleGemmaClassifier() throws IOException {
-        String model = "google/shieldgemma-2b-JQ4";
+        String model = "tjake/shieldgemma-2b-JQ4";
         String workingDirectory = "./models";
         File localShieldModelPath = SafeTensorSupport.maybeDownloadModel(workingDirectory, model);
 
