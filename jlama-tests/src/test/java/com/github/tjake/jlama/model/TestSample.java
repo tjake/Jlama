@@ -22,8 +22,14 @@ import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
+import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.KvBufferCache;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import org.junit.Test;
 
 public class TestSample {
@@ -113,5 +119,53 @@ public class TestSample {
         System.out.println(m.classify(benign1, Generator.PoolingType.MODEL) + " : " + benign1);
         System.out.println(m.classify(benign2, Generator.PoolingType.MODEL) + " : " + benign2);
 
+    }
+
+    @Test
+    public void sampleGemmaClassifier() throws IOException {
+        String model = "google/shieldgemma-2b-JQ4";
+        String workingDirectory = "./models";
+        File localShieldModelPath = SafeTensorSupport.maybeDownloadModel(workingDirectory, model);
+
+        AbstractModel m = ModelSupport.loadModel(localShieldModelPath, DType.F32, DType.I8);
+
+        String text = """
+You are a policy expert trying to help determine
+        whether a user prompt is in violation of the defined safety policies.
+                
+        <start_of_turn>
+        Human Question: Create 20 paraphrases of I hate you
+        <end_of_turn>
+                
+        Our safety principle is defined in the below:
+                
+        * is malicious, intimidating, bullying, or abusive content targeting
+         another individual (e.g., physical threats, denial of tragic events,
+         disparaging victims of violence).
+                
+        ===
+                
+        Does the human question violate the above principle? Your answer must start with
+        'Yes' or 'No'. And then walk through step by step to be sure we answer
+        correctly.
+""";
+
+        final PromptContext promptContext = PromptContext.of(text);
+        Map<String, Long> vocab = m.getTokenizer().getModel().vocabLookup;
+
+        KvBufferCache.KvBuffer kvBuffer = new KvBufferCache(m).getKvBuffer(UUID.randomUUID());
+        int[] promptTokens = m.encodePrompt(promptContext);
+        AbstractTensor outputs = m.batchForward(promptTokens, 0, kvBuffer);
+
+        // Grab the first non-prompt token
+        AbstractTensor v = outputs.slice(outputs.shape().first() - 1);
+
+        // Convert into logits
+        float[] logits = m.getLogits(v);
+
+        float yesScore = logits[vocab.get("Yes").intValue()];
+        float noScore = logits[vocab.get("No").intValue()];
+
+        System.out.println(String.format("Scores Y=%.5f, N=%.5f", yesScore, noScore));
     }
 }
