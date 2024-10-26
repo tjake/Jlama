@@ -36,6 +36,7 @@ import com.github.tjake.jlama.util.JsonSupport;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -387,6 +388,33 @@ public abstract class AbstractModel implements Generator {
         return result;
     }
 
+    public float[] getLogits(AbstractTensor output) {
+        try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output);
+             AbstractTensor logits = makeDenseTensor(1, c.vocabularySize)) {
+
+            VectorMath.pchunk(0, c.vocabularySize, (chunkStart, chunkSize) -> {
+                TensorOperationsProvider.get()
+                        .dotProductChunk(
+                                logits,
+                                embedding,
+                                sampleOutput.getOutputLogitsWeights(),
+                                0,
+                                c.embeddingLength,
+                                chunkStart,
+                                chunkSize);
+            });
+
+            VectorMath.softMax(logits, 0, c.vocabularySize);
+
+            float[] r = new float[c.vocabularySize];
+
+            //Convert from Tensor to float array
+            logits.getMemorySegment().asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(r);
+
+            return r;
+        }
+    }
+
     public int sample(AbstractTensor output, float temperature, float uniformSample, AbstractTensor logits) {
         try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output)) {
             // This is a mix of argmax and sampling with softmax
@@ -431,6 +459,22 @@ public abstract class AbstractModel implements Generator {
 
             return c.vocabularySize - 1;
         }
+    }
+
+    public int[] encodePrompt(PromptContext promptContext) {
+        long[] encoded = tokenizer.encode(promptContext.getPrompt());
+
+        // Remove BOS token if it's the first token, we explicitly add it below
+        if (encoded.length > 0 && encoded[0] == c.bosToken) {
+            encoded = Arrays.copyOfRange(encoded, 1, encoded.length);
+        }
+
+        int[] promptTokens  = new int[(1 + encoded.length)];
+        promptTokens[0] = c.bosToken;
+        for (int i = 1; i <= encoded.length; i++)
+            promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
+
+        return promptTokens;
     }
 
     @Override

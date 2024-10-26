@@ -17,6 +17,7 @@ package com.github.tjake.jlama.model.gemma2;
 
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.model.*;
+import com.github.tjake.jlama.model.functions.ClassifyOutput;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.model.llama.LlamaModel;
