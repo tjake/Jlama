@@ -423,6 +423,10 @@ public abstract class AbstractModel implements Generator {
                     .dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
             });
 
+            if (c.logitMultiplier != null) {
+                TensorOperationsProvider.get().scale(1.0f / c.logitMultiplier, logits, 0, c.vocabularySize);
+            }
+
             int maxi = Integer.MIN_VALUE;
             double maxv = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < c.vocabularySize; i++) {
@@ -461,8 +465,16 @@ public abstract class AbstractModel implements Generator {
         }
     }
 
+
+    protected boolean addBosToken() {
+        return true;
+    }
+
     public int[] encodePrompt(PromptContext promptContext) {
         long[] encoded = tokenizer.encode(promptContext.getPrompt());
+
+        if (!addBosToken())
+            return Arrays.stream(encoded).mapToInt(Ints::checkedCast).toArray();
 
         // Remove BOS token if it's the first token, we explicitly add it below
         if (encoded.length > 0 && encoded[0] == c.bosToken) {
@@ -509,12 +521,18 @@ public abstract class AbstractModel implements Generator {
         StringBuilder responseTextWithSpecialTokens = new StringBuilder();
 
         try (AbstractTensor logits = makeDenseTensor(c.vocabularySize)) {
-            int[] promptTokens = new int[(1 + encoded.length)];
+            int[] promptTokens;
 
-            promptTokens[0] = c.bosToken;
-            for (int i = 1; i <= encoded.length; i++)
-                promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
-            promptLength = encoded.length;
+            if (addBosToken()) {
+                promptTokens = new int[(1 + encoded.length)];
+
+                promptTokens[0] = c.bosToken;
+                for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
+                promptLength = encoded.length;
+            } else {
+                promptTokens = Arrays.stream(encoded).mapToInt(Ints::checkedCast).toArray();
+                promptLength = encoded.length;
+            }
 
             long start = System.currentTimeMillis();
             long promptStart = start;

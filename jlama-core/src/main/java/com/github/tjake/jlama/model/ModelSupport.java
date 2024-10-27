@@ -61,7 +61,7 @@ public class ModelSupport {
         GEMMA(GemmaModel.class, GemmaConfig.class, GemmaTokenizer.class),
         GEMMA2(Gemma2Model.class, Gemma2Config.class, GemmaTokenizer.class),
         MISTRAL(MistralModel.class, MistralConfig.class, LlamaTokenizer.class),
-        GRANITE(GraniteModel.class, GraniteConfig.class, LlamaTokenizer.class),
+        GRANITE(GraniteModel.class, GraniteConfig.class, GPT2Tokenizer.class),
         MIXTRAL(MixtralModel.class, MixtralConfig.class, LlamaTokenizer.class),
         LLAMA(LlamaModel.class, LlamaConfig.class, LlamaTokenizer.class),
         GPT2(GPT2Model.class, GPT2Config.class, GPT2Tokenizer.class),

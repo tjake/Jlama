@@ -38,7 +38,11 @@ public class GraniteConfig extends Config {
             @JsonProperty("eos_token_id") int eosToken,
             @JsonProperty("hidden_act") ActivationFunction.Type activationFunction,
             @JsonProperty("rope_theta") Double ropeFreqsTheta,
-            @JsonProperty("rope_scaling") Map<String, String> ropeScaling
+            @JsonProperty("rope_scaling") Map<String, String> ropeScaling,
+            @JsonProperty("residual_multiplier") Float residualMultiplier,
+            @JsonProperty("attention_multiplier") Float attentionMultiplier,
+            @JsonProperty("embedding_multiplier") Float embeddingMultiplier,
+            @JsonProperty("logits_scaling") Float logitsScaling
     ) {
         super(
                 contextLength,
@@ -53,7 +57,11 @@ public class GraniteConfig extends Config {
                 List.of(eosToken),
                 activationFunction,
                 ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
-                ropeScaling == null || !("linear".equals(ropeScaling.get("rope_type"))) ? 1.0 : Double.parseDouble(ropeScaling.get("factor"))
+                ropeScaling == null || !("linear".equals(ropeScaling.get("rope_type"))) ? 1.0 : Double.parseDouble(ropeScaling.get("factor")),
+                residualMultiplier,
+                attentionMultiplier,
+                embeddingMultiplier,
+                logitsScaling
         );
     }
 }

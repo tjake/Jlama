@@ -42,8 +42,12 @@ public class Config {
     public final boolean isGQA;
     public final int numberOfLayers;
     public final float layerNormEps;
-    public Float finalLogitSoftCapping;
-    public Float attnLogitSoftCapping;
+    public final Float finalLogitSoftCapping;
+    public final Float attnLogitSoftCapping;
+    public final Float residualMultiplier;
+    public final Float attentionMultiplier;
+    public final Float embeddingMultiplier;
+    public final Float logitMultiplier;
     public final int vocabularySize;
     public final int bosToken;
     public final List<Integer> eosTokens;
@@ -90,7 +94,11 @@ public class Config {
             null,
             headSize == null ? embeddingLength / numberOfHeads : headSize,
             attnLogitSoftCapping,
-            finalLogitSoftCapping
+            finalLogitSoftCapping,
+            null,
+            null,
+            null,
+            null
         );
     }
 
@@ -126,7 +134,55 @@ public class Config {
             null,
             embeddingLength / numberOfHeads,
             null,
+            null,
+            null,
+            null,
+            null,
             null
+        );
+    }
+
+    public Config(
+            int contextLength,
+            int embeddingLength,
+            int hiddenLength,
+            int numberOfHeads,
+            int numberOfKeyValueHeads,
+            int numberOfLayers,
+            float layerNormEps,
+            int vocabularySize,
+            int bosToken,
+            List<Integer> eosToken,
+            ActivationFunction.Type activationFunction,
+            Double ropeFreqsTheta,
+            Double ropeScalingFactor,
+            Float residualMultiplier,
+            Float attentionMultiplier,
+            Float embeddingMultiplier,
+            Float logitMultiplier
+    ) {
+        this(
+                contextLength,
+                embeddingLength,
+                hiddenLength,
+                numberOfHeads,
+                numberOfKeyValueHeads,
+                numberOfLayers,
+                layerNormEps,
+                vocabularySize,
+                bosToken,
+                eosToken,
+                activationFunction,
+                ropeFreqsTheta,
+                ropeScalingFactor,
+                null,
+                embeddingLength / numberOfHeads,
+                null,
+                null,
+                residualMultiplier,
+                attentionMultiplier,
+                embeddingMultiplier,
+                logitMultiplier
         );
     }
 
@@ -163,6 +219,10 @@ public class Config {
             classifcationLabels,
             embeddingLength / numberOfHeads,
             null,
+            null,
+            null,
+            null,
+            null,
             null
         );
     }
@@ -184,7 +244,11 @@ public class Config {
         Map<String, Integer> classifcationLabels,
         Integer headSize,
         Float finalLogitSoftCapping,
-        Float attnLogitSoftCapping
+        Float attnLogitSoftCapping,
+        Float residualMultiplier,
+        Float attentionMultiplier,
+        Float embeddingMultiplier,
+        Float logitMultiplier
     ) {
         this.contextLength = contextLength;
         this.attentionLength = numberOfHeads * headSize;
@@ -213,6 +277,10 @@ public class Config {
 
         this.finalLogitSoftCapping = finalLogitSoftCapping;
         this.attnLogitSoftCapping = attnLogitSoftCapping;
+        this.residualMultiplier = residualMultiplier;
+        this.attentionMultiplier = attentionMultiplier;
+        this.embeddingMultiplier = embeddingMultiplier;
+        this.logitMultiplier = logitMultiplier;
 
         // Set default values
         this.dctx = DistributedContext.builder(this).build();

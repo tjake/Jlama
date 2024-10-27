@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TokenizerModel {
     private static final Logger logger = LoggerFactory.getLogger(TokenizerModel.class);
+    private static final java.util.regex.Pattern gpt2Pattern = java.util.regex.Pattern.compile("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+");
 
     @JsonProperty("type")
     public final String type;
@@ -85,7 +86,7 @@ public class TokenizerModel {
         @JsonProperty("byte_fallback") boolean byteFallback,
         @JsonProperty("vocab") Map<String, Long> vocabLookup,
         @JsonProperty("ignore_merges") Boolean ignoreMerges,
-        @JsonProperty("merges") List<String> merges
+        @JsonProperty("merges") List<Object> merges
     ) {
         this.type = type;
         this.unkToken = unkToken;
@@ -96,7 +97,14 @@ public class TokenizerModel {
         this.merges = new HashMap<>();
         if (merges != null) {
             for (int i = 0; i < merges.size(); i++) {
-                this.merges.put(merges.get(i), (long) i);
+                if (merges.get(i) instanceof String) {
+                    this.merges.put((String) merges.get(i), (long) i);
+                } else if (merges.get(i) instanceof List) {
+                    List<String> merge = (List<String>) merges.get(i);
+                    this.merges.put(merge.get(0) + " " + merge.get(1), (long) i);
+                } else {
+                    throw new IllegalArgumentException("Invalid merge format: " + merges.get(i));
+                }
             }
         }
     }
@@ -425,6 +433,7 @@ public class TokenizerModel {
                 case "Digits":
                     return splitDigits(sentence);
                 case "ByteLevel":
+                    //if (use_regex) return splitGpt2(sentence);
                     // Rather than deal with this, we'll just force byte fallback (only difference is how unk is
                     // handled)
                     return Collections.singletonList(sentence);
@@ -437,6 +446,10 @@ public class TokenizerModel {
             return List.of(
                 sentence.codePoints().map(c -> alteredBytes.getOrDefault(c, c)).mapToObj(Character::toString).collect(Collectors.joining())
             );
+        }
+
+        private List<String> splitGpt2(String sentence) {
+            return List.of(gpt2Pattern.split(sentence));
         }
 
         private List<String> splitRegex(String s) {
