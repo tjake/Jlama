@@ -39,7 +39,6 @@ import com.github.tjake.jlama.model.mixtral.MixtralConfig;
 import com.github.tjake.jlama.model.mixtral.MixtralModel;
 import com.github.tjake.jlama.model.qwen2.Qwen2Config;
 import com.github.tjake.jlama.model.qwen2.Qwen2Model;
-import com.github.tjake.jlama.model.qwen2.Qwen2Tokenizer;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
@@ -67,7 +66,7 @@ public class ModelSupport {
         LLAMA(LlamaModel.class, LlamaConfig.class, LlamaTokenizer.class),
         GPT2(GPT2Model.class, GPT2Config.class, GPT2Tokenizer.class),
         BERT(BertModel.class, BertConfig.class, BertTokenizer.class),
-        QWEN2(Qwen2Model.class, Qwen2Config.class, Qwen2Tokenizer.class);
+        QWEN2(Qwen2Model.class, Qwen2Config.class, LlamaTokenizer.class);
 
         public final Class<? extends AbstractModel> modelClass;
         public final Class<? extends Config> configClass;
@@ -78,7 +77,6 @@ public class ModelSupport {
             Class<? extends Config> configClass,
             Class<? extends Tokenizer> tokenizerClass
         ) {
-
             this.modelClass = modelClass;
             this.configClass = configClass;
             this.tokenizerClass = tokenizerClass;
