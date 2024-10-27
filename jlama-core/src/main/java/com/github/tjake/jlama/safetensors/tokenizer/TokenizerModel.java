@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.*;
+
+import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -305,9 +307,19 @@ public class TokenizerModel {
                     return replace(sentence);
                 case "Prepend":
                     return prepend(sentence);
+                case "NFC":
+                case "NFKC":
+                case "NFD":
+                case "NFKD":
+                    return formNormalize(sentence);
                 default:
                     throw new IllegalArgumentException("Invalid normalizer type: " + type);
             }
+        }
+
+        private String formNormalize(String sentence) {
+            java.text.Normalizer.Form form = java.text.Normalizer.Form.valueOf(type);
+            return java.text.Normalizer.normalize(sentence, form);
         }
 
         private String replace(String sentence) {
