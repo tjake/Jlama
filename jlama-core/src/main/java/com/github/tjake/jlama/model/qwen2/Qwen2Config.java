@@ -56,6 +56,10 @@ public class Qwen2Config extends Config {
             null,
             embeddingLength / numberOfHeads,
             null,
+            null,
+            null,
+            null,
+            null,
             null
         );
     }

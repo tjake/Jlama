@@ -2344,26 +2344,29 @@ public final class PanamaTensorOperations implements TensorOperations {
     }
 
     @Override
-    public void scale(float factor, AbstractTensor a, int offset, int length) {
-        Preconditions.checkArgument(a.shape().first() == 1);
-        switch (a.dType()) {
-            case F32:
-                scaleF32(factor, (FloatBufferTensor) a, offset, length);
-                break;
-            case BF16:
-                switch (vectorType) {
-                    case AVX_512:
-                        scaleBF16_512(factor, (BFloat16BufferTensor) a, offset, length);
-                        break;
-                    case AVX_256:
-                        scaleBF16_256(factor, (BFloat16BufferTensor) a, offset, length);
-                        break;
-                    default:
-                        throw new UnsupportedOperationException();
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException();
+    public void scale(float factor, AbstractTensor aBatch, int offset, int length) {
+
+        for (int ai = 0; ai < aBatch.shape().first(); ai++) {
+            AbstractTensor a = aBatch.slice(ai);
+            switch (a.dType()) {
+                case F32:
+                    scaleF32(factor, (FloatBufferTensor) a, offset, length);
+                    break;
+                case BF16:
+                    switch (vectorType) {
+                        case AVX_512:
+                            scaleBF16_512(factor, (BFloat16BufferTensor) a, offset, length);
+                            break;
+                        case AVX_256:
+                            scaleBF16_256(factor, (BFloat16BufferTensor) a, offset, length);
+                            break;
+                        default:
+                            throw new UnsupportedOperationException();
+                    }
+                    break;
+                default:
+                    throw new UnsupportedOperationException();
+            }
         }
     }
 

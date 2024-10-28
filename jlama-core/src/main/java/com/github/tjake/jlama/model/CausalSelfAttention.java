@@ -131,7 +131,7 @@ public class CausalSelfAttention {
         this.outputProjectionWeights = outputProjectionWeights;
         this.attentionLength = c.numberOfHeads * c.headSize;
 
-        this.attentionScale = (float) (1.0 / StrictMath.sqrt(c.headSize));
+        this.attentionScale = c.attentionMultiplier != null ? c.attentionMultiplier : (float) (1.0 / StrictMath.sqrt(c.headSize));
 
         this.qkvResults = new AbstractTensor[3];
         this.qkvWeights = new AbstractTensor[] { queryAttnWeights, keyAttnWeights, valueAttnWeights };

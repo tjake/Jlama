@@ -128,7 +128,7 @@ public class TransformerBlock {
         );
     }
 
-    protected TransformerBlock(
+    public TransformerBlock(
         AbstractModel model,
         int layerIndex,
         Optional<LayerNorm> preAttentionNorm,
@@ -179,6 +179,9 @@ public class TransformerBlock {
         debug("post_attn_norm", lnattn, layerIndex);
 
         // residual connection
+        if (model.c.residualMultiplier != null) {
+            TensorOperationsProvider.get().scale(model.c.residualMultiplier, lnattn, 0, model.c.embeddingLength);
+        }
         TensorOperationsProvider.get().accumulate(lnattn, embedding, 0, model.c.embeddingLength);
 
         AbstractTensor lnpreFF = preFFNorm.map(ln -> ln.forward(lnattn)).orElse(lnattn);
@@ -194,7 +197,11 @@ public class TransformerBlock {
         AbstractTensor lnpostFF = maybeApplyNorm(postFF, postFFNorm);
 
         // residual connection
+        if (model.c.residualMultiplier != null) {
+            TensorOperationsProvider.get().scale(model.c.residualMultiplier, lnpostFF, 0, model.c.embeddingLength);
+        }
         TensorOperationsProvider.get().accumulate(lnpostFF, lnattn, 0, model.c.embeddingLength);
+
 
         debug("post_ff_res", lnpostFF, layerIndex);
 
