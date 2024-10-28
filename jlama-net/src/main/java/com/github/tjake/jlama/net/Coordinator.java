@@ -228,4 +228,9 @@ public class Coordinator implements Generator {
             return new Generator.Response("", "", FinishReason.ERROR, 0, 0, 0, 0);
         }
     }
+
+    @Override
+    public void close() {
+
+    }
 }

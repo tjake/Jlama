@@ -251,6 +251,12 @@ public class Worker implements Closeable {
 
     @Override
     public void close() {
+        try {
+            kvBufferCache.close();
+        } catch (Exception e) {
+            logger.error("Error closing kvBufferCache", e);
+        }
+
         ((ManagedChannel) client.getChannel()).shutdown();
     }
 

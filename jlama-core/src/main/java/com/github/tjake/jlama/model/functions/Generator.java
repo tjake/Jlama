@@ -21,13 +21,14 @@ import com.github.tjake.jlama.safetensors.prompt.PromptSupport;
 import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 
+import java.io.Closeable;
 import java.util.*;
 import java.util.function.BiConsumer;
 
 /**
  * Used to define a function that generates tokens from a prompt
  */
-public interface Generator {
+public interface Generator extends Closeable {
 
     enum FinishReason {
         MAX_TOKENS,
