@@ -33,6 +33,8 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -63,10 +65,11 @@ public class KvBufferCache implements Closeable {
 
     @Override
     public void close() {
-        for (KvBuffer kvBuffer : kvBufferCache.values()) {
-            kvBuffer.close();
+        Iterator<Map.Entry<UUID, KvBuffer>> it = kvBufferCache.entrySet().iterator();
+        while (it.hasNext()) {
+            it.next().getValue().close();
+            it.remove();
         }
-        kvBufferCache.clear();
     }
 
     class KvPageContext {
@@ -287,7 +290,7 @@ public class KvBufferCache implements Closeable {
                             try {
                                 page.close();
                             } catch (IOException e) {
-                                // error message
+                                logger.debug("Error closing page", e);
                             }
                         }
                     }
