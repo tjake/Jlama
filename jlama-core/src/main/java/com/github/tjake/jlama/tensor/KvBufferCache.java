@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -32,16 +33,19 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A cache for key-value buffers used in the model.
  * @see com.github.tjake.jlama.model.functions.Generator
  */
-public class KvBufferCache {
+public class KvBufferCache implements Closeable {
     private static final Logger logger = LoggerFactory.getLogger(KvBufferCache.class);
     private final ConcurrentMap<UUID, KvBuffer> kvBufferCache;
     private final AbstractModel model;
@@ -52,7 +56,20 @@ public class KvBufferCache {
     }
 
     public KvBuffer getKvBuffer(UUID session) {
-        return kvBufferCache.computeIfAbsent(session, s -> new KvBuffer(s, 1 << 24)); // 16MB per page
+        return kvBufferCache.computeIfAbsent(session, s -> new KvBuffer(s, 1 << 23, false)); // 8MB per page
+    }
+
+    public KvBuffer getEphemeralKvBuffer() {
+        return new KvBuffer(UUID.randomUUID(), 1 << 20, true);
+    }
+
+    @Override
+    public void close() {
+        Iterator<Map.Entry<UUID, KvBuffer>> it = kvBufferCache.entrySet().iterator();
+        while (it.hasNext()) {
+            it.next().getValue().close();
+            it.remove();
+        }
     }
 
     class KvPageContext {
@@ -107,15 +124,16 @@ public class KvBufferCache {
         private final KvPageContext pageCtx;
         private final String pageId;
 
+        private final AtomicBoolean closed = new AtomicBoolean(false);
         private final RandomAccessFile raf;
 
-        KvBufferPage(KvPageContext pageCtx, String pageId) {
+        KvBufferPage(KvPageContext pageCtx, String pageId, boolean ephemeral) {
             this.pageCtx = pageCtx;
             this.pageId = pageId;
 
-            if (model.getConfig().workingDirectory().isEmpty()) {
+            if (model.getConfig().workingDirectory().isEmpty() || ephemeral) {
                 this.raf = null;
-                this.tensor = AbstractTensor.make(model.getWorkingDType(), pageCtx.pageShape);
+                this.tensor = TensorCache.instance.get(model.getWorkingDType(), pageCtx.pageShape);
             } else {
                 try {
                     raf = new RandomAccessFile(
@@ -126,7 +144,9 @@ public class KvBufferCache {
                         "rw"
                     );
                     long bytes = pageCtx.pageShape.size() * model.getWorkingDType().size();
-                    raf.setLength(bytes);
+                    logger.debug("Allocating page {} with {} bytes {}", pageId, bytes, raf.length());
+                    if (raf.length() != bytes)
+                        raf.setLength(bytes);
 
                     AbstractTensor t;
                     if (model.getWorkingDType() == DType.F32) {
@@ -156,13 +176,21 @@ public class KvBufferCache {
         }
 
         public AbstractTensor getTensor() {
+            assert !closed.get() : "Page is closed";
             return tensor;
+        }
+
+        public boolean isClosed() {
+            return closed.get();
         }
 
         @Override
         public void close() throws IOException {
-            if (raf != null) {
-                raf.close();
+            if (closed.compareAndSet(false, true)) {
+                if (raf != null) {
+                    raf.close();
+                }
+                tensor.close();
             }
         }
     }
@@ -173,11 +201,13 @@ public class KvBufferCache {
         private final KvBufferPage[][] pages;
 
         private final KvPageContext pageContext;
+        private final boolean ephemeral;
 
-        KvBuffer(UUID session, int maxPageSizeInBytes) {
+        KvBuffer(UUID session, int maxPageSizeInBytes, boolean ephemeral) {
             this.session = session;
             this.pageContext = computePageSize(maxPageSizeInBytes);
             this.pages = new KvBufferPage[pageContext.numberOfLayerPages][pageContext.numberOfContextPages];
+            this.ephemeral = ephemeral;
         }
 
         public int getCurrentContextPosition() {
@@ -225,23 +255,6 @@ public class KvBufferCache {
                 }
             }
 
-            // Try partitioning by context length
-            for (int y = C; y >= 1; y--) {
-                long x = maxPageSizeInBytes / (y * s);
-
-                if (x >= 1 && x <= N) {
-                    long product = x * y;
-
-                    if (product > maxProduct) {
-                        optimalLayersPerPage = (int) x;
-                        optimalContextLengthPerPage = y;
-                        maxProduct = product;
-                    }
-                    if (product < maxProduct) {
-                        break;
-                    }
-                }
-            }
 
             // Calculate the number of pages needed
             int numberOfLayerPages = (int) Math.ceil((double) N / optimalLayersPerPage);
@@ -256,12 +269,33 @@ public class KvBufferCache {
                 );
             }
 
+            logger.debug(
+                "Optimal page size: {} layers, {} context length, {} bytes, {} layer pages, {} length pages",
+                optimalLayersPerPage,
+                optimalContextLengthPerPage,
+                pageSize,
+                numberOfLayerPages,
+                numberOfContextPages
+            );
+
             return new KvPageContext(session, numberOfLayerPages, numberOfContextPages, optimalLayersPerPage, optimalContextLengthPerPage);
         }
 
         @Override
         public void close() {
-
+            for (KvBufferPage[] layerPages : pages) {
+                if (layerPages != null) {
+                    for (KvBufferPage page : layerPages) {
+                        if (page != null) {
+                            try {
+                                page.close();
+                            } catch (IOException e) {
+                                logger.debug("Error closing page", e);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         public AbstractTensor getKeyTensorForPosition(int layerIndex, int position) {
@@ -280,8 +314,8 @@ public class KvBufferCache {
             int relativeContextIndex = position % pageContext.contextLengthPerPage;
 
             KvBufferPage page = pages[layerPageIndex][contextPageIndex];
-            if (page == null) {
-                page = new KvBufferPage(pageContext, "L" + layerPageIndex + "C" + contextPageIndex);
+            if (page == null || page.isClosed()) {
+                page = new KvBufferPage(pageContext, "L" + layerPageIndex + "C" + contextPageIndex, ephemeral);
                 pages[layerPageIndex][contextPageIndex] = page;
             }
 
@@ -307,6 +341,12 @@ public class KvBufferCache {
 
             for (int i = 0; i <= contextPageIndex; i++) {
                 KvBufferPage page = layerPages[i];
+
+                if (page == null || page.isClosed()) {
+                    page = new KvBufferPage(pageContext, "L" + layerPageIndex + "C" + contextPageIndex, ephemeral);
+                    layerPages[i] = page;
+                }
+
                 tensors[i] = page.getTensor().slice(true, relativeLayerIndex, index);
             }
 
