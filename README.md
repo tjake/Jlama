@@ -16,6 +16,7 @@ Model Support:
   * Llama & Llama2 & Llama3 Models
   * Mistral & Mixtral Models
   * Qwen2 Models
+  * IBM Granite Models
   * GPT-2 Models
   * BERT Models
   * BPE Tokenizers

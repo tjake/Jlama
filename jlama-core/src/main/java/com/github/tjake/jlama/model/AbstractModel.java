@@ -394,26 +394,21 @@ public abstract class AbstractModel implements Generator {
     }
 
     public float[] getLogits(AbstractTensor output) {
-        try (AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output);
-             AbstractTensor logits = makeDenseTensor(1, c.vocabularySize)) {
+        try (
+            AbstractTensor embedding = sampleOutput.getOutputLayerNorm().forward(output);
+            AbstractTensor logits = makeDenseTensor(1, c.vocabularySize)
+        ) {
 
             VectorMath.pchunk(0, c.vocabularySize, (chunkStart, chunkSize) -> {
                 TensorOperationsProvider.get()
-                        .dotProductChunk(
-                                logits,
-                                embedding,
-                                sampleOutput.getOutputLogitsWeights(),
-                                0,
-                                c.embeddingLength,
-                                chunkStart,
-                                chunkSize);
+                    .dotProductChunk(logits, embedding, sampleOutput.getOutputLogitsWeights(), 0, c.embeddingLength, chunkStart, chunkSize);
             });
 
             VectorMath.softMax(logits, 0, c.vocabularySize);
 
             float[] r = new float[c.vocabularySize];
 
-            //Convert from Tensor to float array
+            // Convert from Tensor to float array
             logits.getMemorySegment().asByteBuffer().order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(r);
 
             return r;
@@ -470,7 +465,6 @@ public abstract class AbstractModel implements Generator {
         }
     }
 
-
     protected boolean addBosToken() {
         return true;
     }
@@ -478,15 +472,14 @@ public abstract class AbstractModel implements Generator {
     public int[] encodePrompt(PromptContext promptContext) {
         long[] encoded = tokenizer.encode(promptContext.getPrompt());
 
-        if (!addBosToken())
-            return Arrays.stream(encoded).mapToInt(Ints::checkedCast).toArray();
+        if (!addBosToken()) return Arrays.stream(encoded).mapToInt(Ints::checkedCast).toArray();
 
         // Remove BOS token if it's the first token, we explicitly add it below
         if (encoded.length > 0 && encoded[0] == c.bosToken) {
             encoded = Arrays.copyOfRange(encoded, 1, encoded.length);
         }
 
-        int[] promptTokens  = new int[(1 + encoded.length)];
+        int[] promptTokens = new int[(1 + encoded.length)];
         promptTokens[0] = c.bosToken;
         for (int i = 1; i <= encoded.length; i++)
             promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
@@ -514,11 +507,7 @@ public abstract class AbstractModel implements Generator {
         try (KvBufferCache.KvBuffer kvmem = kvBufferCache.getKvBuffer(sessionId)) { // k and v for context window
             int startPos = kvmem.getCurrentContextPosition(); // Number of tokens in the buffer
 
-            logger.debug(
-                    "Starting at token {} for session {} with prompt {}",
-                    startPos,
-                    sessionId,
-                    promptContext.getPrompt());
+            logger.debug("Starting at token {} for session {} with prompt {}", startPos, sessionId, promptContext.getPrompt());
 
             if (ntokens > c.contextLength) ntokens = c.contextLength;
 
@@ -532,36 +521,32 @@ public abstract class AbstractModel implements Generator {
             try (AbstractTensor logits = makeDenseTensor(c.vocabularySize)) {
                 int[] promptTokens;
 
-            if (addBosToken()) {
-                promptTokens = new int[(1 + encoded.length)];
+                if (addBosToken()) {
+                    promptTokens = new int[(1 + encoded.length)];
 
-                promptTokens[0] = c.bosToken;
-                for (int i = 1; i <= encoded.length; i++) promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
-                promptLength = encoded.length;
-            } else {
-                promptTokens = Arrays.stream(encoded).mapToInt(Ints::checkedCast).toArray();
-                promptLength = encoded.length;
-            }
+                    promptTokens[0] = c.bosToken;
+                    for (int i = 1; i <= encoded.length; i++)
+                        promptTokens[i] = Ints.checkedCast(encoded[i - 1]);
+                    promptLength = encoded.length;
+                } else {
+                    promptTokens = Arrays.stream(encoded).mapToInt(Ints::checkedCast).toArray();
+                    promptLength = encoded.length;
+                }
 
                 long start = System.currentTimeMillis();
                 long promptStart = start;
                 // Batch Process Prompt
                 AbstractTensor last = DebugSupport.isDebug()
-                        ? batchForwardSlow(promptTokens, startPos, kvmem)
-                        : batchForward(promptTokens, startPos, kvmem);
+                    ? batchForwardSlow(promptTokens, startPos, kvmem)
+                    : batchForward(promptTokens, startPos, kvmem);
 
                 promptBatchTime = System.currentTimeMillis() - start;
                 float batchMsPerToken = Math.round((((double) promptBatchTime) / (double) promptLength));
-                logger.debug(
-                        "{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, batchMsPerToken);
+                logger.debug("{} prompt tokens in {}ms | {}ms per token", promptLength, promptBatchTime, batchMsPerToken);
 
                 float genMsPerToken = 0;
                 tokensGenerated = 0;
-                int next = sample(
-                        last.slice(last.shape().first() - 1),
-                        temperature,
-                        ThreadLocalRandom.current().nextFloat(),
-                        logits);
+                int next = sample(last.slice(last.shape().first() - 1), temperature, ThreadLocalRandom.current().nextFloat(), logits);
                 last.close();
                 try {
                     String c = tokenizer.decode(next);
@@ -581,11 +566,9 @@ public abstract class AbstractModel implements Generator {
                     AbstractTensor output = forward(next, i, kvmem);
                     tokensGenerated++;
 
-                    next = sample(
-                            output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
+                    next = sample(output, temperature, ThreadLocalRandom.current().nextFloat(), logits);
 
-                    if (logger.isTraceEnabled())
-                        logger.trace("Sampled token {} with temperature {}", next, temperature);
+                    if (logger.isTraceEnabled()) logger.trace("Sampled token {} with temperature {}", next, temperature);
                     output.close();
 
                     kvmem.incrementContextPosition();
@@ -615,16 +598,22 @@ public abstract class AbstractModel implements Generator {
                 long end = System.currentTimeMillis();
 
                 Response response = new Response(
-                        responseText.toString(),
-                        responseTextWithSpecialTokens.toString(),
-                        reason,
-                        promptLength,
-                        tokensGenerated,
-                        promptBatchTime,
-                        end - start);
-                logger.debug(String.format(
+                    responseText.toString(),
+                    responseTextWithSpecialTokens.toString(),
+                    reason,
+                    promptLength,
+                    tokensGenerated,
+                    promptBatchTime,
+                    end - start
+                );
+                logger.debug(
+                    String.format(
                         "\n\nelapsed: %ds, prompt %.1fms per token, gen %.1fms per token\n",
-                        TimeUnit.MILLISECONDS.toSeconds(end - promptStart), batchMsPerToken, genMsPerToken));
+                        TimeUnit.MILLISECONDS.toSeconds(end - promptStart),
+                        batchMsPerToken,
+                        genMsPerToken
+                    )
+                );
 
                 return postProcessResponse(promptContext, response);
             }

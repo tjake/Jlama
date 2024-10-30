@@ -76,34 +76,34 @@ public class GraniteModel extends LlamaModel {
             String base = "model.layers." + i + ".";
             String prefix = base + "self_attn.";
             CausalSelfAttention attention = new CausalSelfAttention(
-                    this,
-                    relativeLayer,
-                    weights.load(prefix + "q_proj.weight", c.dctx(), true, false).quantize(qType),
-                    weights.load(prefix + "k_proj.weight", c.dctx(), true, false).quantize(qType),
-                    weights.load(prefix + "v_proj.weight", c.dctx(), true, false).quantize(qType),
-                    weights.load(prefix + "o_proj.weight", c.dctx(), false, true).quantize(qType)
+                this,
+                relativeLayer,
+                weights.load(prefix + "q_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "k_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "v_proj.weight", c.dctx(), true, false).quantize(qType),
+                weights.load(prefix + "o_proj.weight", c.dctx(), false, true).quantize(qType)
             );
 
             prefix = base + "mlp.";
 
             MLPBlock mlp = new MLPBlock(
-                    this,
-                    c.activationFunction,
-                    weights.load(prefix + "gate_proj.weight", c.dctx(), true, false).quantize(qType), // w1
-                    weights.load(prefix + "down_proj.weight", c.dctx(), false, true).quantize(qType), // w2
-                    weights.load(prefix + "up_proj.weight", c.dctx(), true, false).quantize(qType)
+                this,
+                c.activationFunction,
+                weights.load(prefix + "gate_proj.weight", c.dctx(), true, false).quantize(qType), // w1
+                weights.load(prefix + "down_proj.weight", c.dctx(), false, true).quantize(qType), // w2
+                weights.load(prefix + "up_proj.weight", c.dctx(), true, false).quantize(qType)
             ); // w3
 
             transformerBlocks[relativeLayer] = new TransformerBlock(
-                    this,
-                    relativeLayer,
-                    Optional.of(new RMSNorm(this, weights.load(base + "input_layernorm.weight").quantize(qType))),
-                    attention,
-                    Optional.empty(),
-                    Optional.of(new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight").quantize(qType))),
-                    mlp,
-                    Optional.empty(),
-                    Optional.empty()
+                this,
+                relativeLayer,
+                Optional.of(new RMSNorm(this, weights.load(base + "input_layernorm.weight").quantize(qType))),
+                attention,
+                Optional.empty(),
+                Optional.of(new RMSNorm(this, weights.load(base + "post_attention_layernorm.weight").quantize(qType))),
+                mlp,
+                Optional.empty(),
+                Optional.empty()
             );
         });
 

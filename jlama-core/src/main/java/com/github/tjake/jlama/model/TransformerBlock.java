@@ -202,7 +202,6 @@ public class TransformerBlock {
         }
         TensorOperationsProvider.get().accumulate(lnpostFF, lnattn, 0, model.c.embeddingLength);
 
-
         debug("post_ff_res", lnpostFF, layerIndex);
 
         // Release any tmp buffers (embedding is released by caller)

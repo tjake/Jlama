@@ -52,7 +52,7 @@ public class Gemma2Config extends Config {
             layerNormEps,
             vocabularySize,
             bosToken,
-            eosTokens instanceof List ? (List<Integer>) eosTokens : List.of((Integer)eosTokens),
+            eosTokens instanceof List ? (List<Integer>) eosTokens : List.of((Integer) eosTokens),
             activationFunction,
             ropeFreqsTheta == null ? 10000.0 : ropeFreqsTheta,
             ropeScaling == null ? 1.0 : Double.parseDouble(ropeScaling.get("factor")),

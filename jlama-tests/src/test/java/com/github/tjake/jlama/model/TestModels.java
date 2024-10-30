@@ -98,15 +98,13 @@ public class TestModels {
         logger.info("Response: {}", r);
     }
 
-
     @Test
     public void GraniteRun() throws IOException {
         String modelPrefix = "../models/ibm-granite_granite-3.0-2b-instruct";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         AbstractModel granite = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
-        PromptContext prompt = granite.promptSupport().get().builder().addUserMessage("What is the capital of France?")
-                .build();
+        PromptContext prompt = granite.promptSupport().get().builder().addUserMessage("What is the capital of France?").build();
 
         Generator.Response r = granite.generate(UUID.randomUUID(), prompt, 0.0f, 1024, makeOutHandler());
         logger.info("Response: {}", r);

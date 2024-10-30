@@ -42,7 +42,9 @@ import org.slf4j.LoggerFactory;
  */
 public class TokenizerModel {
     private static final Logger logger = LoggerFactory.getLogger(TokenizerModel.class);
-    private static final java.util.regex.Pattern gpt2Pattern = java.util.regex.Pattern.compile("(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+");
+    private static final java.util.regex.Pattern gpt2Pattern = java.util.regex.Pattern.compile(
+        "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
+    );
 
     @JsonProperty("type")
     public final String type;
@@ -433,7 +435,7 @@ public class TokenizerModel {
                 case "Digits":
                     return splitDigits(sentence);
                 case "ByteLevel":
-                    //if (use_regex) return splitGpt2(sentence);
+                    // if (use_regex) return splitGpt2(sentence);
                     // Rather than deal with this, we'll just force byte fallback (only difference is how unk is
                     // handled)
                     return Collections.singletonList(sentence);
