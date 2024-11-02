@@ -749,6 +749,7 @@ void __attribute__((noinline)) gemm_f32_q4_128_arm(int m0, int m, int n0, int n,
                         sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va1, f_vb0_1);
                         sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va2, f_vb0_2);
                         sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va3, f_vb0_3);
+
                         sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va4, f_vb1_0);
                         sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va5, f_vb1_1);
                         sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va6, f_vb1_2);
