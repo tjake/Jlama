@@ -583,9 +583,9 @@ public class TestOperations {
         sum = controlOps.sum(c);
 
         VectorMath.pchunk(
-                0,
-                SIZE,
-                (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength); }
+            0,
+            SIZE,
+            (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength); }
         );
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
     }

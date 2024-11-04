@@ -2238,8 +2238,8 @@ public final class PanamaTensorOperations implements TensorOperations {
             // Convert the first 4 bits into bytes
             var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
             var high = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                    .sub(Q4_BYTE_SUB_64);
+                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                .sub(Q4_BYTE_SUB_64);
 
             var low0 = low.castShape(ShortVector.SPECIES_128, 0);
             var lowf0 = low0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);
@@ -2248,11 +2248,10 @@ public final class PanamaTensorOperations implements TensorOperations {
             var highf0 = high0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);
             var highf1 = high0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1);
 
-
             var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
             var nhigh = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
-                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
-                    .sub(Q4_BYTE_SUB_64);
+                .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                .sub(Q4_BYTE_SUB_64);
 
             var low2 = nlow.castShape(ShortVector.SPECIES_128, 0);
             var low2f0 = low2.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);

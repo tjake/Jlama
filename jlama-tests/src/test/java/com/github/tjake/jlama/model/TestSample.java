@@ -33,7 +33,7 @@ public class TestSample {
 
     @Test
     public void sampleGeneration() throws IOException {
-        String model = "tjake/TinyLlama-1.1B-Chat-v1.0-Jlama-Q4";
+        String model = "tjake/Qwen2.5-0.5B-Instruct-JQ4";
         String workingDirectory = "./models";
 
         String prompt = "What is the best season to plant avocados?";
