@@ -24,7 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
 
-@CommandLine.Command(name = "list", description = "Lists local downloaded models", abbreviateSynopsis = true)
+@CommandLine.Command(name = "list", description = "Lists local models", abbreviateSynopsis = true)
 public class ListCommand extends JlamaCli {
     @CommandLine.Option(names = {
         "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
