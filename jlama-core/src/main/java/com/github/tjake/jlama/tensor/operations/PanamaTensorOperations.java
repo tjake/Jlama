@@ -2166,6 +2166,9 @@ public final class PanamaTensorOperations implements TensorOperations {
                                 case AVX_256:
                                     accumulateF32Q4_256((FloatBufferTensor) a, (Q4ByteBufferTensor) b, offset, limit);
                                     break;
+                                case ARM_128:
+                                    accumulateF32Q4_arm((FloatBufferTensor) a, (Q4ByteBufferTensor) b, offset, limit);
+                                    break;
                                 default:
                                     throw new UnsupportedOperationException();
                             }
@@ -2205,6 +2208,68 @@ public final class PanamaTensorOperations implements TensorOperations {
                 default:
                     throw new UnsupportedOperationException("" + a.dType());
             }
+        }
+    }
+
+    private void accumulateF32Q4_arm(FloatBufferTensor a, Q4ByteBufferTensor b, int offset, int limit) {
+
+        int aoffset = offset;
+        int boffset = offset;
+        int alim = offset + FloatVector.SPECIES_128.loopBound(limit);
+        int slen = Q4ByteBufferTensor.BLOCK_SIZE;
+
+        // Now for each scalar fetch the corresponding block of data and dot product them
+        for (; aoffset < alim; aoffset += slen, boffset += slen) {
+            var scale = FloatVector.broadcast(FloatVector.SPECIES_128, b.getFactorForIndex(0, boffset));
+
+            var af0 = a.getVector(FloatVector.SPECIES_128, 0, aoffset);
+            var af1 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 4);
+            var af2 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 8);
+            var af3 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 12);
+            var af4 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 16);
+            var af5 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 20);
+            var af6 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 24);
+            var af7 = a.getVector(FloatVector.SPECIES_128, 0, aoffset + 28);
+
+            // Make 8 bytes -> 16 4bit -> 16 bytes -> 16 32F
+            var bf0 = b.getVector(ByteVector.SPECIES_64, 0, boffset);
+            var bf1 = b.getVector(ByteVector.SPECIES_64, 0, boffset + 16);
+
+            // Convert the first 4 bits into bytes
+            var low = bf0.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
+            var high = bf0.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                    .sub(Q4_BYTE_SUB_64);
+
+            var low0 = low.castShape(ShortVector.SPECIES_128, 0);
+            var lowf0 = low0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);
+            var lowf1 = low0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1);
+            var high0 = high.castShape(ShortVector.SPECIES_128, 0);
+            var highf0 = high0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);
+            var highf1 = high0.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1);
+
+
+            var nlow = bf1.lanewise(VectorOperators.AND, Q4_BYTE_MASK_64).sub(Q4_BYTE_SUB_64);
+            var nhigh = bf1.lanewise(VectorOperators.ASHR, Q4_BYTE_SHIFT_64)
+                    .lanewise(VectorOperators.AND, Q4_BYTE_MASK_64)
+                    .sub(Q4_BYTE_SUB_64);
+
+            var low2 = nlow.castShape(ShortVector.SPECIES_128, 0);
+            var low2f0 = low2.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);
+            var low2f1 = low2.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1);
+
+            var high2 = nhigh.castShape(ShortVector.SPECIES_128, 0);
+            var high2f0 = high2.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 0);
+            var high2f1 = high2.convertShape(VectorOperators.S2F, FloatVector.SPECIES_128, 1);
+
+            a.intoTensor(af0.add(lowf0.mul(scale)), 0, aoffset);
+            a.intoTensor(af1.add(lowf1.mul(scale)), 0, aoffset + 4);
+            a.intoTensor(af2.add(low2f0.mul(scale)), 0, aoffset + 8);
+            a.intoTensor(af3.add(low2f1.mul(scale)), 0, aoffset + 12);
+            a.intoTensor(af4.add(highf0.mul(scale)), 0, aoffset + 16);
+            a.intoTensor(af5.add(highf1.mul(scale)), 0, aoffset + 20);
+            a.intoTensor(af6.add(high2f0.mul(scale)), 0, aoffset + 24);
+            a.intoTensor(af7.add(high2f1.mul(scale)), 0, aoffset + 28);
         }
     }
 

@@ -664,7 +664,109 @@ void gemm_f32_batch(int flags, int batch_num, const float *a, int aoffset, const
 }
 
 
-#if !defined(__ARM_NEON__)
+#if defined(__ARM_NEON__)
+void __attribute__((noinline)) gemm_f32_q4_128_arm(int m0, int m, int n0, int n, int RM, int RN, struct gemm_params params) {
+    int ytiles = (m - m0) / RM;
+    int xtiles = (n - n0) / RN;
+    int tiles = xtiles * ytiles;
+    // Mask to keep the first 4 bits of each byte
+    int8x16_t mask_first_4bits = vdupq_n_u8(0x0f);
+    //Subtract 8 from each byte to get signed values
+    int8x16_t eight = vdupq_n_s8(0x8);
+    int numBlocks = params.k / Q4_BLOCK_SIZE;
+
+    __attribute__((aligned(16))) float scalef[4];
+
+    // This fits on the stack (max of 5x5)
+    for (int job = 0; job < tiles; ++job) {
+
+        int ii = m0 + job / xtiles * RM;
+        int jj = n0 + job % xtiles * RN;
+
+        float32x4_t sums[RM][RN];
+
+        //Reset the sums to zero for this tile
+        for (int i = 0; i < RM; i++) {
+            for (int j = 0; j < RN; j++) {
+                sums[i][j] = vdupq_n_f32(0.0f);
+            }
+        }
+
+        for (int ni = 0; ni < RN; ++ni) {
+            int ao = params.aoffset;
+            int bo = params.boffset;
+
+            for (int i = 0; i < numBlocks; i += 4) { //128bits == 4floats
+                int aoo = ao;
+                int boo = bo;
+
+                for (int mi = 0; mi < RM; ++mi) {
+                    ao = aoo;
+                    bo = boo;
+
+                    // Load float32
+                    float32x4_t bblock = vld1q_f32(params.bf + (params.ldbf * (jj + ni) + ((bo*2) / Q4_BLOCK_SIZE)));
+                    vst1q_f32(scalef, bblock);
+
+                    for(int j = 0; j < 4; j++, ao += 32, bo += 16) {
+                        float32x4_t vb_f32 = vdupq_n_f32(scalef[j]);
+
+                        // Load 4 bytes into a 128-bit integer register
+                        float32x4_t f_va0 = vld1q_f32(params.af + params.lda * (ii + mi) + ao);
+                        float32x4_t f_va1 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 4);
+                        float32x4_t f_va2 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 8);
+                        float32x4_t f_va3 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 12);
+
+                        float32x4_t f_va4 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 16);
+                        float32x4_t f_va5 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 20);
+                        float32x4_t f_va6 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 24);
+                        float32x4_t f_va7 = vld1q_f32(params.af + params.lda * (ii + mi) + ao + 28);
+
+                        // Load 8 bytes into a 128-bit integer register
+                        int8x16_t int_vb0 = vsubq_s8(vreinterpretq_s8_u8(vandq_u8(vld1q_u8((const unsigned char *)(params.b + params.ldb * (jj + ni) + bo)),
+                                            mask_first_4bits)), eight);
+
+                        // Convert int_vb0 into two float32x4_t registers
+                        int16x8_t int_vb0_low = vmovl_s8(vget_low_s8(int_vb0));
+                        int16x8_t int_vb0_high = vmovl_s8(vget_high_s8(int_vb0));
+                        float32x4_t f_vb0_0 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_low_s16(int_vb0_low))));
+                        float32x4_t f_vb0_1 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_high_s16(int_vb0_low))));
+                        float32x4_t f_vb0_2 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_low_s16(int_vb0_high))));
+                        float32x4_t f_vb0_3 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_high_s16(int_vb0_high))));
+
+                        int8x16_t int_vb1 = vsubq_s8(vreinterpretq_s8_u8(vshrq_n_u8(vld1q_u8((const unsigned char *)(params.b + params.ldb * (jj + ni) + bo)), 4)), eight);
+
+                        // Convert int_vb0 into two float32x4_t registers
+                        int16x8_t int_vb1_low = vmovl_s8(vget_low_s8(int_vb1));
+                        int16x8_t int_vb1_high = vmovl_s8(vget_high_s8(int_vb1));
+                        float32x4_t f_vb1_0 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_low_s16(int_vb1_low))));
+                        float32x4_t f_vb1_1 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_high_s16(int_vb1_low))));
+                        float32x4_t f_vb1_2 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_low_s16(int_vb1_high))));
+                        float32x4_t f_vb1_3 = vmulq_f32(vb_f32, vcvtq_f32_s32(vmovl_s16(vget_high_s16(int_vb1_high))));
+
+                        // FMA operations for sums[mi][ni] with each of the 8 pairs of va and vb
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va0, f_vb0_0);
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va1, f_vb0_1);
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va2, f_vb0_2);
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va3, f_vb0_3);
+
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va4, f_vb1_0);
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va5, f_vb1_1);
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va6, f_vb1_2);
+                        sums[mi][ni] = vmlaq_f32(sums[mi][ni], f_va7, f_vb1_3);
+                    }
+                }
+            }
+        }
+
+        for (int mi = 0; mi < RM; ++mi) {
+            for (int ni = 0; ni < RN; ++ni) {
+                params.r[(params.ldc * (ii + mi)) + (jj + ni) - params.roffset] = vaddvq_f32(sums[mi][ni]);
+            }
+        }
+    }
+}
+#else
 void gemm_f32_q4_256(int m0, int m, int n0, int n, int RM, int RN, struct gemm_params params) {
     int ytiles = (m - m0) / RM;
     int xtiles = (n - n0) / RN;
@@ -865,7 +967,6 @@ void gemm_f32_q4_512(int m0, int m, int n0, int n, int RM, int RN, struct gemm_p
 
 void gemm_f32_q4(int flags, const float *a, int aoffset, const float *bf, const char* b, int boffset, float *r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldbf, int ldc)
 {
-#if !defined(__ARM_NEON__)
     struct gemm_params p = {
                         .flags = flags,
                         .af = a,
@@ -886,9 +987,12 @@ void gemm_f32_q4(int flags, const float *a, int aoffset, const float *bf, const 
                         .ldc = ldc
     };
 
+#if !defined(__ARM_NEON__)
     ((flags & HAS_AVX2) != 0)
            ? gemm(0, m, n0, n0 + n, gemm_f32_q4_512, p)
            : gemm(0, m, n0, n0 + n, gemm_f32_q4_256, p);
+#else
+    gemm(0, m, n0, n0 + n, gemm_f32_q4_128_arm, p);
 #endif
 }
 
