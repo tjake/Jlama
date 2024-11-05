@@ -15,25 +15,24 @@
  */
 package com.github.tjake.jlama.util;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Helper class for Jackson JSON support
  */
 public class JsonSupport {
-    private static final String JSON_REGEX =
-        "(\\{\\s*(\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\])\\s*,?\\s*)+\\})|(\\[\\s*(\\{\\s*(\"[^\"]+\"\\s*:\\s*(\"[^\"]*\"|\\d+|true|false|null|\\{[^{}]*\\}|\\[[^\\[\\]]*\\])\\s*,?\\s*)+\\}\\s*,?\\s*)+\\])";
-    private static final Pattern JSON_PATTERN = Pattern.compile(JSON_REGEX);
-    public static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+       public static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
         .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false)
@@ -48,14 +47,43 @@ public class JsonSupport {
     }
 
     public static List<String> extractJsonFromString(String s) {
-        Matcher matcher = JSON_PATTERN.matcher(s);
-        List<String> extractedJson = new ArrayList<>();
-        while (matcher.find()) {
-            String json = matcher.group();
-            extractedJson.add(json);
+        JsonFactory factory = new JsonFactory();
+        String text = s;
+        List<String> jsons = new ArrayList<>();
+
+        while (text != null && !text.isEmpty()) {
+            boolean found = false;
+            for (int i = 0; i < text.length(); i++) {
+                if (text.charAt(i) == '{' || text.charAt(i) == '[') {
+                    String possibleJson = text.substring(i);
+                    try (JsonParser parser = factory.createParser(new StringReader(possibleJson))) {
+                        JsonToken token = parser.nextToken();
+                        if (token != null) {
+                            parser.skipChildren();
+                            int endIndex = i + (int) parser.getTokenLocation().getCharOffset();
+                            int extra = 0;
+                            while (endIndex + extra < text.length() && (text.charAt(endIndex + extra) == '}' || text.charAt(endIndex + extra) == ']')) {
+                                extra++;
+                            }
+                            String jsonString = s.substring(i, endIndex + extra);
+                            jsons.add(jsonString);
+                            found = true;
+                            text = text.substring(endIndex + extra);
+                            // Parse the valid JSON string as needed
+                            break;
+                        }
+                    } catch (Exception e) {
+                        // Not a valid JSON at this position
+                    }
+                }
+            }
+
+            if (!found) {
+                break;
+            }
         }
 
-        return extractedJson;
+        return jsons;
     }
 
     public static class JlamaPrettyPrinter extends DefaultPrettyPrinter {
