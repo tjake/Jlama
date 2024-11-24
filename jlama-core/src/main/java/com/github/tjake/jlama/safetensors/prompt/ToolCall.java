@@ -15,17 +15,14 @@
  */
 package com.github.tjake.jlama.safetensors.prompt;
 
-import static com.github.tjake.jlama.util.JsonSupport.om;
 
 import com.fasterxml.jackson.annotation.*;
-import com.fasterxml.jackson.databind.type.ArrayType;
+
 import java.util.Map;
 import java.util.Objects;
 
 @JsonPropertyOrder({ ToolResult.JSON_PROPERTY_TOOL_NAME, ToolResult.JSON_PROPERTY_TOOL_ID })
 public class ToolCall {
-    public static final ArrayType toolCallListTypeReference = om.getTypeFactory().constructArrayType(ToolCall.class);
-
     @JsonProperty("name")
     private final String name;
 
