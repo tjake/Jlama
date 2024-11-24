@@ -17,6 +17,7 @@ package com.github.tjake.jlama.model;
 
 import static com.github.tjake.jlama.util.JsonSupport.om;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.tjake.jlama.math.FloatConversions;
 import com.github.tjake.jlama.math.VectorMath;
@@ -26,13 +27,17 @@ import com.github.tjake.jlama.model.llama.LlamaTokenizer;
 import com.github.tjake.jlama.safetensors.prompt.*;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.safetensors.tokenizer.WordPieceTokenizer;
+import com.github.tjake.jlama.util.JsonSupport;
 import com.google.common.io.Resources;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
+
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -384,5 +389,35 @@ public class TestCorrectness {
                 + "What is the weather in paris right now?[/INST]";
 
         Assert.assertEquals(expected, prompt);
+    }
+
+    @Test
+    public void testToolParse() throws JsonProcessingException {
+        String input = "To get the payment status and date of transaction T1005, I will use the retrievePaymentStatus and retrievePaymentDate functions.\n" +
+                "\n" +
+                "[{\"name\": \"retrievePaymentStatus\", \"arguments\": {\"arg0\": \"T1005\"}}]\n" +
+                "[{\"name\": \"retrievePaymentDate\", \"arguments\": {\"arg0\": \"T1005\"}}]\n" +
+                "\n" +
+                "Please wait while I retrieve the data...";
+
+        List<String> jsonCalls = JsonSupport.extractJsonFromString(input);
+
+        Assert.assertEquals(2, jsonCalls.size());
+
+        List<ToolCall> toolCalls = new ArrayList<>(jsonCalls.size());
+        for (String jsonCall : jsonCalls) {
+            if (jsonCall.startsWith("[")) {
+                List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, new TypeReference<>() {});
+                toolCalls.addAll(toolCallList);
+            } else {
+                ToolCall toolCall = JsonSupport.om.readValue(jsonCall, ToolCall.class);
+                toolCalls.add(toolCall);
+            }
+        }
+
+        // Remove duplicates
+        toolCalls = toolCalls.stream().sorted(Comparator.comparing(ToolCall::getName)).distinct().collect(Collectors.toList());
+
+        Assert.assertEquals(2, toolCalls.size());
     }
 }

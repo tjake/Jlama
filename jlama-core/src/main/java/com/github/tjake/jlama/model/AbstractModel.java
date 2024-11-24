@@ -18,6 +18,7 @@ package com.github.tjake.jlama.model;
 import static com.github.tjake.jlama.util.DebugSupport.debug;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.tjake.jlama.math.ActivationFunction;
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.model.functions.*;
@@ -656,7 +657,7 @@ public abstract class AbstractModel implements Generator {
             List<ToolCall> toolCalls = new ArrayList<>(jsonCalls.size());
             for (String jsonCall : jsonCalls) {
                 if (jsonCall.startsWith("[")) {
-                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, ToolCall.toolCallListTypeReference);
+                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, new TypeReference<>() {});
                     toolCalls.addAll(toolCallList);
                 } else {
                     ToolCall toolCall = JsonSupport.om.readValue(jsonCall, ToolCall.class);
