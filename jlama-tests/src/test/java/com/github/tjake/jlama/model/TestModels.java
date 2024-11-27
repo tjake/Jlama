@@ -171,7 +171,7 @@ public class TestModels {
 
     @Test
     public void MistralRun() throws Exception {
-        String modelPrefix = "../models/Mistral-7B-Instruct-v0.3-jlama-Q4";
+        String modelPrefix = "../models/tjake_Mistral-7B-Instruct-v0.3-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
         try (WeightLoader weights = SafeTensorSupport.loadWeights(Path.of(modelPrefix).toFile())) {
             BPETokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));

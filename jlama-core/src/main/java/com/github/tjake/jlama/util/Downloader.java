@@ -55,7 +55,7 @@ public class Downloader {
 
     }
 
-    public Downloader notDownloadWeights() {
+    public Downloader skipWeights() {
         this.downloadWeights = false;
         return this;
     }

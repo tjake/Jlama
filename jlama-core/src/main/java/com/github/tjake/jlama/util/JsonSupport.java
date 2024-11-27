@@ -65,7 +65,7 @@ public class JsonSupport {
                             while (endIndex + extra < text.length() && (text.charAt(endIndex + extra) == '}' || text.charAt(endIndex + extra) == ']')) {
                                 extra++;
                             }
-                            String jsonString = s.substring(i, endIndex + extra);
+                            String jsonString = text.substring(i, endIndex + extra);
                             jsons.add(jsonString);
                             found = true;
                             text = text.substring(endIndex + extra);
