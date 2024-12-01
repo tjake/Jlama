@@ -205,7 +205,7 @@ Or you can use a **Flow API**:
     // The response is generated with a temperature of 0.7 and a max token length of 256
     Generator.Response r = m.generateBuilder()
             .session(UUID.randomUUID()) //By default, UUID.randomUUID()
-            .promptContext(ctx)
+            .promptContext(ctx) // Required or use prompt(String text)
             .ntokens(256) //By default, 256
             .temperature(0.0f) //By default, 0.0f
             .onTokenWithTimings((s, aFloat) -> {}) //By default, (s, aFloat) -> {}, nothing
