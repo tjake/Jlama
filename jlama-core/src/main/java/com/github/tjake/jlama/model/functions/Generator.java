@@ -149,6 +149,10 @@ public interface Generator extends Closeable {
         return generate(session, promptContext, temperature, ntokens, (s, aFloat) -> {});
     }
 
+    default GenerateBuilder generateBuilder() {
+        return new GenerateBuilder(this);
+    }
+
     enum PoolingType {
         MODEL, // Use the model's pooling layers
         AVG,
@@ -179,4 +183,67 @@ public interface Generator extends Closeable {
     Tokenizer getTokenizer();
 
     Optional<PromptSupport> promptSupport();
+
+    class GenerateBuilder {
+        private UUID session = UUID.randomUUID();
+        private PromptContext promptContext;
+        private float temperature = 0.0f;
+        private int ntokens = 256;
+        private BiConsumer<String, Float> onTokenWithTimings = (s, aFloat) -> {};
+        private final Generator generator;
+
+        public GenerateBuilder(Generator generator) {
+            this.generator = generator;
+        }
+
+        public GenerateBuilder session(UUID session) {
+            this.session = session;
+
+            return this;
+        }
+
+        public GenerateBuilder session(String session) {
+            this.session = UUID.fromString(session);
+
+            return this;
+        }
+
+        public GenerateBuilder promptContext(PromptContext promptContext) {
+            this.promptContext = promptContext;
+
+            return this;
+        }
+
+        public GenerateBuilder prompt(String prompt) {
+            this.promptContext = PromptContext.of(prompt);
+
+            return this;
+        }
+
+        public GenerateBuilder temperature(float temperature) {
+            this.temperature = temperature;
+
+            return this;
+        }
+
+        public GenerateBuilder ntokens(int ntokens) {
+            this.ntokens = ntokens;
+
+            return this;
+        }
+
+        public GenerateBuilder onTokenWithTimings(BiConsumer<String, Float> onTokenWithTimings) {
+            this.onTokenWithTimings = onTokenWithTimings;
+
+            return this;
+        }
+
+        public Response generate() {
+            if (promptContext == null) {
+                throw new IllegalArgumentException("promptContext is null");
+            }
+
+            return generator.generate(session, promptContext, temperature, ntokens, onTokenWithTimings);
+        }
+    }
 }
