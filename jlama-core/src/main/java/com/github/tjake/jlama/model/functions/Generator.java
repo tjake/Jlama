@@ -240,7 +240,7 @@ public interface Generator extends Closeable {
 
         public Response generate() {
             if (promptContext == null) {
-                throw new IllegalArgumentException("promptContext is null");
+                throw new IllegalArgumentException("promptContext cannot be null");
             }
 
             return generator.generate(session, promptContext, temperature, ntokens, onTokenWithTimings);
