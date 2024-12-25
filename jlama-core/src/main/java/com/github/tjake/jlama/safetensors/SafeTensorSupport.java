@@ -47,8 +47,19 @@ public class SafeTensorSupport {
     private static final MapType metadataTypeReference = om.getTypeFactory().constructMapType(Map.class, String.class, String.class);
 
     public static Map<String, TensorInfo> readTensorInfoMap(ByteBuffer buf, Optional<Map<String, String>> saveMetadata) {
+        final long MAX_HEADER_LENGTH = 1024 * 1024 * 1024; // 1 GB
         buf = buf.order(ByteOrder.LITTLE_ENDIAN);
         long headerLength = buf.getLong();
+
+        // headerLength is negative
+        if (headerLength < 0) {
+            throw new IllegalArgumentException("Header length cannot be negative: " + headerLength);
+        }
+        // headerLength exceeds the maximum allowed length MAX_HEADER_LENGTH
+        if (headerLength > MAX_HEADER_LENGTH) {
+            throw new IllegalArgumentException(String.format("Header length %d exceeds the maximum allowed length %d.", headerLength, MAX_HEADER_LENGTH));
+        }
+
         byte[] header = new byte[Ints.checkedCast(headerLength)];
         buf.get(header);
 
