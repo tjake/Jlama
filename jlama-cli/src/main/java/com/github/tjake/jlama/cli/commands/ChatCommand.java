@@ -66,6 +66,7 @@ public class ChatCommand extends ModelBaseCommand {
 
         UUID session = UUID.randomUUID();
         PromptSupport promptSupport = m.promptSupport().get();
+        PromptSupport.Builder builder = promptSupport.builder();
         PrintWriter out = System.console().writer();
 
         out.println("\nChatting with " + modelName + "...\n");
@@ -82,7 +83,6 @@ public class ChatCommand extends ModelBaseCommand {
                 break;
             }
 
-            PromptSupport.Builder builder = promptSupport.builder();
             if (first && systemPrompt != null) {
                 builder.addSystemMessage(systemPrompt);
             }
@@ -96,6 +96,9 @@ public class ChatCommand extends ModelBaseCommand {
                 tokens == null ? m.getConfig().contextLength : tokens,
                 makeOutHandler()
             );
+
+            // New prompt builder and strip out the preamble since we're continuing the conversation
+            builder = promptSupport.builder().stripPreamble();
 
             out.println(
                 "\n\n"

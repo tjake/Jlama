@@ -109,7 +109,7 @@ public class OpenAIChatService {
         if (request.getStream() != null && request.getStream()) {
             SseEmitter emitter = new SseEmitter(-1L);
             CompletableFuture.supplyAsync(
-                () -> model.generate(sessionId, builder.build(), temperature, maxTokens, (t, f) -> CompletableFuture.supplyAsync(() -> {
+                () -> model.    generate(sessionId, builder.build(), temperature, maxTokens, (t, f) -> CompletableFuture.supplyAsync(() -> {
                     try {
                         emitter.send(
                             new CreateChatCompletionStreamResponse().id(sessionId.toString())

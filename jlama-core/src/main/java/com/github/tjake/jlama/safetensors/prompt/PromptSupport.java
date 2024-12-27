@@ -190,6 +190,7 @@ public class PromptSupport {
         private boolean addGenerationPrompt = true;
 
         private List<Message> messages = new ArrayList<>(2);
+        private boolean stripPreamble = false;
 
         private Builder(TokenizerModel m) {
             this.m = m;
@@ -230,6 +231,11 @@ public class PromptSupport {
             return this;
         }
 
+        public Builder stripPreamble() {
+            stripPreamble = true;
+            return this;
+        }
+
         public PromptContext build() {
             return build(Optional.empty());
         }
@@ -259,8 +265,29 @@ public class PromptSupport {
                 "This model does not support tools, but tools are specified"
             );
 
-            Map<String, Object> args = new HashMap<>();
 
+            String preamble = "";
+            if (stripPreamble) {
+                Map<String, Object> args = new HashMap<>();
+                args.putAll(
+                    Map.of(
+                        "messages",
+                        Map.of(),
+                        "add_generation_prompt",
+                        false,
+                        "eos_token",
+                        m.eosToken(),
+                        "bos_token",
+                        ""
+                    )
+                ); // We add the BOS ourselves
+                optionalTools.ifPresent(tools -> args.put("tools", tools));
+
+                RenderResult r = jinjava.renderForResult(template, args);
+                preamble = r.getOutput();
+            }
+
+            Map<String, Object> args = new HashMap<>();
             args.putAll(
                 Map.of(
                     "messages",
@@ -280,7 +307,8 @@ public class PromptSupport {
 
             if (r.hasErrors()) logger.debug("Prompt template errors: " + r.getErrors());
 
-            return new PromptContext(r.getOutput(), optionalTools);
+            String output = r.getOutput();
+            return new PromptContext(output.substring(preamble.length()), optionalTools);
         }
     }
 }

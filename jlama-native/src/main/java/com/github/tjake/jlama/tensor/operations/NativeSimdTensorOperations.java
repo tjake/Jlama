@@ -28,11 +28,11 @@ import java.lang.foreign.MemorySegment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NativeTensorOperations implements TensorOperations {
-    private static final Logger logger = LoggerFactory.getLogger(NativeTensorOperations.class);
+public class NativeSimdTensorOperations implements TensorOperations {
+    private static final Logger logger = LoggerFactory.getLogger(NativeSimdTensorOperations.class);
 
     static {
-        if (!JarSupport.maybeLoadLibrary()) System.loadLibrary("jlama");
+        if (!JarSupport.maybeLoadLibrary("jlama")) System.loadLibrary("jlama");
     }
 
     public static final int HAS_F16C = NativeSimd.HAS_F16C();
@@ -52,7 +52,7 @@ public class NativeTensorOperations implements TensorOperations {
 
     final int flags;
 
-    public NativeTensorOperations() {
+    public NativeSimdTensorOperations() {
         int f = 0;
 
         if (RuntimeSupport.isLinux()) f |= HAS_F16C;
@@ -63,7 +63,7 @@ public class NativeTensorOperations implements TensorOperations {
         checkLib();
     }
 
-    NativeTensorOperations(int flags) {
+    NativeSimdTensorOperations(int flags) {
         this.flags = flags;
     }
 

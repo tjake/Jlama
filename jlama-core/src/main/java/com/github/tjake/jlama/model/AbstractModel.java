@@ -283,8 +283,16 @@ public abstract class AbstractModel implements Generator {
         KvBufferCache.KvBuffer kvbuf,
         Optional<Consumer<List<AbstractTensor>>> tensorReducer
     ) {
-        AbstractTensor embedding = embedInput.batchInputsToEmbeddings(token_ids, startPos);
-        return forward(embedding, startPos, kvbuf, tensorReducer);
+        AbstractTensor embedding = null;
+
+        //Batch prompt into groups of 1024
+        for (int i = 0; i < token_ids.length; i += 1024) {
+            int[] batch = Arrays.copyOfRange(token_ids, i, Math.min(token_ids.length, i + 1024));
+            embedding = embedInput.batchInputsToEmbeddings(batch, startPos + i);
+            embedding = forward(embedding, startPos + i, kvbuf, tensorReducer);
+        }
+
+        return embedding;
     }
 
     public AbstractTensor forward(

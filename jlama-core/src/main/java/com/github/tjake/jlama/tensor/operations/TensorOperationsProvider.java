@@ -53,7 +53,7 @@ public class TensorOperationsProvider {
         if (!forcePanama) {
             try {
                 Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName(
-                    "com.github.tjake.jlama.tensor.operations.NativeTensorOperations"
+                    "com.github.tjake.jlama.tensor.operations.NativeSimdTensorOperations"
                 );
                 pick = nativeClazz.getConstructor().newInstance();
                 // This will throw if no shared lib found
