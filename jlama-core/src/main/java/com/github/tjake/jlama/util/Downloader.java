@@ -23,6 +23,8 @@ import java.util.Optional;
 
 public class Downloader {
 
+    private static final String AUTH_TOKEN_ENV_VAR = "HF_TOKEN";
+    private static final String AUTH_TOKEN_PROP = "huggingface.auth.token";
     private final String modelDir;
     private final String modelOwner;
     private final String modelName;
@@ -82,9 +84,21 @@ public class Downloader {
             this.modelName,
             this.downloadWeights,
             Optional.ofNullable(this.branch),
-            Optional.ofNullable(this.authToken),
+            Optional.ofNullable(getAuthToken()),
             Optional.ofNullable(this.progressReporter)
         );
+    }
+
+    private String getAuthToken() {
+        String token = System.getenv(AUTH_TOKEN_ENV_VAR);
+        if (token == null) {
+            token = System.getProperty(AUTH_TOKEN_PROP);
+            if (token == null) {
+                token = this.authToken;
+            }
+        }
+
+        return token;
     }
 
 }
