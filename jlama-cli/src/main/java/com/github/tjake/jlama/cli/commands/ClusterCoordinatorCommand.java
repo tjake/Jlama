@@ -23,11 +23,15 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import picocli.CommandLine;
 
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @CommandLine.Command(name = "cluster-coordinator", description = "Starts a distributed rest api for a model using cluster workers", abbreviateSynopsis = true)
@@ -139,14 +143,18 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                     }
                 }).start();
             }
-
+        
             System.out.println("Chat UI: http://localhost:" + port);
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
 
-            new SpringApplicationBuilder(ClusterCoordinatorCommand.class).lazyInitialization(true)
-                .properties("server.port", "" + port, "logging.level.org.springframework.web", "info")
-                .build()
-                .run();
+            // Use SpringApplicationBuilder with ApplicationContextInitializer to set the port dynamically
+            new SpringApplicationBuilder(ClusterCoordinatorCommand.class).initializers(applicationContext -> {
+                ConfigurableEnvironment environment = applicationContext.getEnvironment();
+                Map<String, Object> props = new HashMap<>();
+                props.put("server.port", port); // Set the port here before the server starts
+                environment.getPropertySources().addFirst(new MapPropertySource("customProps", props));
+            }).properties("logging.level.org.springframework.web", "info").lazyInitialization(true).build().run();
+
 
         } catch (Exception e) {
             e.printStackTrace();
