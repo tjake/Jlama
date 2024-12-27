@@ -23,8 +23,8 @@ import java.util.Optional;
 
 public class Downloader {
 
-    private static final String AUTH_TOKEN_ENV_VAR = "JLAMA_AUTH_TOKEN";
-    private static final String AUTH_TOKEN_PROP = "jlama.auth.token";
+    private static final String AUTH_TOKEN_ENV_VAR = "HF_TOKEN";
+    private static final String AUTH_TOKEN_PROP = "huggingface.auth.token";
     private final String modelDir;
     private final String modelOwner;
     private final String modelName;
