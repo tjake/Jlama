@@ -15,7 +15,7 @@
  */
 package com.github.tjake.jlama.tensor.operations;
 
-import static com.github.tjake.jlama.tensor.operations.NativeTensorOperations.*;
+import static com.github.tjake.jlama.tensor.operations.NativeSimdTensorOperations.*;
 
 import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
@@ -59,19 +59,19 @@ public class TestOperations {
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.AVX_256));
         opTypes.add(new PanamaTensorOperations(MachineSpec.Type.ARM_128));
 
-        if (globalOps instanceof NativeTensorOperations) {
-            opTypes.add(new NativeTensorOperations());
-            opTypes.add(new NativeTensorOperations(0));
+        if (globalOps instanceof NativeSimdTensorOperations) {
+            opTypes.add(new NativeSimdTensorOperations());
+            opTypes.add(new NativeSimdTensorOperations(0));
 
-            if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) opTypes.add(new NativeTensorOperations(HAS_AVX2));
+            if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) opTypes.add(new NativeSimdTensorOperations(HAS_AVX2));
 
             if (RuntimeSupport.isLinux() || RuntimeSupport.isWin()) {
-                opTypes.add(new NativeTensorOperations(HAS_F16C));
-                if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) opTypes.add(new NativeTensorOperations(HAS_F16C | HAS_AVX2));
+                opTypes.add(new NativeSimdTensorOperations(HAS_F16C));
+                if (MachineSpec.VECTOR_TYPE == MachineSpec.Type.AVX_512) opTypes.add(new NativeSimdTensorOperations(HAS_F16C | HAS_AVX2));
             }
 
             if (RuntimeSupport.isArm()) {
-                opTypes.add(new NativeTensorOperations(MachineSpec.Type.ARM_128.ctag));
+                opTypes.add(new NativeSimdTensorOperations(MachineSpec.Type.ARM_128.ctag));
             }
         }
 
@@ -198,7 +198,7 @@ public class TestOperations {
 
     @Test
     public void testNativeDotProduct() {
-        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
 
@@ -476,7 +476,7 @@ public class TestOperations {
     @Test
     public void testNativeBatchDotProduct() {
         // M == BATCH, N == ROWS, K == SIZE
-        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
 
         FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
         FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
@@ -512,7 +512,7 @@ public class TestOperations {
     @Test
     public void testNativeBatchDotProductWithOffsets() {
         // M == BATCH, N == ROWS, K == SIZE
-        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
 
         FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
         FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
@@ -548,7 +548,7 @@ public class TestOperations {
     @Test
     public void testNativeDotProductFast() {
         // M == BATCH, N == ROWS, K == SIZE
-        Assume.assumeTrue(globalOps instanceof NativeTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
 
         FloatBufferTensor c = new FloatBufferTensor(1, SIZE);
         FloatBufferTensor c1 = new FloatBufferTensor(1, SIZE);

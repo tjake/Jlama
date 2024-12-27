@@ -31,16 +31,16 @@ import org.slf4j.LoggerFactory;
 public class JarSupport {
     private static final Logger logger = LoggerFactory.getLogger(JarSupport.class);
 
-    public static boolean maybeLoadLibrary() {
+    public static boolean maybeLoadLibrary(String libname) {
         String ext = RuntimeSupport.isMac() ? ".dylib" : RuntimeSupport.isWin() ? ".dll" : ".so";
-        URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/libjlama" + ext);
+        URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/lib" + libname + ext);
 
         if (lib != null) {
             try {
                 final File libpath = Files.createTempDirectory("jlama").toFile();
                 libpath.deleteOnExit(); // just in case
 
-                File libfile = Paths.get(libpath.getAbsolutePath(), "libjlama" + ext).toFile();
+                File libfile = Paths.get(libpath.getAbsolutePath(), "lib" + libname + ext).toFile();
                 libfile.deleteOnExit(); // just in case
 
                 final InputStream in = lib.openStream();
@@ -53,10 +53,10 @@ public class JarSupport {
                 out.close();
                 in.close();
                 System.load(libfile.getAbsolutePath());
-                logger.debug("Loaded jlama-native library: {}", libfile.getAbsolutePath());
+                logger.debug("Loaded {}-native library: {}", libname, libfile.getAbsolutePath());
                 return true;
             } catch (IOException e) {
-                logger.warn("Error loading jlama-native library");
+                logger.warn("Error loading {}-native library", libname);
             }
         }
 

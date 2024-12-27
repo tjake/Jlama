@@ -345,7 +345,7 @@ public class TestCorrectness {
     @Test
     public void testMistralTools() {
 
-        String modelPrefix = "../models/Mistral-7B-Instruct-v0.3";
+        String modelPrefix = "../models/tjake_Mistral-7B-Instruct-v0.3-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
@@ -419,5 +419,52 @@ public class TestCorrectness {
         toolCalls = toolCalls.stream().sorted(Comparator.comparing(ToolCall::getName)).distinct().collect(Collectors.toList());
 
         Assert.assertEquals(2, toolCalls.size());
+    }
+
+    @Test
+    public void testPromptBuilderSession() {
+        String modelPrefix = "../models/Qwen_Qwen2.5-0.5B-Instruct-JQ4";
+        Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
+
+        Tokenizer tokenizer = new LlamaTokenizer(Paths.get(modelPrefix));
+        PromptSupport.Builder builder = tokenizer.promptSupport().get().builder();
+        builder.addSystemMessage("You always respond as a pirate");
+        builder.addUserMessage("What is the weather in paris right now?");
+        builder.addGenerationPrompt(true);
+
+        Tool t = Tool.from(
+            Function.builder()
+                .name("get_current_temperature")
+                .description("Simulates getting the current temperature at a location.")
+                .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                .build()
+        );
+
+        PromptContext prompt = builder.build(t);
+        Assert.assertEquals(
+                "<|im_start|>system\n" + "You always respond as a pirate\n"
+                        + "\n"
+                        + "# Tools\n"
+                        + "\n"
+                        + "You may call one or more functions to assist with the user query.\n"
+                        + "\n"
+                        + "You are provided with function signatures within <tools></tools> XML tags:\n"
+                        + "<tools>\n"
+                        + "{\"type\": \"function\", \"function\": {\"name\": \"get_current_temperature\", \"description\": \"Simulates getting the current temperature at a location.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"location\": {\"type\": \"string\", \"description\": \"The location to get the temperature for, in the format \\\"City, Country\\\".\"}, \"unit\": {\"type\": \"string\", \"description\": \"The unit to return the temperature in (e.g., \\\"celsius\\\", \\\"fahrenheit\\\").\"}}, \"required\": [\"location\", \"unit\"]}}}\n"
+                        + "</tools>\n"
+                        + "\n"
+                        + "For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n"
+                        + "<tool_call>\n"
+                        + "{\"name\": <function-name>, \"arguments\": <args-json-object>}\n"
+                        + "</tool_call><|im_end|>\n"
+                        + "<|im_start|>user\n"
+                        + "What is the weather in paris right now?<|im_end|>\n"
+                        + "<|im_start|>assistant\n",
+                prompt.getPrompt());
+
+        prompt = tokenizer.promptSupport().get().builder().addUserMessage("This is a test").stripPreamble().build();
+        Assert.assertEquals(
+                "<|im_start|>user\n" + "This is a test<|im_end|>\n" + "<|im_start|>assistant\n", prompt.getPrompt());
     }
 }
