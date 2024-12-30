@@ -54,6 +54,8 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractModel implements Generator {
     private static final Logger logger = LoggerFactory.getLogger(AbstractModel.class);
 
+    private static final Integer MAX_BATCH_SIZE = Integer.getInteger("jlama.max_batch_size", 256);
+
     public enum InferenceType {
         // Used for distributed inference
         INPUT_TO_EMBEDDING(true, false, false, false, false),
@@ -285,11 +287,12 @@ public abstract class AbstractModel implements Generator {
     ) {
         AbstractTensor embedding = null;
 
-        //Batch prompt into groups of 1024
-        for (int i = 0; i < token_ids.length; i += 1024) {
-            int[] batch = Arrays.copyOfRange(token_ids, i, Math.min(token_ids.length, i + 1024));
+        //Batch prompt into groups of MAX_BATCH_SIZE
+        for (int i = 0; i < token_ids.length; i += MAX_BATCH_SIZE) {
+            int[] batch = Arrays.copyOfRange(token_ids, i, Math.min(token_ids.length, i + MAX_BATCH_SIZE));
             embedding = embedInput.batchInputsToEmbeddings(batch, startPos + i);
             embedding = forward(embedding, startPos + i, kvbuf, tensorReducer);
+            logger.debug("Batched forward pass for tokens {} to {}", i, i + batch.length);
         }
 
         return embedding;

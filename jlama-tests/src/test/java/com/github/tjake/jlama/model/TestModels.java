@@ -76,13 +76,28 @@ public class TestModels {
 
     @Test
     public void Qwen2Run() throws IOException {
-        String modelPrefix = "../models/Qwen_Qwen2.5-0.5B-Instruct-JQ4";
+        String modelPrefix = "../models/Qwen_Qwen2.5-0.5B-Instruct-JQ4";    
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.I8);
-        PromptContext prompt = qwen2.promptSupport().get().builder().addUserMessage("What is the capital of France?").build();
 
-        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt, 0.9f, 1024, makeOutHandler());
+        int ntools = 200;
+        Tool[] tools = new Tool[ntools];
+        for (int i = 0; i < ntools; i++) {
+            Tool tool = Tool.from(Function.builder()
+                    .description("some tool "+i)
+                    .addParameter("input", "string", "an input", true)
+                    .name("some-tool-"+i)
+                    .build());
+            tools[i] = tool;
+        }
+
+        PromptContext prompt = qwen2.promptSupport().get().builder()
+                .addSystemMessage("You are a helpful chatbot who writes short responses.")
+                .addUserMessage("What is the capital of France?")
+                .build(tools);
+
+        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt, 0.9f, 32 * 1024, makeOutHandler());
         logger.info("Response: {}", r);
     }
 
