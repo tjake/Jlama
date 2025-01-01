@@ -171,7 +171,7 @@ Then you can use the Model classes to run models:
  }
 ```
 
-Or you can use a **Flow API**:
+Or you can use a **Builder API**:
 
 ```java
  public void sample() throws IOException {
