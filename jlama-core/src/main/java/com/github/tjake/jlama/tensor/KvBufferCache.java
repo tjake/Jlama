@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -32,6 +33,7 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.Map;
@@ -43,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A cache for key-value buffers used in the model.
+ * 
  * @see com.github.tjake.jlama.model.functions.Generator
  */
 public class KvBufferCache implements Closeable {
@@ -120,8 +123,10 @@ public class KvBufferCache implements Closeable {
 
     /**
      * A Page of a key-value buffer.
-     * Rather than allocating one giant buffer for the entire key-value buffer, we allocate slices of the buffer
-     * as needed. This allows us to keep the memory usage low, and also allows us to allocate very large contexts.
+     * Rather than allocating one giant buffer for the entire key-value buffer, we
+     * allocate slices of the buffer
+     * as needed. This allows us to keep the memory usage low, and also allows us to
+     * allocate very large contexts.
      */
     class KvBufferPage implements AutoCloseable {
         private final AbstractTensor tensor;
@@ -131,6 +136,7 @@ public class KvBufferCache implements Closeable {
 
         private final AtomicBoolean closed = new AtomicBoolean(false);
         private final RandomAccessFile raf;
+        private final File rafFile;
 
         KvBufferPage(KvPageContext pageCtx, String pageId, boolean ephemeral) {
             this.pageCtx = pageCtx;
@@ -138,16 +144,16 @@ public class KvBufferCache implements Closeable {
 
             if (model.getConfig().workingDirectory().isEmpty() || ephemeral) {
                 this.raf = null;
+                this.rafFile = null;
                 this.tensor = TensorCache.instance.get(model.getWorkingDType(), pageCtx.pageShape);
             } else {
                 try {
-                    raf = new RandomAccessFile(
-                        Paths.get(
-                            model.getConfig().workingDirectory().get().toString(),
-                            pageCtx.session.toString() + "-" + pageId + ".page"
-                        ).toFile(),
-                        "rw"
-                    );
+                    rafFile = Paths.get(
+                        model.getConfig().workingDirectory().get().toString(),
+                        pageCtx.session.toString() + "-" + pageId + ".page"
+                    ).toFile();
+                    rafFile.deleteOnExit();
+                    raf = new RandomAccessFile(rafFile, "rw");
                     long bytes = pageCtx.pageShape.size() * model.getWorkingDType().size();
                     logger.debug("Allocating page {} with {} bytes {}", pageId, bytes, raf.length());
                     if (raf.length() != bytes) raf.setLength(bytes);
@@ -193,6 +199,13 @@ public class KvBufferCache implements Closeable {
             if (closed.compareAndSet(false, true)) {
                 if (raf != null) {
                     raf.close();
+                }
+                if (rafFile != null) {
+                    try {
+                        Files.delete(rafFile.toPath());
+                    } catch (Exception e) {
+                        logger.warn("Could not delete the temporary file {}: {}", rafFile.getAbsolutePath(), e.getMessage());
+                    }
                 }
                 tensor.close();
             }
