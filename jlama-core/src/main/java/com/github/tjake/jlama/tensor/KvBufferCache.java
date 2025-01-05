@@ -72,6 +72,11 @@ public class KvBufferCache implements Closeable {
         }
     }
 
+    public void close(UUID sessionId) {
+        KvBuffer buffer = kvBufferCache.get(sessionId);
+        buffer.close();
+    }
+
     class KvPageContext {
         public final int numberOfLayerPages;
         public final int numberOfContextPages;
@@ -351,4 +356,5 @@ public class KvBufferCache implements Closeable {
             return tensors;
         }
     }
+
 }
