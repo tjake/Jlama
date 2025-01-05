@@ -137,6 +137,9 @@ public class KvBufferCache implements Closeable {
         private final AtomicBoolean closed = new AtomicBoolean(false);
         private final RandomAccessFile raf;
         private final File rafFile;
+        private final FileChannel rafChannel;
+        private ShortBuffer sb;
+        private FloatBuffer fb;
 
         KvBufferPage(KvPageContext pageCtx, String pageId, boolean ephemeral) {
             this.pageCtx = pageCtx;
@@ -145,6 +148,7 @@ public class KvBufferCache implements Closeable {
             if (model.getConfig().workingDirectory().isEmpty() || ephemeral) {
                 this.raf = null;
                 this.rafFile = null;
+                this.rafChannel = null;
                 this.tensor = TensorCache.instance.get(model.getWorkingDType(), pageCtx.pageShape);
             } else {
                 try {
@@ -159,18 +163,15 @@ public class KvBufferCache implements Closeable {
                     if (raf.length() != bytes) raf.setLength(bytes);
 
                     AbstractTensor t;
+                    fb = null;
+                    sb = null;
+                    rafChannel = raf.getChannel();
                     if (model.getWorkingDType() == DType.F32) {
-                        FloatBuffer fb = raf.getChannel()
-                            .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-                            .asFloatBuffer();
+                        fb = rafChannel.map(FileChannel.MapMode.READ_WRITE, 0, bytes).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
 
                         t = new FloatBufferTensor(fb, pageCtx.pageShape, true);
                     } else if (model.getWorkingDType() == DType.BF16) {
-                        ShortBuffer sb = raf.getChannel()
-                            .map(FileChannel.MapMode.READ_WRITE, 0, bytes)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-                            .asShortBuffer();
+                        sb = rafChannel.map(FileChannel.MapMode.READ_WRITE, 0, bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
 
                         t = new BFloat16BufferTensor("kvmem", sb, pageCtx.pageShape, true);
                     } else {
@@ -197,6 +198,9 @@ public class KvBufferCache implements Closeable {
         @Override
         public void close() throws IOException {
             if (closed.compareAndSet(false, true)) {
+                if (rafChannel != null) {
+                    rafChannel.close();
+                }
                 if (raf != null) {
                     raf.close();
                 }
@@ -208,6 +212,9 @@ public class KvBufferCache implements Closeable {
                     }
                 }
                 tensor.close();
+                // free reference to the buffers
+                fb = null;
+                sb = null;
             }
         }
     }
