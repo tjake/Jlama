@@ -19,16 +19,10 @@ public class PromptBuilder {
   private final List<ToolCall> toolCalls = new ArrayList<>();
   private final List<ToolResult> toolResults = new ArrayList<>();
   private boolean isGenerational = false;
-  private final Logger logger;
+  private final Logger logger = LoggerFactory.getLogger(PromptBuilder.class);
 
   PromptBuilder(AbstractModel model) {
     this.model = model;
-    this.logger = LoggerFactory.getLogger(AbstractModel.class);
-  }
-
-  PromptBuilder(AbstractModel model, Logger logger) {
-    this.model = model;
-    this.logger = logger;
   }
 
   public PromptBuilder addUserMessage(String userMessage) {
