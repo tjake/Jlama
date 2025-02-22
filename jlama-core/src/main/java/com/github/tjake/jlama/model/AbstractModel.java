@@ -219,7 +219,7 @@ public abstract class AbstractModel implements Generator {
     }
 
     public PromptBuilder prompt() {
-        return new PromptBuilder(this);
+        return new PromptBuilder(this, logger);
     }
 
     public AbstractTensor makeTensor(int... shape) {

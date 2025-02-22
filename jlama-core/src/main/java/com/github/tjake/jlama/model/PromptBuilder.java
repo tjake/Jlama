@@ -3,11 +3,15 @@ package com.github.tjake.jlama.model;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 import com.github.tjake.jlama.safetensors.prompt.ToolCall;
 import com.github.tjake.jlama.safetensors.prompt.ToolResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static java.lang.String.join;
 
 public class PromptBuilder {
   private final AbstractModel model;
@@ -15,9 +19,16 @@ public class PromptBuilder {
   private final List<ToolCall> toolCalls = new ArrayList<>();
   private final List<ToolResult> toolResults = new ArrayList<>();
   private boolean isGenerational = false;
+  private final Logger logger;
 
   PromptBuilder(AbstractModel model) {
     this.model = model;
+    this.logger = LoggerFactory.getLogger(AbstractModel.class);
+  }
+
+  PromptBuilder(AbstractModel model, Logger logger) {
+    this.model = model;
+    this.logger = logger;
   }
 
   public PromptBuilder addUserMessage(String userMessage) {
@@ -80,9 +91,10 @@ public class PromptBuilder {
 
       ctx = promptSupport.build();
     } else {
+      logger.warn("Model do not support prompt");
       var userMessages = this.messages.get("user");
       if (userMessages.isEmpty()) throw new IllegalStateException("No user messages found");
-      ctx = PromptContext.of(userMessages.get(0));
+      ctx = PromptContext.of(join("\n", userMessages));
     }
 
     return ctx;
