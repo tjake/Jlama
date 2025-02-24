@@ -69,7 +69,7 @@ public class SimpleBaseCommand extends JlamaCli {
 
     static String getName(String modelName) {
         String[] parts = modelName.split("/");
-        if (parts.length == 0 || parts.length > 2) {
+        if (parts.length != 2) {
             System.err.println("Model name must be in the form owner/name");
             System.exit(1);
         }
