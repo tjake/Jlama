@@ -96,6 +96,7 @@ Other:
   download             Downloads a HuggingFace model - use owner/name format
   list                 Lists local models
   quantize             Quantize the specified model
+  rm                   Removes local model
 ```
 
 
