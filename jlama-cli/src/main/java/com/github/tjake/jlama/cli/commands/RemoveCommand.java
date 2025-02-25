@@ -16,7 +16,6 @@
 package com.github.tjake.jlama.cli.commands;
 
 import com.github.tjake.jlama.cli.JlamaCli;
-import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import picocli.CommandLine;
 
@@ -27,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.FileVisitResult;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Objects;
 
 @CommandLine.Command(name = "rm", description = "Removes local model", abbreviateSynopsis = true)
 public class RemoveCommand extends JlamaCli {
