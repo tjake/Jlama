@@ -50,6 +50,7 @@ public class JlamaCli implements Runnable {
         cli.addSubcommand("quantize", new QuantizeCommand());
         cli.addSubcommand("cluster-coordinator", new ClusterCoordinatorCommand());
         cli.addSubcommand("cluster-worker", new ClusterWorkerCommand());
+        cli.addSubcommand("rm", new RemoveCommand());
 
         cli.getHelpSectionMap().remove(SECTION_KEY_COMMAND_LIST_HEADING);
         cli.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, getCommandRenderer());
@@ -66,7 +67,7 @@ public class JlamaCli implements Runnable {
         Map<String, List<String>> sections = new LinkedHashMap<>();
         sections.put("Inference", asList("chat", "restapi", "complete"));
         sections.put("Distributed Inference", asList("cluster-coordinator", "cluster-worker"));
-        sections.put("Other", asList("download", "list", "quantize"));
+        sections.put("Other", asList("download", "list", "quantize", "rm"));
         CommandGroupRenderer renderer = new CommandGroupRenderer(sections);
         return renderer;
     }
