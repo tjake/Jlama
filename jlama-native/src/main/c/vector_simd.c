@@ -7,7 +7,7 @@
  *  Available: https://justine.lol/matmul/. [Accessed: 29-Mar-2024].
  */
 #include <stdio.h>
-#if defined(__ARM_NEON__)
+#if defined(__ARM_NEON__) || defined(__aarch64__)
 #include <arm_neon.h>
 #else
 #include <immintrin.h>
