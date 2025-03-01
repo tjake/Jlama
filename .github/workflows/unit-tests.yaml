@@ -30,7 +30,8 @@ jobs:
           distribution: adopt
           mvn-toolchain-vendor: AdoptOpenJDK
           cache: maven
+      - name: Check neon support
+        if: matrix.os== 'ubuntu-24.04-arm'
+        run: echo | gcc -dM -E - | grep __ARM_NEON__
       - name: Compile, run tests, and package (JDK 20/21/22)
-        run: |
-          echo | gcc -dM -E - | grep __ARM_NEON__
-          mvn -B package
+        run: mvn -B package
