@@ -372,7 +372,7 @@
                   <env key="LIB_DIR" value="${nativeLibOnlyDir}" />
                   <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                   <env key="JNI_PLATFORM" value="${jni.platform}" />
-                  <env key="CFLAGS" value="-g -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -march=native -D__ARM_NEON__" />
+                  <env key="CFLAGS" value="-g -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -march=native -flax-vector-conversions -D__ARM_NEON__" />
                   <env key="LDFLAGS" value="-shared" />
                   <env key="LIB_NAME" value="${nativeLibName}" />
                   <env KEY="LIB_EXT"  value="so" />
