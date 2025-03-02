@@ -25,8 +25,8 @@ import static com.github.tjake.jlama.cli.commands.SimpleBaseCommand.getOwner;
 @CommandLine.Command(name = "download", description = "Downloads a HuggingFace model - use owner/name format", abbreviateSynopsis = true)
 public class DownloadCommand extends JlamaCli {
     @CommandLine.Option(names = {
-        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
-    protected File modelDirectory = new File("models");
+        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})")
+    protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
 
     @CommandLine.Option(names = {
         "--branch" }, paramLabel = "ARG", description = "The branch to download from (default: ${DEFAULT-VALUE})", defaultValue = "main")

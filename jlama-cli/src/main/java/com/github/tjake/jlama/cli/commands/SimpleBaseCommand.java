@@ -39,8 +39,8 @@ public class SimpleBaseCommand extends JlamaCli {
     protected DownloadSection downloadSection = new DownloadSection();
 
     @CommandLine.Option(names = {
-        "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
-    protected File modelDirectory = new File("models");
+        "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})")
+    protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
 
     @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;
@@ -108,7 +108,7 @@ public class SimpleBaseCommand extends JlamaCli {
                 Optional.ofNullable(owner),
                 name,
                 downloadWeights,
-                Optional.ofNullable(URLEncoder.encode(branch)),
+                Optional.ofNullable(URLEncoder.encode(branch, "UTF-8")),
                 Optional.ofNullable(authToken),
                 getProgressConsumer()
             );
