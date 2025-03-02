@@ -30,8 +30,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 @CommandLine.Command(name = "rm", description = "Removes local model", abbreviateSynopsis = true)
 public class RemoveCommand extends JlamaCli {
     @CommandLine.Option(names = {
-            "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
-    protected File modelDirectory = new File("models");
+            "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})")
+    protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
 
     @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;

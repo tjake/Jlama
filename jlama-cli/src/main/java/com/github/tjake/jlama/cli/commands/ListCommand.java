@@ -27,8 +27,8 @@ import java.util.Objects;
 @CommandLine.Command(name = "list", description = "Lists local models", abbreviateSynopsis = true)
 public class ListCommand extends JlamaCli {
     @CommandLine.Option(names = {
-        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})", defaultValue = "models")
-    protected File modelDirectory = new File("models");
+        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})")
+    protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
 
     @Override
     public void run() {
