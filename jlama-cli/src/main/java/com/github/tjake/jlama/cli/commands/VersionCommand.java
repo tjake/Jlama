@@ -34,7 +34,8 @@ public class VersionCommand extends JlamaCli {
                 System.out.println("Version information not available");
             }
         } catch (Exception e) {
-            System.err.println("Could not determine version: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
         }
     }
 }
