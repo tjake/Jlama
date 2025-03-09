@@ -113,7 +113,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
             logger.info("Native GPU Operations loaded with {} memory and {} groups", lb.get(0), lb.get(1));
             params_size = Ints.checkedCast(lb.get(2));
 
-            byte[] shader = Resources.readLines(Resources.getResource("gemm_f32_v3.wgsl"), StandardCharsets.UTF_8).stream()
+            byte[] shader = Resources.readLines(Resources.getResource("gemm_f32_v4.wgsl"), StandardCharsets.UTF_8).stream()
                     .reduce((a, b) -> a + "\n" + b)
                     .map(f -> f.trim().getBytes(StandardCharsets.UTF_8))
                     .orElseThrow(() -> new RuntimeException("Failed to load shader"));

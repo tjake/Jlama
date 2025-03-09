@@ -31,7 +31,7 @@ fn main(
     let ii = workgroup_id.y * RM + local_id.y;  // Row index in submatrix
     let jj = workgroup_id.x * RN + local_id.x;  // Column index in submatrix
 
-    if (false && ii < params.m && jj < params.n) {
+    if (ii < params.m && jj < params.n) {
         var sum: f32 = 0.0;
         for (var k = 0u; k < params.k; k = k + 1u) {
             let aIdx = (params.lda * ii) + k;

@@ -9,8 +9,8 @@
 
 #define UNUSED(x) (void)x;
 
-#define RM 16
-#define RN 16
+#define RM 8
+#define RN 8
 
 typedef struct {
     WGPUBuffer input_buffer;
@@ -171,6 +171,11 @@ int scratch_lookup_idx = 0;
 WGPUShaderModule shader_lookup[1024];
 int shader_lookup_idx = 0;
 
+WGPUComputePipeline shader_pipeline_lookup[1024];
+int shader_pipeline_lookup_idx = 0;
+
+
+WGPUBindGroupLayout bind_group_layout;
 
 void init_gpu(long *results) {
 
@@ -244,6 +249,48 @@ void init_gpu(long *results) {
     tensor_lookup_idx = 0;
     scratch_lookup_idx = 0;
     shader_lookup_idx = 0;
+    shader_pipeline_lookup_idx = 0;
+
+
+    // Create bind group layout for pipeline creation
+    WGPUBindGroupLayoutEntry layout_entries[4] = {
+                    { .binding = 0, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
+                    { .binding = 1, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
+                    { .binding = 2, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Storage }},
+                    { .binding = 3, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Uniform }},
+               };
+
+    bind_group_layout = wgpuDeviceCreateBindGroupLayout(device, &(WGPUBindGroupLayoutDescriptor){
+            .entryCount = 4,
+            .entries = layout_entries,
+    });
+}
+
+WGPUComputePipeline init_pipeline(WGPUShaderModule shader_module) {
+    assert(shader_module != NULL);
+    assert(device != NULL);
+
+
+
+    WGPUPipelineLayoutDescriptor pipeline_layout_desc = {
+            .bindGroupLayoutCount = 1,
+            .bindGroupLayouts = &bind_group_layout, //cached
+        };
+
+    WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(device, &pipeline_layout_desc);
+
+    WGPUComputeState compute_state = {};
+    compute_state.module = shader_module;
+    compute_state.entryPoint.data = "main";
+    compute_state.entryPoint.length = 4;
+
+    // Create compute pipeline with the pipeline layout
+    WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &(WGPUComputePipelineDescriptor){
+            .layout = pipeline_layout,  // Include the pipeline layout
+            .compute = compute_state,
+    });
+
+    return pipeline;
 }
 
 WGPUBuffer create_buffer(WGPUDevice device, void* data, size_t size, WGPUBufferUsage usage) {
@@ -331,10 +378,19 @@ WGPUShaderModule create_shader_module(WGPUDevice device, const char* shader_code
 }
 
 long register_shader(const char *data, int size) {
+
+    assert(shader_lookup_idx < 1024);
+
     WGPUShaderModule shader = create_shader_module(device, data);
     shader_lookup[shader_lookup_idx] = shader;
     long id = shader_lookup_idx;
+
+    shader_pipeline_lookup[shader_pipeline_lookup_idx] = init_pipeline(shader);
+
     shader_lookup_idx++;
+    shader_pipeline_lookup_idx++;
+
+    assert(shader_lookup_idx == shader_pipeline_lookup_idx);
 
     return id;
 }
@@ -367,23 +423,11 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
     WGPUBuffer params_buffer = s.params_buffer;
     assert(params_buffer);
 
-
     // Copy data to GPU (since A is a float array, we need to divide the offset by 4)
     wgpuQueueWriteBuffer(queue, A_buffer, 0, a + (aoffset/4), A_size);
     wgpuQueueWriteBuffer(queue, params_buffer, 0, &params, params_size);
 
-    // Create bind group layout
-    WGPUBindGroupLayoutEntry layout_entries[4] = {
-        { .binding = 0, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
-        { .binding = 1, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
-        { .binding = 2, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Storage }},
-        { .binding = 3, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Uniform }},
-    };
 
-    WGPUBindGroupLayout bind_group_layout = wgpuDeviceCreateBindGroupLayout(device, &(WGPUBindGroupLayoutDescriptor){
-        .entryCount = 4,
-        .entries = layout_entries,
-    });
 
     // Create bind group
     WGPUBindGroupEntry bind_group_entries[4] = {
@@ -398,23 +442,8 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
         .entries = bind_group_entries,
     });
 
-    WGPUPipelineLayoutDescriptor pipeline_layout_desc = {
-        .bindGroupLayoutCount = 1,
-        .bindGroupLayouts = &bind_group_layout,
-    };
-
-    WGPUPipelineLayout pipeline_layout = wgpuDeviceCreatePipelineLayout(device, &pipeline_layout_desc);
-
-    WGPUComputeState compute_state = {};
-    compute_state.module = shader_module;
-    compute_state.entryPoint.data = "main";
-    compute_state.entryPoint.length = 4;
-
-    // Create compute pipeline with the pipeline layout
-    WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &(WGPUComputePipelineDescriptor){
-        .layout = pipeline_layout,  // Include the pipeline layout
-        .compute = compute_state,
-    });
+    WGPUComputePipeline pipeline = shader_pipeline_lookup[shader];
+    assert(pipeline);
 
     // Execute the compute shader
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &(const WGPUCommandEncoderDescriptor){
@@ -469,9 +498,6 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
             int idx = (rm * ldc) + rn - roffset;
             int idx2 = (rm * ldc) + rn2;
 
-            assert(idx < rlimit);
-            assert(idx2 < 1<<21);
-            //printf("rm: %d, rn: %d, idx: %d, idx2: %d = %0.2f\n", rm, rn, idx, idx2, buf[idx2]);
             r[idx] = buf[idx2];
         }
     }
@@ -481,9 +507,7 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
     wgpuCommandEncoderRelease(encoder); // release encoder after it's finished
 
     wgpuBindGroupRelease(bind_group);
-    wgpuBindGroupLayoutRelease(bind_group_layout);
-    wgpuComputePipelineRelease(pipeline);
-    wgpuPipelineLayoutRelease(pipeline_layout);
+
 }
 
 
