@@ -53,10 +53,10 @@ public class JarSupport {
                 out.close();
                 in.close();
                 System.load(libfile.getAbsolutePath());
-                logger.debug("Loaded {}-native library: {}", libname, libfile.getAbsolutePath());
+                logger.debug("Loaded {} library: {}", libname, libfile.getAbsolutePath());
                 return true;
             } catch (IOException e) {
-                logger.warn("Error loading {}-native library", libname);
+                logger.warn("Error loading {} library", libname);
             }
         }
 

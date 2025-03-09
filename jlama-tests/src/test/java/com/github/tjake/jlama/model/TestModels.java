@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -53,15 +54,17 @@ import org.slf4j.LoggerFactory;
 public class TestModels {
 
     static {
-        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "2");
-        // System.setProperty("jlama.force_panama_tensor_operations", "true");
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
+        //System.setProperty("jlama.force_panama_tensor_operations", "true");
+        //System.setProperty("jlama.force_simd_tensor_operations", "true");
+        //PhysicalCoreExecutor.overrideThreadCount(Runtime.getRuntime().availableProcessors());
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
 
     @Test
     public void GPT2Run() throws IOException {
-        String modelPrefix = "../models/gpt2-medium";
+        String modelPrefix = "../models/openai-community_gpt2-xl";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         AbstractModel gpt2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
@@ -71,7 +74,16 @@ public class TestModels {
                 + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
         );
 
-        gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
+        Generator.Response r = gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
+
+        logger.info(
+                "\n\n"
+                        +
+                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
+                        + " tokens/s (prompt), "
+                        + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
+                        + " tokens/s (gen)"
+        );
     }
 
     @Test

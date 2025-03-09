@@ -135,6 +135,11 @@ public class CausalSelfAttention {
 
         this.qkvResults = new AbstractTensor[3];
         this.qkvWeights = new AbstractTensor[] { queryAttnWeights, keyAttnWeights, valueAttnWeights };
+
+        TensorOperationsProvider.get().registerModelTensor(queryAttnWeights);
+        TensorOperationsProvider.get().registerModelTensor(keyAttnWeights);
+        TensorOperationsProvider.get().registerModelTensor(valueAttnWeights);
+        TensorOperationsProvider.get().registerModelTensor(outputProjectionWeights);
     }
 
     public AbstractTensor forward(
