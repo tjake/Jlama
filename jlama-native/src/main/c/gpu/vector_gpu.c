@@ -34,6 +34,27 @@ typedef struct {
     uint32_t roffset;
 } Params;
 
+static void log_callback(WGPULoggingType level, struct WGPUStringView message, void * userdata) {
+  UNUSED(userdata)
+  char *level_str;
+  switch (level) {
+  case WGPULoggingType_Error:
+    level_str = "error";
+    break;
+  case WGPULoggingType_Warning:
+    level_str = "warn";
+    break;
+  case WGPULoggingType_Info:
+    level_str = "info";
+    break;
+  case WGPULoggingType_Verbose:
+    level_str = "verbose";
+    break;
+  default:
+    level_str = "unknown_level";
+  }
+  fprintf(stderr, "[gpu] [%s] %s\n", level_str, message.data);
+}
 
 static void handle_request_adapter(WGPURequestAdapterStatus status, WGPUAdapter adapter, struct WGPUStringView message, void * userdata) {
   UNUSED(status)
@@ -67,7 +88,7 @@ void buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, void
 
         *cc->buf = (float const *)buf;
     } else {
-        printf("Buffer mapping failed with status: %d\n", status);
+        fprintf(stderr, "Buffer mapping failed with status: %d\n", status);
         exit(status);
     }
 
@@ -87,7 +108,7 @@ void work_done_callback(WGPUQueueWorkDoneStatus status, void *userdata1, void *u
 
         wgpuBufferMapAsync2(*cc->R_staging_buffer, WGPUMapMode_Read, 0, *cc->R_size, mapCallbackInfo);
     } else {
-        printf("Work done failed with status: %d\n", status);
+        fprintf(stderr, "Work done failed with status: %d\n", status);
         exit(4);
     }
 }
@@ -96,7 +117,7 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
 {
     if (status != WGPUCompilationInfoRequestStatus_Success)
     {
-        printf("Shader compilation failed with status: %d\n", status);
+        fprintf(stderr, "Shader compilation failed with status: %d\n", status);
         for(int i = 0; i < compilationInfo->messageCount; i++)
         {
             const WGPUCompilationMessage* message = &compilationInfo->messages[i];
@@ -116,7 +137,7 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
                     level = "error";
                     break;
             }
-            printf("[%s] %lu: shader compilation error: %s\n", level, message->lineNum, message->message.data);
+            fprintf(stderr, "[%s] %lu: shader compilation error: %s\n", level, message->lineNum, message->message.data);
         }
     }
 
@@ -126,20 +147,20 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
 
 static void on_device_error(WGPUDevice const * device, WGPUErrorType type, struct WGPUStringView message, void* userdata1, void* userdata2)
 {
-    printf("Device error: %.*s\n", (int)message.length, message.data);
+    fprintf(stderr, "Device error: %.*s\n", (int)message.length, message.data);
     exit(10);
 }
 
 void static on_lost_error(WGPUDevice const * device, WGPUDeviceLostReason reason, struct WGPUStringView message, void* userdata1, void* userdata2)
 {
-    printf("Device lost: %.*s\n", (int)message.length, message.data);
+    fprintf(stderr, "Device lost: %.*s\n", (int)message.length, message.data);
     exit(8);
 }
 
 
-WGPUInstance instance;
-WGPUDevice device;
-WGPUQueue queue;
+WGPUInstance instance = NULL;
+WGPUDevice device = NULL;
+WGPUQueue queue = NULL;
 
 WGPUBuffer tensor_lookup[8192];
 int tensor_lookup_idx = 0;
@@ -153,26 +174,23 @@ int shader_lookup_idx = 0;
 
 void init_gpu(long *results) {
 
-    WGPUDawnTogglesDescriptor toggles = {
-        .chain = {
-            .sType = WGPUSType_DawnTogglesDescriptor,
-            .next = NULL
-        },
-        .enabledToggleCount = 3, //Disabled at 0
-        .enabledToggles = (const char* const[]){"timestamp_quantization", "skip_validation", "dump_shaders"},
-        .disabledToggleCount = 0,
-        .disabledToggles = NULL,
-    };
+    WGPUDawnTogglesDescriptor toggles = {};
+    toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    toggles.chain.next = NULL;
+    toggles.enabledToggleCount = 5;
+    toggles.enabledToggles = (const char* const[]){"timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "dump_shaders"};
+    toggles.disabledToggleCount = 0;
 
     WGPUInstanceDescriptor instanceDesc = {
         .nextInChain = (const WGPUChainedStruct*) &toggles,
     };
 
     instance = wgpuCreateInstance((const WGPUInstanceDescriptor*) &instanceDesc);
-    assert(instance);
+    assert(instance != NULL);
 
     // Configure adapter request options for high performance
     WGPURequestAdapterOptions adapterOpts = {
+        .nextInChain = (const WGPUChainedStruct*) &toggles,
         .featureLevel = WGPUFeatureLevel_Core,
         .powerPreference = WGPUPowerPreference_HighPerformance,  // Request high-performance GPU
         .forceFallbackAdapter = false                           // Don't fall back to software
@@ -180,7 +198,7 @@ void init_gpu(long *results) {
 
     WGPUAdapter adapter;
     wgpuInstanceRequestAdapter(instance, &adapterOpts, (WGPURequestAdapterCallback) handle_request_adapter, &adapter);
-    assert(adapter);
+    assert(adapter != NULL);
 
     // Adapter limits (memory-related insights)
     struct WGPUSupportedLimits limits = {0};
@@ -202,22 +220,25 @@ void init_gpu(long *results) {
     }
 
     WGPUDeviceDescriptor deviceDesc = {
-        .nextInChain = NULL,
+        .nextInChain = (const WGPUChainedStruct*) &toggles,
         .uncapturedErrorCallbackInfo2.callback = &on_device_error,
         .deviceLostCallbackInfo2.callback = &on_lost_error,
         .deviceLostCallbackInfo2.mode = WGPUCallbackMode_AllowSpontaneous,
-        .requiredFeatureCount = 0, //Disable at 0
-        .requiredFeatures = (const WGPUFeatureName[]) {WGPUFeatureName_ImplicitDeviceSynchronization},
+        .requiredFeatureCount = 1, //Disable at 0
+        .requiredFeatures = (const WGPUFeatureName[]) {WGPUFeatureName_DawnNative},
         .requiredLimits = &requiredLimits,
         .label       = "default device",
     };
 
     wgpuAdapterRequestDevice(adapter, &deviceDesc, (WGPURequestDeviceCallback)handle_request_device, &device);
-    assert(device);
+    assert(device != NULL);
+
+    // Set logging callback
+    wgpuDeviceSetLoggingCallback(device, log_callback, NULL);
 
 
     queue = wgpuDeviceGetQueue(device);
-    assert(queue);
+    assert(queue != NULL);
 
 
     tensor_lookup_idx = 0;
@@ -297,9 +318,13 @@ WGPUShaderModule create_shader_module(WGPUDevice device, const char* shader_code
 
     wgpuShaderModuleGetCompilationInfo2(shader_module, compilationCallbackInfo);
 
+    wgpuInstanceProcessEvents(instance);
     while (!compileComplete) {
        wgpuInstanceProcessEvents(instance);
     }
+
+    wgpuInstanceProcessEvents(instance);
+    wgpuDeviceTick(device);
 
     assert(shader_module != NULL);
     return shader_module;

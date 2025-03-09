@@ -137,7 +137,7 @@ public class TensorBench {
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
-    @Threads(8)
+    //@Threads(8)
     public void gpu_f32(Parameters p, Blackhole bh) {
         bh.consume(gops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
