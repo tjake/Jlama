@@ -27,8 +27,12 @@ public interface TensorOperations {
 
     String name();
 
-    default int parallelSplitSize() {
-        return 1;
+    int parallelSplitSize();
+
+    /**
+     * Register a tensor with the operations provider.  This is used to optimize operations on the tensor (e.g. GPU Load).
+     */
+    default void registerModelTensor(AbstractTensor t) {
     }
 
     default float dotProduct(AbstractTensor a, AbstractTensor b, int limit) {

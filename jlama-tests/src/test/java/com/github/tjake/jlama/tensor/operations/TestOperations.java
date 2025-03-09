@@ -37,6 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestOperations {
+    static {
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "2");
+
+    }
     private static final Random r = new Random();
     private static final Logger logger = LoggerFactory.getLogger(TensorOperations.class);
     private static final int BATCH = 32;
@@ -198,7 +202,7 @@ public class TestOperations {
 
     @Test
     public void testNativeDotProduct() {
-        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);
 
@@ -209,6 +213,24 @@ public class TestOperations {
         float control = controlOps.dotProduct(q8, q4, SIZE);
 
         float p1 = globalOps.dotProduct(q8, q4, SIZE);
+
+        Assert.assertEquals(control, p1, control * .01f);
+    }
+
+    @Test
+    public void testNativeDotProductF32() {
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = makeTensor(SIZE);
+
+        globalOps.registerModelTensor(b);
+
+        // This is what we compare others to
+        float control = controlOps.dotProduct(a, b, SIZE);
+        float p1 = globalOps.dotProduct(a, b, SIZE);
+
+        logger.info("a: {} b: {}", a, b);
+        logger.info("{} control: {}, p1: {}", globalOps.getClass().getSimpleName(), control, p1);
 
         Assert.assertEquals(control, p1, control * .01f);
     }
@@ -474,9 +496,31 @@ public class TestOperations {
     }
 
     @Test
+    public void testBatchDotProductWithResultOffsetF32() {
+        // M == BATCH, N == ROWS, K == SIZE
+
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS * 2);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS * 2);
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
+
+        globalOps.registerModelTensor(b);
+
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE, 0, 0, ROWS);
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE, ROWS, 0, ROWS);
+
+        TensorOperations t = globalOps;
+
+        t.batchDotProduct(c1, a, b, 0, 0, SIZE, 0, 0, ROWS);
+        t.batchDotProduct(c1, a, b, 0, 0, SIZE, ROWS, 0, ROWS);
+        Assert.assertEquals(t.name(), controlOps.sum(c), controlOps.sum(c1), controlOps.sum(c) * 0.01);
+    }
+
+    @Test
     public void testNativeBatchDotProduct() {
         // M == BATCH, N == ROWS, K == SIZE
-        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
 
         FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
         FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
@@ -510,9 +554,29 @@ public class TestOperations {
     }
 
     @Test
+    public void testNativeBatchDotProductF32() {
+        // M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
+
+        globalOps.registerModelTensor(b);
+
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
+        float sum = controlOps.sum(c);
+        globalOps.batchDotProduct(c1, a, b, 0, 0, SIZE);
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+    }
+
+
+    @Test
     public void testNativeBatchDotProductWithOffsets() {
         // M == BATCH, N == ROWS, K == SIZE
-        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
 
         FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
         FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
@@ -546,9 +610,32 @@ public class TestOperations {
     }
 
     @Test
+    public void testNativeBatchDotProductWithOffsetsF32() {
+        // M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
+
+        FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
+        FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
+        globalOps.registerModelTensor(b);
+
+        controlOps.batchDotProduct(c, a, b, 512, 512, 512);
+        float sum = controlOps.sum(c);
+
+        globalOps.batchDotProduct(c1, a, b, 512, 512, 512);
+
+        logger.info("a: {} b: {}", a, b);
+        logger.info("{} control: {}, p1: {}", globalOps.getClass().getSimpleName(), c, c1);
+
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+    }
+
+    @Test
     public void testNativeDotProductFast() {
         // M == BATCH, N == ROWS, K == SIZE
-        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations);
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
 
         FloatBufferTensor c = new FloatBufferTensor(1, SIZE);
         FloatBufferTensor c1 = new FloatBufferTensor(1, SIZE);
@@ -587,6 +674,26 @@ public class TestOperations {
             SIZE,
             (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, a, q4, 0, SIZE, chunkStart, chunkLength); }
         );
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+    }
+
+    @Test
+    public void testNativeDotProductFastF32() {
+        // M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+
+        FloatBufferTensor c = new FloatBufferTensor(1, SIZE);
+        FloatBufferTensor c1 = new FloatBufferTensor(1, SIZE);
+
+        FloatBufferTensor a = makeWeights(1, SIZE); // a
+        FloatBufferTensor b = makeWeights(SIZE, SIZE); // b
+
+        globalOps.registerModelTensor(b);
+
+        controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);
+        float sum = controlOps.sum(c);
+
+        VectorMath.pchunk(0, SIZE, (chunkStart, chunkLength) -> { globalOps.dotProductChunk(c1, a, b, 0, SIZE, chunkStart, chunkLength); });
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
     }
 }

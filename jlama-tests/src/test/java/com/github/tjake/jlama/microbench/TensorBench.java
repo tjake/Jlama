@@ -19,10 +19,7 @@ import com.github.tjake.jlama.tensor.BFloat16BufferTensor;
 import com.github.tjake.jlama.tensor.FloatBufferTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
-import com.github.tjake.jlama.tensor.operations.NaiveTensorOperations;
-import com.github.tjake.jlama.tensor.operations.PanamaTensorOperations;
-import com.github.tjake.jlama.tensor.operations.TensorOperations;
-import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+import com.github.tjake.jlama.tensor.operations.*;
 import com.github.tjake.jlama.util.MachineSpec;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -37,9 +34,9 @@ import org.openjdk.jmh.infra.Blackhole;
     "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0", "--enable-preview", "-XX:+UnlockDiagnosticVMOptions",
     "-XX:CompilerDirectivesFile=inlinerules.json", "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector" })
 public class TensorBench {
+    //private static final NativeSimdTensorOperations nops = new NativeSimdTensorOperations();
+    private static final NativeGPUTensorOperations gops = new NativeGPUTensorOperations();
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
-    private static final TensorOperations n2ops = new NaiveTensorOperations();
-    private static final TensorOperations nops = TensorOperationsProvider.get();
 
     private static final int SIZE = 2048;
 
@@ -65,6 +62,8 @@ public class TensorBench {
                     f2.set(ThreadLocalRandom.current().nextFloat(), 0, i);
                     arr[i] = ThreadLocalRandom.current().nextFloat();
                 }
+
+                gops.registerModelTensor(f2);
 
                 this.bf = new BFloat16BufferTensor(f);
                 this.q81 = new Q8ByteBufferTensor(f);
@@ -102,7 +101,7 @@ public class TensorBench {
         bh.consume(ops.dotProduct(p.q81, p.q82, 0, 0, SIZE));
     }*/
 
-    @Benchmark
+    /*@Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
@@ -116,7 +115,33 @@ public class TensorBench {
     @Threads(8)
     public void panama_f32dotq4(Parameters p, Blackhole bh) {
         bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
+    }*/
+
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Threads(8)
+    public void native_f32(Parameters p, Blackhole bh) {
+       // bh.consume(nops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Threads(8)
+    public void panama_f32(Parameters p, Blackhole bh) {
+        bh.consume(ops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+    }
+
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MILLISECONDS)
+    @BenchmarkMode(Mode.Throughput)
+    @Threads(8)
+    public void gpu_f32(Parameters p, Blackhole bh) {
+        bh.consume(gops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+    }
+
 
     /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
