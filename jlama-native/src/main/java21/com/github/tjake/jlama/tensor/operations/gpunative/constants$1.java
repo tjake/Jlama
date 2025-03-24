@@ -36,7 +36,7 @@ final class constants$1 {
         JAVA_INT
     );
     static final MethodHandle const$2 = RuntimeHelper.downcallHandle(
-        "gemm",
+        "gpu_gemm",
         constants$1.const$1
     );
     static final FunctionDescriptor const$3 = FunctionDescriptor.ofVoid(
@@ -57,7 +57,7 @@ final class constants$1 {
         JAVA_INT
     );
     static final MethodHandle const$4 = RuntimeHelper.downcallHandle(
-        "gemm_batch",
+        "gpu_gemm_batch",
         constants$1.const$3
     );
 }

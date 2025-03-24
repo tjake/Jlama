@@ -1,5 +1,5 @@
 #include "vector_gpu.h"
-#include "webgpu/webgpu.h"
+#include "webgpu.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -27,11 +27,6 @@ typedef struct {
     uint32_t lda;
     uint32_t ldb;
     uint32_t ldc;
-    uint32_t m0;
-    uint32_t n0;
-    uint32_t aoffset;
-    uint32_t boffset;
-    uint32_t roffset;
 } Params;
 
 static void log_callback(WGPULoggingType level, struct WGPUStringView message, void * userdata) {
@@ -270,8 +265,6 @@ WGPUComputePipeline init_pipeline(WGPUShaderModule shader_module) {
     assert(shader_module != NULL);
     assert(device != NULL);
 
-
-
     WGPUPipelineLayoutDescriptor pipeline_layout_desc = {
             .bindGroupLayoutCount = 1,
             .bindGroupLayouts = &bind_group_layout, //cached
@@ -297,7 +290,8 @@ WGPUBuffer create_buffer(WGPUDevice device, void* data, size_t size, WGPUBufferU
     WGPUBufferDescriptor desc = {
         .usage = usage,
         .size = size,
-        .mappedAtCreation = true
+        .mappedAtCreation = true,
+        .label = "weights"
     };
     WGPUBuffer buffer = wgpuDeviceCreateBuffer(device, &desc);
 
@@ -308,11 +302,12 @@ WGPUBuffer create_buffer(WGPUDevice device, void* data, size_t size, WGPUBufferU
     return buffer;
 }
 
-WGPUBuffer create_working_buffer(WGPUDevice device, size_t size, WGPUBufferUsage usage) {
+WGPUBuffer create_working_buffer(WGPUDevice device, char const *label, size_t size, WGPUBufferUsage usage) {
     WGPUBufferDescriptor desc = {
         .usage = usage,
         .size = size,
-        .mappedAtCreation = false
+        .mappedAtCreation = false,
+        .label = label
     };
     return wgpuDeviceCreateBuffer(device, &desc);
 }
@@ -327,10 +322,10 @@ long register_tensor(const char *data, int size) {
 }
 
 long register_scratch_buffers( int params_size, int input_size, int result_size) {
-    WGPUBuffer input_buffer = create_working_buffer(device, input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    WGPUBuffer params_buffer = create_working_buffer(device, params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
-    WGPUBuffer result_buffer = create_working_buffer(device, result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
-    WGPUBuffer result_staging_buffer = create_working_buffer(device, result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
+    WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
+    WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
 
     Scratch s = {input_buffer, params_buffer, result_buffer, result_staging_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
@@ -395,7 +390,7 @@ long register_shader(const char *data, int size) {
     return id;
 }
 
-void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit, long bid, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit, long bid, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
 
     WGPUShaderModule shader_module = shader_lookup[shader];
     assert(shader_module);
@@ -417,7 +412,7 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
     assert(R_staging_buffer);
 
     // Create uniform buffer for parameters
-    Params params = {m, n + n0, k, lda, ldb, ldc, 0, n0, 0, 0, 0};
+    Params params = {m, n + n0, k, lda, ldb, ldc};
     size_t params_size = sizeof(Params);
 
     WGPUBuffer params_buffer = s.params_buffer;
@@ -426,8 +421,6 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
     // Copy data to GPU (since A is a float array, we need to divide the offset by 4)
     wgpuQueueWriteBuffer(queue, A_buffer, 0, a + (aoffset/4), A_size);
     wgpuQueueWriteBuffer(queue, params_buffer, 0, &params, params_size);
-
-
 
     // Create bind group
     WGPUBindGroupEntry bind_group_entries[4] = {
@@ -493,8 +486,8 @@ void gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit,
     }
 
     // Copy the result back to the host
-    for (int rm = 0; rm < params.m; ++rm) {
-        for (int rn = params.n0, rn2 = 0; rn < params.n; ++rn, ++rn2) {
+    for (int rm = 0; rm < m; ++rm) {
+        for (int rn = n0, rn2 = 0; rn < params.n; ++rn, ++rn2) {
             int idx = (rm * ldc) + rn - roffset;
             int idx2 = (rm * ldc) + rn2;
 

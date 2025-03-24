@@ -564,6 +564,7 @@ public class TestOperations {
         FloatBufferTensor a = makeWeights(BATCH, SIZE); // a
         FloatBufferTensor b = makeWeights(ROWS, SIZE); // b
 
+        logger.info("Registering model tensors with global ops " + globalOps.name());
         globalOps.registerModelTensor(b);
 
         controlOps.batchDotProduct(c, a, b, 0, 0, SIZE);

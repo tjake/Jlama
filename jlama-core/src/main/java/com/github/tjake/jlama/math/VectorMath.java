@@ -36,7 +36,11 @@ public class VectorMath {
     }
 
     public static void pchunk(int offset, int length, BiIntConsumer action) {
-        int splits = Math.min(length, TensorOperationsProvider.get().parallelSplitSize());
+        pchunk(offset, length, action, TensorOperationsProvider.get().parallelSplitSize());
+    }
+
+    public static void pchunk(int offset, int length, BiIntConsumer action, int splitSize) {
+        int splits = Math.min(length, splitSize);
         int chunkSize = length / splits;
 
         if (splits == 1) {

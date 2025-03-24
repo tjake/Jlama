@@ -43,7 +43,7 @@ final class constants$0 {
         "register_shader",
         constants$0.register_shader$FUNC
     );
-    static final FunctionDescriptor gemm$FUNC = FunctionDescriptor.ofVoid(
+    static final FunctionDescriptor gpu_gemm$FUNC = FunctionDescriptor.ofVoid(
         Constants$root.C_LONG_LONG$LAYOUT,
         Constants$root.C_LONG_LONG$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,
@@ -63,11 +63,11 @@ final class constants$0 {
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_INT$LAYOUT
     );
-    static final MethodHandle gemm$MH = RuntimeHelper.downcallHandle(
-        "gemm",
-        constants$0.gemm$FUNC
+    static final MethodHandle gpu_gemm$MH = RuntimeHelper.downcallHandle(
+        "gpu_gemm",
+        constants$0.gpu_gemm$FUNC
     );
-    static final FunctionDescriptor gemm_batch$FUNC = FunctionDescriptor.ofVoid(
+    static final FunctionDescriptor gpu_gemm_batch$FUNC = FunctionDescriptor.ofVoid(
         Constants$root.C_LONG_LONG$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,
@@ -84,9 +84,9 @@ final class constants$0 {
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_INT$LAYOUT
     );
-    static final MethodHandle gemm_batch$MH = RuntimeHelper.downcallHandle(
-        "gemm_batch",
-        constants$0.gemm_batch$FUNC
+    static final MethodHandle gpu_gemm_batch$MH = RuntimeHelper.downcallHandle(
+        "gpu_gemm_batch",
+        constants$0.gpu_gemm_batch$FUNC
     );
 }
 

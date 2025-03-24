@@ -1,5 +1,6 @@
 package com.github.tjake.jlama.tensor.operations;
 
+import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.gpunative.NativeGPU;
@@ -10,6 +11,7 @@ import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -21,6 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 public class NativeGPUTensorOperations implements TensorOperations {
 
     private static final Logger logger = LoggerFactory.getLogger(NativeGPUTensorOperations.class);
+    private static final int MAX_SCRATCH_SIZE = 1 << 23;
 
     static {
         if (!JarSupport.maybeLoadLibrary("webgpu_dawn")) System.loadLibrary("webgpu_dawn");
@@ -31,6 +34,8 @@ public class NativeGPUTensorOperations implements TensorOperations {
 
     private long maxBindBytes;
     private long gemm_f32_id;
+    private long gemm_bf16_id;
+
     private int params_size;
 
     private static final TensorOperations delegate;
@@ -38,8 +43,8 @@ public class NativeGPUTensorOperations implements TensorOperations {
     static {
         TensorOperations tmp;
         try {
-            tmp = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
-            //tmp = new NativeSimdTensorOperations();
+            //tmp = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
+            tmp = new NativeSimdTensorOperations();
         } catch (Throwable t) {
             logger.warn("Native SIMD operations not available. Consider adding 'com.github.tjake:jlama-native' to the classpath");
             try {
@@ -76,7 +81,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
         tensorCache.computeIfAbsent(t.getUid(), s -> {
             synchronized (tensorCache) {
                 Long id = NativeGPU.register_tensor(t.getMemorySegment(), (int) t.getMemorySegment().byteSize());
-                logger.info("Registering tensor {} as {}", t, id);
+                logger.debug("Registering GPU tensor {} as {}", t, id);
                 return id;
             }
         });
@@ -85,15 +90,27 @@ public class NativeGPUTensorOperations implements TensorOperations {
     private final ThreadLocal<Long> gpuBuffers = ThreadLocal.withInitial(() -> {
         // Allocate a 1MB scratch buffers
         synchronized (tensorCache) {
-            return NativeGPU.register_scratch_buffers(params_size, 1 << 21, 1 << 21);
+            return NativeGPU.register_scratch_buffers(params_size, MAX_SCRATCH_SIZE, MAX_SCRATCH_SIZE);
         }
     });
-
-
 
     @Override
     public String name() {
         return "Native GPU Operations";
+    }
+
+    private static long registerShader(String name) throws IOException {
+        byte[] shader = Resources.readLines(Resources.getResource(name), StandardCharsets.UTF_8).stream()
+                .reduce((a, b) -> a + "\n" + b)
+                .map(f -> f.trim().getBytes(StandardCharsets.UTF_8))
+                .orElseThrow(() -> new RuntimeException("Failed to load shader"));
+        ByteBuffer shaderBuffer = ByteBuffer.allocateDirect(shader.length + 1);
+        shaderBuffer.put(shader);
+        shaderBuffer.flip();
+        long id = NativeGPU.register_shader(MemorySegment.ofBuffer(shaderBuffer), shader.length + 1);
+
+        logger.debug("Registered shader {} as {}", name, id);
+        return id;
     }
 
     private void checkLib() {
@@ -113,21 +130,17 @@ public class NativeGPUTensorOperations implements TensorOperations {
             logger.info("Native GPU Operations loaded with {} memory and {} groups", lb.get(0), lb.get(1));
             params_size = Ints.checkedCast(lb.get(2));
 
-            byte[] shader = Resources.readLines(Resources.getResource("gemm_f32_v4.wgsl"), StandardCharsets.UTF_8).stream()
-                    .reduce((a, b) -> a + "\n" + b)
-                    .map(f -> f.trim().getBytes(StandardCharsets.UTF_8))
-                    .orElseThrow(() -> new RuntimeException("Failed to load shader"));
-            ByteBuffer shaderBuffer = ByteBuffer.allocateDirect(shader.length + 1);
-            shaderBuffer.put(shader);
-            shaderBuffer.flip();
-            gemm_f32_id = NativeGPU.register_shader(MemorySegment.ofBuffer(shaderBuffer), shader.length + 1);
-
-            logger.info("Registered shader {}", gemm_f32_id);
+            gemm_f32_id = registerShader("gemm_f32_v4.wgsl");
+            gemm_bf16_id = registerShader("gemm_bf16_v4.wgsl");
 
         } catch (Throwable t) {
             logger.error("Failed to load native GPU operations", t);
             throw new RuntimeException(t);
         }
+    }
+
+    private boolean gpuSupported(Long btId, DType atype, DType btype, DType rtype ) {
+        return btId != null && atype == DType.F32 && (btype == DType.F32 || btype == DType.BF16) && rtype == DType.F32;
     }
 
     @Override
@@ -144,8 +157,9 @@ public class NativeGPUTensorOperations implements TensorOperations {
     ) {
         Long btId = tensorCache.get(bt.getUid());
 
-        if (btId != null && at.dType() == DType.F32 && bt.dType() == DType.F32 && result.dType() == DType.F32) {
+        if (gpuSupported(btId, at.dType(), bt.dType(), result.dType())) {
             long scratchId = gpuBuffers.get();
+            long shaderId = bt.dType() == DType.F32 ? gemm_f32_id : gemm_bf16_id;
 
             int M = at.shape().dim(0);
             int N = rowChunkSize; // b.shape().dim(0);
@@ -164,13 +178,16 @@ public class NativeGPUTensorOperations implements TensorOperations {
             int rOffset = result.shape().sparseColumnOffset() - bt.shape().sparseRowOffset() - rRowOffset;
             int rLimit = (int) result.size();
 
-            if (result.size() * 4 > 1 << 21)
-                throw new RuntimeException("Result scratch is too small");
+            if (rLimit * result.dType().size() > MAX_SCRATCH_SIZE)
+                throw new RuntimeException("Result scratch is too small: " + rLimit * result.dType().size() + " > " + MAX_SCRATCH_SIZE);
+
+            if (aLimit * at.dType().size() > MAX_SCRATCH_SIZE)
+                throw new RuntimeException("input scratch is too small: " + aLimit * at.dType().size() + " > " + MAX_SCRATCH_SIZE);
 
             int adjBRowOffset = bRowOffset - bt.shape().sparseRowOffset();
-            NativeGPU.gemm(
+            NativeGPU.gpu_gemm(
                     scratchId,
-                    gemm_f32_id,
+                    shaderId,
                     at.getMemorySegment(),
                     at.getMemorySegmentOffset(aOffset),
                     at.getMemorySegmentOffset(aLimit),
@@ -189,8 +206,40 @@ public class NativeGPUTensorOperations implements TensorOperations {
                     result.getStride());
 
         } else {
-            delegate.batchDotProduct(
-                    result, at, bt, aColumnOffset, bColumnOffset, columnLength, rRowOffset, bRowOffset, rowChunkSize);
+
+            // I REALLY need to redo this terrible API.
+            // rRowOffset > 0 effectively means we are decoupling the result from the bRowOffset
+            // This happens when doing attention because the b weights are not contiguous
+            if (rRowOffset > 0 || rowChunkSize < 1024) {
+                delegate.batchDotProduct(
+                        result,
+                        at,
+                        bt,
+                        aColumnOffset,
+                        bColumnOffset,
+                        columnLength,
+                        rRowOffset,
+                        bRowOffset,
+                        rowChunkSize);
+            } else {
+                // We know we have split size of 1 so we can just re-process this using the delegate's split size
+                VectorMath.pchunk(
+                        0,
+                        rowChunkSize,
+                        (chunkStart, chunkSize) -> {
+                            delegate.batchDotProduct(
+                                    result,
+                                    at,
+                                    bt,
+                                    aColumnOffset,
+                                    bColumnOffset,
+                                    columnLength,
+                                    0,
+                                    chunkStart,
+                                    chunkSize);
+                        },
+                        delegate.parallelSplitSize());
+            }
         }
     }
 
@@ -204,15 +253,15 @@ public class NativeGPUTensorOperations implements TensorOperations {
             int bRowOffset,
             int rowChunkSize
     ) {
-
         Long btId = tensorCache.get(b[0].getUid());
-
-        if (btId != null && a.dType() == DType.F32 && b[0].dType() == DType.F32 && r[0].dType() == DType.F32) {
+        if (gpuSupported(btId, a.dType(), b[0].dType(), r[0].dType())) {
             for (int i = 0; i < r.length; i++) {
                 batchDotProduct(r[i], a, b[i], columnOffset, columnOffset, columnLength, 0, bRowOffset, rowChunkSize);
             }
         } else {
-            delegate.dotProductBatchChunk(r, a, b, columnOffset, columnLength, bRowOffset, rowChunkSize);
+            VectorMath.pchunk(bRowOffset, rowChunkSize, (chunkStart, chunkSize) -> { delegate.dotProductBatchChunk(
+                    r, a, b, columnOffset, columnLength, chunkStart, chunkSize); },
+                    delegate.parallelSplitSize());
         }
     }
 

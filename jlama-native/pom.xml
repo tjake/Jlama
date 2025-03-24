@@ -24,8 +24,8 @@
     <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
     <defaultJarFile>${project.build.directory}/${project.build.finalName}.jar</defaultJarFile>
     <nativeJarFile>${project.build.directory}/${project.build.finalName}-${jni.classifier}.jar</nativeJarFile>
-    <wgpuTag>v24.0.0.1</wgpuTag>
-    <wgpuWorkDir>${project.build.directory}/wgpu</wgpuWorkDir>
+    <dawnTag>2025-03-23</dawnTag>
+    <dawnWorkDir>${project.build.directory}/dawn</dawnWorkDir>
   </properties>
 
   <dependencies>
@@ -275,7 +275,7 @@
                   <zipfileset src="${defaultJarFile}" />
                 </copy>
                 <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
-                  <zipfileset dir="${wgpuWorkDir}/lib/" excludes="*.a"/>
+                  <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
                 </copy>
                 <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                   <zipfileset dir="${nativeLibOnlyDir}" />
@@ -299,13 +299,11 @@
             </goals>
             <configuration>
               <target>
-                <exec executable="./download_wgpu.sh" failonerror="true" resolveexecutable="true">
-                    <arg value="${wgpuTag}" />
+                <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
                     <arg value="linux" />
                     <arg value="x86_64" />
-                    <arg value="release" />
-                    <arg value="gnu" />
-                    <arg value="${wgpuWorkDir}" />
+                    <arg value="${dawnWorkDir}" />
                 </exec>
                 <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                   <env key="CC" value="${exe.compiler}" />
@@ -314,9 +312,9 @@
                   <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                   <env key="JNI_PLATFORM" value="${jni.platform}" />
                   <env key="CFLAGS" value="-g -O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable" />
-                  <env key="CFLAGS2" value="-g -Werror -Wno-attributes -fno-omit-frame-pointer -Wunused-variable -fPIC -O3 -march=native -I${wgpuWorkDir}/include -I${wgpuWorkDir}/include/webgpu" />
+                  <env key="CFLAGS2" value="-g -Werror -Wno-attributes -fno-omit-frame-pointer -Wunused-variable -fPIC -O3 -march=native -I${dawnWorkDir}/include" />
                   <env key="LDFLAGS" value="-shared" />
-                  <env key="LDFLAGS2" value="-L${wgpuWorkDir}/lib -lwebgpu_dawn -shared" />
+                  <env key="LDFLAGS2" value="-L${dawnWorkDir}/lib -lwebgpu_dawn -shared" />
                   <env key="LIB_NAME" value="${nativeLibName}" />
                   <env KEY="LIB_EXT"  value="so" />
                 </exec>

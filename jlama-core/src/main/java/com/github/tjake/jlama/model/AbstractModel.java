@@ -122,7 +122,7 @@ public abstract class AbstractModel implements Generator {
         }
 
         // FIXME: This is a hack to support Avoid Q8BF16 evals
-        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && modelQType.isEmpty()) {
+        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.BF16;
         }
 

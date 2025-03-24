@@ -8,7 +8,7 @@ struct Params {
 };
 
 @group(0) @binding(0) var<storage, read> A: array<f32>;  // A: m x k row-major
-@group(0) @binding(1) var<storage, read> B: array<f32>;  // B: n x k row-major
+@group(0) @binding(1) var<storage, read> B: array<u32>;  // B: n x k row-major
 @group(0) @binding(2) var<storage, read_write> C: array<f32>;  // C: m x n row-major
 @group(0) @binding(3) var<uniform> params: Params;
 
@@ -21,6 +21,26 @@ const RNBK = RN * BK;
 
 var<workgroup> As: array<f32, RMBK>;
 var<workgroup> Bs: array<f32, RNBK>;
+
+// Extracts the bf16 at logical index i and converts it to f32
+fn get_bf16_as_f32(bf16_packed: ptr<storage, array<u32>, read>, i: u32) -> f32 {
+    // Map logical index i to array index and half
+    let array_idx = i / 2u;        // Which u32 element
+    let half_idx = i % 2u;         // 0 = lower 16 bits, 1 = upper 16 bits
+    let packed = (*bf16_packed)[array_idx];
+
+    // Extract the correct 16-bit bf16 value
+    var bf16_bits: u32;
+    if (half_idx == 0u) {
+        bf16_bits = packed & 0xFFFFu; // Lower 16 bits
+    } else {
+        bf16_bits = (packed >> 16u) & 0xFFFFu; // Upper 16 bits
+    }
+
+    // Convert bf16 to f32 by shifting left 16 bits and reinterpreting
+    let f32_bits = bf16_bits << 16u;
+    return bitcast<f32>(f32_bits);
+}
 
 @compute @workgroup_size(RM, RN)
 fn main(
@@ -52,7 +72,7 @@ fn main(
         for (var s = 0u; s < BK / RN; s++) {
             let k_idx = local_id.y + s * RN;
             if (jj < params.n && kt + k_idx < params.k) {
-                Bs[local_id.x * BK + k_idx] = B[boffset + (kt + k_idx)];
+                Bs[local_id.x * BK + k_idx] = get_bf16_as_f32(&B, boffset + (kt + k_idx));
             } else {
                 Bs[local_id.x * BK + k_idx] = 0.0;
             }

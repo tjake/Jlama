@@ -197,7 +197,7 @@ public class CausalSelfAttention {
 
             // This is our memory of the key and value vectors for each position
             for (int position = startPosition, bi = 0; position < startPosition + batchSize; position++, bi++) {
-                int finalPostion = position;
+                int finalPosition = position;
                 AbstractTensor key = kvMem.getKeyTensorForPosition(layerIndex, position);
                 AbstractTensor val = kvMem.getValTensorForPosition(layerIndex, position);
 
@@ -246,7 +246,7 @@ public class CausalSelfAttention {
                 // https://github.com/huggingface/transformers/blob/d533465150532b0c5de167b574e59f64c68b1154/src/transformers/models/llama/convert_llama_weights_to_hf.py#L114
                 c.ropeFreqs.ifPresent(rf -> {
                     int headPiece = c.headSize / 2;
-                    int poffset = finalPostion * headPiece;
+                    int poffset = finalPosition * headPiece;
 
                     if (c.isGQA) {
                         // apply RoPE rotation to the q and k vectors for each head
@@ -306,8 +306,8 @@ public class CausalSelfAttention {
                             }
                         }
                     }
-                    debug("query+rope", query, finalPostion);
-                    debug("key+rope", key, finalPostion);
+                    debug("query+rope", query, finalPosition);
+                    debug("key+rope", key, finalPosition);
                 });
 
                 // Attention
@@ -320,19 +320,19 @@ public class CausalSelfAttention {
                     try (AbstractTensor attn = m.makeDenseTensor(1, kvp[0].shape().first() * kvp.length)) { // chunky so the cache isn't
                                                                                                             // thrashed
                         // compute attention scores by multiplying query and key for every position
-                        // Do this for each page
+                        // do this for each position since the pages are not contiguous
                         for (int i = 0; i < kvp.length; i++) {
                             int len = kvp[i].shape().first();
                             int offset = i * len;
-                            int size = i == kvp.length - 1 ? (finalPostion + 1) - offset : len;
+                            int size = i == kvp.length - 1 ? (finalPosition + 1) - offset : len;
                             TensorOperationsProvider.get()
                                 .batchDotProduct(attn, query, kvp[i], yoffset, xoffset, c.headSize, offset, 0, size);
                         }
 
-                        TensorOperationsProvider.get().scale(attentionScale, attn, 0, finalPostion + 1);
+                        TensorOperationsProvider.get().scale(attentionScale, attn, 0, finalPosition + 1);
 
                         if (c.attnLogitSoftCapping != null) {
-                            for (int i = 0; i < finalPostion + 1; i++) {
+                            for (int i = 0; i < finalPosition + 1; i++) {
                                 float v = attn.get(0, i);
                                 v /= c.attnLogitSoftCapping;
                                 v = (float) FastMath.tanh(v);
@@ -342,14 +342,14 @@ public class CausalSelfAttention {
                         }
 
                         // softmax the scores to get attention weights, from 0..pos inclusively
-                        VectorMath.softMax(attn, 0, finalPostion + 1);
+                        VectorMath.softMax(attn, 0, finalPosition + 1);
 
                         // apply adjusted attention weights to value vectors
-                        // do this for each page
+                        // do this for each position since the pages are not contiguous
                         for (int i = 0; i < vvp.length; i++) {
                             int len = vvp[i].shape().first();
                             int offset = i * len;
-                            int size = i == vvp.length - 1 ? (finalPostion + 1) - offset : len;
+                            int size = i == vvp.length - 1 ? (finalPosition + 1) - offset : len;
                             TensorOperationsProvider.get().saxpy(attn, vvp[i], value, xoffset, yoffset, c.headSize, offset, 0, size);
                         }
                     }
