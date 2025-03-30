@@ -311,8 +311,8 @@
                   <env key="LIB_DIR" value="${nativeLibOnlyDir}" />
                   <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                   <env key="JNI_PLATFORM" value="${jni.platform}" />
-                  <env key="CFLAGS" value="-g -O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable" />
-                  <env key="CFLAGS2" value="-g -Werror -Wno-attributes -fno-omit-frame-pointer -Wunused-variable -fPIC -O3 -march=native -I${dawnWorkDir}/include" />
+                  <env key="CFLAGS" value="-O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable" />
+                  <env key="CFLAGS2" value="-Werror -Wno-attributes -fno-omit-frame-pointer -Wunused-variable -fPIC -O3 -march=native -I${dawnWorkDir}/include" />
                   <env key="LDFLAGS" value="-shared" />
                   <env key="LDFLAGS2" value="-L${dawnWorkDir}/lib -lwebgpu_dawn -shared" />
                   <env key="LIB_NAME" value="${nativeLibName}" />
@@ -353,6 +353,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                    <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -375,6 +378,12 @@
               </goals>
               <configuration>
                 <target>
+                  <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
+                    <arg value="win" />
+                    <arg value="x64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
@@ -382,7 +391,9 @@
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
                     <env key="CFLAGS" value="-O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable" />
+                    <env key="CFLAGS2" value="-Werror -Wno-attributes -fno-omit-frame-pointer -Wunused-variable -fPIC -O3 -march=native -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-shared" />
+                    <env key="LDFLAGS2" value="-L${dawnWorkDir}/lib -lwebgpu_dawn -shared" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env KEY="LIB_EXT"  value="dll" />
                   </exec>
@@ -425,6 +436,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                    <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -447,6 +461,12 @@
               </goals>
               <configuration>
                 <target>
+                  <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
+                    <arg value="mac" />
+                    <arg value="arm64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
@@ -454,7 +474,9 @@
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
                     <env key="CFLAGS" value="-target arm64-apple-macos11 -Rpass-analysis=loop-vectorize -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common" />
+                    <env key="CFLAGS2" value="-target arm64-apple-macos11 -Rpass-analysis=loop-vectorize -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch arm64" />
+                    <env key="LDFLAGS2" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch arm64 -L${dawnWorkDir}/lib -lwebgpu_dawn" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env key="LIB_EXT" value="dylib" />
                     <env key="MACOSX_DEPLOYMENT_TARGET" value="11.0" />
@@ -497,6 +519,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                    <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -519,6 +544,12 @@
               </goals>
               <configuration>
                 <target>
+                  <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
+                    <arg value="mac" />
+                    <arg value="x86_64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
@@ -526,7 +557,9 @@
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
                     <env key="CFLAGS" value="-target x86_64-apple-macos10.12 -mavx2 -mfma -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common" />
+                    <env key="CFLAGS2" value="-target x86_64-apple-macos10.12 -mavx2 -mfma -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch x86_64" />
+                    <env key="LDFLAGS2" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch x86_64 -L${dawnWorkDir}/lib -lwebgpu_dawn" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env key="LIB_EXT" value="dylib" />
                     <env key="MACOSX_DEPLOYMENT_TARGET" value="10.12" />
