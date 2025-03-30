@@ -137,7 +137,7 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
                     level = "error";
                     break;
             }
-            fprintf(stderr, "[%s] %lu: shader compilation error: %s\n", level, message->lineNum, message->message.data);
+            fprintf(stderr, "[%s] %zu: shader compilation error: %s\n", level, message->lineNum, message->message.data);
         }
     }
 

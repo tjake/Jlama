@@ -21,7 +21,7 @@
 #   - jq
 #   - unzip
 
-set -euo pipefail
+set -o pipefail
 
 # You can adjust these if you fork or use a different repository.
 OWNER="tjake"
