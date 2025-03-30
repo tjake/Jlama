@@ -58,14 +58,14 @@ echo "Downloading release asset '$ASSET_NAME'..."
 # Fetch release JSON via GitHub's API
 API_URL="https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${TAG}"
 
-CURL_FLAGS=""
+CURL_FLAGS=()
 if [ -z "$GITHUB_TOKEN" ]; then
   echo "Warning: GITHUB_TOKEN environment variable not set. This may result in rate limiting."
 else
-  CURL_FLAGS="-H 'Authorization: Bearer $GITHUB_TOKEN'"
+  CURL_FLAGS=("-H" "Authorization: Bearer $GITHUB_TOKEN")
 fi
 
-RELEASE_JSON=$(curl -sS $CURL_FLAGS "$API_URL")
+RELEASE_JSON=$(curl -sS "${CURL_FLAGS[@]}" "$API_URL")
 echo "$RELEASE_JSON"
 
 # Extract the asset's download URL using jq
