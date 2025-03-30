@@ -1,7 +1,7 @@
 .DS_Store
 .idea
 .mvn/wrapper/maven-wrapper.jar
-models/*
+models/
 .flattened-pom.xml
-*/target/*
+target/
 tensor_debug.log
