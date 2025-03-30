@@ -66,7 +66,6 @@ else
 fi
 
 RELEASE_JSON=$(curl -sS "${CURL_FLAGS[@]}" "$API_URL")
-echo "$RELEASE_JSON"
 
 # Extract the asset's download URL using jq
 ASSET_URL=$(echo "$RELEASE_JSON" | jq -r --arg name "$ASSET_NAME" '
