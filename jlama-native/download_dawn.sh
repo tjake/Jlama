@@ -58,6 +58,7 @@ echo "Downloading release asset '$ASSET_NAME'..."
 # Fetch release JSON via GitHub's API
 API_URL="https://api.github.com/repos/${OWNER}/${REPO}/releases/tags/${TAG}"
 RELEASE_JSON=$(curl -sS "$API_URL")
+echo "$RELEASE_JSON"
 
 # Extract the asset's download URL using jq
 ASSET_URL=$(echo "$RELEASE_JSON" | jq -r --arg name "$ASSET_NAME" '
