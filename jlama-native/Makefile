@@ -24,13 +24,13 @@
 
 SRC_DIR = src/main/c
 LIB = $(LIB_DIR)/$(LIB_NAME).$(LIB_EXT)
-SRCS = $(wildcard $(SRC_DIR)/*.c)
+SRCS = $(wildcard $(SRC_DIR)/*simd.c)
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 OBJ2_DIR = $(OBJ_DIR)/gpu
 SRC2_DIR = src/main/c/gpu
 LIB2 = $(LIB_DIR)/$(LIB_NAME)gpu.$(LIB_EXT)
-SRCS2 = $(wildcard $(SRC2_DIR)/*.c)
+SRCS2 = $(wildcard $(SRC2_DIR)/*gpu.c)
 OBJS2 = $(SRCS2:$(SRC2_DIR)/%.c=$(OBJ2_DIR)/%.o)
 
 all: $(LIB) $(LIB2)
@@ -52,7 +52,7 @@ $(OBJ2_DIR)/%.o: $(SRC2_DIR)/%.c
 	$(CC) -o $@ -c $< $(CFLAGS2)
 
 clean:
-	rm -rf $(LIB_DIR) $(OBJ_DIR)
+	rm -rf $(LIB_DIR) $(OBJ_DIR) $(OBJ2_DIR)
 
 ## Debug support
 # use make print-VARIABLE name to see the value
