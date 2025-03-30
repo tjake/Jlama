@@ -97,6 +97,7 @@ Other:
   list                 Lists local models
   quantize             Quantize the specified model
   rm                   Removes local model
+  version              Display JLama version information
 ```
 
 
