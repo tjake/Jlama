@@ -96,6 +96,8 @@ Other:
   download             Downloads a HuggingFace model - use owner/name format
   list                 Lists local models
   quantize             Quantize the specified model
+  rm                   Removes local model
+  version              Display JLama version information
 ```
 
 
@@ -198,6 +200,44 @@ Or you can use a **Builder API**:
     } else {
         ctx = PromptContext.of(prompt);
     }
+
+    System.out.println("Prompt: " + ctx.getPrompt() + "\n");
+    // Generates a response to the prompt and prints it
+    // The api allows for streaming or non-streaming responses
+    // The response is generated with a temperature of 0.7 and a max token length of 256
+    Generator.Response r = m.generateBuilder()
+            .session(UUID.randomUUID()) //By default, UUID.randomUUID()
+            .promptContext(ctx) // Required or use prompt(String text)
+            .ntokens(256) //By default, 256
+            .temperature(0.0f) //By default, 0.0f
+            .onTokenWithTimings((s, aFloat) -> {}) //By default, (s, aFloat) -> {}, nothing
+            .generate();
+    
+    System.out.println(r.responseText);
+ }
+```
+
+You can simplify promptSupport using:
+
+```java
+ public void sample() throws IOException {
+    String model = "tjake/Llama-3.2-1B-Instruct-JQ4";
+    String workingDirectory = "./models";
+
+    String prompt = "What is the best season to plant avocados?";
+
+    // Downloads the model or just returns the local path if it's already downloaded
+    File localModelPath = new Downloader(workingDirectory, model).huggingFaceModel();
+    
+    // Loads the quantized model and specified use of quantized memory
+    AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
+    
+    var systemPrompt = "You are a helpful chatbot who writes short responses.";
+
+    PromptContext ctx = m.prompt()
+                        .addUserMessage(prompt)
+                        .addSystemMessage(systemPrompt)
+                        .build(); //build method will create a PromptContext, if model don't support prompt, a simple PromptContext object will be created
 
     System.out.println("Prompt: " + ctx.getPrompt() + "\n");
     // Generates a response to the prompt and prints it

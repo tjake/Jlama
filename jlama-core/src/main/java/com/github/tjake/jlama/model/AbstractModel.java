@@ -227,6 +227,10 @@ public abstract class AbstractModel implements Generator {
         return tokenizer.promptSupport();
     }
 
+    public PromptBuilder prompt() {
+        return new PromptBuilder(this);
+    }
+
     public AbstractTensor makeTensor(int... shape) {
         TensorShape s = TensorShape.of(shape);
         return c.tensorCache.get(workingDType, s);

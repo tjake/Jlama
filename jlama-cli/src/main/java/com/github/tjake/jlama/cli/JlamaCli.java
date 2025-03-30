@@ -21,11 +21,13 @@ import ch.qos.logback.core.ConsoleAppender;
 import com.github.tjake.jlama.cli.commands.*;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.*;
 
 import java.util.*;
+import java.io.File;
 
 import static java.util.Arrays.asList;
 import static picocli.CommandLine.Help.Column.Overflow.*;
@@ -33,6 +35,8 @@ import static picocli.CommandLine.Model.UsageMessageSpec.*;
 
 @Command(name = "jlama", sortOptions = false, headerHeading = "Usage:%n", synopsisHeading = "%n", descriptionHeading = "%nDescription:%n%n", parameterListHeading = "%nParameters:%n", optionListHeading = "%nCommand Options:%n", mixinStandardHelpOptions = true, usageHelpAutoWidth = true, requiredOptionMarker = '*', description = "Jlama is a modern LLM inference engine for Java!\nQuantized models are maintained at https://hf.co/tjake\n\nChoose from the available commands:", defaultValueProvider = PropertiesDefaultProvider.class)
 public class JlamaCli implements Runnable {
+    public static final String DEFAULT_MODEL_DIRECTORY = setupDefaultModelDirectory();
+
     static {
         setupLogging();
     }
@@ -50,12 +54,14 @@ public class JlamaCli implements Runnable {
         cli.addSubcommand("quantize", new QuantizeCommand());
         cli.addSubcommand("cluster-coordinator", new ClusterCoordinatorCommand());
         cli.addSubcommand("cluster-worker", new ClusterWorkerCommand());
+        cli.addSubcommand("rm", new RemoveCommand());
+        cli.addSubcommand("version", new VersionCommand());
 
         cli.getHelpSectionMap().remove(SECTION_KEY_COMMAND_LIST_HEADING);
         cli.getHelpSectionMap().put(SECTION_KEY_COMMAND_LIST, getCommandRenderer());
 
         String[] pargs = args.length == 0 ? new String[] { "-h" } : args;
-        cli.parseWithHandler(new RunLast(), pargs);
+        cli.execute(pargs);
     }
 
     @Override
@@ -66,7 +72,7 @@ public class JlamaCli implements Runnable {
         Map<String, List<String>> sections = new LinkedHashMap<>();
         sections.put("Inference", asList("chat", "restapi", "complete"));
         sections.put("Distributed Inference", asList("cluster-coordinator", "cluster-worker"));
-        sections.put("Other", asList("download", "list", "quantize"));
+        sections.put("Other", asList("download", "list", "quantize", "rm", "version"));
         CommandGroupRenderer renderer = new CommandGroupRenderer(sections);
         return renderer;
     }
@@ -185,7 +191,7 @@ public class JlamaCli implements Runnable {
         logEncoder.setPattern("%msg%n");
         logEncoder.start();
 
-        ConsoleAppender logConsoleAppender = new ConsoleAppender();
+        ConsoleAppender<ILoggingEvent> logConsoleAppender = new ConsoleAppender<>();
         logConsoleAppender.setContext(logCtx);
         logConsoleAppender.setName("console");
         logConsoleAppender.setEncoder(logEncoder);
@@ -194,5 +200,19 @@ public class JlamaCli implements Runnable {
         root.addAppender(logConsoleAppender);
         root.setAdditive(false);
         root.setLevel(Boolean.getBoolean("jlama.debug") ? Level.DEBUG : Level.INFO);
+    }
+
+    private static String setupDefaultModelDirectory() {
+        String envHome = System.getenv("JLAMA_MODEL_HOME");
+        String propHome = System.getProperty("jlama.model.home");
+        String defaultHome = System.getProperty("user.home", "") + File.separator + ".jlama" + File.separator + "models";
+
+        if (envHome != null && !envHome.isEmpty()) {
+            return envHome;
+        } else if (propHome != null && !propHome.isEmpty()) {
+            return propHome;
+        } else {
+            return defaultHome;
+        }
     }
 }
