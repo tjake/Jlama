@@ -35,24 +35,28 @@ OBJS2 = $(SRCS2:$(SRC2_DIR)/%.c=$(OBJ2_DIR)/%.o)
 
 all: $(LIB) $(LIB2)
 
-$(LIB): $(OBJS)
-	mkdir -p $(LIB_DIR)
-	$(AR) $(LDFLAGS) -o $(LIB) $^
+$(OBJ_DIR):
+    mkdir -p $(OBJ_DIR)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	mkdir -p $(OBJ_DIR)
-	$(CC) -o $@ -c $< $(CFLAGS)
+$(OBJ2_DIR):
+    mkdir -p $(OBJ2_DIR)
+
+$(LIB): $(OBJS)
+    mkdir -p $(LIB_DIR)
+    $(AR) $(LDFLAGS) -o $(LIB) $^
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+    $(CC) -o $@ -c $< $(CFLAGS)
 
 $(LIB2): $(OBJS2)
-	mkdir -p $(LIB_DIR)
-	$(AR) $(LDFLAGS2) -o $(LIB2) $^
+    mkdir -p $(LIB_DIR)
+    $(AR) $(LDFLAGS2) -o $(LIB2) $^
 
-$(OBJ2_DIR)/%.o: $(SRC2_DIR)/%.c
-	mkdir -p $(OBJ2_DIR)
-	$(CC) -o $@ -c $< $(CFLAGS2)
+$(OBJ2_DIR)/%.o: $(SRC2_DIR)/%.c | $(OBJ2_DIR)
+    $(CC) -o $@ -c $< $(CFLAGS2)
 
 clean:
-	rm -rf $(LIB_DIR) $(OBJ_DIR) $(OBJ2_DIR)
+    rm -rf $(LIB_DIR) $(OBJ_DIR)
 
 ## Debug support
 # use make print-VARIABLE name to see the value
