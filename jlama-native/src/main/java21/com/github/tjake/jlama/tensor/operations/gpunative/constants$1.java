@@ -22,6 +22,7 @@ final class constants$1 {
         JAVA_INT,
         JAVA_INT,
         JAVA_LONG,
+        JAVA_LONG,
         JAVA_INT,
         JAVA_INT,
         RuntimeHelper.POINTER,

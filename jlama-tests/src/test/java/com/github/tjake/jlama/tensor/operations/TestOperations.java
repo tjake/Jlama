@@ -236,6 +236,42 @@ public class TestOperations {
     }
 
     @Test
+    public void testNativeDotProductBF16() {
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = new BFloat16BufferTensor(makeTensor(SIZE));
+
+        globalOps.registerModelTensor(b);
+
+        // This is what we compare others to
+        float control = controlOps.dotProduct(a, b, SIZE);
+        float p1 = globalOps.dotProduct(a, b, SIZE);
+
+        logger.info("a: {} b: {}", a, b);
+        logger.info("{} control: {}, p1: {}", globalOps.getClass().getSimpleName(), control, p1);
+
+        Assert.assertEquals(control, p1, control * .01f);
+    }
+
+    @Test
+    public void testNativeDotProductQ4() {
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+        AbstractTensor a = makeTensor(SIZE);
+        AbstractTensor b = new Q4ByteBufferTensor(makeTensor(SIZE));
+
+        globalOps.registerModelTensor(b);
+
+        // This is what we compare others to
+        float control = controlOps.dotProduct(a, b, SIZE);
+        float p1 = globalOps.dotProduct(a, b, SIZE);
+
+        logger.info("a: {} b: {}", a, b);
+        logger.info("{} control: {}, p1: {}", globalOps.getClass().getSimpleName(), control, p1);
+
+        Assert.assertEquals(control, p1, control * .01f);
+    }
+
+    @Test
     public void testAccumulate() {
         AbstractTensor a = makeTensor(SIZE);
         AbstractTensor b = makeTensor(SIZE);

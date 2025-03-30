@@ -9,8 +9,9 @@ struct Params {
 
 @group(0) @binding(0) var<storage, read> A: array<f32>;  // A: m x k row-major
 @group(0) @binding(1) var<storage, read> B: array<f32>;  // B: n x k row-major
-@group(0) @binding(2) var<storage, read_write> C: array<f32>;  // C: m x n row-major
-@group(0) @binding(3) var<uniform> params: Params;
+@group(0) @binding(2) var<storage, read> B2: array<f32>; // NA
+@group(0) @binding(3) var<storage, read_write> C: array<f32>;  // C: m x n row-major
+@group(0) @binding(4) var<uniform> params: Params;
 
 const RM = 8u;
 const RN = 8u;

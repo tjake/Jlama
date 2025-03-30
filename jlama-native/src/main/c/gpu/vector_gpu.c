@@ -12,11 +12,16 @@
 #define RM 8
 #define RN 8
 
+// Info for quantization
+#define Q8_BLOCK_SIZE 32
+#define Q4_BLOCK_SIZE 32
+
 typedef struct {
     WGPUBuffer input_buffer;
     WGPUBuffer params_buffer;
     WGPUBuffer result_buffer;
     WGPUBuffer result_staging_buffer;
+    WGPUBuffer empty_buffer;
 } Scratch;
 
 // Parameters struct matching WGSL
@@ -248,15 +253,16 @@ void init_gpu(long *results) {
 
 
     // Create bind group layout for pipeline creation
-    WGPUBindGroupLayoutEntry layout_entries[4] = {
+    WGPUBindGroupLayoutEntry layout_entries[5] = {
                     { .binding = 0, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
                     { .binding = 1, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
-                    { .binding = 2, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Storage }},
-                    { .binding = 3, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Uniform }},
+                    { .binding = 2, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
+                    { .binding = 3, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Storage }},
+                    { .binding = 4, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Uniform }},
                };
 
     bind_group_layout = wgpuDeviceCreateBindGroupLayout(device, &(WGPUBindGroupLayoutDescriptor){
-            .entryCount = 4,
+            .entryCount = 5,
             .entries = layout_entries,
     });
 }
@@ -275,7 +281,7 @@ WGPUComputePipeline init_pipeline(WGPUShaderModule shader_module) {
     WGPUComputeState compute_state = {};
     compute_state.module = shader_module;
     compute_state.entryPoint.data = "main";
-    compute_state.entryPoint.length = 4;
+    compute_state.entryPoint.length = 5;
 
     // Create compute pipeline with the pipeline layout
     WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &(WGPUComputePipelineDescriptor){
@@ -326,8 +332,9 @@ long register_scratch_buffers( int params_size, int input_size, int result_size)
     WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
     WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
+    WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 0, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
 
-    Scratch s = {input_buffer, params_buffer, result_buffer, result_staging_buffer};
+    Scratch s = {input_buffer, params_buffer, result_buffer, result_staging_buffer, empty_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
     long id = scratch_lookup_idx;
     scratch_lookup_idx++;
@@ -390,7 +397,7 @@ long register_shader(const char *data, int size) {
     return id;
 }
 
-void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit, long bid, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
 
     WGPUShaderModule shader_module = shader_lookup[shader];
     assert(shader_module);
@@ -404,6 +411,12 @@ void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int ali
     size_t B_size = blimit - boffset;
     WGPUBuffer B_buffer = tensor_lookup[bid];
     assert(B_buffer);
+
+    WGPUBuffer B2_buffer = bid2 == -1 ? s.empty_buffer : tensor_lookup[bid2];
+    // For Q4 the offsets are not in bytes, but in 4 byte chunks
+    // So to get to the offset & size of scales array we double to get to bytes (Q4 -> u8) and multiply by 4 to get to f32
+    size_t B2_size = bid2 == -1 ? 0 : (B_size * 2 * 4)/Q4_BLOCK_SIZE;
+    size_t B2_offset = bid2 == -1 ? 0 : (boffset * 2 * 4)/Q4_BLOCK_SIZE;
 
     size_t R_size = rlimit;
     WGPUBuffer R_buffer = s.result_buffer;
@@ -423,15 +436,16 @@ void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int ali
     wgpuQueueWriteBuffer(queue, params_buffer, 0, &params, params_size);
 
     // Create bind group
-    WGPUBindGroupEntry bind_group_entries[4] = {
+    WGPUBindGroupEntry bind_group_entries[5] = {
         { .binding = 0, .buffer = A_buffer, .offset = 0, .size = A_size },
         { .binding = 1, .buffer = B_buffer, .offset = boffset, .size = B_size },
-        { .binding = 2, .buffer = R_buffer, .offset = 0, .size = R_size },
-        { .binding = 3, .buffer = params_buffer, .offset = 0, .size = params_size },
+        { .binding = 2, .buffer = B2_buffer, .offset = B2_offset, .size = B2_size },
+        { .binding = 3, .buffer = R_buffer, .offset = 0, .size = R_size },
+        { .binding = 4, .buffer = params_buffer, .offset = 0, .size = params_size },
     };
     WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(device, &(WGPUBindGroupDescriptor){
         .layout = bind_group_layout,
-        .entryCount = 4,
+        .entryCount = 5,
         .entries = bind_group_entries,
     });
 

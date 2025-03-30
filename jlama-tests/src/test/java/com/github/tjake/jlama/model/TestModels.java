@@ -88,7 +88,7 @@ public class TestModels {
 
     @Test
     public void Qwen2Run() throws IOException {
-        String modelPrefix = "../models/Qwen_Qwen2.5-1.5B-Instruct";
+        String modelPrefix = "../models/tjake_Mistral-7B-Instruct-v0.3-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
@@ -107,7 +107,12 @@ public class TestModels {
                 .addUserMessage("What is the weather in Paris right now?")
                 .build(t);
 
-        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt, 0.9f, 32 * 1024, makeOutHandler());
+        PromptContext prompt2 = qwen2.promptSupport().get().builder()
+                //.addSystemMessage("You are a helpful chatbot who writes short responses.")
+                .addUserMessage("Tell me a story about paris.")
+                .build();
+
+        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt2, 0.9f, 32 * 1024, makeOutHandler());
         logger.info("Response: {}", r);
     }
 

@@ -29,6 +29,10 @@ public interface TensorOperations {
 
     int parallelSplitSize();
 
+    default DType preferredWorkingQuantizedType() {
+        return DType.I8;
+    }
+
     /**
      * Register a tensor with the operations provider.  This is used to optimize operations on the tensor (e.g. GPU Load).
      */
