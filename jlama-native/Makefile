@@ -33,7 +33,12 @@ LIB2 = $(LIB_DIR)/$(LIB_NAME)gpu.$(LIB_EXT)
 SRCS2 = $(wildcard $(SRC2_DIR)/*.c)
 OBJS2 = $(SRCS2:$(SRC2_DIR)/%.c=$(OBJ2_DIR)/%.o)
 
-all: $(LIB) $(LIB2)
+all: $(LIB)
+
+# Add $(LIB2) to 'all' only if CFLAGS2 is defined
+ifdef CFLAGS2
+all: $(LIB2)
+endif
 
 $(LIB): $(OBJS)
 	mkdir -p $(LIB_DIR)
