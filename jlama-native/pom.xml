@@ -349,7 +349,7 @@
               </goals>
               <configuration>
                 <target>
-                  <exec executable="bash" dir="${basedir}/jlama-native" failonerror="true" resolveexecutable="true">
+                  <exec executable="bash" failonerror="true" resolveexecutable="true">
                     <arg value="./download_dawn.sh" />
                     <arg value="${dawnTag}" />
                     <arg value="win" />
