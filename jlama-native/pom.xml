@@ -351,7 +351,7 @@
                 <target>
                   <exec executable="./download_dawn.bat" failonerror="true" resolveexecutable="true">
                     <env key="TAG" value="${dawnTag}" />
-                    <arg key="TARGET_DIR" value="${dawnWorkDir}" />
+                    <env key="TARGET_DIR" value="${dawnWorkDir}" />
                   </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
