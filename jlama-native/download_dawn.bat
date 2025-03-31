@@ -26,10 +26,8 @@ set OWNER=tjake
 set REPO=build-dawn
 
 REM Read command line arguments
-set TAG=%1
-set PLATFORM=%2
-set ARCH=%3
-set TARGET_DIR=%4
+set PLATFORM=win
+set ARCH=x86
 
 REM Set default TARGET_DIR if not provided
 if "%TARGET_DIR%"=="" set TARGET_DIR=.\dawn-native
