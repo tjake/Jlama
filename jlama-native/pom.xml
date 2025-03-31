@@ -349,9 +349,12 @@
               </goals>
               <configuration>
                 <target>
-                  <exec executable="./download_dawn.bat" failonerror="true" resolveexecutable="true">
-                    <env key="TAG" value="${dawnTag}" />
-                    <env key="TARGET_DIR" value="${dawnWorkDir}" />
+                  <exec executable="bash" dir="${basedir}/jlama-native" failonerror="true" resolveexecutable="true">
+                    <arg value="./download_dawn.sh" />
+                    <arg value="${dawnTag}" />
+                    <arg value="win" />
+                    <arg value="x64" />
+                    <arg value="${dawnWorkDir}" />
                   </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
