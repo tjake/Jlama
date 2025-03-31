@@ -324,9 +324,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
-                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                  <!--<copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
                     <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
-                  </copy>
+                  </copy>-->
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
