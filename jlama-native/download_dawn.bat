@@ -1,4 +1,4 @@
-@echo off
+@echo on
 setlocal EnableDelayedExpansion
 
 REM This script downloads a specific dawn-build ZIP asset from:
