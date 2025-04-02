@@ -239,13 +239,15 @@ public class TestOperations {
     public void testNativeDotProductBF16() {
         Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
         AbstractTensor a = makeTensor(SIZE);
-        AbstractTensor b = new BFloat16BufferTensor(makeTensor(SIZE));
+        AbstractTensor a1 = new BFloat16BufferTensor(a);
+        AbstractTensor b = makeTensor(SIZE);
+        AbstractTensor b1 = new BFloat16BufferTensor(b);
 
         globalOps.registerModelTensor(b);
 
         // This is what we compare others to
-        float control = controlOps.dotProduct(a, b, SIZE);
-        float p1 = globalOps.dotProduct(a, b, SIZE);
+        float control = controlOps.dotProduct(a1, b1, SIZE);
+        float p1 = globalOps.dotProduct(a1, b1, SIZE);
 
         logger.info("a: {} b: {}", a, b);
         logger.info("{} control: {}, p1: {}", globalOps.getClass().getSimpleName(), control, p1);

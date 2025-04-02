@@ -7,6 +7,7 @@ import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.gpunative.NativeGPU;
 import com.github.tjake.jlama.tensor.operations.util.JarSupport;
 import com.github.tjake.jlama.util.MachineSpec;
+import com.github.tjake.jlama.util.RuntimeSupport;
 import com.google.common.io.Resources;
 import com.google.common.primitives.Ints;
 import org.slf4j.Logger;
@@ -145,7 +146,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
             logger.info("Native GPU Operations loaded with {} memory and {} groups", lb.get(0), lb.get(1));
             params_size = Ints.checkedCast(lb.get(2));
 
-            gemm_f32_id = registerShader("gemm_f32_v4.wgsl");
+            gemm_f32_id = RuntimeSupport.isMac() ? registerShader("gemm_f32.wgsl") : registerShader("gemm_f32_v4.wgsl");
             gemm_bf16_id = registerShader("gemm_bf16_v4.wgsl");
             gemm_q4_id = registerShader("gemm_q4.wgsl");
 
