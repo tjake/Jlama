@@ -18,6 +18,7 @@
 
 typedef struct {
     WGPUBuffer input_buffer;
+    WGPUBuffer input2_buffer;
     WGPUBuffer params_buffer;
     WGPUBuffer result_buffer;
     WGPUBuffer result_staging_buffer;
@@ -253,16 +254,17 @@ void init_gpu(long *results) {
 
 
     // Create bind group layout for pipeline creation
-    WGPUBindGroupLayoutEntry layout_entries[5] = {
+    WGPUBindGroupLayoutEntry layout_entries[6] = {
                     { .binding = 0, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
                     { .binding = 1, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
                     { .binding = 2, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
-                    { .binding = 3, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Storage }},
-                    { .binding = 4, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Uniform }},
+                    { .binding = 3, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_ReadOnlyStorage }},
+                    { .binding = 4, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Storage }},
+                    { .binding = 5, .visibility = WGPUShaderStage_Compute, .buffer = { .type = WGPUBufferBindingType_Uniform }},
                };
 
     bind_group_layout = wgpuDeviceCreateBindGroupLayout(device, &(WGPUBindGroupLayoutDescriptor){
-            .entryCount = 5,
+            .entryCount = 6,
             .entries = layout_entries,
     });
 }
@@ -329,12 +331,13 @@ long register_tensor(const char *data, int size) {
 
 long register_scratch_buffers( int params_size, int input_size, int result_size) {
     WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
     WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
     WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 0, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
 
-    Scratch s = {input_buffer, params_buffer, result_buffer, result_staging_buffer, empty_buffer};
+    Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, result_staging_buffer, empty_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
     long id = scratch_lookup_idx;
     scratch_lookup_idx++;
@@ -397,7 +400,7 @@ long register_shader(const char *data, int size) {
     return id;
 }
 
-void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
 
     WGPUShaderModule shader_module = shader_lookup[shader];
     assert(shader_module);
@@ -408,13 +411,19 @@ void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int ali
     WGPUBuffer A_buffer = s.input_buffer;
     assert(A_buffer);
 
+    WGPUBuffer A2_buffer = a2 == NULL ? s.empty_buffer : s.input2_buffer;
+    // For Q8 the offsets are not in bytes, but in 4 byte chunks
+    // So to get to the offset & size of scales array we multiply by 4 to get the number of floats quantized
+    size_t A2_size = a2 == NULL ? 0 : (A_size * 4)/Q8_BLOCK_SIZE;
+    size_t A2_offset = a2 == NULL ? 0 : (aoffset * 4)/Q8_BLOCK_SIZE;
+
     size_t B_size = blimit - boffset;
     WGPUBuffer B_buffer = tensor_lookup[bid];
     assert(B_buffer);
 
     WGPUBuffer B2_buffer = bid2 == -1 ? s.empty_buffer : tensor_lookup[bid2];
     // For Q4 the offsets are not in bytes, but in 4 byte chunks
-    // So to get to the offset & size of scales array we double to get to bytes (Q4 -> u8) and multiply by 4 to get to f32
+    // So to get to the offset & size of scales array we double to get to bytes (Q4 -> u8) and multiply by 4 to the number of floats quantized
     size_t B2_size = bid2 == -1 ? 0 : (B_size * 2 * 4)/Q4_BLOCK_SIZE;
     size_t B2_offset = bid2 == -1 ? 0 : (boffset * 2 * 4)/Q4_BLOCK_SIZE;
 
@@ -432,20 +441,24 @@ void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int ali
     assert(params_buffer);
 
     // Copy data to GPU (since A is a float array, we need to divide the offset by 4)
-    wgpuQueueWriteBuffer(queue, A_buffer, 0, a + (aoffset/4), A_size);
+    wgpuQueueWriteBuffer(queue, A_buffer, 0, a + aoffset, A_size);
+    if (a2 != NULL) {
+        wgpuQueueWriteBuffer(queue, A2_buffer, 0, a2 + A2_offset, A2_size);
+    }
     wgpuQueueWriteBuffer(queue, params_buffer, 0, &params, params_size);
 
     // Create bind group
-    WGPUBindGroupEntry bind_group_entries[5] = {
+    WGPUBindGroupEntry bind_group_entries[6] = {
         { .binding = 0, .buffer = A_buffer, .offset = 0, .size = A_size },
-        { .binding = 1, .buffer = B_buffer, .offset = boffset, .size = B_size },
-        { .binding = 2, .buffer = B2_buffer, .offset = B2_offset, .size = B2_size },
-        { .binding = 3, .buffer = R_buffer, .offset = 0, .size = R_size },
-        { .binding = 4, .buffer = params_buffer, .offset = 0, .size = params_size },
+        { .binding = 1, .buffer = A2_buffer, .offset = 0, .size = A2_size },
+        { .binding = 2, .buffer = B_buffer, .offset = boffset, .size = B_size },
+        { .binding = 3, .buffer = B2_buffer, .offset = B2_offset, .size = B2_size },
+        { .binding = 4, .buffer = R_buffer, .offset = 0, .size = R_size },
+        { .binding = 5, .buffer = params_buffer, .offset = 0, .size = params_size },
     };
     WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(device, &(WGPUBindGroupDescriptor){
         .layout = bind_group_layout,
-        .entryCount = 5,
+        .entryCount = 6,
         .entries = bind_group_entries,
     });
 
@@ -462,9 +475,14 @@ void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int ali
     wgpuComputePassEncoderSetPipeline(compute_pass, pipeline);
     wgpuComputePassEncoderSetBindGroup(compute_pass, 0, bind_group, 0, NULL);
 
-    // Calculate workgroup counts (adjust based on your shader's workgroup size)
+     // Calculate workgroup counts (adjust based on your shader's workgroup size)
     uint32_t workgroup_count_x = (n + RN - 1) / RN;
     uint32_t workgroup_count_y = (m + RM - 1) / RM;
+
+    if (params.m == 1) {
+        // Bind the M=1 optimized pipeline
+        uint32_t workgroup_count_y = 1;
+    }
 
     wgpuComputePassEncoderDispatchWorkgroups(compute_pass, workgroup_count_x, workgroup_count_y, 1);
     wgpuComputePassEncoderEnd(compute_pass);
@@ -478,7 +496,6 @@ void gpu_gemm(long scratch_id, long shader, const float *a, int aoffset, int ali
 
     // Submit the command buffer
     wgpuQueueSubmit(queue, 1, &command_buffer);
-
 
     // Wait for work to complete
     bool mappingComplete = false;

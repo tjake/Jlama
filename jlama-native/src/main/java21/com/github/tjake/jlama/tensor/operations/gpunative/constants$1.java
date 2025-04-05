@@ -19,6 +19,7 @@ final class constants$1 {
         JAVA_LONG,
         JAVA_LONG,
         RuntimeHelper.POINTER,
+        RuntimeHelper.POINTER,
         JAVA_INT,
         JAVA_INT,
         JAVA_LONG,
@@ -43,6 +44,7 @@ final class constants$1 {
     static final FunctionDescriptor const$3 = FunctionDescriptor.ofVoid(
         JAVA_LONG,
         JAVA_INT,
+        RuntimeHelper.POINTER,
         RuntimeHelper.POINTER,
         JAVA_INT,
         RuntimeHelper.POINTER,

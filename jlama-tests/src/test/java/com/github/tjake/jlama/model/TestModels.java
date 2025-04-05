@@ -91,7 +91,7 @@ public class TestModels {
         String modelPrefix = "../models/tjake_Mistral-7B-Instruct-v0.3-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
-        AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
+        AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.I8);
 
         Tool t = Tool.from(
                 Function.builder()

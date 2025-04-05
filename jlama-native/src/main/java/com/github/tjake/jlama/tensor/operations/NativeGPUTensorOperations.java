@@ -4,6 +4,7 @@ import com.github.tjake.jlama.math.VectorMath;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
+import com.github.tjake.jlama.tensor.Q8ByteBufferTensor;
 import com.github.tjake.jlama.tensor.operations.gpunative.NativeGPU;
 import com.github.tjake.jlama.tensor.operations.util.JarSupport;
 import com.github.tjake.jlama.util.MachineSpec;
@@ -38,6 +39,8 @@ public class NativeGPUTensorOperations implements TensorOperations {
     private long gemm_f32_id;
     private long gemm_bf16_id;
     private long gemm_q4_id;
+    private long gemm_i8q4_m1_id;
+    private long gemm_i8q4_id;
 
     private int params_size;
 
@@ -112,11 +115,6 @@ public class NativeGPUTensorOperations implements TensorOperations {
         return "Native GPU Operations";
     }
 
-    @Override
-    public DType preferredWorkingQuantizedType() {
-        return DType.F32;
-    }
-
     private static long registerShader(String name) throws IOException {
         byte[] shader = Resources.readLines(Resources.getResource(name), StandardCharsets.UTF_8).stream()
                 .reduce((a, b) -> a + "\n" + b)
@@ -149,6 +147,8 @@ public class NativeGPUTensorOperations implements TensorOperations {
             gemm_f32_id = RuntimeSupport.isMac() ? registerShader("gemm_f32.wgsl") : registerShader("gemm_f32_v4.wgsl");
             gemm_bf16_id = registerShader("gemm_bf16_v4.wgsl");
             gemm_q4_id = registerShader("gemm_q4.wgsl");
+            gemm_i8q4_id = registerShader("gemm_i8q4.wgsl");
+            gemm_i8q4_m1_id = registerShader("gemm_i8q4_v4.wgsl");
 
         } catch (Throwable t) {
             logger.error("Failed to load native GPU operations", t);
@@ -157,7 +157,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
     }
 
     private boolean gpuSupported(Long btId, DType atype, DType btype, DType rtype ) {
-        return btId != null && atype == DType.F32 && (btype == DType.F32 || btype == DType.BF16 || btype == DType.Q4) && rtype == DType.F32;
+        return btId != null && (atype == DType.F32 || atype == DType.I8) && (btype == DType.F32 || btype == DType.BF16 || btype == DType.Q4) && rtype == DType.F32;
     }
 
     @Override
@@ -176,16 +176,32 @@ public class NativeGPUTensorOperations implements TensorOperations {
 
         if (gpuSupported(btId, at.dType(), bt.dType(), result.dType())) {
             long scratchId = gpuBuffers.get();
-            long shaderId = switch (bt.dType()) {
-                case F32 -> gemm_f32_id;
-                case BF16 -> gemm_bf16_id;
-                case Q4 -> gemm_q4_id;
-                default -> throw new RuntimeException("Unsupported type: " + bt.dType());
-            };
 
             int M = at.shape().dim(0);
             int N = rowChunkSize; // b.shape().dim(0);
             int K = columnLength; // a.shape().dim(1);
+
+            long shaderId = switch (bt.dType()) {
+                case F32 -> switch (at.dType()) {
+                    case F32 -> gemm_f32_id;
+                    default -> throw new RuntimeException("Unsupported type: " + at.dType());
+                };
+
+                case BF16 -> switch (at.dType()) {
+                    case F32 -> gemm_bf16_id;
+                    default -> throw new RuntimeException("Unsupported type: " + at.dType());
+                };
+
+                case Q4 -> switch (at.dType()) {
+                    case F32 -> gemm_q4_id;
+                    case I8 -> M == 1 ? gemm_i8q4_m1_id : gemm_i8q4_id;
+                    default -> throw new RuntimeException("Unsupported type: " + at.dType());
+                };
+
+                default -> throw new RuntimeException("Unsupported type: " + bt.dType());
+            };
+
+
 
             int aOffset = at.getOffset(0, aColumnOffset);
             int aLimit = at.getOffset(M, aColumnOffset);
@@ -212,6 +228,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
                     scratchId,
                     shaderId,
                     at.getMemorySegment(),
+                    at.dType() == DType.I8 ? ((Q8ByteBufferTensor) at).getBlockF().getMemorySegment() : MemorySegment.NULL,
                     at.getMemorySegmentOffset(aOffset),
                     at.getMemorySegmentOffset(aLimit),
                     btId,

@@ -86,13 +86,13 @@ public class NativeGPU  {
     }
     /**
      * {@snippet :
-     * void gpu_gemm(long scratch_id, long shader, float* a, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float* r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * void gpu_gemm(long scratch_id, long shader, void* a, void* a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float* r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc);
      * }
      */
-    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
         var mh$ = gpu_gemm$MH();
         try {
-            mh$.invokeExact(scratch_id, shader, a, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc);
+            mh$.invokeExact(scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }
@@ -102,13 +102,13 @@ public class NativeGPU  {
     }
     /**
      * {@snippet :
-     * void gpu_gemm_batch(long shader, int batch_num, float* a, int aoffset, long* bid, int boffset, float** r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * void gpu_gemm_batch(long shader, int batch_num, void* a, void* a2, int aoffset, long* bid, int boffset, float** r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc);
      * }
      */
-    public static void gpu_gemm_batch(long shader, int batch_num, MemorySegment a, int aoffset, MemorySegment bid, int boffset, MemorySegment r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+    public static void gpu_gemm_batch(long shader, int batch_num, MemorySegment a, MemorySegment a2, int aoffset, MemorySegment bid, int boffset, MemorySegment r, int roffset, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
         var mh$ = gpu_gemm_batch$MH();
         try {
-            mh$.invokeExact(shader, batch_num, a, aoffset, bid, boffset, r, roffset, m, n0, n, k, lda, ldb, ldc);
+            mh$.invokeExact(shader, batch_num, a, a2, aoffset, bid, boffset, r, roffset, m, n0, n, k, lda, ldb, ldc);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }

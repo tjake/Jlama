@@ -47,6 +47,7 @@ final class constants$0 {
         Constants$root.C_LONG_LONG$LAYOUT,
         Constants$root.C_LONG_LONG$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,
+        Constants$root.C_POINTER$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_LONG_LONG$LAYOUT,
@@ -71,6 +72,7 @@ final class constants$0 {
     static final FunctionDescriptor gpu_gemm_batch$FUNC = FunctionDescriptor.ofVoid(
         Constants$root.C_LONG_LONG$LAYOUT,
         Constants$root.C_INT$LAYOUT,
+        Constants$root.C_POINTER$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_POINTER$LAYOUT,
