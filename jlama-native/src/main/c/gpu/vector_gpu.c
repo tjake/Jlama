@@ -481,7 +481,7 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
 
     if (params.m == 1) {
         // Bind the M=1 optimized pipeline
-        uint32_t workgroup_count_y = 1;
+        workgroup_count_y = 1;
     }
 
     wgpuComputePassEncoderDispatchWorkgroups(compute_pass, workgroup_count_x, workgroup_count_y, 1);
