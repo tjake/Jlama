@@ -116,13 +116,17 @@ public abstract class AbstractModel implements Generator {
         this.modelQType = modelQType;
         this.kvBufferCache = new KvBufferCache(this);
 
+        if (workingMemoryQType == null) {
+            workingMemoryQType = TensorOperationsProvider.get().preferredWorkingQuantizedType();
+        }
+
         // FIXME: This is a hack to support Avoid Q8F32 evals
         if (modelDType == DType.F32 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.F32;
         }
 
         // FIXME: This is a hack to support Avoid Q8BF16 evals
-        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && modelQType.isEmpty()) {
+        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.BF16;
         }
 
@@ -141,6 +145,11 @@ public abstract class AbstractModel implements Generator {
             && workingMemoryQType == DType.I8
             && (c.embeddingLength / Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize() / Float.SIZE) != 0) {
             workingMemoryQType = DType.F32;
+        }
+
+        // Some operation providers don't support Q4I8
+        if (modelDType == DType.Q4 && workingMemoryQType.size() < TensorOperationsProvider.get().preferredWorkingQuantizedType().size()) {
+            workingMemoryQType = TensorOperationsProvider.get().preferredWorkingQuantizedType();
         }
 
         if (workingMemoryQType != workingMemoryDType) {

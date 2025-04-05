@@ -22,14 +22,23 @@
 # LIB_NAME - the name of the native library
 # LIB_EXT - the extension of the native library
 
-SRC_DIR = src/main/c
+SRC_DIR = src/main/c/simd
 LIB = $(LIB_DIR)/$(LIB_NAME).$(LIB_EXT)
-
 SRCS = $(wildcard $(SRC_DIR)/*.c)
-
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
+OBJ2_DIR = $(OBJ_DIR)/gpu
+SRC2_DIR = src/main/c/gpu
+LIB2 = $(LIB_DIR)/$(LIB_NAME)gpu.$(LIB_EXT)
+SRCS2 = $(wildcard $(SRC2_DIR)/*.c)
+OBJS2 = $(SRCS2:$(SRC2_DIR)/%.c=$(OBJ2_DIR)/%.o)
+
 all: $(LIB)
+
+# Add $(LIB2) to 'all' only if CFLAGS2 is defined
+ifdef CFLAGS2
+all: $(LIB2)
+endif
 
 $(LIB): $(OBJS)
 	mkdir -p $(LIB_DIR)
@@ -38,6 +47,14 @@ $(LIB): $(OBJS)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	mkdir -p $(OBJ_DIR)
 	$(CC) -o $@ -c $< $(CFLAGS)
+
+$(LIB2): $(OBJS2)
+	mkdir -p $(LIB_DIR)
+	$(AR) $(LDFLAGS2) -o $(LIB2) $^
+
+$(OBJ2_DIR)/%.o: $(SRC2_DIR)/%.c
+	mkdir -p $(OBJ2_DIR)
+	$(CC) -o $@ -c $< $(CFLAGS2)
 
 clean:
 	rm -rf $(LIB_DIR) $(OBJ_DIR)
