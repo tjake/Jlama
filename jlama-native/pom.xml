@@ -376,7 +376,7 @@
                     <env key="CFLAGS" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable" />
                     <env key="CFLAGS2" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-shared" />
-                    <env key="LDFLAGS2" value="-shared ${dawnWorkDir}/lib/webgpu_dawn.lib -lmsvcrt -lkernel32 -luser32" />
+                    <env key="LDFLAGS2" value="-shared ${dawnWorkDir}/lib/webgpu_dawn.lib" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env KEY="LIB_EXT"  value="dll" />
                   </exec>
