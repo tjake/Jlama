@@ -26,7 +26,7 @@ OBJ_DIR ?= $(LIB_DIR)
 #───────────────────────────────────────────────────────────────────────────────
 # Detect Windows targets
 ifeq ($(OS),Windows_NT)
-  WINDOWS := 1
+	WINDOWS := 1
 endif
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -62,36 +62,31 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 # 2) GPU target: either DLL on Windows or static .a on others
 ifdef WINDOWS
 
-  # Where your Dawn runtime DLL lives; override if needed:
-  WEBGPU_DLL  ?= path/to/webgpu_dawn.dll
-  WEBGPU_DEF  := $(OBJ2_DIR)/webgpu_dawn.def
-  WEBGPU_A    := $(OBJ2_DIR)/libwebgpu_dawn.a
+# Where your Dawn runtime DLL lives; override if needed:
+WEBGPU_DLL  ?= path/to/webgpu_dawn.dll
+WEBGPU_DEF  := $(OBJ2_DIR)/webgpu_dawn.def
+WEBGPU_A    := $(OBJ2_DIR)/libwebgpu_dawn.a
 
-  # 2.a) Extract .def from the Dawn DLL
-  $(WEBGPU_DEF): $(WEBGPU_DLL)
-  	mkdir -p $(OBJ2_DIR)
-  	gendef "$<"
-  	mv webgpu_dawn.def "$@"
+# 2.a) Extract .def from the Dawn DLL
+$(WEBGPU_DEF): $(WEBGPU_DLL)
+	mkdir -p $(OBJ2_DIR)
+	gendef "$<"
+	mv webgpu_dawn.def "$@"
 
-  # 2.b) Turn that .def into a MinGW import‐lib
-  $(WEBGPU_A): $(WEBGPU_DEF)
-  	dlltool --dllname webgpu_dawn.dll --def "$<" --output-lib "$@"
+# 2.b) Turn that .def into a MinGW import‐lib
+$(WEBGPU_A): $(WEBGPU_DEF)
+	dlltool --dllname webgpu_dawn.dll --def "$<" --output-lib "$@"
 
-  # 2.c) Link your GPU code + Dawn import lib into a real Windows DLL
-  $(LIB2): $(WEBGPU_A) $(OBJS2)
-  	mkdir -p $(LIB_DIR)
-  	$(CC) -shared \
-  	  -o "$@" \
-  	  $(OBJS2) $(WEBGPU_A) \
-  	  -Wl,--out-implib,$(LIB_DIR)/lib$(LIB_NAME)gpu.a \
-  	  -lmingw32 -lmingwex -lmsvcrt
+# 2.c) Link your GPU code + Dawn import lib into a real Windows DLL
+$(LIB2): $(WEBGPU_A) $(OBJS2)
+	mkdir -p $(LIB_DIR)
+	$(CC) -shared -o "$@" $(OBJS2) $(WEBGPU_A) -Wl,--out-implib,$(LIB_DIR)/lib$(LIB_NAME)gpu.a -lmingw32 -lmingwex -lmsvcrt
 
 else
-
-  # Non‑Windows: just produce a static archive for GPU bits too
-  $(LIB2): $(OBJS2)
-  	mkdir -p $(LIB_DIR)
-  	$(AR) $(LDFLAGS2) -o $(LIB2) $^
+# Non‑Windows: just produce a static archive for GPU bits too
+$(LIB2): $(OBJS2)
+	mkdir -p $(LIB_DIR)
+	$(AR) $(LDFLAGS2) -o $(LIB2) $^
 
 endif
 
