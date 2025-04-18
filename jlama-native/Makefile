@@ -80,7 +80,7 @@ $(WEBGPU_A): $(WEBGPU_DEF)
 # 2.c) Link your GPU code + Dawn import lib into a real Windows DLL
 $(LIB2): $(WEBGPU_A) $(OBJS2)
 	mkdir -p $(LIB_DIR)
-	$(CC) -shared -o "$@" $(OBJS2) $(WEBGPU_A) -Wl,--out-implib,$(LIB_DIR)/lib$(LIB_NAME)gpu.a -lmingw32 -lmingwex -lmsvcrt
+	$(CC) -shared -o "$@" "$(OBJS2)" "$(WEBGPU_A)" -lmingw32 -lmingwex -lmsvcrt
 
 else
 # Non‑Windows: just produce a static archive for GPU bits too
