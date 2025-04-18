@@ -335,9 +335,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
-                  <!--<copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
                     <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
-                  </copy>-->
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -360,13 +360,13 @@
               </goals>
               <configuration>
                 <target>
-                  <!--<exec executable="C:\Program Files\Git\bin\bash.exe" failonerror="true" resolveexecutable="true">
+                  <exec executable="C:\Program Files\Git\bin\bash.exe" failonerror="true" resolveexecutable="true">
                     <arg value="./download_dawn.sh" />
                     <arg value="${dawnTag}" />
                     <arg value="win" />
                     <arg value="x64" />
                     <arg value="${dawnWorkDir}" />
-                  </exec>-->
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
@@ -374,9 +374,9 @@
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
                     <env key="CFLAGS" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable" />
-                    <!--<env key="CFLAGS2" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable -I${dawnWorkDir}/include" />-->
+                    <env key="CFLAGS2" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-shared" />
-                    <env key="LDFLAGS2" value="-shared ${dawnWorkDir}/lib/webgpu_dawn.lib" />
+                    <env key="LDFLAGS2" value="-shared ${dawnWorkDir}/lib/webgpu_dawn.lib -lmsvcrt -lkernel32 -luser32" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env KEY="LIB_EXT"  value="dll" />
                   </exec>
