@@ -35,7 +35,7 @@ public final class Q4ByteBufferTensor extends AbstractTensor<ByteVector, Byte> {
     private static final Logger logger = LoggerFactory.getLogger(Q4ByteBufferTensor.class);;
     public static final int BLOCK_SIZE = 32;
     public static final int HALF_BLOCK = (BLOCK_SIZE / 2);
-    private static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
+    public static final float I_BLOCK_SIZE = 1.0f / BLOCK_SIZE;
 
     final ByteBuffer b;
     final FloatBufferTensor blockF; // Deltas

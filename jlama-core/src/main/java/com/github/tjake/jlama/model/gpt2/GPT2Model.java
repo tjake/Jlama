@@ -21,6 +21,8 @@ import com.github.tjake.jlama.model.functions.SampleOutput;
 import com.github.tjake.jlama.safetensors.*;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
+
 import java.util.Optional;
 
 public class GPT2Model extends AbstractModel {
@@ -108,6 +110,7 @@ public class GPT2Model extends AbstractModel {
     @Override
     protected SampleOutput loadOutputWeights() {
         final AbstractTensor wte = weights.load("wte.weight");
+        TensorOperationsProvider.get().registerModelTensor(wte);
         final LayerNorm layerNorm = new LayerNorm(this, weights.load("ln_f.bias"), weights.load("ln_f.weight"));
 
         return new SampleOutput() {
