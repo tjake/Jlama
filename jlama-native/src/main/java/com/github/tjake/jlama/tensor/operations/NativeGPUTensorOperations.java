@@ -148,7 +148,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
             gemm_bf16_id = registerShader("gemm_bf16_v4.wgsl");
             gemm_q4_id = registerShader("gemm_q4.wgsl");
             gemm_i8q4_id = registerShader("gemm_i8q4.wgsl");
-            gemm_i8q4_m1_id = registerShader("gemm_i8q4_v4.wgsl");
+            gemm_i8q4_m1_id = registerShader("gemm_i8q4_v5.wgsl");
 
         } catch (Throwable t) {
             logger.error("Failed to load native GPU operations", t);
@@ -194,7 +194,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
 
                 case Q4 -> switch (at.dType()) {
                     case F32 -> gemm_q4_id;
-                    case I8 -> M == 1 ? gemm_i8q4_m1_id : gemm_i8q4_id;
+                    case I8 ->  M == 1 ? gemm_i8q4_m1_id : gemm_i8q4_id;
                     default -> throw new RuntimeException("Unsupported type: " + at.dType());
                 };
 

@@ -11,6 +11,7 @@
 
 #define RM 8
 #define RN 8
+#define RN_M1 64
 
 // Info for quantization
 #define Q8_BLOCK_SIZE 32
@@ -21,7 +22,6 @@ typedef struct {
     WGPUBuffer input2_buffer;
     WGPUBuffer params_buffer;
     WGPUBuffer result_buffer;
-    WGPUBuffer result_staging_buffer;
     WGPUBuffer empty_buffer;
 } Scratch;
 
@@ -183,8 +183,8 @@ void init_gpu(long *results) {
     WGPUDawnTogglesDescriptor toggles = {};
     toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
     toggles.chain.next = NULL;
-    toggles.enabledToggleCount = 5;
-    toggles.enabledToggles = (const char* const[]){"timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "dump_shaders"};
+    toggles.enabledToggleCount = 8;
+    toggles.enabledToggles = (const char* const[]){"allow_unsafe_apis", "timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "disable_workgroup_init", "use_tint_ir"};
     toggles.disabledToggleCount = 0;
 
     WGPUInstanceDescriptor instanceDesc = {
@@ -199,7 +199,7 @@ void init_gpu(long *results) {
         .nextInChain = (const WGPUChainedStruct*) &toggles,
         .featureLevel = WGPUFeatureLevel_Core,
         .powerPreference = WGPUPowerPreference_HighPerformance,  // Request high-performance GPU
-        .forceFallbackAdapter = false                           // Don't fall back to software
+        .forceFallbackAdapter = false                            // Don't fall back to software
     };
 
     WGPUAdapter adapter;
@@ -230,8 +230,8 @@ void init_gpu(long *results) {
         .uncapturedErrorCallbackInfo2.callback = &on_device_error,
         .deviceLostCallbackInfo2.callback = &on_lost_error,
         .deviceLostCallbackInfo2.mode = WGPUCallbackMode_AllowSpontaneous,
-        .requiredFeatureCount = 1, //Disable at 0
-        .requiredFeatures = (const WGPUFeatureName[]) {WGPUFeatureName_DawnNative},
+        .requiredFeatureCount = 2, //Disable at 0
+        .requiredFeatures = (const WGPUFeatureName[]) {WGPUFeatureName_DawnNative, WGPUFeatureName_Subgroups},
         .requiredLimits = &requiredLimits,
         .label       = "default device",
     };
@@ -283,7 +283,7 @@ WGPUComputePipeline init_pipeline(WGPUShaderModule shader_module) {
     WGPUComputeState compute_state = {};
     compute_state.module = shader_module;
     compute_state.entryPoint.data = "main";
-    compute_state.entryPoint.length = 5;
+    compute_state.entryPoint.length = 6;
 
     // Create compute pipeline with the pipeline layout
     WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &(WGPUComputePipelineDescriptor){
@@ -330,14 +330,13 @@ long register_tensor(const char *data, int size) {
 }
 
 long register_scratch_buffers( int params_size, int input_size, int result_size) {
-    WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
-    WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
-    WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
+    WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
+    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
+    WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
+    WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapRead );
     WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 0, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
 
-    Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, result_staging_buffer, empty_buffer};
+    Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, empty_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
     long id = scratch_lookup_idx;
     scratch_lookup_idx++;
@@ -429,9 +428,7 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
 
     size_t R_size = rlimit;
     WGPUBuffer R_buffer = s.result_buffer;
-    WGPUBuffer R_staging_buffer = s.result_staging_buffer;
     assert(R_buffer);
-    assert(R_staging_buffer);
 
     // Create uniform buffer for parameters
     Params params = {m, n + n0, k, lda, ldb, ldc};
@@ -481,14 +478,13 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
 
     if (params.m == 1) {
         // Bind the M=1 optimized pipeline
+        workgroup_count_x = (n + RN_M1 - 1) / RN_M1;
         workgroup_count_y = 1;
     }
 
     wgpuComputePassEncoderDispatchWorkgroups(compute_pass, workgroup_count_x, workgroup_count_y, 1);
     wgpuComputePassEncoderEnd(compute_pass);
     wgpuComputePassEncoderRelease(compute_pass);
-
-    wgpuCommandEncoderCopyBufferToBuffer(encoder, R_buffer, 0, R_staging_buffer, 0, R_size);
 
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(encoder, &(const WGPUCommandBufferDescriptor){
                                                                                  .label = "command_buffer",
@@ -500,7 +496,7 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
     // Wait for work to complete
     bool mappingComplete = false;
     float const *buf = NULL;
-    QCallbackContext context = {.mappingComplete = &mappingComplete, .R_size = &R_size, .R_staging_buffer = &R_staging_buffer, .buf = &buf};
+    QCallbackContext context = {.mappingComplete = &mappingComplete, .R_size = &R_size, .R_staging_buffer = &R_buffer, .buf = &buf};
 
     WGPUQueueWorkDoneCallbackInfo2 workDoneCallbackInfo = {
           .mode = WGPUCallbackMode_AllowSpontaneous,
@@ -526,7 +522,7 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
         }
     }
 
-    wgpuBufferUnmap(R_staging_buffer);
+    wgpuBufferUnmap(R_buffer);
     wgpuCommandBufferRelease(command_buffer);
     wgpuCommandEncoderRelease(encoder); // release encoder after it's finished
 

@@ -690,6 +690,29 @@ public class TestOperations {
     }
 
     @Test
+    public void testNativeBatchDotProductWithOffsetsI8Q4() {
+        // M == BATCH, N == ROWS, K == SIZE
+        Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);
+
+        FloatBufferTensor c = new FloatBufferTensor(BATCH, ROWS);
+        FloatBufferTensor c1 = new FloatBufferTensor(BATCH, ROWS);
+
+        AbstractTensor a = new Q8ByteBufferTensor(makeWeights(BATCH, SIZE)); // a
+        AbstractTensor b = new Q4ByteBufferTensor(makeWeights(ROWS, SIZE)); // b
+        globalOps.registerModelTensor(b);
+
+        controlOps.batchDotProduct(c, a, b, 512, 512, 512);
+        float sum = controlOps.sum(c);
+
+        globalOps.batchDotProduct(c1, a, b, 512, 512, 512);
+
+        logger.info("a: {} b: {}", a, b);
+        logger.info("{} control: {}, p1: {}", globalOps.getClass().getSimpleName(), c, c1);
+
+        Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
+    }
+
+    @Test
     public void testNativeDotProductFast() {
         // M == BATCH, N == ROWS, K == SIZE
         Assume.assumeTrue(globalOps instanceof NativeSimdTensorOperations || globalOps instanceof NativeGPUTensorOperations);

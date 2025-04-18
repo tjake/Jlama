@@ -7,9 +7,9 @@ struct Params {
     ldc: u32,      // Leading dimension of C
 };
 
-@group(0) @binding(0) var<storage, read> A: array<u32>;
+@group(0) @binding(0) var<storage, read> A: array<vec4<u32>>;
 @group(0) @binding(1) var<storage, read> A2: array<f32>;
-@group(0) @binding(2) var<storage, read> B: array<u32>;
+@group(0) @binding(2) var<storage, read> B: array<vec4<u32>>;
 @group(0) @binding(3) var<storage, read> B2: array<f32>;
 @group(0) @binding(4) var<storage, read_write> C: array<f32>;
 @group(0) @binding(5) var<uniform> params: Params;
@@ -48,112 +48,103 @@ fn main(
     let jj = workgroup_id.x * RN + local_id.x;  // Column index in submatrix
 
     if (ii < params.m && jj < params.n) {
-        let ldan = params.lda / 4u;  // 4 values per 32 bits
+        let ldan = params.lda / 16u;  // 4 values per 32 bits, each in vec4
         let ldas = params.lda / BLOCK_SIZE;
 
-        let ldbn = params.ldb / 8u;  // 8 values per 32 bits
+        let ldbn = params.ldb / 32u;  // 8 values per 32 bits, each in vec4
         let ldbs = params.ldb / BLOCK_SIZE;
 
         var sum: f32 = 0.0;
-        var nibble_val: u32;
+        var nibble_val: vec4<u32>;
         for (var k = 0u; k < params.k; k = k + BLOCK_SIZE) {
 
-            let aIdx = (ldan * ii) + (k / 4u);
+            let aIdx = (ldan * ii) + (k / 16u);
             let aIdx2 = (ldas * ii) + (k / BLOCK_SIZE);
-            let bIdx = (ldbn * jj) + (k / 8u);
+            let bIdx = (ldbn * jj) + (k / 32u);
             let bIdx2 = (ldbs * jj) + (k / BLOCK_SIZE);
 
             let scale = B2[bIdx2] * A2[aIdx2];
 
             // The data is permuted
             nibble_val = B[bIdx];
-            let q0  = f32((nibble_val >> 0u) & 0xFu) - 8.0;
-            let q16 = f32((nibble_val >> 4u) & 0xFu) - 8.0;
-            let q1  = f32((nibble_val >> 8u) & 0xFu) - 8.0;
-            let q17 = f32((nibble_val >> 12u) & 0xFu) - 8.0;
-            let q2  = f32((nibble_val >> 16u) & 0xFu) - 8.0;
-            let q18 = f32((nibble_val >> 20u) & 0xFu) - 8.0;
-            let q3  = f32((nibble_val >> 24u) & 0xFu) - 8.0;
-            let q19 = f32((nibble_val >> 28u) & 0xFu) - 8.0;
+            let q0  = f32((nibble_val.x >> 0u) & 0xFu) - 8.0;
+            let q16 = f32((nibble_val.x >> 4u) & 0xFu) - 8.0;
+            let q1  = f32((nibble_val.x >> 8u) & 0xFu) - 8.0;
+            let q17 = f32((nibble_val.x >> 12u) & 0xFu) - 8.0;
+            let q2  = f32((nibble_val.x >> 16u) & 0xFu) - 8.0;
+            let q18 = f32((nibble_val.x >> 20u) & 0xFu) - 8.0;
+            let q3  = f32((nibble_val.x >> 24u) & 0xFu) - 8.0;
+            let q19 = f32((nibble_val.x >> 28u) & 0xFu) - 8.0;
 
-            nibble_val = B[bIdx + 1u];
-            let q4  = f32((nibble_val >> 0u) & 0xFu) - 8.0;
-            let q20 = f32((nibble_val >> 4u) & 0xFu) - 8.0;
-            let q5  = f32((nibble_val >> 8u) & 0xFu) - 8.0;
-            let q21 = f32((nibble_val >> 12u) & 0xFu) - 8.0;
-            let q6  = f32((nibble_val >> 16u) & 0xFu) - 8.0;
-            let q22 = f32((nibble_val >> 20u) & 0xFu) - 8.0;
-            let q7  = f32((nibble_val >> 24u) & 0xFu) - 8.0;
-            let q23 = f32((nibble_val >> 28u) & 0xFu) - 8.0;
+            let q4  = f32((nibble_val.y >> 0u) & 0xFu) - 8.0;
+            let q20 = f32((nibble_val.y >> 4u) & 0xFu) - 8.0;
+            let q5  = f32((nibble_val.y >> 8u) & 0xFu) - 8.0;
+            let q21 = f32((nibble_val.y >> 12u) & 0xFu) - 8.0;
+            let q6  = f32((nibble_val.y >> 16u) & 0xFu) - 8.0;
+            let q22 = f32((nibble_val.y >> 20u) & 0xFu) - 8.0;
+            let q7  = f32((nibble_val.y >> 24u) & 0xFu) - 8.0;
+            let q23 = f32((nibble_val.y >> 28u) & 0xFu) - 8.0;
 
-            nibble_val = B[bIdx + 2u];
-            let q8  = f32((nibble_val >> 0u) & 0xFu) - 8.0;
-            let q24 = f32((nibble_val >> 4u) & 0xFu) - 8.0;
-            let q9  = f32((nibble_val >> 8u) & 0xFu) - 8.0;
-            let q25 = f32((nibble_val >> 12u) & 0xFu) - 8.0;
-            let q10 = f32((nibble_val >> 16u) & 0xFu) - 8.0;
-            let q26 = f32((nibble_val >> 20u) & 0xFu) - 8.0;
-            let q11 = f32((nibble_val >> 24u) & 0xFu) - 8.0;
-            let q27 = f32((nibble_val >> 28u) & 0xFu) - 8.0;
+            let q8  = f32((nibble_val.z >> 0u) & 0xFu) - 8.0;
+            let q24 = f32((nibble_val.z >> 4u) & 0xFu) - 8.0;
+            let q9  = f32((nibble_val.z >> 8u) & 0xFu) - 8.0;
+            let q25 = f32((nibble_val.z >> 12u) & 0xFu) - 8.0;
+            let q10 = f32((nibble_val.z >> 16u) & 0xFu) - 8.0;
+            let q26 = f32((nibble_val.z >> 20u) & 0xFu) - 8.0;
+            let q11 = f32((nibble_val.z >> 24u) & 0xFu) - 8.0;
+            let q27 = f32((nibble_val.z >> 28u) & 0xFu) - 8.0;
 
-            nibble_val = B[bIdx + 3u];
-            let q12 = f32((nibble_val >> 0u) & 0xFu) - 8.0;
-            let q28 = f32((nibble_val >> 4u) & 0xFu) - 8.0;
-            let q13 = f32((nibble_val >> 8u) & 0xFu) - 8.0;
-            let q29 = f32((nibble_val >> 12u) & 0xFu) - 8.0;
-            let q14 = f32((nibble_val >> 16u) & 0xFu) - 8.0;
-            let q30 = f32((nibble_val >> 20u) & 0xFu) - 8.0;
-            let q15 = f32((nibble_val >> 24u) & 0xFu) - 8.0;
-            let q31 = f32((nibble_val >> 28u) & 0xFu) - 8.0;
+            let q12 = f32((nibble_val.w >> 0u) & 0xFu) - 8.0;
+            let q28 = f32((nibble_val.w >> 4u) & 0xFu) - 8.0;
+            let q13 = f32((nibble_val.w >> 8u) & 0xFu) - 8.0;
+            let q29 = f32((nibble_val.w >> 12u) & 0xFu) - 8.0;
+            let q14 = f32((nibble_val.w >> 16u) & 0xFu) - 8.0;
+            let q30 = f32((nibble_val.w >> 20u) & 0xFu) - 8.0;
+            let q15 = f32((nibble_val.w >> 24u) & 0xFu) - 8.0;
+            let q31 = f32((nibble_val.w >> 28u) & 0xFu) - 8.0;
 
             nibble_val = A[aIdx];
             // Get a single byte
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q0 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q1 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q2 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q3 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 0u) & 0xFFu) * q0 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 8u) & 0xFFu) * q1 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 16u) & 0xFFu) * q2 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 24u) & 0xFFu) * q3 * scale);
+
+            sum = sum + (i8_to_f32((nibble_val.y >> 0u) & 0xFFu) * q4 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 8u) & 0xFFu) * q5 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 16u) & 0xFFu) * q6 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 24u) & 0xFFu) * q7 * scale);
+
+            sum = sum + (i8_to_f32((nibble_val.z >> 0u) & 0xFFu) * q8 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 8u) & 0xFFu) * q9 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 16u) & 0xFFu) * q10 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 24u) & 0xFFu) * q11 * scale);
+
+            sum = sum + (i8_to_f32((nibble_val.w >> 0u) & 0xFFu) * q12 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 8u) & 0xFFu) * q13 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 16u) & 0xFFu) * q14 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 24u) & 0xFFu) * q15 * scale);
 
             nibble_val = A[aIdx + 1u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q4 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q5 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q6 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q7 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 0u) & 0xFFu) * q16 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 8u) & 0xFFu) * q17 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 16u) & 0xFFu) * q18 * scale);
+            sum = sum + (i8_to_f32((nibble_val.x >> 24u) & 0xFFu) * q19 * scale);
 
-            nibble_val = A[aIdx + 2u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q8 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q9 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q10 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q11 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 0u) & 0xFFu) * q20 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 8u) & 0xFFu) * q21 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 16u) & 0xFFu) * q22 * scale);
+            sum = sum + (i8_to_f32((nibble_val.y >> 24u) & 0xFFu) * q23 * scale);
 
-            nibble_val = A[aIdx + 3u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q12 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q13 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q14 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q15 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 0u) & 0xFFu) * q24 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 8u) & 0xFFu) * q25 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 16u) & 0xFFu) * q26 * scale);
+            sum = sum + (i8_to_f32((nibble_val.z >> 24u) & 0xFFu) * q27 * scale);
 
-            nibble_val = A[aIdx + 4u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q16 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q17 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q18 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q19 * scale);
-
-            nibble_val = A[aIdx + 5u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q20 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q21 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q22 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q23 * scale);
-
-            nibble_val = A[aIdx + 6u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q24 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q25 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q26 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q27 * scale);
-
-            nibble_val = A[aIdx + 7u];
-            sum = sum + (i8_to_f32((nibble_val >> 0u) & 0xFFu) * q28 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 8u) & 0xFFu) * q29 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 16u) & 0xFFu) * q30 * scale);
-            sum = sum + (i8_to_f32((nibble_val >> 24u) & 0xFFu) * q31 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 0u) & 0xFFu) * q28 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 8u) & 0xFFu) * q29 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 16u) & 0xFFu) * q30 * scale);
+            sum = sum + (i8_to_f32((nibble_val.w >> 24u) & 0xFFu) * q31 * scale);
         }
 
         // Store the result in C
