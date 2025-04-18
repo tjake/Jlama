@@ -23,7 +23,7 @@
     <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
     <defaultJarFile>${project.build.directory}/${project.build.finalName}.jar</defaultJarFile>
     <nativeJarFile>${project.build.directory}/${project.build.finalName}-${jni.classifier}.jar</nativeJarFile>
-    <dawnTag>2025-03-23</dawnTag>
+    <dawnTag>2025-04-09</dawnTag>
     <dawnWorkDir>${project.build.directory}/dawn</dawnWorkDir>
   </properties>
 

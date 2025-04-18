@@ -102,12 +102,12 @@ void work_done_callback(WGPUQueueWorkDoneStatus status, void *userdata1, void *u
 
     QCallbackContext* cc = (QCallbackContext*)userdata1;
     if (status == WGPUQueueWorkDoneStatus_Success) {
-        WGPUBufferMapCallbackInfo2 mapCallbackInfo = {
+        WGPUBufferMapCallbackInfo mapCallbackInfo = {
                         .mode = WGPUCallbackMode_AllowSpontaneous,
                         .callback = buffer_map_callback,
                         .userdata1 = cc};
 
-        wgpuBufferMapAsync2(*cc->R_staging_buffer, WGPUMapMode_Read, 0, *cc->R_size, mapCallbackInfo);
+        wgpuBufferMapAsync(*cc->R_staging_buffer, WGPUMapMode_Read, 0, *cc->R_size, mapCallbackInfo);
     } else {
         fprintf(stderr, "Work done failed with status: %d\n", status);
         exit(4);
@@ -188,7 +188,7 @@ void init_gpu(long *results) {
     toggles.disabledToggleCount = 0;
 
     WGPUInstanceDescriptor instanceDesc = {
-        .nextInChain = (const WGPUChainedStruct*) &toggles,
+        .nextInChain = (WGPUChainedStruct*) &toggles,
     };
 
     instance = wgpuCreateInstance((const WGPUInstanceDescriptor*) &instanceDesc);
@@ -196,27 +196,37 @@ void init_gpu(long *results) {
 
     // Configure adapter request options for high performance
     WGPURequestAdapterOptions adapterOpts = {
-        .nextInChain = (const WGPUChainedStruct*) &toggles,
+        .nextInChain = (WGPUChainedStruct*) &toggles,
         .featureLevel = WGPUFeatureLevel_Core,
         .powerPreference = WGPUPowerPreference_HighPerformance,  // Request high-performance GPU
         .forceFallbackAdapter = false                            // Don't fall back to software
     };
 
     WGPUAdapter adapter;
-    wgpuInstanceRequestAdapter(instance, &adapterOpts, (WGPURequestAdapterCallback) handle_request_adapter, &adapter);
+
+    WGPURequestAdapterCallbackInfo adapterCallbackInfo = {
+          .nextInChain = NULL,
+          .mode = WGPUCallbackMode_AllowSpontaneous,
+          .callback = (WGPURequestAdapterCallback)handle_request_adapter,
+          .userdata1 = &adapter
+    };
+
+    wgpuInstanceRequestAdapter(instance, &adapterOpts, adapterCallbackInfo);
+    wgpuInstanceProcessEvents(instance);
     assert(adapter != NULL);
 
     // Adapter limits (memory-related insights)
-    struct WGPUSupportedLimits limits = {0};
-    struct WGPURequiredLimits requiredLimits = {0};
+    struct WGPULimits limits = {
+        nextInChain
+    };
+    struct WGPULimits requiredLimits = {};
     if (wgpuAdapterGetLimits(adapter, &limits)) {
-       results[0] = limits.limits.maxBufferSize;
-       results[1] = limits.limits.maxBindGroups;
+       results[0] = limits.maxBufferSize;
+       results[1] = limits.maxBindGroups;
        results[2] = sizeof(Params);
 
        //MAX out the limits because why not?
-       requiredLimits.nextInChain = NULL;
-       requiredLimits.limits = limits.limits;
+       requiredLimits = limits;
 
     } else {
        results[0] = -1;
@@ -226,21 +236,34 @@ void init_gpu(long *results) {
     }
 
     WGPUDeviceDescriptor deviceDesc = {
-        .nextInChain = (const WGPUChainedStruct*) &toggles,
-        .uncapturedErrorCallbackInfo2.callback = &on_device_error,
-        .deviceLostCallbackInfo2.callback = &on_lost_error,
-        .deviceLostCallbackInfo2.mode = WGPUCallbackMode_AllowSpontaneous,
-        .requiredFeatureCount = 2, //Disable at 0
-        .requiredFeatures = (const WGPUFeatureName[]) {WGPUFeatureName_DawnNative, WGPUFeatureName_Subgroups},
+        .nextInChain = (WGPUChainedStruct*) &toggles,
+        .uncapturedErrorCallbackInfo.callback = &on_device_error,
+        .deviceLostCallbackInfo.callback = &on_lost_error,
+        .deviceLostCallbackInfo.mode = WGPUCallbackMode_AllowSpontaneous,
+        .requiredFeatureCount = 1, //Disable at 0
+        .requiredFeatures = (const WGPUFeatureName[]) {WGPUFeatureName_DawnNative},
         .requiredLimits = &requiredLimits,
         .label       = "default device",
     };
 
-    wgpuAdapterRequestDevice(adapter, &deviceDesc, (WGPURequestDeviceCallback)handle_request_device, &device);
+    WGPURequestDeviceCallbackInfo deviceCallbackInfo = {
+          .mode = WGPUCallbackMode_AllowSpontaneous,
+          .callback = (WGPURequestDeviceCallback)handle_request_device,
+          .userdata1 = &device
+    };
+
+    wgpuAdapterRequestDevice(adapter, &deviceDesc, deviceCallbackInfo);
+    wgpuInstanceProcessEvents(instance);
     assert(device != NULL);
 
     // Set logging callback
-    wgpuDeviceSetLoggingCallback(device, log_callback, NULL);
+    WGPULoggingCallbackInfo loggingCallbackInfo = {
+          .callback = (WGPULoggingCallback)log_callback,
+          .userdata1 = NULL
+    };
+
+    wgpuDeviceSetLoggingCallback(device, loggingCallbackInfo);
+    wgpuInstanceProcessEvents(instance);
 
 
     queue = wgpuDeviceGetQueue(device);
@@ -355,19 +378,19 @@ WGPUShaderModule create_shader_module(WGPUDevice device, const char* shader_code
 
     WGPUShaderModuleDescriptor shaderDesc = {
         .label       = "shader",
-        .nextInChain = (const WGPUChainedStruct *)&wgslDesc,
+        .nextInChain = (WGPUChainedStruct *)&wgslDesc,
     };
 
     WGPUShaderModule shader_module = wgpuDeviceCreateShaderModule(device, &shaderDesc);
 
     bool compileComplete = false;
-    WGPUCompilationInfoCallbackInfo2 compilationCallbackInfo = {
+    WGPUCompilationInfoCallbackInfo compilationCallbackInfo = {
           .mode = WGPUCallbackMode_AllowSpontaneous,
           .callback = shader_compilation_callback,
           .userdata1 = &compileComplete
     };
 
-    wgpuShaderModuleGetCompilationInfo2(shader_module, compilationCallbackInfo);
+    wgpuShaderModuleGetCompilationInfo(shader_module, compilationCallbackInfo);
 
     wgpuInstanceProcessEvents(instance);
     while (!compileComplete) {
@@ -399,7 +422,7 @@ long register_shader(const char *data, int size) {
     return id;
 }
 
-void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized) {
 
     WGPUShaderModule shader_module = shader_lookup[shader];
     assert(shader_module);
@@ -476,7 +499,7 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
     uint32_t workgroup_count_x = (n + RN - 1) / RN;
     uint32_t workgroup_count_y = (m + RM - 1) / RM;
 
-    if (params.m == 1) {
+    if (params.m == 1 && m1_optimized > 0) {
         // Bind the M=1 optimized pipeline
         workgroup_count_x = (n + RN_M1 - 1) / RN_M1;
         workgroup_count_y = 1;
@@ -498,13 +521,13 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
     float const *buf = NULL;
     QCallbackContext context = {.mappingComplete = &mappingComplete, .R_size = &R_size, .R_staging_buffer = &R_buffer, .buf = &buf};
 
-    WGPUQueueWorkDoneCallbackInfo2 workDoneCallbackInfo = {
+    WGPUQueueWorkDoneCallbackInfo workDoneCallbackInfo = {
           .mode = WGPUCallbackMode_AllowSpontaneous,
           .callback = work_done_callback,
           .userdata1 = &context
     };
 
-    wgpuQueueOnSubmittedWorkDone2(queue, workDoneCallbackInfo);
+    wgpuQueueOnSubmittedWorkDone(queue, workDoneCallbackInfo);
 
 
     //Wait for response

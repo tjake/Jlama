@@ -180,28 +180,36 @@ public class NativeGPUTensorOperations implements TensorOperations {
             int M = at.shape().dim(0);
             int N = rowChunkSize; // b.shape().dim(0);
             int K = columnLength; // a.shape().dim(1);
+            boolean m1_optimized = false;
 
-            long shaderId = switch (bt.dType()) {
-                case F32 -> switch (at.dType()) {
-                    case F32 -> gemm_f32_id;
-                    default -> throw new RuntimeException("Unsupported type: " + at.dType());
-                };
+            long shaderId =
+                    switch (bt.dType()) {
+                        case F32 -> switch (at.dType()) {
+                            case F32 -> gemm_f32_id;
+                            default -> throw new RuntimeException("Unsupported type: " + at.dType());
+                        };
 
-                case BF16 -> switch (at.dType()) {
-                    case F32 -> gemm_bf16_id;
-                    default -> throw new RuntimeException("Unsupported type: " + at.dType());
-                };
+                        case BF16 -> switch (at.dType()) {
+                            case F32 -> gemm_bf16_id;
+                            default -> throw new RuntimeException("Unsupported type: " + at.dType());
+                        };
 
-                case Q4 -> switch (at.dType()) {
-                    case F32 -> gemm_q4_id;
-                    case I8 ->  M == 1 ? gemm_i8q4_m1_id : gemm_i8q4_id;
-                    default -> throw new RuntimeException("Unsupported type: " + at.dType());
-                };
+                        case Q4 -> switch (at.dType()) {
+                            case F32:
+                                yield gemm_q4_id;
+                            case I8:
+                                if (M == 1) {
+                                    m1_optimized = true;
+                                    yield gemm_i8q4_m1_id;
+                                } else {
+                                    yield gemm_i8q4_id;
+                                }
+                            default:
+                                throw new RuntimeException("Unsupported type: " + at.dType());
+                        };
 
-                default -> throw new RuntimeException("Unsupported type: " + bt.dType());
-            };
-
-
+                        default -> throw new RuntimeException("Unsupported type: " + bt.dType());
+                    };
 
             int aOffset = at.getOffset(0, aColumnOffset);
             int aLimit = at.getOffset(M, aColumnOffset);
@@ -244,7 +252,8 @@ public class NativeGPUTensorOperations implements TensorOperations {
                     K,
                     at.getStride(),
                     bt.getStride(),
-                    result.getStride());
+                    result.getStride(),
+                    m1_optimized ? 1 : 0);
 
         } else {
 

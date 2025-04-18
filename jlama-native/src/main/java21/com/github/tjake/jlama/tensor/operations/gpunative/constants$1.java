@@ -35,6 +35,7 @@ final class constants$1 {
         JAVA_INT,
         JAVA_INT,
         JAVA_INT,
+        JAVA_INT,
         JAVA_INT
     );
     static final MethodHandle const$2 = RuntimeHelper.downcallHandle(

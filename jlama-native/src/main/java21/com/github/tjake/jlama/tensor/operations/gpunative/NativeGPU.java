@@ -86,13 +86,13 @@ public class NativeGPU  {
     }
     /**
      * {@snippet :
-     * void gpu_gemm(long scratch_id, long shader, void* a, void* a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float* r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc);
+     * void gpu_gemm(long scratch_id, long shader, void* a, void* a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float* r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized);
      * }
      */
-    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized) {
         var mh$ = gpu_gemm$MH();
         try {
-            mh$.invokeExact(scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc);
+            mh$.invokeExact(scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc, m1_optimized);
         } catch (Throwable ex$) {
             throw new AssertionError("should not reach here", ex$);
         }

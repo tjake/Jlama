@@ -24,7 +24,7 @@ public class NativeGPU {
         throw new UnsupportedOperationException("Not implemented for this JDK version: " + Runtime.version().toString());
     }
 
-    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2,int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2,int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized) {
         throw new UnsupportedOperationException("Not implemented for this JDK version: " + Runtime.version().toString());
     }
 

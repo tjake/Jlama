@@ -63,6 +63,7 @@ final class constants$0 {
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_INT$LAYOUT,
         Constants$root.C_INT$LAYOUT,
+        Constants$root.C_INT$LAYOUT,
         Constants$root.C_INT$LAYOUT
     );
     static final MethodHandle gpu_gemm$MH = RuntimeHelper.downcallHandle(

@@ -325,6 +325,7 @@ public class NativeGPU {
             NativeGPU.C_INT,
             NativeGPU.C_INT,
             NativeGPU.C_INT,
+            NativeGPU.C_INT,
             NativeGPU.C_INT
         );
 
@@ -336,7 +337,7 @@ public class NativeGPU {
     /**
      * Function descriptor for:
      * {@snippet lang=c :
-     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc)
+     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized)
      * }
      */
     public static FunctionDescriptor gpu_gemm$descriptor() {
@@ -346,7 +347,7 @@ public class NativeGPU {
     /**
      * Downcall method handle for:
      * {@snippet lang=c :
-     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc)
+     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized)
      * }
      */
     public static MethodHandle gpu_gemm$handle() {
@@ -356,7 +357,7 @@ public class NativeGPU {
     /**
      * Address for:
      * {@snippet lang=c :
-     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc)
+     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized)
      * }
      */
     public static MemorySegment gpu_gemm$address() {
@@ -365,16 +366,16 @@ public class NativeGPU {
 
     /**
      * {@snippet lang=c :
-     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc)
+     * void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized)
      * }
      */
-    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc) {
+    public static void gpu_gemm(long scratch_id, long shader, MemorySegment a, MemorySegment a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, MemorySegment r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized) {
         var mh$ = gpu_gemm.HANDLE;
         try {
             if (TRACE_DOWNCALLS) {
-                traceDowncall("gpu_gemm", scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc);
+                traceDowncall("gpu_gemm", scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc, m1_optimized);
             }
-            mh$.invokeExact(scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc);
+            mh$.invokeExact(scratch_id, shader, a, a2, aoffset, alimit, bid, bid2, boffset, blimit, r, roffset, rlimit, m, n0, n, k, lda, ldb, ldc, m1_optimized);
         } catch (Throwable ex$) {
            throw new AssertionError("should not reach here", ex$);
         }
