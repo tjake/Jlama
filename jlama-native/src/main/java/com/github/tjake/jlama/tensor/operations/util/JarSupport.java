@@ -35,6 +35,10 @@ public class JarSupport {
         String ext = RuntimeSupport.isMac() ? ".dylib" : RuntimeSupport.isWin() ? ".dll" : ".so";
         URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/lib" + libname + ext);
 
+        if (lib == null) {
+            lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/" + libname + ext);
+        }
+
         if (lib != null) {
             try {
                 final File libpath = Files.createTempDirectory("jlama").toFile();
@@ -60,7 +64,7 @@ public class JarSupport {
             }
         }
 
-        logger.warn("jlama-native shared library not found");
+        logger.warn("jlama-native shared library not found: {}{}", libname, ext);
         return false;
     }
 }
