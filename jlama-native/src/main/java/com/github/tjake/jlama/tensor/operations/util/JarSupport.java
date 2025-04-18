@@ -33,10 +33,12 @@ public class JarSupport {
 
     public static boolean maybeLoadLibrary(String libname) {
         String ext = RuntimeSupport.isMac() ? ".dylib" : RuntimeSupport.isWin() ? ".dll" : ".so";
-        URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/lib" + libname + ext);
+        String name = "lib" + libname + ext;
+        URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/" + name);
 
         if (lib == null) {
-            lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/" + libname + ext);
+            name = libname + ext;
+            lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/" + name);
         }
 
         if (lib != null) {
@@ -44,7 +46,7 @@ public class JarSupport {
                 final File libpath = Files.createTempDirectory("jlama").toFile();
                 libpath.deleteOnExit(); // just in case
 
-                File libfile = Paths.get(libpath.getAbsolutePath(), "lib" + libname + ext).toFile();
+                File libfile = Paths.get(libpath.getAbsolutePath(), name).toFile();
                 libfile.deleteOnExit(); // just in case
 
                 final InputStream in = lib.openStream();
