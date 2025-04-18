@@ -216,9 +216,7 @@ void init_gpu(long *results) {
     assert(adapter != NULL);
 
     // Adapter limits (memory-related insights)
-    struct WGPULimits limits = {
-        nextInChain
-    };
+    struct WGPULimits limits = {};
     struct WGPULimits requiredLimits = {};
     if (wgpuAdapterGetLimits(adapter, &limits)) {
        results[0] = limits.maxBufferSize;
