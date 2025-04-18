@@ -213,7 +213,12 @@ void init_gpu(long *results) {
 
     wgpuInstanceRequestAdapter(instance, &adapterOpts, adapterCallbackInfo);
     wgpuInstanceProcessEvents(instance);
-    assert(adapter != NULL);
+    if (adapter == NULL) {
+        results[0] = -1;
+        results[1] = -1;
+        results[2] = -1;
+        return;
+    }
 
     // Adapter limits (memory-related insights)
     struct WGPULimits limits = {};
