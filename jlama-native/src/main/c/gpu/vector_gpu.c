@@ -328,7 +328,6 @@ void on_error_scope(WGPUPopErrorScopeStatus status,  WGPUErrorType type,  struct
     if (type == WGPUErrorType_OutOfMemory) {
         // Mark that this allocation failed due to OOM
         *oom_flag = true;
-        fprintf(stderr, "[OOM] %s\n", message);
     }
 }
 
