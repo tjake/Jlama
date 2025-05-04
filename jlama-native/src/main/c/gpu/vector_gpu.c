@@ -192,7 +192,6 @@ void init_gpu(long *results) {
 
     WGPUInstanceDescriptor instanceDesc = {
         .nextInChain = (WGPUChainedStruct*) &toggles,
-        .instanceFlags = WGPUInstanceFlag_DiscardHALLabels
     };
 
     instance = wgpuCreateInstance((const WGPUInstanceDescriptor*) &instanceDesc);
