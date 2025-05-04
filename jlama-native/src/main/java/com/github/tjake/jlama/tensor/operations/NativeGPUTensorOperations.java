@@ -186,10 +186,15 @@ public class NativeGPUTensorOperations implements TensorOperations {
             params_size = Ints.checkedCast(lb.get(2));
 
             gemm_f32_id = RuntimeSupport.isMac() ? registerShader("gemm_f32.wgsl") : registerShader("gemm_f32_v4.wgsl");
+            if (gemm_f32_id == -1)
+                throw new RuntimeException("Error creating shader");
             gemm_bf16_id = registerShader("gemm_bf16_v4.wgsl");
             gemm_q4_id = registerShader("gemm_q4.wgsl");
             gemm_i8q4_id = registerShader("gemm_i8q4.wgsl");
             gemm_i8q4_m1_id = registerShader("gemm_i8q4_v5.wgsl");
+
+            if (gemm_f32_id == -1 || gemm_bf16_id == -1 || gemm_q4_id == -1 || gemm_i8q4_id == -1 || gemm_i8q4_m1_id == -1)
+                throw new RuntimeException("Error creating shader");
 
         } catch (Throwable t) {
             logger.error("Failed to load native GPU operations", t);
