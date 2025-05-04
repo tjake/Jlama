@@ -22,6 +22,8 @@ import java.nio.LongBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class NativeGPUTensorOperations implements TensorOperations {
 
@@ -43,6 +45,9 @@ public class NativeGPUTensorOperations implements TensorOperations {
     private long gemm_i8q4_id;
 
     private int params_size;
+
+    private final AtomicLong totalBytesAllocated = new AtomicLong(0);
+    private final AtomicBoolean limitReached = new AtomicBoolean(false);
 
     private static final TensorOperations delegate;
 
@@ -77,35 +82,67 @@ public class NativeGPUTensorOperations implements TensorOperations {
     @Override
     public void registerModelTensor(AbstractTensor t) {
 
-        if (t.getMemorySegment().byteSize() >= maxBindBytes)
+        long byteSize = t.getMemorySegment().byteSize();
+        if (t.dType() == DType.Q4) {
+            byteSize += ((Q4ByteBufferTensor) t).getBlockF().getMemorySegment().byteSize();
+        }
+
+        if (tensorCache.containsKey(t.getUid()) || limitReached.get()) return;
+
+        if (byteSize >= maxBindBytes)
         {
-            logger.info("Tensor {} is too large to bind, using fallback operations", t);
+            logger.warn("Tensor {} is too large to bind, using fallback operations", t);
             return;
         }
 
-        tensorCache.computeIfAbsent(t.getUid(), s -> {
-            synchronized (tensorCache) {
-                Long id = NativeGPU.register_tensor(t.getMemorySegment(), (int) t.getMemorySegment().byteSize());
-                logger.debug("Registering GPU tensor {} as {}", t, id);
-                return id;
-            }
-        });
+        if ((byteSize + totalBytesAllocated.get()) > maxBindBytes) {
+            logger.warn("Reached max bind bytes: {}", totalBytesAllocated);
+            limitReached.set(true);
+        }
 
-        if (t.dType() == DType.Q4) {
-            Q4ByteBufferTensor q4 = (Q4ByteBufferTensor) t;
-            tensorCache.computeIfAbsent(q4.getBlockF().getUid(), s -> {
+        try {
+            tensorCache.computeIfAbsent(t.getUid(), s -> {
                 synchronized (tensorCache) {
-                    Long id = NativeGPU.register_tensor(q4.getBlockF().getMemorySegment(), (int) q4.getBlockF().getMemorySegment().byteSize());
-                    logger.debug("Registering GPU tensor {} as {}", q4.getBlockF(), id);
+                    Long id = NativeGPU.register_tensor(
+                            t.getMemorySegment(), (int) t.getMemorySegment().byteSize());
+                    if (id == -1) {
+                        throw new RuntimeException("OOM");
+                    }
+                    logger.debug("Registering GPU tensor {} as {}", t, id);
                     return id;
                 }
             });
+
+            if (t.dType() == DType.Q4) {
+                Q4ByteBufferTensor q4 = (Q4ByteBufferTensor) t;
+                tensorCache.computeIfAbsent(q4.getBlockF().getUid(), s -> {
+                    synchronized (tensorCache) {
+                        Long id = NativeGPU.register_tensor(q4.getBlockF().getMemorySegment(), (int)
+                                q4.getBlockF().getMemorySegment().byteSize());
+                        if (id == -1) {
+                            throw new RuntimeException("OOM");
+                        }
+                        logger.debug("Registering GPU tensor {} as {}", q4.getBlockF(), id);
+                        return id;
+                    }
+                });
+            }
+
+            totalBytesAllocated.addAndGet(byteSize);
+        } catch (RuntimeException r) {
+            tensorCache.remove(t.getUid()); //Remove top level
+            //TODO Cleanup already allocated tensors
+            limitReached.set(true);
+            logger.warn("GPU Memory Limit reached, falling back to CPU");
         }
     }
 
     private final ThreadLocal<Long> gpuBuffers = ThreadLocal.withInitial(() -> {
-        // Allocate a 1MB scratch buffers
+        // Allocate scratch buffers
         synchronized (tensorCache) {
+            if (limitReached.get()) return null;
+
+            totalBytesAllocated.addAndGet(MAX_SCRATCH_SIZE + params_size + MAX_SCRATCH_SIZE + (MAX_SCRATCH_SIZE/Q4ByteBufferTensor.BLOCK_SIZE));
             return NativeGPU.register_scratch_buffers(params_size, MAX_SCRATCH_SIZE, MAX_SCRATCH_SIZE);
         }
     });
@@ -124,6 +161,10 @@ public class NativeGPUTensorOperations implements TensorOperations {
         shaderBuffer.put(shader);
         shaderBuffer.flip();
         long id = NativeGPU.register_shader(MemorySegment.ofBuffer(shaderBuffer), shader.length + 1);
+        if (id == -1) {
+            throw new RuntimeException("Failed to register shader: " + name);
+        }
+
         logger.debug("Registered shader {} as {}", name, id);
         return id;
     }
@@ -157,7 +198,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
     }
 
     private boolean gpuSupported(Long btId, DType atype, DType btype, DType rtype ) {
-        return btId != null && (atype == DType.F32 || atype == DType.I8) && (btype == DType.F32 || btype == DType.BF16 || btype == DType.Q4) && rtype == DType.F32;
+        return !limitReached.get() && btId != null && (atype == DType.F32 || atype == DType.I8) && (btype == DType.F32 || btype == DType.BF16 || btype == DType.Q4) && rtype == DType.F32;
     }
 
     @Override
@@ -231,7 +272,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
                 throw new RuntimeException("input scratch is too small: " + aLimit * at.dType().size() + " > " + MAX_SCRATCH_SIZE);
 
             int adjBRowOffset = bRowOffset - bt.shape().sparseRowOffset();
-            long bid2 = bt.dType() == DType.Q4 ? tensorCache.get(((Q4ByteBufferTensor) bt).getBlockF().getUid()) : -1;
+            Long bid2 = bt.dType() == DType.Q4 ? tensorCache.get(((Q4ByteBufferTensor) bt).getBlockF().getUid()) : -1;
             NativeGPU.gpu_gemm(
                     scratchId,
                     shaderId,

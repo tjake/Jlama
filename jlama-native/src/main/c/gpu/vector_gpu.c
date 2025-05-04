@@ -146,17 +146,7 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
     *compileComplete = true;
 }
 
-static void on_device_error(WGPUDevice const * device, WGPUErrorType type, struct WGPUStringView message, void* userdata1, void* userdata2)
-{
-    fprintf(stderr, "Device error: %.*s\n", (int)message.length, message.data);
-    exit(10);
-}
 
-void static on_lost_error(WGPUDevice const * device, WGPUDeviceLostReason reason, struct WGPUStringView message, void* userdata1, void* userdata2)
-{
-    fprintf(stderr, "Device lost: %.*s\n", (int)message.length, message.data);
-    exit(8);
-}
 
 
 WGPUInstance instance = NULL;
@@ -175,8 +165,21 @@ int shader_lookup_idx = 0;
 WGPUComputePipeline shader_pipeline_lookup[1024];
 int shader_pipeline_lookup_idx = 0;
 
-
 WGPUBindGroupLayout bind_group_layout;
+
+static volatile bool has_errored = false;
+
+static void on_device_error(WGPUDevice const * device, WGPUErrorType type, struct WGPUStringView message, void* userdata1, void* userdata2)
+{
+    fprintf(stderr, "Device error: %.*s\n", (int)message.length, message.data);
+    has_errored = true;
+}
+
+void static on_lost_error(WGPUDevice const * device, WGPUDeviceLostReason reason, struct WGPUStringView message, void* userdata1, void* userdata2)
+{
+    fprintf(stderr, "Device lost: %.*s\n", (int)message.length, message.data);
+    exit(8);
+}
 
 void init_gpu(long *results) {
 
@@ -320,7 +323,21 @@ WGPUComputePipeline init_pipeline(WGPUShaderModule shader_module) {
     return pipeline;
 }
 
+void on_error_scope(WGPUPopErrorScopeStatus status,  WGPUErrorType type,  struct WGPUStringView message,  void *userdata1, void *userdata2) {
+    bool *oom_flag = (bool*)userdata1;
+    if (type == WGPUErrorType_OutOfMemory) {
+        // Mark that this allocation failed due to OOM
+        *oom_flag = true;
+        fprintf(stderr, "[OOM] %s\n", message);
+    }
+}
+
+
 WGPUBuffer create_buffer(WGPUDevice device, void* data, size_t size, WGPUBufferUsage usage) {
+    bool sawOOM = false;
+
+    wgpuDevicePushErrorScope(device, WGPUErrorFilter_OutOfMemory);
+
     WGPUBufferDescriptor desc = {
         .usage = usage,
         .size = size,
@@ -328,6 +345,20 @@ WGPUBuffer create_buffer(WGPUDevice device, void* data, size_t size, WGPUBufferU
         .label = "weights"
     };
     WGPUBuffer buffer = wgpuDeviceCreateBuffer(device, &desc);
+    WGPUPopErrorScopeCallbackInfo popCallbackInfo = {
+          .mode = WGPUCallbackMode_AllowSpontaneous,
+          .callback = on_error_scope,
+          .userdata1 = &sawOOM
+    };
+    wgpuDevicePopErrorScope(device, popCallbackInfo);
+    wgpuInstanceProcessEvents(instance);
+    if (sawOOM) {
+        if (buffer != NULL) {
+            wgpuBufferDestroy(buffer);
+        }
+        fprintf(stderr, "Failed to allocate buffer of size %zu\n", size);
+        return NULL;
+    }
 
     void* mappedMemory = wgpuBufferGetMappedRange(buffer, 0, size);
     memcpy(mappedMemory, data, size);
@@ -348,6 +379,11 @@ WGPUBuffer create_working_buffer(WGPUDevice device, char const *label, size_t si
 
 long register_tensor(const char *data, int size) {
     WGPUBuffer buffer = create_buffer(device, (void *)data, size, WGPUBufferUsage_Storage);
+
+    if (buffer == NULL) {
+        return -1;
+    }
+
     tensor_lookup[tensor_lookup_idx] = buffer;
     long id = tensor_lookup_idx;
     tensor_lookup_idx++;
@@ -412,10 +448,19 @@ long register_shader(const char *data, int size) {
     assert(shader_lookup_idx < 1024);
 
     WGPUShaderModule shader = create_shader_module(device, data);
+
+    if (has_errored) {
+        return -1;
+    }
+
     shader_lookup[shader_lookup_idx] = shader;
     long id = shader_lookup_idx;
 
     shader_pipeline_lookup[shader_pipeline_lookup_idx] = init_pipeline(shader);
+
+    if (has_errored) {
+        return -1;
+    }
 
     shader_lookup_idx++;
     shader_pipeline_lookup_idx++;
