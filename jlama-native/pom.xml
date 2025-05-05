@@ -24,6 +24,8 @@
     <defaultJarFile>${project.build.directory}/${project.build.finalName}.jar</defaultJarFile>
     <nativeJarFile>${project.build.directory}/${project.build.finalName}-${jni.classifier}.jar</nativeJarFile>
     <dawnTag>2025-04-09</dawnTag>
+    <dxcTag>v1.8.2502</dxcTag>
+    <dxcName>dxc_2025_02_20.zip</dxcName>
     <dawnWorkDir>${project.build.directory}/dawn</dawnWorkDir>
   </properties>
 
@@ -365,6 +367,12 @@
                     <arg value="${dawnTag}" />
                     <arg value="win" />
                     <arg value="x64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
+                  <exec executable="C:\Program Files\Git\bin\bash.exe" failonerror="true" resolveexecutable="true">
+                    <arg value="./download_dxc.sh" />
+                    <arg value="${dxcTag}" />
+                    <arg value="${dxcName}" />
                     <arg value="${dawnWorkDir}" />
                   </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
