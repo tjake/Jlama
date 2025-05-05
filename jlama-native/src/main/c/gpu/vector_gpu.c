@@ -189,7 +189,7 @@ void init_gpu(int64_t *results) {
 
 #if defined(_WIN32)
     toggles.enabledToggleCount = 2;
-    toggles.enabledToggles = (const char* const[]){"use_dxc", "dump_shader"};
+    toggles.enabledToggles = (const char* const[]){"use_dxc", "dump_shaders"};
 #else
     toggles.enabledToggleCount = 9;
     toggles.enabledToggles = (const char* const[]){"allow_unsafe_apis", "timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "disable_workgroup_init", "use_tint_ir", "use_dxc"};
