@@ -31,7 +31,7 @@ REPO="DirectXShaderCompiler"
 TAG="${1:-}"
 ASSET_NAME="${2:-}"
 TARGET_DIR="${3:-./dawn-native}"
-ARCH="${4:-x86}"
+ARCH="${4:-x64}"
 
 # Check mandatory parameters
 if [ -z "$TAG" ] || [ -z "$ASSET_NAME" ] || [ -z "$ARCH" ]; then
