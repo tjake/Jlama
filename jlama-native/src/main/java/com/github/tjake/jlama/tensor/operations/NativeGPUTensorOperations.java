@@ -161,7 +161,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
         shaderBuffer.put(shader);
         shaderBuffer.flip();
         long id = NativeGPU.register_shader(MemorySegment.ofBuffer(shaderBuffer), shader.length + 1);
-        if (id == -1 || ((int)id) == -1) { //windows long is 32bits
+        if (id == -1) { 
             throw new RuntimeException("Failed to register shader: " + name);
         }
 

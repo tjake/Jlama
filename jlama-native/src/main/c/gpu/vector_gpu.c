@@ -181,7 +181,7 @@ void static on_lost_error(WGPUDevice const * device, WGPUDeviceLostReason reason
     exit(8);
 }
 
-void init_gpu(long *results) {
+void init_gpu(int64_t *results) {
 
     WGPUDawnTogglesDescriptor toggles = {};
     toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
@@ -376,7 +376,7 @@ WGPUBuffer create_working_buffer(WGPUDevice device, char const *label, size_t si
     return wgpuDeviceCreateBuffer(device, &desc);
 }
 
-long register_tensor(const char *data, int size) {
+int64_t register_tensor(const char *data, int size) {
     WGPUBuffer buffer = create_buffer(device, (void *)data, size, WGPUBufferUsage_Storage);
 
     if (buffer == NULL) {
@@ -384,13 +384,13 @@ long register_tensor(const char *data, int size) {
     }
 
     tensor_lookup[tensor_lookup_idx] = buffer;
-    long id = tensor_lookup_idx;
+    int64_t id = tensor_lookup_idx;
     tensor_lookup_idx++;
 
     return id;
 }
 
-long register_scratch_buffers( int params_size, int input_size, int result_size) {
+int64_t register_scratch_buffers( int params_size, int input_size, int result_size) {
     WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
     WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
     WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
@@ -399,7 +399,7 @@ long register_scratch_buffers( int params_size, int input_size, int result_size)
 
     Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, empty_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
-    long id = scratch_lookup_idx;
+    int64_t id = scratch_lookup_idx;
     scratch_lookup_idx++;
 
     return id;
@@ -442,7 +442,7 @@ WGPUShaderModule create_shader_module(WGPUDevice device, const char* shader_code
     return shader_module;
 }
 
-long register_shader(const char *data, int size) {
+int64_t register_shader(const char *data, int size) {
 
     assert(shader_lookup_idx < 1024);
 
@@ -453,7 +453,7 @@ long register_shader(const char *data, int size) {
     }
 
     shader_lookup[shader_lookup_idx] = shader;
-    long id = shader_lookup_idx;
+    int64_t id = shader_lookup_idx;
 
     shader_pipeline_lookup[shader_pipeline_lookup_idx] = init_pipeline(shader);
 
@@ -469,7 +469,7 @@ long register_shader(const char *data, int size) {
     return id;
 }
 
-void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int aoffset, int alimit, long bid, long bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized) {
+void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2, int aoffset, int alimit, int64_t bid, int64_t bid2, int boffset, int blimit, float *r, int roffset, int rlimit, int m, int n0, int n, int k, int lda, int ldb, int ldc, int m1_optimized) {
 
     WGPUShaderModule shader_module = shader_lookup[shader];
     assert(shader_module);
@@ -597,7 +597,6 @@ void gpu_gemm(long scratch_id, long shader, const void *a, const void *a2, int a
     wgpuCommandEncoderRelease(encoder); // release encoder after it's finished
 
     wgpuBindGroupRelease(bind_group);
-
 }
 
 
