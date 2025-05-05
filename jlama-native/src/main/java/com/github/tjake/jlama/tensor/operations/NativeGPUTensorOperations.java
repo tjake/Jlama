@@ -31,12 +31,6 @@ public class NativeGPUTensorOperations implements TensorOperations {
     private static final int MAX_SCRATCH_SIZE = 1 << 24;
 
     static {
-
-        if (RuntimeSupport.isWin()) {
-            if (!JarSupport.maybeLoadLibrary("dxcompiler")) System.loadLibrary("dxcompiler");
-            if (!JarSupport.maybeLoadLibrary("dxil")) System.loadLibrary("dxil");
-        }
-
         if (!JarSupport.maybeLoadLibrary("webgpu_dawn")) System.loadLibrary("webgpu_dawn");
         if (!JarSupport.maybeLoadLibrary("jlamagpu")) System.loadLibrary("jlamagpu");
     }
