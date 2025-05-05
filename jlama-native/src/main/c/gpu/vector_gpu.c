@@ -186,8 +186,8 @@ void init_gpu(long *results) {
     WGPUDawnTogglesDescriptor toggles = {};
     toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
     toggles.chain.next = NULL;
-    toggles.enabledToggleCount = 8;
-    toggles.enabledToggles = (const char* const[]){"allow_unsafe_apis", "timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "disable_workgroup_init", "use_tint_ir"};
+    toggles.enabledToggleCount = 9;
+    toggles.enabledToggles = (const char* const[]){"allow_unsafe_apis", "timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "disable_workgroup_init", "use_tint_ir", "use_dxc"};
     toggles.disabledToggleCount = 0;
 
     WGPUInstanceDescriptor instanceDesc = {
