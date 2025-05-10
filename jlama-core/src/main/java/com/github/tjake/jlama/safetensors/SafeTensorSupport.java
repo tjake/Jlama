@@ -316,6 +316,14 @@ public class SafeTensorSupport {
 
                 @Override
                 public void write(byte[] b, int off, int len) throws IOException {
+                    if (b == null) {
+                        throw new NullPointerException();
+                    }
+                
+                    if (off < 0 || len < 0 || len > b.length || off > b.length - len) {
+                        throw new ArrayIndexOutOfBoundsException();
+                    }
+                
                     raf.write(b, off, len);
                 }
             });
