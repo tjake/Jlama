@@ -186,7 +186,7 @@ void init_gpu(int64_t *results) {
     toggles.chain.next = NULL;
 
 #if defined(_WIN32)
-    toggles.enabledToggleCount = 1;
+    toggles.enabledToggleCount = 0;
     toggles.enabledToggles = (const char* const[]){"use_dxc", "skip_validation"};
 #else
     toggles.enabledToggleCount = 9;
