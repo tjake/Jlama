@@ -146,24 +146,21 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
     *compileComplete = true;
 }
 
-
-
-
 WGPUInstance instance = NULL;
 WGPUDevice device = NULL;
 WGPUQueue queue = NULL;
 
 WGPUBuffer tensor_lookup[8192];
-int tensor_lookup_idx = 0;
+int64_t tensor_lookup_idx = 0;
 
 Scratch scratch_lookup[8192];
-int scratch_lookup_idx = 0;
+int64_t scratch_lookup_idx = 0;
 
 WGPUShaderModule shader_lookup[1024];
-int shader_lookup_idx = 0;
+int64_t shader_lookup_idx = 0;
 
 WGPUComputePipeline shader_pipeline_lookup[1024];
-int shader_pipeline_lookup_idx = 0;
+int64_t shader_pipeline_lookup_idx = 0;
 
 WGPUBindGroupLayout bind_group_layout;
 
