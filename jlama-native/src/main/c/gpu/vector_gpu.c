@@ -185,7 +185,7 @@ void init_gpu(int64_t *results) {
     toggles.chain.next = NULL;
 
 #if defined(_WIN32)
-    toggles.enabledToggleCount = 2;
+    toggles.enabledToggleCount = 1;
     toggles.enabledToggles = (const char* const[]){"use_dxc", "dump_shaders"};
 #else
     toggles.enabledToggleCount = 9;
@@ -315,7 +315,7 @@ WGPUComputePipeline init_pipeline(WGPUShaderModule shader_module) {
     WGPUComputeState compute_state = {};
     compute_state.module = shader_module;
     compute_state.entryPoint.data = "main";
-    compute_state.entryPoint.length = 6;
+    compute_state.entryPoint.length = 4;
 
     // Create compute pipeline with the pipeline layout
     WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &(WGPUComputePipelineDescriptor){
