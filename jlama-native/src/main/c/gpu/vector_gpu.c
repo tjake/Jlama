@@ -184,13 +184,8 @@ void init_gpu(int64_t *results) {
     toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
     toggles.chain.next = NULL;
 
-#if defined(_WIN32)
-    toggles.enabledToggleCount = 1;
-    toggles.enabledToggles = (const char* const[]){"use_dxc", "dump_shaders"};
-#else
     toggles.enabledToggleCount = 9;
     toggles.enabledToggles = (const char* const[]){"allow_unsafe_apis", "timestamp_quantization", "skip_validation", "disable_robustness", "disallow_spirv", "disable_lazy_clear_for_mapped_at_creation_buffer", "disable_workgroup_init", "use_tint_ir", "use_dxc"};
-#endif
     toggles.disabledToggleCount = 0;
 
     WGPUInstanceDescriptor instanceDesc = {
@@ -394,9 +389,9 @@ int64_t register_tensor(const char *data, int size) {
 }
 
 int64_t register_scratch_buffers( int params_size, int input_size, int result_size) {
-    WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
-    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
-    WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapWrite);
+    WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst );
     WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapRead );
     WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 0, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
 
