@@ -188,6 +188,11 @@ public class NativeGPUTensorOperations implements TensorOperations {
             }
 
             maxBindBytes = lb.get(0);
+            //GPU must have >3G ram
+            if (maxBindBytes < 3L * 1024 * 1024 * 1024) {
+                limitReached.set(true);
+                throw new RuntimeException("GPU has less than 3GB of memory, falling back to CPU");
+            }
             logger.info("Native GPU Operations loaded with {} memory and {} groups", lb.get(0), lb.get(1));
             params_size = Ints.checkedCast(lb.get(2));
 
