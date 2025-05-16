@@ -22,6 +22,7 @@ typedef struct {
     WGPUBuffer input2_buffer;
     WGPUBuffer params_buffer;
     WGPUBuffer result_buffer;
+    WGPUBuffer result_staging_buffer;
     WGPUBuffer empty_buffer;
 } Scratch;
 
@@ -185,7 +186,7 @@ void init_gpu(int64_t *results) {
     toggles.chain.next = NULL;
 
 #if defined(_WIN32)
-    toggles.enabledToggleCount = 2;
+    toggles.enabledToggleCount = 1;
     toggles.enabledToggles = (const char* const[]){"use_dxc", "skip_validation"};
 #else
     toggles.enabledToggleCount = 9;
@@ -397,10 +398,11 @@ int64_t register_scratch_buffers( int params_size, int input_size, int result_si
     WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst );
-    WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapRead );
+    WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
+    WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
     WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 0, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
 
-    Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, empty_buffer};
+    Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, result_staging_buffer, empty_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
     int64_t id = scratch_lookup_idx;
     scratch_lookup_idx++;
@@ -501,7 +503,9 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
 
     size_t R_size = rlimit;
     WGPUBuffer R_buffer = s.result_buffer;
+    WGPUBuffer R_staging_buffer = s.result_staging_buffer;
     assert(R_buffer);
+    assert(R_staging_buffer);
 
     // Create uniform buffer for parameters
     Params params = {m, n + n0, k, lda, ldb, ldc};
@@ -559,6 +563,8 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
     wgpuComputePassEncoderEnd(compute_pass);
     wgpuComputePassEncoderRelease(compute_pass);
 
+    wgpuCommandEncoderCopyBufferToBuffer(encoder, R_buffer, 0, R_staging_buffer, 0, R_size);
+
     WGPUCommandBuffer command_buffer = wgpuCommandEncoderFinish(encoder, &(const WGPUCommandBufferDescriptor){
                                                                                  .label = "command_buffer",
                                                                          });
@@ -569,7 +575,7 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
     // Wait for work to complete
     bool mappingComplete = false;
     float const *buf = NULL;
-    QCallbackContext context = {.mappingComplete = &mappingComplete, .R_size = &R_size, .R_staging_buffer = &R_buffer, .buf = &buf};
+    QCallbackContext context = {.mappingComplete = &mappingComplete, .R_size = &R_size, .R_staging_buffer = &R_staging_buffer, .buf = &buf};
 
     WGPUQueueWorkDoneCallbackInfo workDoneCallbackInfo = {
           .mode = WGPUCallbackMode_AllowSpontaneous,
@@ -595,7 +601,7 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
         }
     }
 
-    wgpuBufferUnmap(R_buffer);
+    wgpuBufferUnmap(R_staging_buffer);
     wgpuCommandBufferRelease(command_buffer);
     wgpuCommandEncoderRelease(encoder); // release encoder after it's finished
 
