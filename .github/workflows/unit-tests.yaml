@@ -39,7 +39,7 @@ jobs:
       # Always upload build output and test reports, even on failure
       - name: Upload build artifacts
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           # give each OS its own artifact bundle
           name: build-artifacts-${{ matrix.os }}
