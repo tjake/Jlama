@@ -31,4 +31,17 @@ jobs:
           mvn-toolchain-vendor: AdoptOpenJDK
           cache: maven
       - name: Compile, run tests, and package (JDK 20/21/22)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mvn -B package
+
+      # Always upload build output and test reports, even on failure
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # give each OS its own artifact bundle
+          name: build-artifacts-${{ matrix.os }}
+          path: |
+            jlama-cli/target/jlama-cli.jar
