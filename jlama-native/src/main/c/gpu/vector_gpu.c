@@ -186,7 +186,7 @@ void init_gpu(int64_t *results) {
     toggles.chain.next = NULL;
 
 #if defined(_WIN32)
-    toggles.enabledToggleCount = 2;
+    toggles.enabledToggleCount = 1;
     toggles.enabledToggles = (const char* const[]){"use_dxc", "skip_validation"};
 #else
     toggles.enabledToggleCount = 9;
@@ -488,7 +488,7 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
     WGPUBuffer A2_buffer = a2 == NULL ? s.empty_buffer : s.input2_buffer;
     // For Q8 the offsets are not in bytes, but in 4 byte chunks
     // So to get to the offset & size of scales array we multiply by 4 to get the number of floats quantized
-    size_t A2_size = a2 == NULL ? 0 : (A_size * 4)/Q8_BLOCK_SIZE;
+    size_t A2_size = a2 == NULL ? 8 : (A_size * 4)/Q8_BLOCK_SIZE; // use bind size 8 in case of zero due to min bind size in windows
     size_t A2_offset = a2 == NULL ? 0 : (aoffset * 4)/Q8_BLOCK_SIZE;
 
     size_t B_size = blimit - boffset;
@@ -498,7 +498,7 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
     WGPUBuffer B2_buffer = bid2 == -1 ? s.empty_buffer : tensor_lookup[bid2];
     // For Q4 the offsets are not in bytes, but in 4 byte chunks
     // So to get to the offset & size of scales array we double to get to bytes (Q4 -> u8) and multiply by 4 to the number of floats quantized
-    size_t B2_size = bid2 == -1 ? 0 : (B_size * 2 * 4)/Q4_BLOCK_SIZE;
+    size_t B2_size = bid2 == -1 ? 8 : (B_size * 2 * 4)/Q4_BLOCK_SIZE; // use bind size 8 in case of zero due to min bind size in windows
     size_t B2_offset = bid2 == -1 ? 0 : (boffset * 2 * 4)/Q4_BLOCK_SIZE;
 
     size_t R_size = rlimit;
