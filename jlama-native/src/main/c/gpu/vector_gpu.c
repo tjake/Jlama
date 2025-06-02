@@ -400,7 +400,7 @@ int64_t register_scratch_buffers( int params_size, int input_size, int result_si
     WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst );
     WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
     WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
-    WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 0, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    WGPUBuffer empty_buffer = create_working_buffer(device, "empty", 8, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
 
     Scratch s = {input_buffer, input2_buffer, params_buffer, result_buffer, result_staging_buffer, empty_buffer};
     scratch_lookup[scratch_lookup_idx] = s;
