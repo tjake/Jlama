@@ -95,16 +95,17 @@ public class NativeGPUTensorOperations implements TensorOperations {
 
         if (tensorCache.containsKey(t.getUid()) || limitReached.get()) return;
 
-        if (byteSize >= maxBindBytes)
-        {
-            logger.warn("Tensor {} is too large to bind, using fallback operations", t);
-            return;
-        }
-
-        if ((byteSize + totalBytesAllocated.get()) > maxBindBytes) {
-            logger.warn("Reached max bind bytes: {}", totalBytesAllocated);
-            limitReached.set(true);
-        }
+        // We can't accurately know the amount of GPU memory available, so we will just let the GPU handle it
+//        if (byteSize >= maxBindBytes)
+//        {
+//            logger.warn("Tensor {} is too large to bind, using fallback operations", t);
+//            return;
+//        }
+//
+//        if ((byteSize + totalBytesAllocated.get()) > maxBindBytes) {
+//            logger.warn("Reached max bind bytes: {}", totalBytesAllocated);
+//            limitReached.set(true);
+//        }
 
         try {
             tensorCache.computeIfAbsent(t.getUid(), s -> {
@@ -188,11 +189,7 @@ public class NativeGPUTensorOperations implements TensorOperations {
             }
 
             maxBindBytes = lb.get(0);
-            //GPU must have >3G ram
-            if (maxBindBytes < 3L * 1024 * 1024 * 1024) {
-                limitReached.set(true);
-                throw new RuntimeException("GPU has less than 3GB of memory, falling back to CPU");
-            }
+
             logger.info("Native GPU Operations loaded with {} memory and {} groups", lb.get(0), lb.get(1));
             params_size = Ints.checkedCast(lb.get(2));
 
