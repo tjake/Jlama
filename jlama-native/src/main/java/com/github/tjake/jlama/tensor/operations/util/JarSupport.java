@@ -33,14 +33,20 @@ public class JarSupport {
 
     public static boolean maybeLoadLibrary(String libname) {
         String ext = RuntimeSupport.isMac() ? ".dylib" : RuntimeSupport.isWin() ? ".dll" : ".so";
-        URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/lib" + libname + ext);
+        String name = "lib" + libname + ext;
+        URL lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/" + name);
+
+        if (lib == null) {
+            name = libname + ext;
+            lib = JarSupport.class.getClassLoader().getResource("META-INF/native/lib/" + name);
+        }
 
         if (lib != null) {
             try {
                 final File libpath = Files.createTempDirectory("jlama").toFile();
                 libpath.deleteOnExit(); // just in case
 
-                File libfile = Paths.get(libpath.getAbsolutePath(), "lib" + libname + ext).toFile();
+                File libfile = Paths.get(libpath.getAbsolutePath(), name).toFile();
                 libfile.deleteOnExit(); // just in case
 
                 final InputStream in = lib.openStream();
@@ -53,14 +59,14 @@ public class JarSupport {
                 out.close();
                 in.close();
                 System.load(libfile.getAbsolutePath());
-                logger.debug("Loaded {}-native library: {}", libname, libfile.getAbsolutePath());
+                logger.debug("Loaded {} library: {}", libname, libfile.getAbsolutePath());
                 return true;
             } catch (IOException e) {
-                logger.warn("Error loading {}-native library", libname);
+                logger.warn("Error loading {} library", libname);
             }
         }
 
-        logger.warn("jlama-native shared library not found");
+        logger.warn("jlama-native shared library not found: {}{}", libname, ext);
         return false;
     }
 }
