@@ -396,7 +396,7 @@ int64_t register_tensor(const char *data, int size) {
 
 int64_t register_scratch_buffers( int params_size, int input_size, int result_size) {
     WGPUBuffer input_buffer = create_working_buffer(device, "input", input_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
-    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", input_size/Q8_BLOCK_SIZE, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
+    WGPUBuffer input2_buffer = create_working_buffer(device, "input2", (input_size/Q8_BLOCK_SIZE) * sizeof(float), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst);
     WGPUBuffer params_buffer = create_working_buffer(device, "params", params_size, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst );
     WGPUBuffer result_buffer = create_working_buffer(device, "result", result_size, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc );
     WGPUBuffer result_staging_buffer = create_working_buffer(device, "staging", result_size, WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst);
@@ -595,7 +595,7 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
     for (int rm = 0; rm < m; ++rm) {
         for (int rn = n0, rn2 = 0; rn < params.n; ++rn, ++rn2) {
             int idx = (rm * ldc) + rn - roffset;
-            int idx2 = (rm * ldc) + rn2;
+            int idx2 = (rm * ldc) + (n0 + rn2);
 
             r[idx] = buf[idx2];
         }
