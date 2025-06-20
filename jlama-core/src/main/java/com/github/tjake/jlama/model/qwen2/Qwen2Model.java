@@ -107,6 +107,6 @@ public class Qwen2Model extends LlamaModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.QWEN2;
+        return ModelSupport.getModelType("QWEN2");
     }
 }

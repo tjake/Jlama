@@ -58,7 +58,7 @@ public class GraniteModel extends LlamaModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.GRANITE;
+        return ModelSupport.getModelType("GRANITE");
     }
 
     @Override
