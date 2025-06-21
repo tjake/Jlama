@@ -5,6 +5,8 @@ struct Params {
     lda: u32,      // Leading dimension of A (k for m x k)
     ldb: u32,      // Leading dimension of B (k for n x k)
     ldc: u32,      // Leading dimension of C (n for m x n)
+    boffset: u32,  // Offset for B in the global memory (due to memory alignment)
+    b2offset: u32, // Offset for B2 in the global memory (due to memory alignment)
 };
 
 @group(0) @binding(0) var<storage, read> A: array<f32>;  // A: m x k row-major
@@ -35,7 +37,7 @@ fn main(
     let jj = tile_jj + local_id.x;
 
     let aoffset = ii * params.lda;
-    let boffset = jj * params.ldb;
+    let boffset = jj * params.ldb + (params.boffset/4u);
 
     var sum: f32 = 0.0;
 

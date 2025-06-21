@@ -5,6 +5,8 @@ struct Params {
     lda: u32,      // Leading dim of A (u32 elements)
     ldb: u32,
     ldc: u32,
+    boffset: u32,  // Offset for B in the global memory (due to memory alignment)
+    b2offset: u32, // Offset for B2 in the global memory (due to memory alignment)
 };
 
 // --- Inputs from Global Memory ---
@@ -91,8 +93,8 @@ fn main(
     var nib: vec4<u32>;
 
     for (var k = 0u; k < k_actual; k = k + BLOCK_SIZE) {
-        let bIdx = (ldbn * jj) + (k / 32u);
-        let bIdx2 = (ldbs * jj) + (k / BLOCK_SIZE);
+        let bIdx = (ldbn * jj) + (k / 32u) + (params.boffset);
+        let bIdx2 = (ldbs * jj) + (k / BLOCK_SIZE) + (params.b2offset / 4u);
         let abase = k / 4u;
         if ((abase + 7u) >= WG_A_U32_SIZE) { continue; }
 

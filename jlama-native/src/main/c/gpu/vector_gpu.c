@@ -34,6 +34,8 @@ typedef struct {
     uint32_t lda;
     uint32_t ldb;
     uint32_t ldc;
+    uint32_t b_sub;
+    uint32_t b2_sub;
 } Params;
 
 static void log_callback(WGPULoggingType level, struct WGPUStringView message, void * userdata) {
@@ -150,6 +152,7 @@ static void shader_compilation_callback(WGPUCompilationInfoRequestStatus status,
 WGPUInstance instance = NULL;
 WGPUDevice device = NULL;
 WGPUQueue queue = NULL;
+uint32_t storageAlign = 0;
 
 WGPUBuffer tensor_lookup[8192];
 int64_t tensor_lookup_idx = 0;
@@ -235,6 +238,9 @@ void init_gpu(int64_t *results) {
        results[1] = limits.maxBindGroups;
        results[2] = sizeof(Params);
 
+       // Set the storage alignment for buffers
+       storageAlign = limits.minStorageBufferOffsetAlignment;
+
        //MAX out the limits because why not?
        requiredLimits = limits;
 
@@ -274,7 +280,6 @@ void init_gpu(int64_t *results) {
 
     wgpuDeviceSetLoggingCallback(device, loggingCallbackInfo);
     wgpuInstanceProcessEvents(instance);
-
 
     queue = wgpuDeviceGetQueue(device);
     assert(queue != NULL);
@@ -507,29 +512,46 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
     assert(R_buffer);
     assert(R_staging_buffer);
 
-    // Create uniform buffer for parameters
-    Params params = {m, n + n0, k, lda, ldb, ldc};
-    size_t params_size = sizeof(Params);
+     // D3D12 requires 256-byte alignment for STORAGE and UNIFORM buffers.
+     // Vulkan/Metal tolerate smaller, which is why Linux/macOS "just works".
+     // Round the *binding* offset down to the previous 256-byte boundary
+     size_t alignedBOffset  = boffset     & ~(storageAlign - 1);
+     size_t alignedB2Offset = B2_offset   & ~(storageAlign - 1);
 
-    WGPUBuffer params_buffer = s.params_buffer;
-    assert(params_buffer);
+     size_t bSub  = boffset     - alignedBOffset;
+     size_t b2Sub = B2_offset   - alignedB2Offset;
 
-    // Copy data to GPU (since A is a float array, we need to divide the offset by 4)
-    wgpuQueueWriteBuffer(queue, A_buffer, 0, a + aoffset, A_size);
-    if (a2 != NULL) {
-        wgpuQueueWriteBuffer(queue, A2_buffer, 0, a2 + A2_offset, A2_size);
-    }
-    wgpuQueueWriteBuffer(queue, params_buffer, 0, &params, params_size);
+     // --- adjust sizes so the original end is still inside the view ----------
+     size_t alignedBSize  = B_size  + bSub;
+     size_t alignedB2Size = B2_size + b2Sub;
+
+     alignedBSize  = (alignedBSize  + 3) & ~3u;
+     alignedB2Size = (alignedB2Size + 3) & ~3u;
+
+     // Create uniform buffer for parameters
+     Params params = {m, n + n0, k, lda, ldb, ldc, b2Sub/sizeof(float), b2Sub,};
+     size_t params_size = sizeof(Params);
+
+     WGPUBuffer params_buffer = s.params_buffer;
+     assert(params_buffer);
+
+     // Copy data to GPU (since A is a float array, we need to divide the offset by 4)
+     wgpuQueueWriteBuffer(queue, A_buffer, 0, a + aoffset, A_size);
+     if (a2 != NULL) {
+         wgpuQueueWriteBuffer(queue, A2_buffer, 0, a2 + A2_offset, A2_size);
+     }
+     wgpuQueueWriteBuffer(queue, params_buffer, 0, &params, params_size);
 
     // Create bind group
     WGPUBindGroupEntry bind_group_entries[6] = {
         { .binding = 0, .buffer = A_buffer, .offset = 0, .size = A_size },
         { .binding = 1, .buffer = A2_buffer, .offset = 0, .size = A2_size },
-        { .binding = 2, .buffer = B_buffer, .offset = boffset, .size = B_size },
-        { .binding = 3, .buffer = B2_buffer, .offset = B2_offset, .size = B2_size },
+        { .binding = 2, .buffer = B_buffer, .offset = alignedBOffset, .size = alignedBSize },
+        { .binding = 3, .buffer = B2_buffer, .offset = alignedB2Offset, .size = alignedB2Size },
         { .binding = 4, .buffer = R_buffer, .offset = 0, .size = R_size },
         { .binding = 5, .buffer = params_buffer, .offset = 0, .size = params_size },
     };
+
     WGPUBindGroup bind_group = wgpuDeviceCreateBindGroup(device, &(WGPUBindGroupDescriptor){
         .layout = bind_group_layout,
         .entryCount = 6,

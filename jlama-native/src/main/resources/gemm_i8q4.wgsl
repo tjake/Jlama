@@ -5,6 +5,8 @@ struct Params {
     lda: u32,      // Leading dimension of A
     ldb: u32,      // Leading dimension of B
     ldc: u32,      // Leading dimension of C
+    boffset: u32,  // Offset for B in the global memory (due to memory alignment)
+    b2offset: u32, // Offset for B2 in the global memory (due to memory alignment)
 };
 
 @group(0) @binding(0) var<storage, read> A: array<vec4<u32>>;
@@ -60,8 +62,8 @@ fn main(
 
             let aIdx = (ldan * ii) + (k / 16u);
             let aIdx2 = (ldas * ii) + (k / BLOCK_SIZE);
-            let bIdx = (ldbn * jj) + (k / 32u);
-            let bIdx2 = (ldbs * jj) + (k / BLOCK_SIZE);
+            let bIdx = (ldbn * jj) + (k / 32u) + (params.boffset);
+            let bIdx2 = (ldbs * jj) + (k / BLOCK_SIZE) + (params.b2offset / 4u);
 
             let scale = B2[bIdx2] * A2[aIdx2];
 

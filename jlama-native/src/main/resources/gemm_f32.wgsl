@@ -5,6 +5,8 @@ struct Params {
     lda: u32,      // Leading dimension of A
     ldb: u32,      // Leading dimension of B
     ldc: u32,      // Leading dimension of C
+    boffset: u32,  // Offset for B in the global memory (due to memory alignment)
+    b2offset: u32, // Offset for B2 in the global memory (due to memory alignment)
 };
 
 @group(0) @binding(0) var<storage, read> A: array<f32>;
@@ -24,6 +26,7 @@ fn main(
     @builtin(workgroup_id) workgroup_id: vec3<u32>,
     @builtin(local_invocation_id) local_id: vec3<u32>
 ) {
+    let boffset = params.boffset/4u; // Convert byte offset to u32 index
     // Calculate global indices for this thread
     let ii = workgroup_id.y * RM + local_id.y;  // Row index in submatrix
     let jj = workgroup_id.x * RN + local_id.x;  // Column index in submatrix
@@ -33,7 +36,7 @@ fn main(
         for (var k = 0u; k < params.k; k = k + 1u) {
             let aIdx = (params.lda * ii) + k;
             let bIdx = (params.ldb * jj) + k;
-            sum = sum + (A[aIdx] * B[bIdx]);
+            sum = sum + (A[aIdx] * B[boffset + bIdx]);
         }
         // Store the result in C
         let cIdx = (params.ldc * ii) + jj;
