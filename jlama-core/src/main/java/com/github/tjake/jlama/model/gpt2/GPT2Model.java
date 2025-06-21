@@ -18,9 +18,12 @@ package com.github.tjake.jlama.model.gpt2;
 import com.github.tjake.jlama.model.*;
 import com.github.tjake.jlama.model.functions.EmbedInput;
 import com.github.tjake.jlama.model.functions.SampleOutput;
-import com.github.tjake.jlama.safetensors.*;
+import com.github.tjake.jlama.safetensors.Config;
+import com.github.tjake.jlama.safetensors.DType;
+import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+
 import java.util.Optional;
 
 public class GPT2Model extends AbstractModel {
@@ -43,7 +46,7 @@ public class GPT2Model extends AbstractModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.GPT2;
+        return ModelSupport.getModelType("GPT2");
     }
 
     @Override

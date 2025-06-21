@@ -26,10 +26,11 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import java.util.Optional;
-import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class LlamaModel extends AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
@@ -60,7 +61,7 @@ public class LlamaModel extends AbstractModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.LLAMA;
+        return ModelSupport.getModelType("LLAMA");
     }
 
     @Override
