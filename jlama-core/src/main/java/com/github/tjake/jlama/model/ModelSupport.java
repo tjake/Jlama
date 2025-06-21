@@ -15,72 +15,65 @@
  */
 package com.github.tjake.jlama.model;
 
-import static com.github.tjake.jlama.util.JsonSupport.om;
-
-import com.github.tjake.jlama.model.bert.BertConfig;
-import com.github.tjake.jlama.model.bert.BertModel;
-import com.github.tjake.jlama.model.bert.BertTokenizer;
-import com.github.tjake.jlama.model.gemma.GemmaConfig;
-import com.github.tjake.jlama.model.gemma.GemmaModel;
-import com.github.tjake.jlama.model.gemma.GemmaTokenizer;
-import com.github.tjake.jlama.model.gemma2.Gemma2Config;
-import com.github.tjake.jlama.model.gemma2.Gemma2Model;
-import com.github.tjake.jlama.model.gpt2.GPT2Config;
-import com.github.tjake.jlama.model.gpt2.GPT2Model;
-import com.github.tjake.jlama.model.gpt2.GPT2Tokenizer;
-import com.github.tjake.jlama.model.granite.GraniteConfig;
-import com.github.tjake.jlama.model.granite.GraniteModel;
-import com.github.tjake.jlama.model.llama.LlamaConfig;
-import com.github.tjake.jlama.model.llama.LlamaModel;
-import com.github.tjake.jlama.model.llama.LlamaTokenizer;
-import com.github.tjake.jlama.model.mistral.MistralConfig;
-import com.github.tjake.jlama.model.mistral.MistralModel;
-import com.github.tjake.jlama.model.mixtral.MixtralConfig;
-import com.github.tjake.jlama.model.mixtral.MixtralModel;
-import com.github.tjake.jlama.model.qwen2.Qwen2Config;
-import com.github.tjake.jlama.model.qwen2.Qwen2Model;
+import com.github.tjake.jlama.model.bert.BertModelType;
+import com.github.tjake.jlama.model.gemma.GemmaModelType;
+import com.github.tjake.jlama.model.gemma2.Gemma2ModelType;
+import com.github.tjake.jlama.model.gpt2.GPT2ModelType;
+import com.github.tjake.jlama.model.granite.GraniteModelType;
+import com.github.tjake.jlama.model.llama.LlamaModelType;
+import com.github.tjake.jlama.model.mistral.MistralModelType;
+import com.github.tjake.jlama.model.mixtral.MixtralModelType;
+import com.github.tjake.jlama.model.qwen2.Qwen2ModelType;
 import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.util.PhysicalCoreExecutor;
-import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.function.Function;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+
+import static com.github.tjake.jlama.util.JsonSupport.om;
+
 public class ModelSupport {
     private static final Logger logger = LoggerFactory.getLogger(ModelSupport.class);
+    private static final Map<String, ModelType> registry = new HashMap<>();
 
-    public enum ModelType {
-        GEMMA(GemmaModel.class, GemmaConfig.class, GemmaTokenizer.class),
-        GEMMA2(Gemma2Model.class, Gemma2Config.class, GemmaTokenizer.class),
-        MISTRAL(MistralModel.class, MistralConfig.class, LlamaTokenizer.class),
-        GRANITE(GraniteModel.class, GraniteConfig.class, GPT2Tokenizer.class),
-        MIXTRAL(MixtralModel.class, MixtralConfig.class, LlamaTokenizer.class),
-        LLAMA(LlamaModel.class, LlamaConfig.class, LlamaTokenizer.class),
-        GPT2(GPT2Model.class, GPT2Config.class, GPT2Tokenizer.class),
-        BERT(BertModel.class, BertConfig.class, BertTokenizer.class),
-        QWEN2(Qwen2Model.class, Qwen2Config.class, LlamaTokenizer.class);
+    // Initialize default model types
+    static {
+        register("BERT", new BertModelType());
+        register("GEMMA", new GemmaModelType());
+        register("GEMMA2", new Gemma2ModelType());
+        register("GPT2", new GPT2ModelType());
+        register("GRANITE", new GraniteModelType());
+        register("LLAMA", new LlamaModelType());
+        register("MISTRAL", new MistralModelType());
+        register("MIXTRAL", new MixtralModelType());
+        register("QWEN2", new Qwen2ModelType());
+    }
 
-        public final Class<? extends AbstractModel> modelClass;
-        public final Class<? extends Config> configClass;
-        public final Class<? extends Tokenizer> tokenizerClass;
+    // Register a model type with a unique name
+    public static void register(String name, ModelType modelType) {
+        registry.putIfAbsent(name, modelType);
+    }
 
-        ModelType(
-            Class<? extends AbstractModel> modelClass,
-            Class<? extends Config> configClass,
-            Class<? extends Tokenizer> tokenizerClass
-        ) {
-            this.modelClass = modelClass;
-            this.configClass = configClass;
-            this.tokenizerClass = tokenizerClass;
+    // Retrieve a model type by name
+    public static ModelType getModelType(String name) {
+        ModelType modelType = registry.get(name);
+        if (modelType == null) {
+            throw new IllegalArgumentException("Unknown model type: " + name);
         }
+        return modelType;
     }
 
     /** Shortcut for loading a model for token generation*/
@@ -177,16 +170,16 @@ public class ModelSupport {
         try {
             threadCount.ifPresent(PhysicalCoreExecutor::overrideThreadCount);
 
-            ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
-            Config c = om.readValue(configFile, modelType.configClass);
+            ModelType modelType = SafeTensorSupport.detectModel(configFile);
+            Config c = om.readValue(configFile, modelType.getConfigClass());
             distributedContextLoader.ifPresent(loader -> c.setDistributedContext(loader.apply(c)));
 
             c.setWorkingDirectory(workingDirectory);
 
-            Tokenizer t = modelType.tokenizerClass.getConstructor(Path.class).newInstance(baseDir.toPath());
+            Tokenizer t = modelType.getTokenizerClass().getConstructor(Path.class).newInstance(baseDir.toPath());
             WeightLoader wl = weightLoaderSupplier.apply(baseDir);
 
-            return modelType.modelClass.getConstructor(
+            return modelType.getModelClass().getConstructor(
                 AbstractModel.InferenceType.class,
                 Config.class,
                 WeightLoader.class,
@@ -199,5 +192,15 @@ public class ModelSupport {
         } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Interface to define the type of model, including its configuration, tokenizer, and model class.
+     * This is used to ensure that the correct classes are used for different model types.
+     */
+    public interface ModelType {
+        Class<? extends AbstractModel> getModelClass();
+        Class<? extends Config> getConfigClass();
+        Class<? extends Tokenizer> getTokenizerClass();
     }
 }

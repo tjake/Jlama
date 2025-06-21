@@ -21,6 +21,7 @@ import com.github.tjake.jlama.safetensors.Config;
 import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
+
 import java.util.Optional;
 
 public class MistralModel extends LlamaModel {
@@ -50,6 +51,6 @@ public class MistralModel extends LlamaModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.MISTRAL;
+        return ModelSupport.getModelType("MISTRAL");
     }
 }

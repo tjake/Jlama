@@ -7,6 +7,8 @@
 [![Maven Central Version](https://img.shields.io/maven-central/v/com.github.tjake/jlama-parent?style=flat-square)](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/overview)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/1279855254812229642?style=flat-square&label=Discord&color=663399)](https://discord.gg/HsYXHrMu6J)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-tjake%2FJlama-blue.svg)](https://deepwiki.com/tjake/Jlama)
+
 
 
 ## 🚀 Features
@@ -39,7 +41,7 @@ for faster inference.
 
 ## 🤔 What is it used for? 
 
-Add LLM Inference directly to your Java application.
+Add LLM Inference directly to your Java application. To learn more read the [DeepWiki](https://deepwiki.com/tjake/Jlama) docs.
 
 ## 🔬 Quick Start
 
