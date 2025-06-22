@@ -60,7 +60,11 @@ static void log_callback(WGPULoggingType level, struct WGPUStringView message, v
   fprintf(stderr, "[gpu] [%s] %s\n", level_str, message.data);
 }
 
-// Removed handle_request_adapter as it's not used with synchronous adapter enumeration
+static void handle_request_adapter(WGPURequestAdapterStatus status, WGPUAdapter adapter, struct WGPUStringView message, void * userdata) {
+  UNUSED(status)
+  UNUSED(message)
+  *(WGPUAdapter *)userdata = adapter;
+}
 
 static void handle_request_device(WGPURequestDeviceStatus status, WGPUDevice device, struct WGPUStringView message, void * userdata) {
   UNUSED(status)
@@ -208,66 +212,18 @@ void init_gpu(int64_t *results) {
         .forceFallbackAdapter = false                            // Don't fall back to software
     };
 
-    WGPUAdapter adapter = NULL;
-    int desired_adapter_index = 0;
-    const char* gpu_env_var = getenv("JLAMA_GPU");
+    WGPUAdapter adapter;
 
-    if (gpu_env_var != NULL) {
-        char* endptr;
-        long val = strtol(gpu_env_var, &endptr, 10);
-        if (endptr != gpu_env_var && *endptr == '\0' && val >= 0) {
-            desired_adapter_index = (int)val;
-        } else {
-            desired_adapter_index = 0; // Default to 0 on parse error
-        }
-    }
+    WGPURequestAdapterCallbackInfo adapterCallbackInfo = {
+          .nextInChain = NULL,
+          .mode = WGPUCallbackMode_AllowSpontaneous,
+          .callback = (WGPURequestAdapterCallback)handle_request_adapter,
+          .userdata1 = &adapter
+    };
 
-    // Enumerate adapters
-    // First call to get the count of adapters matching the options
-    size_t adapter_count = wgpuInstanceEnumerateAdapters(instance, &adapterOpts, 0, NULL);
-
-    if (adapter_count == 0) {
-        results[0] = -1;
-        results[1] = -1;
-        results[2] = -1;
-        return;
-    }
-
-    WGPUAdapter* adapters_list = (WGPUAdapter*)malloc(adapter_count * sizeof(WGPUAdapter));
-    if (adapters_list == NULL) {
-        results[0] = -1;
-        results[1] = -1;
-        results[2] = -1;
-        return;
-    }
-
-    // Second call to populate the list of adapters
-    size_t filled_count = wgpuInstanceEnumerateAdapters(instance, &adapterOpts, adapter_count, adapters_list);
-
-    if (filled_count == 0) {
-        free(adapters_list);
-        results[0] = -1;
-        results[1] = -1;
-        results[2] = -1;
-        return;
-    }
-
-    if (desired_adapter_index >= 0 && (size_t)desired_adapter_index < filled_count) {
-        adapter = adapters_list[desired_adapter_index];
-    } else {
-        adapter = adapters_list[0]; // Default to the first adapter
-        desired_adapter_index = 0; // Correct the index for releasing others
-    }
-
-    // Release unselected adapters
-    for (size_t i = 0; i < filled_count; ++i) {
-        if (adapters_list[i] != NULL && i != (size_t)desired_adapter_index) {
-            wgpuAdapterRelease(adapters_list[i]);
-        }
-    }
-    free(adapters_list);
-
-    if (adapter == NULL) { // Should not happen if filled_count > 0
+    wgpuInstanceRequestAdapter(instance, &adapterOpts, adapterCallbackInfo);
+    wgpuInstanceProcessEvents(instance);
+    if (adapter == NULL) {
         results[0] = -1;
         results[1] = -1;
         results[2] = -1;
@@ -673,5 +629,3 @@ void gpu_gemm(int64_t scratch_id, int64_t shader, const void *a, const void *a2,
 
     wgpuBindGroupRelease(bind_group);
 }
-
-
