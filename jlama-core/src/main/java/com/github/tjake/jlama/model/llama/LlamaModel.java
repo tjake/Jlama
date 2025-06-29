@@ -68,7 +68,10 @@ public class LlamaModel extends AbstractModel {
     protected EmbedInput loadInputWeights() {
 
         // Don't quantize this, it's used for the embedding layer
-        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
+        if (wte == null) {
+            wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
+            TensorOperationsProvider.get().registerModelTensor(wte);
+        }
 
         return (inputToken, position) -> {
             if (wte.dType() == DType.BF16) {
@@ -153,6 +156,8 @@ public class LlamaModel extends AbstractModel {
             ? weights.load("lm_head.weight").quantize(workingDType)
             : wte == null ? wte = weights.load("model.embed_tokens.weight")
             : wte;
+
+        TensorOperationsProvider.get().registerModelTensor(classificationWeights);
 
         return new SampleOutput() {
             @Override

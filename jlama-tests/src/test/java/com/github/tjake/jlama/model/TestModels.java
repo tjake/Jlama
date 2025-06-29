@@ -53,15 +53,17 @@ import org.slf4j.LoggerFactory;
 public class TestModels {
 
     static {
-        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "2");
+        System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
         // System.setProperty("jlama.force_panama_tensor_operations", "true");
+        // System.setProperty("jlama.force_simd_tensor_operations", "true");
+        // PhysicalCoreExecutor.overrideThreadCount(Runtime.getRuntime().availableProcessors());
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
 
     @Test
     public void GPT2Run() throws IOException {
-        String modelPrefix = "../models/gpt2-medium";
+        String modelPrefix = "../models/openai-community_gpt2-xl";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         AbstractModel gpt2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.F32);
@@ -71,33 +73,48 @@ public class TestModels {
                 + "Even more surprising to the researchers was the fact that the unicorns spoke perfect English."
         );
 
-        gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
+        Generator.Response r = gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
+
+        logger.info(
+            "\n\n"
+                + Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
+                + " tokens/s (prompt), "
+                + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
+                + " tokens/s (gen)"
+        );
     }
 
     @Test
     public void Qwen2Run() throws IOException {
-        String modelPrefix = "../models/Qwen_Qwen2.5-0.5B-Instruct-JQ4";    
+        String modelPrefix = "../models/tjake_Mistral-7B-Instruct-v0.3-JQ4";
         Assume.assumeTrue(Files.exists(Paths.get(modelPrefix)));
 
         AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.I8);
 
-        int ntools = 200;
-        Tool[] tools = new Tool[ntools];
-        for (int i = 0; i < ntools; i++) {
-            Tool tool = Tool.from(Function.builder()
-                    .description("some tool "+i)
-                    .addParameter("input", "string", "an input", true)
-                    .name("some-tool-"+i)
-                    .build());
-            tools[i] = tool;
-        }
+        Tool t = Tool.from(
+            Function.builder()
+                .name("get_current_temperature")
+                .description("Simulates getting the current temperature at a location.")
+                .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                .build()
+        );
 
-        PromptContext prompt = qwen2.promptSupport().get().builder()
-                .addSystemMessage("You are a helpful chatbot who writes short responses.")
-                .addUserMessage("What is the capital of France?")
-                .build(tools);
+        PromptContext prompt = qwen2.promptSupport()
+            .get()
+            .builder()
+            .addSystemMessage("You are a helpful chatbot who writes short responses.")
+            .addUserMessage("What is the weather in Paris right now?")
+            .build(t);
 
-        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt, 0.9f, 32 * 1024, makeOutHandler());
+        PromptContext prompt2 = qwen2.promptSupport()
+            .get()
+            .builder()
+            // .addSystemMessage("You are a helpful chatbot who writes short responses.")
+            .addUserMessage("Tell me a story about paris.")
+            .build();
+
+        Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt2, 0.9f, 32 * 1024, makeOutHandler());
         logger.info("Response: {}", r);
     }
 

@@ -143,7 +143,7 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                     }
                 }).start();
             }
-        
+
             System.out.println("Chat UI: http://localhost:" + port);
             System.out.println("OpenAI Chat API: http://localhost:" + port + "/chat/completions");
 
@@ -154,7 +154,6 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                 props.put("server.port", port); // Set the port here before the server starts
                 environment.getPropertySources().addFirst(new MapPropertySource("customProps", props));
             }).properties("logging.level.org.springframework.web", "info").lazyInitialization(true).build().run();
-
 
         } catch (Exception e) {
             e.printStackTrace();

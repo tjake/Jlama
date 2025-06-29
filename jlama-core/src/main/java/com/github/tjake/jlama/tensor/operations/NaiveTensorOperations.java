@@ -25,6 +25,11 @@ public class NaiveTensorOperations implements TensorOperations {
         return "Naive Java Operations";
     }
 
+    @Override
+    public int parallelSplitSize() {
+        return Integer.MAX_VALUE; // use as many threads as possible
+    }
+
     // a[0..n] += b[0..n]
     @Override
     public void accumulate(AbstractTensor a, AbstractTensor b, int offset, int length) {

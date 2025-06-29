@@ -32,7 +32,7 @@ import java.util.List;
  * Helper class for Jackson JSON support
  */
 public class JsonSupport {
-       public static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+    public static final ObjectMapper om = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
         .configure(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, false)
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         .configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false)
@@ -62,7 +62,8 @@ public class JsonSupport {
                             parser.skipChildren();
                             int endIndex = i + (int) parser.getTokenLocation().getCharOffset();
                             int extra = 0;
-                            while (endIndex + extra < text.length() && (text.charAt(endIndex + extra) == '}' || text.charAt(endIndex + extra) == ']')) {
+                            while (endIndex + extra < text.length()
+                                && (text.charAt(endIndex + extra) == '}' || text.charAt(endIndex + extra) == ']')) {
                                 extra++;
                             }
                             String jsonString = text.substring(i, endIndex + extra);

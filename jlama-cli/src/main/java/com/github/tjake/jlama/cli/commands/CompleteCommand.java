@@ -18,6 +18,7 @@ package com.github.tjake.jlama.cli.commands;
 import static com.github.tjake.jlama.model.ModelSupport.loadModel;
 
 import com.github.tjake.jlama.model.AbstractModel;
+import com.github.tjake.jlama.model.functions.Generator;
 import com.github.tjake.jlama.safetensors.prompt.PromptContext;
 
 import java.nio.file.Path;
@@ -51,6 +52,15 @@ public class CompleteCommand extends ModelBaseCommand {
             Optional.ofNullable(advancedSection.threadCount)
         );
 
-        m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());
+        Generator.Response r = m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());
+
+        System.out.println(
+            "\n\n"
+                + Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
+                + " tokens/s (prompt), "
+                + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
+                + " tokens/s (gen)"
+        );
+
     }
 }
