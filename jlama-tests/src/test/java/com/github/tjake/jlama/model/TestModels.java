@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
-import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -55,9 +54,9 @@ public class TestModels {
 
     static {
         System.setProperty("jdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK", "0");
-        //System.setProperty("jlama.force_panama_tensor_operations", "true");
-        //System.setProperty("jlama.force_simd_tensor_operations", "true");
-        //PhysicalCoreExecutor.overrideThreadCount(Runtime.getRuntime().availableProcessors());
+        // System.setProperty("jlama.force_panama_tensor_operations", "true");
+        // System.setProperty("jlama.force_simd_tensor_operations", "true");
+        // PhysicalCoreExecutor.overrideThreadCount(Runtime.getRuntime().availableProcessors());
     }
 
     private static final Logger logger = LoggerFactory.getLogger(TestModels.class);
@@ -77,12 +76,11 @@ public class TestModels {
         Generator.Response r = gpt2.generate(UUID.randomUUID(), prompt, 0.8f, 256, makeOutHandler());
 
         logger.info(
-                "\n\n"
-                        +
-                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
-                        + " tokens/s (prompt), "
-                        + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
-                        + " tokens/s (gen)"
+            "\n\n"
+                + Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
+                + " tokens/s (prompt), "
+                + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
+                + " tokens/s (gen)"
         );
     }
 
@@ -94,23 +92,27 @@ public class TestModels {
         AbstractModel qwen2 = ModelSupport.loadModel(new File(modelPrefix), DType.F32, DType.I8);
 
         Tool t = Tool.from(
-                Function.builder()
-                        .name("get_current_temperature")
-                        .description("Simulates getting the current temperature at a location.")
-                        .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
-                        .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
-                        .build()
+            Function.builder()
+                .name("get_current_temperature")
+                .description("Simulates getting the current temperature at a location.")
+                .addParameter("location", "string", "The location to get the temperature for, in the format \"City, Country\".", true)
+                .addParameter("unit", "string", "The unit to return the temperature in (e.g., \"celsius\", \"fahrenheit\").", true)
+                .build()
         );
 
-        PromptContext prompt = qwen2.promptSupport().get().builder()
-                .addSystemMessage("You are a helpful chatbot who writes short responses.")
-                .addUserMessage("What is the weather in Paris right now?")
-                .build(t);
+        PromptContext prompt = qwen2.promptSupport()
+            .get()
+            .builder()
+            .addSystemMessage("You are a helpful chatbot who writes short responses.")
+            .addUserMessage("What is the weather in Paris right now?")
+            .build(t);
 
-        PromptContext prompt2 = qwen2.promptSupport().get().builder()
-                //.addSystemMessage("You are a helpful chatbot who writes short responses.")
-                .addUserMessage("Tell me a story about paris.")
-                .build();
+        PromptContext prompt2 = qwen2.promptSupport()
+            .get()
+            .builder()
+            // .addSystemMessage("You are a helpful chatbot who writes short responses.")
+            .addUserMessage("Tell me a story about paris.")
+            .build();
 
         Generator.Response r = qwen2.generate(UUID.randomUUID(), prompt2, 0.9f, 32 * 1024, makeOutHandler());
         logger.info("Response: {}", r);

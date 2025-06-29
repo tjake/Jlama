@@ -27,7 +27,7 @@ public class NaiveTensorOperations implements TensorOperations {
 
     @Override
     public int parallelSplitSize() {
-        return Integer.MAX_VALUE; //use as many threads as possible
+        return Integer.MAX_VALUE; // use as many threads as possible
     }
 
     // a[0..n] += b[0..n]

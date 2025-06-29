@@ -629,7 +629,6 @@ public class TestOperations {
         Assert.assertEquals(sum, controlOps.sum(c1), sum * 0.01);
     }
 
-
     @Test
     public void testNativeBatchDotProductWithOffsets() {
         // M == BATCH, N == ROWS, K == SIZE

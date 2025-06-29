@@ -34,7 +34,7 @@ import org.openjdk.jmh.infra.Blackhole;
     "-Djdk.incubator.vector.VECTOR_ACCESS_OOB_CHECK=0", "--enable-preview", "-XX:+UnlockDiagnosticVMOptions",
     "-XX:CompilerDirectivesFile=inlinerules.json", "--enable-native-access=ALL-UNNAMED", "-XX:+AlignVector" })
 public class TensorBench {
-    //private static final NativeSimdTensorOperations nops = new NativeSimdTensorOperations();
+    // private static final NativeSimdTensorOperations nops = new NativeSimdTensorOperations();
     private static final NativeGPUTensorOperations gops = new NativeGPUTensorOperations();
     private static final PanamaTensorOperations ops = new PanamaTensorOperations(MachineSpec.VECTOR_TYPE);
 
@@ -108,7 +108,7 @@ public class TensorBench {
     public void native_f32dotq4(Parameters p, Blackhole bh) {
         bh.consume(nops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }
-
+    
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
@@ -117,13 +117,12 @@ public class TensorBench {
         bh.consume(ops.dotProduct(p.f, p.q4, 0, 0, SIZE));
     }*/
 
-
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
     @Threads(8)
     public void native_f32(Parameters p, Blackhole bh) {
-       // bh.consume(nops.dotProduct(p.f, p.f2, 0, 0, SIZE));
+        // bh.consume(nops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
 
     @Benchmark
@@ -137,11 +136,10 @@ public class TensorBench {
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     @BenchmarkMode(Mode.Throughput)
-    //@Threads(8)
+    // @Threads(8)
     public void gpu_f32(Parameters p, Blackhole bh) {
         bh.consume(gops.dotProduct(p.f, p.f2, 0, 0, SIZE));
     }
-
 
     /* @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)

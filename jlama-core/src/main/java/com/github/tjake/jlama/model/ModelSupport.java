@@ -179,15 +179,17 @@ public class ModelSupport {
             Tokenizer t = modelType.getTokenizerClass().getConstructor(Path.class).newInstance(baseDir.toPath());
             WeightLoader wl = weightLoaderSupplier.apply(baseDir);
 
-            return modelType.getModelClass().getConstructor(
-                AbstractModel.InferenceType.class,
-                Config.class,
-                WeightLoader.class,
-                Tokenizer.class,
-                DType.class,
-                DType.class,
-                Optional.class
-            ).newInstance(inferenceType, c, wl, t, workingMemoryType, workingQuantizationType, modelQuantization);
+            return modelType.getModelClass()
+                .getConstructor(
+                    AbstractModel.InferenceType.class,
+                    Config.class,
+                    WeightLoader.class,
+                    Tokenizer.class,
+                    DType.class,
+                    DType.class,
+                    Optional.class
+                )
+                .newInstance(inferenceType, c, wl, t, workingMemoryType, workingQuantizationType, modelQuantization);
 
         } catch (IOException | NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             throw new RuntimeException(e);
@@ -200,7 +202,9 @@ public class ModelSupport {
      */
     public interface ModelType {
         Class<? extends AbstractModel> getModelClass();
+
         Class<? extends Config> getConfigClass();
+
         Class<? extends Tokenizer> getTokenizerClass();
     }
 }

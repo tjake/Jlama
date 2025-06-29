@@ -347,7 +347,7 @@ public class CausalSelfAttention {
                         // apply adjusted attention weights to value vectors
                         // do this for each position since the pages are not contiguous
                         for (int i = 0; i < vvp.length; i++) {
-                            int len = vvp[i].shape().first(); //batch size
+                            int len = vvp[i].shape().first(); // batch size
                             int offset = i * len;
                             int size = i == vvp.length - 1 ? (finalPosition + 1) - offset : len;
                             TensorOperationsProvider.get().saxpy(attn, vvp[i], value, xoffset, yoffset, c.headSize, offset, 0, size);

@@ -55,13 +55,12 @@ public class CompleteCommand extends ModelBaseCommand {
         Generator.Response r = m.generate(UUID.randomUUID(), PromptContext.of(prompt), temperature, tokens, makeOutHandler());
 
         System.out.println(
-                "\n\n"
-                       +
-                        Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
-                                + " tokens/s (prompt), "
-                                + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
-                                + " tokens/s (gen)"
-                );
+            "\n\n"
+                + Math.round(r.promptTokens / (double) (r.promptTimeMs / 1000f))
+                + " tokens/s (prompt), "
+                + Math.round(r.generatedTokens / (double) (r.generateTimeMs / 1000f))
+                + " tokens/s (gen)"
+        );
 
     }
 }

@@ -15,7 +15,6 @@
  */
 package com.github.tjake.jlama.safetensors.prompt;
 
-
 import com.fasterxml.jackson.annotation.*;
 
 import java.util.Map;

@@ -57,7 +57,9 @@ public class SafeTensorSupport {
         }
         // headerLength exceeds the maximum allowed length MAX_HEADER_LENGTH
         if (headerLength > MAX_HEADER_LENGTH) {
-            throw new IllegalArgumentException(String.format("Header length %d exceeds the maximum allowed length %d.", headerLength, MAX_HEADER_LENGTH));
+            throw new IllegalArgumentException(
+                String.format("Header length %d exceeds the maximum allowed length %d.", headerLength, MAX_HEADER_LENGTH)
+            );
         }
 
         byte[] header = new byte[Ints.checkedCast(headerLength)];

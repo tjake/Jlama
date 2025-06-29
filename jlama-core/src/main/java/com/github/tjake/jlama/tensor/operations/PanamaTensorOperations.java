@@ -2360,9 +2360,9 @@ public final class PanamaTensorOperations implements TensorOperations {
 
             // Convert BF16 to F32
             var bf = b.getVector(ShortVector.SPECIES_64, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                .reinterpretAsFloats();
 
             var res = af.add(bf);
             a.intoTensor(res, 0, i);
@@ -2382,20 +2382,20 @@ public final class PanamaTensorOperations implements TensorOperations {
 
             // Convert BF16 to F32
             var af = a.getVector(ShortVector.SPECIES_64, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                .reinterpretAsFloats();
 
             // Convert BF16 to F32
             var bf = b.getVector(ShortVector.SPECIES_64, 0, i)
-                    .convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
-                    .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
-                    .reinterpretAsFloats();
+                .convertShape(VectorOperators.S2I, IntVector.SPECIES_128, 0)
+                .lanewise(VectorOperators.LSHL, BF16_BYTE_SHIFT_128)
+                .reinterpretAsFloats();
 
             var res = af.add(bf)
-                    .reinterpretAsInts()
-                    .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_128)
-                    .convertShape(VectorOperators.I2S, ShortVector.SPECIES_64, 0);
+                .reinterpretAsInts()
+                .lanewise(VectorOperators.ASHR, BF16_BYTE_SHIFT_128)
+                .convertShape(VectorOperators.I2S, ShortVector.SPECIES_64, 0);
 
             a.intoTensor((ShortVector) res, 0, i);
         }

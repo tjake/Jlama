@@ -300,7 +300,7 @@ public abstract class AbstractModel implements Generator {
     ) {
         AbstractTensor embedding = null;
 
-        //Batch prompt into groups of MAX_BATCH_SIZE
+        // Batch prompt into groups of MAX_BATCH_SIZE
         for (int i = 0; i < token_ids.length; i += MAX_BATCH_SIZE) {
             int[] batch = Arrays.copyOfRange(token_ids, i, Math.min(token_ids.length, i + MAX_BATCH_SIZE));
             embedding = embedInput.batchInputsToEmbeddings(batch, startPos + i);
@@ -681,7 +681,8 @@ public abstract class AbstractModel implements Generator {
             List<ToolCall> toolCalls = new ArrayList<>(jsonCalls.size());
             for (String jsonCall : jsonCalls) {
                 if (jsonCall.startsWith("[")) {
-                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, new TypeReference<>() {});
+                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, new TypeReference<>() {
+                    });
                     toolCalls.addAll(toolCallList);
                 } else {
                     ToolCall toolCall = JsonSupport.om.readValue(jsonCall, ToolCall.class);

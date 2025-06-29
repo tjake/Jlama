@@ -140,12 +140,7 @@ public interface Generator extends Closeable {
         BiConsumer<String, Float> onTokenWithTimings
     );
 
-    default Response generate(
-            UUID session,
-            PromptContext promptContext,
-            float temperature,
-            int ntokens
-    ) {
+    default Response generate(UUID session, PromptContext promptContext, float temperature, int ntokens) {
         return generate(session, promptContext, temperature, ntokens, (s, aFloat) -> {});
     }
 
