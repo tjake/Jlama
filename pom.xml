@@ -43,7 +43,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>${git.commit.time}</project.build.outputTimestamp>
-    <revision>0.8.4</revision>
+    <revision>0.9.0-beta</revision>
 
     <slf4j-api.version>2.0.7</slf4j-api.version>
     <logback.version>1.5.17</logback.version>

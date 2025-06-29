@@ -18,7 +18,7 @@ get_java_major_version() {
 # Verify Java version is JDK 20/21/22
 JAVA=$(get_java_exec)
 JAVA_MAJOR_VERSION=$(get_java_major_version $JAVA)
-if [[ "$JAVA_MAJOR_VERSION" != "20" ]] && [[ "$JAVA_MAJOR_VERSION" != "21" ]] && [[ "$JAVA_MAJOR_VERSION" != "22" ]] && [[ "$JAVA_MAJOR_VERSION" != "23" ]]; then
+if [[ "$JAVA_MAJOR_VERSION" != "20" ]] && [[ "$JAVA_MAJOR_VERSION" != "21" ]] && [[ "$JAVA_MAJOR_VERSION" != "22" ]] && [[ "$JAVA_MAJOR_VERSION" != "23" ]] && [[ "$JAVA_MAJOR_VERSION" != "24" ]]; then
   echo "Error: JDK 20/21/22/23 is required to run this application."
   exit 1
 fi

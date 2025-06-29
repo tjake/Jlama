@@ -36,8 +36,11 @@ Implements:
   * Fast GEMM operations
   * Distributed Inference!
 
-Jlama requires Java 20 or later and utilizes the new [Vector API](https://openjdk.org/jeps/448) 
-for faster inference.
+Jlama requires Java 20 or later and it built with the following backends:
+
+* [Panama Vector](https://openjdk.org/jeps/448) (default)
+* Native SIMD (optional)
+* [WebGPU](https://dawn.googlesource.com/dawn/) (optional, experimental)
 
 ## 🤔 What is it used for? 
 

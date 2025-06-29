@@ -96,16 +96,6 @@ public class NativeGPUTensorOperations implements TensorOperations {
         if (tensorCache.containsKey(t.getUid()) || limitReached.get()) return;
 
         // We can't accurately know the amount of GPU memory available, so we will just let the GPU handle it
-//        if (byteSize >= maxBindBytes)
-//        {
-//            logger.warn("Tensor {} is too large to bind, using fallback operations", t);
-//            return;
-//        }
-//
-//        if ((byteSize + totalBytesAllocated.get()) > maxBindBytes) {
-//            logger.warn("Reached max bind bytes: {}", totalBytesAllocated);
-//            limitReached.set(true);
-//        }
 
         try {
             tensorCache.computeIfAbsent(t.getUid(), s -> {
