@@ -39,12 +39,11 @@
       <organizationUrl>https://github.com/tjake/jlama</organizationUrl>
     </developer>
   </developers>
-  <!-- Build property abstractions: versions, etc -->
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>${git.commit.time}</project.build.outputTimestamp>
     <revision>0.9.0-beta</revision>
-
     <slf4j-api.version>2.0.7</slf4j-api.version>
     <logback.version>1.5.17</logback.version>
     <osmaven.version>1.7.1</osmaven.version>
@@ -55,6 +54,8 @@
     <assertj.version>3.21.0</assertj.version>
     <junit-platform.version>1.9.2</junit-platform.version>
     <junit-jupiter.version>5.9.2</junit-jupiter.version>
+    <grpc.version>1.75.0</grpc.version>
+    <annotation.version>6.0.53</annotation.version>
   </properties>
 
   <dependencies>
@@ -342,6 +343,7 @@
           <module>jlama-core</module>
           <module>jlama-native</module>
           <module>jlama-net</module>
+          <module>jlama-proto</module>
           <module>jlama-cli</module>
           <module>jlama-tests</module>
       </modules>
