@@ -54,7 +54,7 @@
 
     <plugin>
       <artifactId>maven-compiler-plugin</artifactId>
-      <version>3.8.0</version>
+      <version>${compiler-plugin.version}</version>
       <executions>
         <execution>
           <id>compile-jdk20</id>
@@ -71,7 +71,6 @@
             <jdkToolchain>
               <version>20</version>
             </jdkToolchain>
-
             <compileSourceRoots>
               <compileSourceRoot>${project.basedir}/src/main/java20</compileSourceRoot>
             </compileSourceRoots>

@@ -54,8 +54,6 @@ public class Coordinator implements Generator {
     private static final ConcurrentMap<UUID, Integer> sessionPositions = new ConcurrentHashMap<>();
     private final int port;
     private final int workerCount;
-    private final boolean splitHeads;
-    private final boolean splitLayers;
     private final Server server;
     private final AbstractModel model;
     private final JlamaService service;
@@ -95,8 +93,6 @@ public class Coordinator implements Generator {
         );
         this.port = port;
         this.workerCount = workerCount;
-        this.splitHeads = splitHeads;
-        this.splitLayers = splitLayers;
         if (!splitHeads && !splitLayers) {
             throw new IllegalArgumentException("Must split by heads and/or layers");
         }
@@ -122,7 +118,7 @@ public class Coordinator implements Generator {
 
     public void start() throws IOException {
         server.start();
-        logger.info("Server started, listening on " + port);
+        logger.info("Server started, listening on {} ", port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 this.stop();
@@ -163,6 +159,7 @@ public class Coordinator implements Generator {
             int startPos = sessionPositions.computeIfAbsent(session, s -> 0);
             logger.info("Generating tokens for session {} starting at position {}", session, startPos);
             FinishReason finishReason = FinishReason.MAX_TOKENS;
+
             long[] encoded = model.getTokenizer().encode(promptContext.getPrompt());
             Preconditions.checkArgument(encoded.length < model.getConfig().contextLength);
 
@@ -195,15 +192,15 @@ public class Coordinator implements Generator {
                 }
 
                 try {
-                    String c = model.getTokenizer().decode(next);
+                    String tokenString = model.getTokenizer().decode(next);
                     if (model.getTokenizer().getModel().isSpecialToken(next)) {
-                        responseWithSpecialTokens.append(c);
+                        responseWithSpecialTokens.append(tokenString);
                     } else {
-                        onTokenWithTimings.accept(c, (System.currentTimeMillis() - start) / (float) (i + 1));
-                        responseBuilder.append(c);
-                        responseWithSpecialTokens.append(c);
+                        onTokenWithTimings.accept(tokenString, (System.currentTimeMillis() - start) / (float) (i + 1));
+                        responseBuilder.append(tokenString);
+                        responseWithSpecialTokens.append(tokenString);
                     }
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     logger.error("Failed to decode token {}", next, e);
                 }
 

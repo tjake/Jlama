@@ -50,12 +50,12 @@
     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
     <resteasy.version>6.2.7.Final</resteasy.version>
     <spotless.version>2.43.0</spotless.version>
-    <junit.version>4.13.2</junit.version>
     <assertj.version>3.21.0</assertj.version>
-    <junit-platform.version>1.9.2</junit-platform.version>
-    <junit-jupiter.version>5.9.2</junit-jupiter.version>
     <grpc.version>1.75.0</grpc.version>
     <annotation.version>6.0.53</annotation.version>
+    <junit-jupiter.version>5.13.4</junit-jupiter.version>
+    <compiler-plugin.version>3.13.0</compiler-plugin.version>
+    <surefire.version>3.5.3</surefire.version>
   </properties>
 
   <dependencies>
@@ -63,37 +63,6 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
         <version>${slf4j-api.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-params</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-api</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.vintage</groupId>
-      <artifactId>junit-vintage-engine</artifactId>
-      <version>${junit-jupiter.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <version>${assertj.version}</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -118,11 +87,10 @@
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.8.0</version>
+          <version>${compiler-plugin.version}</version>
 
                 <!-- We compile with highest jdk to lowest supported target, this is the best compatibility -->
                 <configuration>
-
                   <source>20</source>
                   <target>20</target>
                   <compilerArgs>
@@ -132,11 +100,10 @@
                     <version>22</version>
                   </jdkToolchain>
                 </configuration>
-
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.3.1</version>
+          <version>${surefire.version}</version>
           <configuration>
             <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
           </configuration>
@@ -356,6 +323,7 @@
       <modules>
         <module>jlama-core</module>
         <module>jlama-native</module>
+        <module>jlama-proto</module>
         <module>jlama-net</module>
         <module>jlama-cli</module>
       </modules>

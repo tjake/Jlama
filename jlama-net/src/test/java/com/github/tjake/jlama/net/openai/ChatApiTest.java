@@ -37,22 +37,16 @@ public class ChatApiTest {
 
     @Test
     public void testChatCompletion() throws JSONException {
-
         OpenAI openAI = OpenAI.newBuilder("Fake key").baseUrl("http://localhost:" + port).build();
-
         ChatClient client = openAI.chatClient();
-
         CreateChatCompletionRequest request = CreateChatCompletionRequest.newBuilder()
             .model(OpenAIModel.GPT_3_5_TURBO)
             .stream(false)
             .temperature(0.0f)
             .message(ChatMessage.userMessage("Who won the world series in 2020?"))
             .build();
-
         ChatCompletion response = client.createChatCompletion(request);
-
         System.err.println(response);
-
         // JSONAssert.assertEquals(null, response.getBody(), false);
     }
 

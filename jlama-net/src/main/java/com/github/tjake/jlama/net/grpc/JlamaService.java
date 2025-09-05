@@ -133,21 +133,17 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         }
     }
 
+
+    /**
+     *
+     * @return if input is power of two return that else return next power of two
+     */
     public static int nextPowerOfTwo(int n) {
-        if (n <= 1) {
-            return 2; // Corner case for n = 0/1
-        }
+        return n <= 1 ? 1 : Integer.highestOneBit(n - 1) * 2;
+    }
 
-        // If n is already a power of 2, return n
-        if ((n & (n - 1)) == 0) {
-            return n;
-        }
-
-        // Find the position of the highest set bit
-        int leadingZeros = Integer.numberOfLeadingZeros(n);
-
-        // Calculate the next power of 2
-        return 1 << (32 - leadingZeros);
+    public static boolean isPowerOfTwoUsingBitwiseOperation(int n) {
+        return (n != 0) && ((n & (n - 1)) == 0);
     }
 
     public void waitForReady() {
@@ -164,7 +160,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         for (Generator g : generatorGroup.generators) {
             try {
                 g.responseObserver.onCompleted();
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 logger.debug("Exception when shutting down", e);
             }
         }
@@ -188,7 +184,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 responseObserver.onCompleted();
             } else {
 
-                if (workers.size() == workerCount) {
+                if (workers.size() >= workerCount) {
                     responseObserver.onError(new RuntimeException("Not accepting any more workers"));
                     return;
                 }
@@ -225,7 +221,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         UUID wid = new UUID(bb.getLong(), bb.getLong());
         // Register should have been called before this
         if (!workers.containsKey(wid)) {
-            responseObserver.onError(new RuntimeException("Worker not registered"));
+            responseObserver.onError(new RuntimeException("Worker not registered workerid: "+ wid));
         } else {
 
             if (!splitLayers) {
@@ -286,11 +282,11 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         }
     }
 
-    public AbstractTensor generateNextOutput(UUID session, List<Integer> tokenIds, int startPosition) {
+    public AbstractTensor<?,?> generateNextOutput(UUID session, List<Integer> tokenIds, int startPosition) {
         return generatorGroup.generateNextOutput(session, tokenIds, startPosition);
     }
 
-    public AbstractTensor generateNextOutput(UUID session, int tokenId, int position) {
+    public AbstractTensor<?,?> generateNextOutput(UUID session, int tokenId, int position) {
         return generatorGroup.generateNextOutput(session, tokenId, position);
     }
 
@@ -298,7 +294,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     public StreamObserver<GenerateRequest> generate(StreamObserver<GenerateResponse> responseObserver) {
         Generator generator = new Generator(responseObserver);
         generatorGroup.add(generator);
-        logger.info("Added worker {}", generatorGroup.generators.size());
+        logger.info("Added worker. Current size {}", generatorGroup.generators.size());
         return generator;
     }
 
@@ -341,9 +337,9 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     CombineResponse.Builder responseBuilder = CombineResponse.newBuilder();
 
                     if (tensors != null) {
-                        for (int i = 0; i < tensors.length; i++)
+                        for (MemorySegment tensor : tensors)
                             responseBuilder = responseBuilder.addTensor(
-                                UnsafeByteOperations.unsafeWrap(tensors[i].asByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
+                                    UnsafeByteOperations.unsafeWrap(tensor.asByteBuffer().order(ByteOrder.LITTLE_ENDIAN))
                             );
                     }
 
@@ -351,7 +347,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                     for (Pair<CombineRequest, StreamObserver<CombineResponse>> f : members) {
                         f.right.onNext(response);
                     }
-                    // logger.info("Sent response to {} members", members.size());
                     members.clear();
                 }
             }
@@ -398,11 +393,11 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
             }
         }
 
-        public AbstractTensor generateNextOutput(UUID session, int tokenId, int position) {
+        public AbstractTensor<?,?> generateNextOutput(UUID session, int tokenId, int position) {
             return generateNextOutput(session, Collections.singletonList(tokenId), position);
         }
 
-        public AbstractTensor generateNextOutput(UUID session, List<Integer> tokenIds, int startPosition) {
+        public AbstractTensor<?,?> generateNextOutput(UUID session, List<Integer> tokenIds, int startPosition) {
             Preconditions.checkArgument(generators.size() == workerCount, "Missing workers %d", workers.size());
             ByteString sid = ByteString.copyFrom(
                 ByteBuffer.allocate(128).putLong(session.getMostSignificantBits()).putLong(session.getLeastSignificantBits()).flip()
@@ -425,7 +420,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 }
             }
 
-            AbstractTensor output = model.makeDenseTensor(model.getConfig().embeddingLength);
+            AbstractTensor<?,?> output = model.makeDenseTensor(model.getConfig().embeddingLength);
             boolean found = false;
             for (int j = 0; j < workerCount; j++) {
                 Generator g = generators.get(j);
@@ -436,13 +431,9 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
                 found = true;
                 break;
             }
-
             if (!found) {
                 throw new RuntimeException("No output received from workers");
             }
-
-            // logger.info("Received output from worker {}", TensorOperationsProvider.get().sum(output));
-
             return output;
         }
     }
@@ -452,7 +443,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         private volatile UUID workerId;
         private volatile RegisterResponse workerAssignment;
-        private CountDownLatch readyLatch;
+        private final CountDownLatch readyLatch;
         private final StreamObserver<GenerateResponse> responseObserver;
         private final ConcurrentMap<UUID, ByteString> outputs;
         private final ConcurrentMap<UUID, CountDownLatch> outputLatches;
@@ -479,11 +470,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
             ByteBuffer bb = generateRequest.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
-
-            /*if (outputs.containsKey(session)) {
-                logger.error("Previous output not consumed from worker {}", workerId);
-            }*/
-
             outputs.put(session, generateRequest.getTensor());
 
             if (outputLatches.containsKey(session)) {

@@ -36,6 +36,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.*;
 import java.lang.foreign.MemorySegment;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
@@ -55,7 +56,7 @@ public class Worker implements Closeable {
     static {
         try {
             HOSTNAME = System.getenv("HOSTNAME") == null ? InetAddress.getLocalHost().getHostName() : System.getenv("HOSTNAME");
-        } catch (Exception e) {
+        } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
     }
@@ -198,9 +199,6 @@ public class Worker implements Closeable {
     public void pass(ByteString sessionBytes, int startPosition, AbstractTensor tensor) {
         ByteBuffer bb = sessionBytes.asReadOnlyByteBuffer();
         UUID session = new UUID(bb.getLong(), bb.getLong());
-
-        // logger.info("From Peer: {} token(s) from position {} for session {}", tensor.shape().first(), startPosition, session);
-
         Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1 ? t -> {} : t -> {
             CombineRequest.Builder nrb = CombineRequest.newBuilder()
                 .setUuid(sessionBytes)
@@ -208,12 +206,8 @@ public class Worker implements Closeable {
                 .setLayerShard(registerResponse.getLayerShard())
                 .setModelShard(registerResponse.getModelShard());
 
-            for (int i = 0; i < t.size(); i++)
-                nrb = nrb.addTensor(getTensorBytes(t.get(i)));
-
-            // logger.info("1)Sending combine request for session {}", session);
+            for (AbstractTensor abstractTensor : t) nrb = nrb.addTensor(getTensorBytes(abstractTensor));
             CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
-
             for (int i = 0; i < t.size(); i++)
                 t.get(i)
                     .getMemorySegment()
@@ -322,21 +316,13 @@ public class Worker implements Closeable {
             int startPosition = generateResponse.getStartPosition();
             ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
-
-            // logger.info("From Coordinator: {} token(s) from position {} for session {}", tokens.length,
-            // startPosition, session);
-
             Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1 ? t -> {} : t -> {
                 CombineRequest.Builder nrb = CombineRequest.newBuilder()
                     .setUuid(generateResponse.getSession())
                     .setWorkerid(workerIdBytes)
                     .setLayerShard(registerResponse.getLayerShard())
                     .setModelShard(registerResponse.getModelShard());
-                for (int i = 0; i < t.size(); i++)
-                    nrb = nrb.addTensor(getTensorBytes(t.get(i)));
-
-                // logger.info("2){} Sending combine request for session {}", registerResponse.getWorkerOrd(), session);
-
+                for (AbstractTensor abstractTensor : t) nrb = nrb.addTensor(getTensorBytes(abstractTensor));
                 CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
 
                 for (int i = 0; i < t.size(); i++)
