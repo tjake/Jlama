@@ -55,69 +55,32 @@
     <plugin>
       <artifactId>maven-compiler-plugin</artifactId>
       <version>3.8.0</version>
+      <!-- Simple Java 21 default - no toolchain needed -->
+      <configuration>
+        <source>21</source>
+        <target>21</target>
+        <compilerArgs>
+          <arg>--add-modules=jdk.incubator.vector</arg>
+          <arg>--enable-preview</arg>
+        </compilerArgs>
+      </configuration>
       <executions>
         <execution>
-          <id>compile-jdk20</id>
+          <id>compile-java21</id>
           <phase>compile</phase>
           <goals>
             <goal>compile</goal>
           </goals>
           <configuration>
-            <release>20</release>
+            <source>21</source>
+            <target>21</target>
             <compilerArgs>
               <arg>--add-modules=jdk.incubator.vector</arg>
               <arg>--enable-preview</arg>
             </compilerArgs>
-            <jdkToolchain>
-              <version>20</version>
-            </jdkToolchain>
-
-            <compileSourceRoots>
-              <compileSourceRoot>${project.basedir}/src/main/java20</compileSourceRoot>
-            </compileSourceRoots>
-            <multiReleaseOutput>true</multiReleaseOutput>
-          </configuration>
-        </execution>
-        <execution>
-          <id>compile-jdk21</id>
-          <phase>compile</phase>
-          <goals>
-            <goal>compile</goal>
-          </goals>
-          <configuration>
-            <release>21</release>
-            <compilerArgs>
-              <arg>--add-modules=jdk.incubator.vector</arg>
-              <arg>--enable-preview</arg>
-            </compilerArgs>
-            <jdkToolchain>
-              <version>21</version>
-            </jdkToolchain>
             <compileSourceRoots>
               <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
             </compileSourceRoots>
-            <multiReleaseOutput>true</multiReleaseOutput>
-          </configuration>
-        </execution>
-        <execution>
-          <id>compile-jdk22</id>
-          <phase>compile</phase>
-          <goals>
-            <goal>compile</goal>
-          </goals>
-          <configuration>
-            <release>22</release>
-            <compilerArgs>
-              <arg>--add-modules=jdk.incubator.vector</arg>
-              <arg>--enable-preview</arg>
-            </compilerArgs>
-            <jdkToolchain>
-              <version>22</version>
-            </jdkToolchain>
-            <compileSourceRoots>
-              <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
-            </compileSourceRoots>
-            <multiReleaseOutput>true</multiReleaseOutput>
           </configuration>
         </execution>
       </executions>
@@ -556,6 +519,118 @@
                     <env key="MACOSX_DEPLOYMENT_TARGET" value="10.12" />
                   </exec>
                 </target>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </build>
+  </profile>
+  <profile>
+    <id>multi-jdk</id>
+    <build>
+      <plugins>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.8.0</version>
+          <!-- Override default config: use source=20 with JDK 22 toolchain, no enable-preview -->
+          <configuration>
+            <source>20</source>
+            <target>20</target>
+            <compilerArgs>
+              <arg>--add-modules=jdk.incubator.vector</arg>
+            </compilerArgs>
+            <jdkToolchain>
+              <version>22</version>
+            </jdkToolchain>
+          </configuration>
+          <!-- Multi-JDK compilation for multi-release JAR -->
+          <executions>
+            <!-- Disable default compile-java21 execution since we handle it below -->
+            <execution>
+              <id>compile-java21</id>
+              <phase>none</phase>
+            </execution>
+            <execution>
+              <id>compile-jdk20</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <release>20</release>
+                <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.vector</arg>
+                  <arg>--enable-preview</arg>
+                </compilerArgs>
+                <jdkToolchain>
+                  <version>20</version>
+                </jdkToolchain>
+                <compileSourceRoots>
+                  <compileSourceRoot>${project.basedir}/src/main/java20</compileSourceRoot>
+                </compileSourceRoots>
+                <multiReleaseOutput>true</multiReleaseOutput>
+              </configuration>
+            </execution>
+            <execution>
+              <id>compile-jdk21</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <release>21</release>
+                <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.vector</arg>
+                  <arg>--enable-preview</arg>
+                </compilerArgs>
+                <jdkToolchain>
+                  <version>21</version>
+                </jdkToolchain>
+                <compileSourceRoots>
+                  <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
+                </compileSourceRoots>
+                <multiReleaseOutput>true</multiReleaseOutput>
+              </configuration>
+            </execution>
+            <execution>
+              <id>compile-jdk22</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <release>22</release>
+                <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.vector</arg>
+                  <arg>--enable-preview</arg>
+                </compilerArgs>
+                <jdkToolchain>
+                  <version>22</version>
+                </jdkToolchain>
+                <compileSourceRoots>
+                  <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
+                </compileSourceRoots>
+                <multiReleaseOutput>true</multiReleaseOutput>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <artifactId>maven-jar-plugin</artifactId>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+              <configuration>
+                <classifier>${jni.classifier}</classifier>
+                <archive>
+                  <manifestEntries>
+                    <Multi-Release>true</Multi-Release>
+                  </manifestEntries>
+                </archive>
               </configuration>
             </execution>
           </executions>
