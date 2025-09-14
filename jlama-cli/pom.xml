@@ -99,7 +99,9 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <!-- Default: No native JAR - works with pure Java -->
+              <extraJars>
+                  <jar>../jlama-native/target/jlama-native-${project.version}-${jni.classifier}.jar</jar>
+              </extraJars>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <outputFile>${project.basedir}/target/jlama-cli.jar</outputFile>
               <transformers>
