@@ -34,7 +34,7 @@ jobs:
           echo "<settings><servers><server><id>ossrh</id><username>${{ secrets.OSSRH_USER }}</username><password>${{ secrets.OSSRH_PASSWORD }}</password></server></servers><profiles><profile><id>ossrh</id><activation><activeByDefault>true</activeByDefault></activation><properties><gpg.executable>gpg</gpg.executable><gpg.passphrase>${{ secrets.GPG_KEY_PASSWORD }}</gpg.passphrase></properties></profile></profiles></settings>" > ~/.m2/settings.xml
       - name: Release artifacts
         if: startsWith(matrix.os,'ubuntu')
-        run: mvn -B -DskipTests -Prelease deploy
+        run: mvn -B -DskipTests -Dmulti-jdk -Prelease deploy
       - name: native libraries
         shell: bash
         if: ${{ !startsWith(matrix.os,'ubuntu') }}
@@ -45,4 +45,4 @@ jobs:
             exit 1
           fi
           echo "Using staging repository $REPO_ID"
-          mvn -B -Prelease -am -pl jlama-native deploy -DstagingRepositoryId="$REPO_ID"
+          mvn -B -Dmulti-jdk -Prelease -am -pl jlama-native deploy -DstagingRepositoryId="$REPO_ID"

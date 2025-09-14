@@ -108,4 +108,30 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>multi-jdk</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.3.1</version>
+            <!-- Inherit multi-JDK test executions from parent -->
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <!-- Use native JAR for multi-JDK testing -->
+        <dependency>
+          <groupId>com.github.tjake</groupId>
+          <artifactId>jlama-native</artifactId>
+          <version>${project.version}</version>
+          <classifier>${jni.classifier}</classifier>
+          <type>jar</type>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

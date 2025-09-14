@@ -42,7 +42,7 @@ Jlama requires Java 20 or later and it built with the following backends:
 * Native SIMD (optional)
 * [WebGPU](https://dawn.googlesource.com/dawn/) (optional, experimental)
 
-## 🤔 What is it used for? 
+## 🤔 What is it used for?
 
 Add LLM Inference directly to your Java application. To learn more read the [DeepWiki](https://deepwiki.com/tjake/Jlama) docs.
 
@@ -109,7 +109,7 @@ Other:
 ### 👨‍💻 How to use in your Java project
 The main purpose of Jlama is to provide a simple way to use large language models in Java.
 
-The simplest way to embed Jlama in your app is with the [Langchain4j Integration](https://github.com/langchain4j/langchain4j-examples/tree/main/jlama-examples).  
+The simplest way to embed Jlama in your app is with the [Langchain4j Integration](https://github.com/langchain4j/langchain4j-examples/tree/main/jlama-examples).
 
 If you would like to embed Jlama without langchain4j, add the following [maven](https://central.sonatype.com/artifact/com.github.tjake/jlama-core/) dependencies to your project:
 
@@ -124,7 +124,7 @@ If you would like to embed Jlama without langchain4j, add the following [maven](
 <dependency>
   <groupId>com.github.tjake</groupId>
   <artifactId>jlama-native</artifactId>
-  <!-- supports linux-x86_64, macos-x86_64/aarch_64, windows-x86_64 
+  <!-- supports linux-x86_64, macos-x86_64/aarch_64, windows-x86_64
        Use https://github.com/trustin/os-maven-plugin to detect os and arch -->
   <classifier>${os.detected.name}-${os.detected.arch}</classifier>
   <version>${jlama.version}</version>
@@ -152,7 +152,7 @@ Then you can use the Model classes to run models:
 
     // Downloads the model or just returns the local path if it's already downloaded
     File localModelPath = new Downloader(workingDirectory, model).huggingFaceModel();
-    
+
     // Loads the quantized model and specified use of quantized memory
     AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
 
@@ -189,7 +189,7 @@ Or you can use a **Builder API**:
 
     // Downloads the model or just returns the local path if it's already downloaded
     File localModelPath = new Downloader(workingDirectory, model).huggingFaceModel();
-    
+
     // Loads the quantized model and specified use of quantized memory
     AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
 
@@ -217,7 +217,7 @@ Or you can use a **Builder API**:
             .temperature(0.0f) //By default, 0.0f
             .onTokenWithTimings((s, aFloat) -> {}) //By default, (s, aFloat) -> {}, nothing
             .generate();
-    
+
     System.out.println(r.responseText);
  }
 ```
@@ -233,10 +233,10 @@ You can simplify promptSupport using:
 
     // Downloads the model or just returns the local path if it's already downloaded
     File localModelPath = new Downloader(workingDirectory, model).huggingFaceModel();
-    
+
     // Loads the quantized model and specified use of quantized memory
     AbstractModel m = ModelSupport.loadModel(localModelPath, DType.F32, DType.I8);
-    
+
     var systemPrompt = "You are a helpful chatbot who writes short responses.";
 
     PromptContext ctx = m.prompt()
@@ -255,12 +255,16 @@ You can simplify promptSupport using:
             .temperature(0.0f) //By default, 0.0f
             .onTokenWithTimings((s, aFloat) -> {}) //By default, (s, aFloat) -> {}, nothing
             .generate();
-    
+
     System.out.println(r.responseText);
  }
 ```
 
-## ⭐ Give us a Star! 
+## Devloping Jlama
+
+See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for more information.
+
+## ⭐ Give us a Star!
 
 If you like or are using this project to build your own, please give us a star. It's a free way to show your support.
 

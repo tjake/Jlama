@@ -34,7 +34,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B package
+        run: mvn -B package -Dmulti-jdk
 
       # Always upload build output and test reports, even on failure
       - name: Upload build artifacts
