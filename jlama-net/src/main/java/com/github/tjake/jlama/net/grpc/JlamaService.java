@@ -133,26 +133,20 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         }
     }
 
+    /**
+     *
+     * @return if input is power of two return that else return next power of two
+     */
     public static int nextPowerOfTwo(int n) {
-        if (n <= 1) {
-            return 2; // Corner case for n = 0/1
-        }
-
-        // If n is already a power of 2, return n
-        if ((n & (n - 1)) == 0) {
-            return n;
-        }
-
-        // Find the position of the highest set bit
-        int leadingZeros = Integer.numberOfLeadingZeros(n);
-
-        // Calculate the next power of 2
-        return 1 << (32 - leadingZeros);
+        return n <= 1 ? 1 : Integer.highestOneBit(n - 1) * 2;
+    }
+    public static boolean isPowerOfTwoUsingBitwiseOperation(int n) {
+        return (n != 0) && ((n & (n - 1)) == 0);
     }
 
     public void waitForReady() {
         while (true) {
-            if (generatorGroup.generators.size() == workerCount) {
+            if (generatorGroup.generators.size() >= workerCount) {
                 generatorGroup.waitForReady();
                 return;
             }
@@ -164,7 +158,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         for (Generator g : generatorGroup.generators) {
             try {
                 g.responseObserver.onCompleted();
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 logger.debug("Exception when shutting down", e);
             }
         }
@@ -225,7 +219,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
         UUID wid = new UUID(bb.getLong(), bb.getLong());
         // Register should have been called before this
         if (!workers.containsKey(wid)) {
-            responseObserver.onError(new RuntimeException("Worker not registered"));
+            responseObserver.onError(new RuntimeException("Worker not registered: " + wid));
         } else {
 
             if (!splitLayers) {
@@ -298,7 +292,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
     public StreamObserver<GenerateRequest> generate(StreamObserver<GenerateResponse> responseObserver) {
         Generator generator = new Generator(responseObserver);
         generatorGroup.add(generator);
-        logger.info("Added worker {}", generatorGroup.generators.size());
+        logger.info("Added worker. Current size: {}", generatorGroup.generators.size());
         return generator;
     }
 
@@ -452,7 +446,7 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
         private volatile UUID workerId;
         private volatile RegisterResponse workerAssignment;
-        private CountDownLatch readyLatch;
+        private final CountDownLatch readyLatch;
         private final StreamObserver<GenerateResponse> responseObserver;
         private final ConcurrentMap<UUID, ByteString> outputs;
         private final ConcurrentMap<UUID, CountDownLatch> outputLatches;
@@ -479,11 +473,6 @@ public class JlamaService extends JlamaServiceGrpc.JlamaServiceImplBase {
 
             ByteBuffer bb = generateRequest.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
-
-            /*if (outputs.containsKey(session)) {
-                logger.error("Previous output not consumed from worker {}", workerId);
-            }*/
-
             outputs.put(session, generateRequest.getTensor());
 
             if (outputLatches.containsKey(session)) {
