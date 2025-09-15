@@ -13,7 +13,7 @@
   <name>Jlama Cli</name>
 
   <properties>
-    <resteasy.version>3.15.6.Final</resteasy.version>
+    <progressbar.version>0.10.1</progressbar.version>
   </properties>
 
   <dependencies>
@@ -35,7 +35,7 @@
     <dependency>
       <groupId>me.tongfei</groupId>
       <artifactId>progressbar</artifactId>
-      <version>0.10.0</version>
+      <version>${progressbar.version}</version>
     </dependency>
     <dependency>
       <groupId>com.diogonunes</groupId>
