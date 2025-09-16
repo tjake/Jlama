@@ -39,11 +39,14 @@ public class DownloadCommand extends JlamaCli {
     @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;
 
+    @CommandLine.Option(names = { "--sequential" }, description = "Use sequential download instead of parallel (default: parallel)")
+    protected boolean useSequential;
+
     @Override
     public void run() {
         String owner = getOwner(modelName);
         String name = getName(modelName);
 
-        SimpleBaseCommand.downloadModel(owner, name, modelDirectory, branch, authToken, true);
+        SimpleBaseCommand.downloadModel(owner, name, modelDirectory, branch, authToken, true, useSequential);
     }
 }

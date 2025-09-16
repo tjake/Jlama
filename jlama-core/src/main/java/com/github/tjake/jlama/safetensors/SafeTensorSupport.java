@@ -28,6 +28,11 @@ import com.github.tjake.jlama.util.HttpSupport;
 import com.github.tjake.jlama.util.ProgressReporter;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -384,7 +389,8 @@ public class SafeTensorSupport {
             true,
             Optional.empty(),
             Optional.empty(),
-            Optional.ofNullable(progressReporter)
+            Optional.ofNullable(progressReporter),
+            false
         );
     }
 
@@ -408,6 +414,7 @@ public class SafeTensorSupport {
      * @param optionalBranch The branch of the model to download
      * @param optionalAuthHeader The authorization header to use for the request
      * @param optionalProgressReporter A consumer to report download progress
+     * @param useSequential Whether to use sequential download instead of parallel
      * @return The path to the downloaded model directory
      * @throws IOException
      */
@@ -418,7 +425,8 @@ public class SafeTensorSupport {
         boolean downloadWeights,
         Optional<String> optionalBranch,
         Optional<String> optionalAuthHeader,
-        Optional<ProgressReporter> optionalProgressReporter
+        Optional<ProgressReporter> optionalProgressReporter,
+        boolean useSequential
     ) throws IOException {
 
         Path localModelDir = constructLocalModelPath(modelDir, modelOwner.orElse("na"), modelName);
@@ -471,16 +479,12 @@ public class SafeTensorSupport {
 
         Files.createDirectories(localModelDir);
 
-        for (String currFile : tensorFiles) {
-            HttpSupport.downloadFile(
-                hfModel,
-                currFile,
-                optionalBranch,
-                optionalAuthHeader,
-                Optional.empty(),
-                localModelDir.resolve(currFile),
-                optionalProgressReporter
-            );
+        if (useSequential || tensorFiles.size() <= 1) {
+            logger.info("Using sequential download for {} files", tensorFiles.size());
+            downloadFilesSequentially(hfModel, tensorFiles, optionalBranch, optionalAuthHeader, localModelDir, optionalProgressReporter);
+        } else {
+            logger.info("Using parallel download for {} files", tensorFiles.size());
+            downloadFilesInParallel(hfModel, tensorFiles, optionalBranch, optionalAuthHeader, localModelDir, optionalProgressReporter);
         }
 
         // When fully downloaded, create a .finished file
@@ -502,5 +506,106 @@ public class SafeTensorSupport {
         }
 
         return fileList;
+    }
+
+    /**
+     * Download files in parallel with optimal configuration
+     */
+    private static void downloadFilesInParallel(
+        String hfModel,
+        List<String> tensorFiles,
+        Optional<String> optionalBranch,
+        Optional<String> optionalAuthHeader,
+        Path localModelDir,
+        Optional<ProgressReporter> optionalProgressReporter
+    ) throws IOException {
+
+        // Calculate optimal thread count: minimum of file count and recommended maximum
+        int optimalThreads = Math.min(tensorFiles.size(), getOptimalThreadCount());
+
+        if (tensorFiles.size() <= 1) {
+            downloadFilesSequentially(hfModel, tensorFiles, optionalBranch, optionalAuthHeader, localModelDir, optionalProgressReporter);
+            return;
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(optimalThreads);
+        List<CompletableFuture<Void>> downloadFutures = new ArrayList<>();
+
+        logger.info("Starting parallel download with {} threads for {} files", optimalThreads, tensorFiles.size());
+
+        for (String currFile : tensorFiles) {
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                try {
+                    HttpSupport.downloadFile(
+                        hfModel,
+                        currFile,
+                        optionalBranch,
+                        optionalAuthHeader,
+                        Optional.empty(),
+                        localModelDir.resolve(currFile),
+                        optionalProgressReporter
+                    );
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to download file: " + currFile, e);
+                }
+            }, executor);
+
+            downloadFutures.add(future);
+        }
+
+        // Wait for all downloads to complete
+        CompletableFuture<Void> allDownloads = CompletableFuture.allOf(downloadFutures.toArray(new CompletableFuture[] {}));
+
+        try {
+            allDownloads.join();
+            logger.info("All {} files downloaded successfully", tensorFiles.size());
+        } catch (CompletionException e) {
+            throw new IOException("Parallel download failed", e.getCause());
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * Determine optimal thread count
+     * minimum 4, maximum 6
+     */
+    private static int getOptimalThreadCount() {
+        // Optimal value considering system performance and network efficiency
+        int systemCores = Runtime.getRuntime().availableProcessors();
+        return Math.min(Math.max(systemCores, 4), 6);
+    }
+
+    /**
+     * Sequential download (existing logic)
+     */
+    private static void downloadFilesSequentially(
+        String hfModel,
+        List<String> tensorFiles,
+        Optional<String> optionalBranch,
+        Optional<String> optionalAuthHeader,
+        Path localModelDir,
+        Optional<ProgressReporter> optionalProgressReporter
+    ) throws IOException {
+
+        for (String currFile : tensorFiles) {
+            HttpSupport.downloadFile(
+                hfModel,
+                currFile,
+                optionalBranch,
+                optionalAuthHeader,
+                Optional.empty(),
+                localModelDir.resolve(currFile),
+                optionalProgressReporter
+            );
+        }
     }
 }
