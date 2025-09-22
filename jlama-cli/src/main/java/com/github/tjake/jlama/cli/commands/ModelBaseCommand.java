@@ -19,10 +19,13 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+
 import picocli.CommandLine.*;
 
 public class ModelBaseCommand extends BaseCommand {
 
+    @Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model (owner/name) or index of the model from the 'ls' command")
+    protected String modelName;
     @Option(names = {
         "--temperature" }, paramLabel = "ARG", description = "Temperature of response [0,1] (default: ${DEFAULT-VALUE})", defaultValue = "0.6")
     protected Float temperature;

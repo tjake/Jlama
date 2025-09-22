@@ -15,61 +15,29 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-import com.github.tjake.jlama.cli.JlamaCli;
-import com.github.tjake.jlama.model.ModelSupport;
-import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import picocli.CommandLine;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
-@CommandLine.Command(name = "list", description = "Lists local models", abbreviateSynopsis = true)
-public class ListCommand extends JlamaCli {
-    @CommandLine.Option(names = {
-        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})")
-    protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
+@CommandLine.Command(name = "ls", description = "Lists local models", abbreviateSynopsis = true)
+public class ListCommand extends SimpleBaseCommand {
 
     @Override
     public void run() {
-        if (!modelDirectory.exists()) {
+        AtomicInteger idx = new AtomicInteger(1);
+        var models = getExistingModels()
+            .map(m -> idx.getAndIncrement() + ": " + m.owner() + "/" + m.name())
+            .toList();
+
+        if(models.isEmpty()) {
             System.out.println("No models found in " + modelDirectory.getAbsolutePath());
-            System.exit(0);
+        } else {
+            System.out.println("Models in " + modelDirectory.getAbsolutePath() + ":");
+            models.forEach(System.out::println);
         }
+    }
 
-        File[] files = modelDirectory.listFiles();
-        if (files == null || files.length == 0) {
-            System.out.println("No models found in " + modelDirectory.getAbsolutePath());
-            System.exit(0);
-        }
-        int idx = 1;
-        for (File file : files) {
-            if (file.isDirectory()) {
-                String[] parts = file.getName().split("_");
-                if (parts.length == 2) {
-
-                    File baseDir = file;
-                    File configFile = null;
-                    for (File f : Objects.requireNonNull(baseDir.listFiles())) {
-                        if (f.getName().equals("config.json")) {
-                            configFile = f;
-                            break;
-                        }
-                    }
-
-                    if (configFile != null) {
-                        ModelSupport.ModelType modelType = null;
-                        try {
-                            modelType = SafeTensorSupport.detectModel(configFile);
-                        } catch (IOException | IllegalArgumentException e) {
-                            // ignore Unknown model type
-                        }
-                        if (modelType != null) {
-                            System.out.println(idx++ + ": " + parts[0] + "/" + parts[1]);
-                        }
-                    }
-                }
-            }
-        }
+    public static void main(String[] args) {
+        new ListCommand().run();
     }
 }
