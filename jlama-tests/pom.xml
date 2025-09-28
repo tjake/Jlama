@@ -57,6 +57,35 @@
 
   <build>
     <plugins>
+      <!-- Extract native libraries to target/native-libs -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <id>unpack-native-libraries</id>
+            <phase>process-test-classes</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>com.github.tjake</groupId>
+                  <artifactId>jlama-native</artifactId>
+                  <version>${project.version}</version>
+                  <classifier>${jni.classifier}</classifier>
+                  <type>jar</type>
+                  <outputDirectory>${project.build.directory}/native-libs</outputDirectory>
+                  <includes>META-INF/native/lib/*</includes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <executions>
@@ -106,6 +135,25 @@
           </execution>
         </executions>
       </plugin>
+      
+      <!-- Configure Surefire for test execution -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+          <forkCount>1</forkCount>
+          <argLine>
+            --add-modules=jdk.incubator.vector
+            --enable-preview
+            --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+            --enable-native-access=ALL-UNNAMED
+            --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
+            -Djava.library.path=${project.build.directory}/native-libs/META-INF/native/lib
+          </argLine>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
@@ -118,7 +166,6 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <version>3.3.1</version>
-            <!-- Inherit multi-JDK test executions from parent -->
           </plugin>
         </plugins>
       </build>
