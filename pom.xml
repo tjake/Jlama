@@ -441,7 +441,7 @@
                   <jdkToolchain>
                     <version>20</version>
                   </jdkToolchain>
-                  <forkCount>0</forkCount>
+                  <forkCount>1</forkCount>
                   <argLine>
                   --add-modules=jdk.incubator.vector
                   --add-exports java.base/sun.nio.ch=ALL-UNNAMED
@@ -462,7 +462,7 @@
                   <jdkToolchain>
                     <version>21</version>
                   </jdkToolchain>
-                  <forkCount>0</forkCount>
+                  <forkCount>1</forkCount>
                   <argLine>
                     --add-modules=jdk.incubator.vector
                     --add-exports java.base/sun.nio.ch=ALL-UNNAMED
@@ -483,7 +483,7 @@
                   <jdkToolchain>
                     <version>22</version>
                   </jdkToolchain>
-                  <forkCount>0</forkCount>
+                  <forkCount>1</forkCount>
                   <argLine>
                     --add-modules=jdk.incubator.vector
                     --add-exports java.base/sun.nio.ch=ALL-UNNAMED
