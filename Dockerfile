@@ -1,6 +1,6 @@
 FROM ubuntu:22.04 AS builder
 RUN apt-get update
-RUN apt-get install -y build-essential git zip curl zlib1g-dev
+RUN apt-get install -y build-essential git zip curl zlib1g-dev jq
 
 ENV SDKMAN_DIR=/root/.sdkman
 ENV JAVA_VERSION_20=20.0.2-graalce
@@ -43,8 +43,9 @@ COPY jlama-tests jlama-tests
 COPY .mvn .mvn
 COPY pom.xml .
 COPY mvnw .
+COPY .git .git
 
-RUN --mount=type=cache,target=/root/.m2/repository source "$SDKMAN_DIR/bin/sdkman-init.sh" && sdk use java $JAVA_VERSION_22 && ./mvnw clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2/repository source "$SDKMAN_DIR/bin/sdkman-init.sh" && sdk use java $JAVA_VERSION_21 && ./mvnw clean package -DskipTests
 
 FROM openjdk:21-slim
 RUN apt-get update
