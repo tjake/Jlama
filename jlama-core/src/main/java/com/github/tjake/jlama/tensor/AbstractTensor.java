@@ -25,6 +25,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+import java.util.UUID;
+
 import jdk.incubator.vector.Vector;
 import jdk.incubator.vector.VectorMask;
 import jdk.incubator.vector.VectorSpecies;
@@ -43,6 +45,7 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractTensor<V extends Vector<?>, T extends Number> implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(AbstractTensor.class);
 
+    private volatile String uid;
     protected final TensorShape shape;
     protected final DType dType;
     protected final AbstractTensor[] sliceCache;
@@ -51,6 +54,7 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
 
     protected AbstractTensor(DType dType, TensorShape shape, boolean cacheSlices) {
         Preconditions.checkArgument(shape != null && shape.dims() > 0);
+        this.uid = UUID.randomUUID().toString();
         this.dType = dType;
         this.shape = shape;
         this.sliceCache = cacheSlices ? new AbstractTensor[shape.first()] : null;
@@ -64,6 +68,14 @@ public abstract class AbstractTensor<V extends Vector<?>, T extends Number> impl
             case I8 -> new Q8ByteBufferTensor(shape);
             default -> throw new RuntimeException("Unsupported tensor type: " + dType);
         };
+    }
+
+    public String getUid() {
+        return uid;
+    }
+
+    public void setUid(String uid) {
+        this.uid = uid;
     }
 
     /** Create a new tensor with the given shape of the same Tensor implementation */

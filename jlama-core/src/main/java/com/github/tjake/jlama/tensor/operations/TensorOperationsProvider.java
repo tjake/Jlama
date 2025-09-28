@@ -26,6 +26,7 @@ public class TensorOperationsProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(TensorOperationsProvider.class);
     private static final boolean forcePanama = Boolean.getBoolean("jlama.force_panama_tensor_operations");
+    private static final boolean forceSimd = Boolean.getBoolean("jlama.force_simd_tensor_operations");
 
     private static final String lock = "lock";
     private static TensorOperationsProvider instance;
@@ -51,14 +52,29 @@ public class TensorOperationsProvider {
         TensorOperations pick = null;
 
         if (!forcePanama) {
-            try {
-                Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName(
-                    "com.github.tjake.jlama.tensor.operations.NativeSimdTensorOperations"
-                );
-                pick = nativeClazz.getConstructor().newInstance();
-                // This will throw if no shared lib found
-            } catch (Throwable t) {
-                logger.warn("Native operations not available. Consider adding 'com.github.tjake:jlama-native' to the classpath");
+            if (!forceSimd) {
+                try {
+                    Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName(
+                        "com.github.tjake.jlama.tensor.operations.NativeGPUTensorOperations"
+                    );
+                    pick = nativeClazz.getConstructor().newInstance();
+                    // This will throw if no shared lib found
+                } catch (Throwable t) {
+                    logger.warn("Native GPU operations not available. Consider adding 'com.github.tjake:jlama-native' to the classpath");
+                    logger.debug("Exception when loading native", t);
+                }
+            }
+
+            if (pick == null) {
+                try {
+                    Class<? extends TensorOperations> nativeClazz = (Class<? extends TensorOperations>) Class.forName(
+                        "com.github.tjake.jlama.tensor.operations.NativeSimdTensorOperations"
+                    );
+                    pick = nativeClazz.getConstructor().newInstance();
+                } catch (Throwable t2) {
+                    logger.warn("Native SIMD operations not available. Consider adding 'com.github.tjake:jlama-native' to the classpath");
+                    logger.debug("Exception when loading native", t2);
+                }
             }
         }
 

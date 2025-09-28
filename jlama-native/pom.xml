@@ -13,7 +13,6 @@
   <name>Jlama Native</name>
 
   <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <exe.make>make</exe.make>
     <exe.compiler>gcc</exe.compiler>
     <exe.archiver>ld</exe.archiver>
@@ -24,6 +23,10 @@
     <nativeLibOnlyDir>${project.build.directory}/native-lib-only</nativeLibOnlyDir>
     <defaultJarFile>${project.build.directory}/${project.build.finalName}.jar</defaultJarFile>
     <nativeJarFile>${project.build.directory}/${project.build.finalName}-${jni.classifier}.jar</nativeJarFile>
+    <dawnTag>2025-04-09</dawnTag>
+    <dxcTag>v1.8.2502</dxcTag>
+    <dxcName>dxc_2025_02_20.zip</dxcName>
+    <dawnWorkDir>${project.build.directory}/dawn</dawnWorkDir>
   </properties>
 
   <dependencies>
@@ -36,82 +39,20 @@
   </dependencies>
 
   <build>
+    <pluginManagement>
+      <plugins>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>3.1.0</version>
+        </plugin>
+
+      </plugins>
+    </pluginManagement>
   <plugins>
-
-    <plugin>
-      <artifactId>maven-compiler-plugin</artifactId>
-      <version>3.8.0</version>
-      <executions>
-        <execution>
-          <id>compile-jdk20</id>
-          <phase>compile</phase>
-          <goals>
-            <goal>compile</goal>
-          </goals>
-          <configuration>
-            <release>20</release>
-            <compilerArgs>
-              <arg>--add-modules=jdk.incubator.vector</arg>
-              <arg>--enable-preview</arg>
-            </compilerArgs>
-            <jdkToolchain>
-              <version>20</version>
-            </jdkToolchain>
-
-            <compileSourceRoots>
-              <compileSourceRoot>${project.basedir}/src/main/java20</compileSourceRoot>
-            </compileSourceRoots>
-            <multiReleaseOutput>true</multiReleaseOutput>
-          </configuration>
-        </execution>
-        <execution>
-          <id>compile-jdk21</id>
-          <phase>compile</phase>
-          <goals>
-            <goal>compile</goal>
-          </goals>
-          <configuration>
-            <release>21</release>
-            <compilerArgs>
-              <arg>--add-modules=jdk.incubator.vector</arg>
-              <arg>--enable-preview</arg>
-            </compilerArgs>
-            <jdkToolchain>
-              <version>21</version>
-            </jdkToolchain>
-            <compileSourceRoots>
-              <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
-            </compileSourceRoots>
-            <multiReleaseOutput>true</multiReleaseOutput>
-          </configuration>
-        </execution>
-        <execution>
-          <id>compile-jdk22</id>
-          <phase>compile</phase>
-          <goals>
-            <goal>compile</goal>
-          </goals>
-          <configuration>
-            <release>22</release>
-            <compilerArgs>
-              <arg>--add-modules=jdk.incubator.vector</arg>
-              <arg>--enable-preview</arg>
-            </compilerArgs>
-            <jdkToolchain>
-              <version>22</version>
-            </jdkToolchain>
-            <compileSourceRoots>
-              <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
-            </compileSourceRoots>
-            <multiReleaseOutput>true</multiReleaseOutput>
-          </configuration>
-        </execution>
-      </executions>
-    </plugin>
-
     <plugin>
       <artifactId>maven-jar-plugin</artifactId>
-      <version>3.4.2</version>
       <!-- All other configuration information is in the parent pom -->
       <executions>
         <execution>
@@ -143,106 +84,7 @@
         </execution>
       </executions>
     </plugin>
-    <!-- Ensure to put maven-antrun-plugin at the end of the plugin list
-   so that they are run lastly in the same phase. -->
-  <plugin>
-    <artifactId>maven-antrun-plugin</artifactId>
-    <version>1.8</version>
-    <executions>
-      <!-- Generate the version properties for all artifacts. -->
-      <execution>
-        <id>write-version-properties</id>
-        <phase>initialize</phase>
-        <goals>
-          <goal>run</goal>
-        </goals>
-        <configuration>
-          <tasks>
-            <taskdef resource="net/sf/antcontrib/antlib.xml" />
-
-            <!-- Get the information about the latest commit -->
-            <exec executable="git" outputproperty="gitOutput.lastCommit" resultproperty="gitExitCode.lastCommit" failonerror="false" failifexecutionfails="false">
-              <arg value="log" />
-              <arg value="-1" />
-              <arg value="--format=format:%h %H %cd" />
-              <arg value="--date=iso" />
-            </exec>
-            <propertyregex property="shortCommitHash" input="${gitOutput.lastCommit}" regexp="^([0-9a-f]+) .*$" select="\1" casesensitive="true" defaultValue="0" />
-            <propertyregex property="longCommitHash" input="${gitOutput.lastCommit}" regexp="^[0-9a-f]+ ([0-9a-f]{40}) .*$" select="\1" casesensitive="true" defaultValue="0000000000000000000000000000000000000000" />
-            <propertyregex property="commitDate" input="${gitOutput.lastCommit}" regexp="^[0-9a-f]+ [0-9a-f]{40} (.*)$" select="\1" casesensitive="true" defaultValue="1970-01-01 00:00:00 +0000" />
-
-            <!-- Get the information abount whether the repository is clean or dirty -->
-            <exec executable="git" outputproperty="gitOutput.repoStatus" resultproperty="gitExitCode.repoStatus" failonerror="false" failifexecutionfails="false">
-              <arg value="status" />
-              <arg value="--porcelain" />
-            </exec>
-            <if>
-              <equals arg2="0" arg1="${gitExitCode.repoStatus}" />
-              <then>
-                <if>
-                  <equals arg2="" arg1="${gitOutput.repoStatus}" />
-                  <then>
-                    <property name="repoStatus" value="clean" />
-                  </then>
-                  <else>
-                    <property name="repoStatus" value="dirty" />
-                  </else>
-                </if>
-              </then>
-              <else>
-                <property name="repoStatus" value="unknown" />
-              </else>
-            </if>
-
-            <!-- Print the obtained commit information. -->
-            <echo>Current commit: ${shortCommitHash} on ${commitDate}</echo>
-
-            <!-- Generate the .properties file. -->
-            <!--
-            <property name="metaInfDir" value="${project.basedir}/src/main/resources/META-INF" />
-            -->
-            <property name="metaInfDir" value="${project.build.outputDirectory}/META-INF" />
-            <property name="versionPropFile" value="${metaInfDir}/${project.groupId}.versions.properties" />
-            <mkdir dir="${metaInfDir}" />
-            <delete file="${versionPropFile}" quiet="true" />
-
-            <propertyfile file="${versionPropFile}" comment="Generated by jlama/pom.xml">
-              <entry key="${project.artifactId}.version" value="${project.version}" />
-              <entry key="${project.artifactId}.buildDate" type="date" value="now" pattern="yyyy-MM-dd HH:mm:ss Z" />
-              <entry key="${project.artifactId}.commitDate" value="${commitDate}" />
-              <entry key="${project.artifactId}.shortCommitHash" value="${shortCommitHash}" />
-              <entry key="${project.artifactId}.longCommitHash" value="${longCommitHash}" />
-              <entry key="${project.artifactId}.repoStatus" value="${repoStatus}" />
-            </propertyfile>
-          </tasks>
-        </configuration>
-      </execution>
-    </executions>
-    <dependencies>
-      <dependency>
-        <groupId>org.apache.ant</groupId>
-        <artifactId>ant</artifactId>
-        <version>1.10.11</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.ant</groupId>
-        <artifactId>ant-launcher</artifactId>
-        <version>1.9.7</version>
-      </dependency>
-      <dependency>
-        <groupId>ant-contrib</groupId>
-        <artifactId>ant-contrib</artifactId>
-        <version>1.0b3</version>
-        <exclusions>
-          <exclusion>
-            <groupId>ant</groupId>
-            <artifactId>ant</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-    </dependencies>
-  </plugin>
-</plugins>
+  </plugins>
     </build>
 <profiles>
 <profile>
@@ -250,7 +92,7 @@
   <activation>
     <os>
       <family>linux</family>
-      <arch>x86_64</arch>
+      <arch>!aarch64</arch> <!-- x86_64 and amd64 -->
     </os>
   </activation>
   <properties>
@@ -274,6 +116,9 @@
                 <copy todir="${nativeJarWorkdir}">
                   <zipfileset src="${defaultJarFile}" />
                 </copy>
+                <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                  <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                </copy>
                 <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                   <zipfileset dir="${nativeLibOnlyDir}" />
                   <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -282,7 +127,7 @@
                   <zipfileset dir="${nativeIncludeDir}" />
                   <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)\.h$" to="META-INF/native/include/\1.h" />
                 </copy>
-                <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" />
+                <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" modificationTime="${git.commit.time}" />
                 <attachartifact file="${nativeJarFile}" classifier="${jni.classifier}" type="jar" />
               </target>
             </configuration>
@@ -296,14 +141,22 @@
             </goals>
             <configuration>
               <target>
+                <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
+                    <arg value="linux" />
+                    <arg value="x86_64" />
+                    <arg value="${dawnWorkDir}" />
+                </exec>
                 <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                   <env key="CC" value="${exe.compiler}" />
                   <env key="AR" value="${exe.archiver}" />
                   <env key="LIB_DIR" value="${nativeLibOnlyDir}" />
                   <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                   <env key="JNI_PLATFORM" value="${jni.platform}" />
-                  <env key="CFLAGS" value="-g -O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable" />
+                  <env key="CFLAGS" value="-O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable" />
+                  <env key="CFLAGS2" value=" -Wno-attributes -fno-omit-frame-pointer -Wunused-variable -fPIC -O3 -march=native -I${dawnWorkDir}/include" />
                   <env key="LDFLAGS" value="-shared" />
+                  <env key="LDFLAGS2" value="-L${dawnWorkDir}/lib -lwebgpu_dawn -shared" />
                   <env key="LIB_NAME" value="${nativeLibName}" />
                   <env KEY="LIB_EXT"  value="so" />
                 </exec>
@@ -352,7 +205,7 @@
                   <zipfileset dir="${nativeIncludeDir}" />
                   <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)\.h$" to="META-INF/native/include/\1.h" />
                 </copy>
-                <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" />
+                <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" modificationTime="${git.commit.time}" />
                 <attachartifact file="${nativeJarFile}" classifier="${jni.classifier}" type="jar" />
               </target>
             </configuration>
@@ -372,7 +225,7 @@
                   <env key="LIB_DIR" value="${nativeLibOnlyDir}" />
                   <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                   <env key="JNI_PLATFORM" value="${jni.platform}" />
-                  <env key="CFLAGS" value="-g -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -march=native -flax-vector-conversions -D__ARM_NEON__" />
+                  <env key="CFLAGS" value="-g -O3 -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -march=native -flax-vector-conversions -D__ARM_NEON__" />
                   <env key="LDFLAGS" value="-shared" />
                   <env key="LIB_NAME" value="${nativeLibName}" />
                   <env KEY="LIB_EXT"  value="so" />
@@ -412,6 +265,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                    <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -420,7 +276,7 @@
                     <zipfileset dir="${nativeIncludeDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)\.h$" to="META-INF/native/include/\1.h" />
                   </copy>
-                  <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" />
+                  <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" modificationTime="${git.commit.time}" />
                   <attachartifact file="${nativeJarFile}" classifier="${jni.classifier}" type="jar" />
                 </target>
               </configuration>
@@ -434,14 +290,29 @@
               </goals>
               <configuration>
                 <target>
+                  <exec executable="C:\Program Files\Git\bin\bash.exe" failonerror="true" resolveexecutable="true">
+                    <arg value="./download_dawn.sh" />
+                    <arg value="${dawnTag}" />
+                    <arg value="win" />
+                    <arg value="x64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
+                  <exec executable="C:\Program Files\Git\bin\bash.exe" failonerror="true" resolveexecutable="true">
+                    <arg value="./download_dxc.sh" />
+                    <arg value="${dxcTag}" />
+                    <arg value="${dxcName}" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
                     <env key="LIB_DIR" value="${nativeLibOnlyDir}" />
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
-                    <env key="CFLAGS" value="-O3 -mavx2 -march=native -Werror -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable" />
+                    <env key="CFLAGS" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable" />
+                    <env key="CFLAGS2" value="-O3 -mavx2 -march=native  -Wno-attributes -fPIC -ffreestanding -fno-stack-check -fno-stack-protector -mno-stack-arg-probe -fno-omit-frame-pointer -Wunused-variable -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-shared" />
+                    <env key="WEBGPU_DLL" value="${dawnWorkDir}/lib/webgpu_dawn.dll" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env KEY="LIB_EXT"  value="dll" />
                   </exec>
@@ -484,6 +355,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                    <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -492,7 +366,7 @@
                     <zipfileset dir="${nativeIncludeDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+).h$" to="META-INF/native/include/\1.h" />
                   </copy>
-                  <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" />
+                  <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" modificationTime="${git.commit.time}" />
                   <attachartifact file="${nativeJarFile}" classifier="${jni.classifier}" type="jar" />
                 </target>
               </configuration>
@@ -506,6 +380,12 @@
               </goals>
               <configuration>
                 <target>
+                  <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
+                    <arg value="mac" />
+                    <arg value="arm64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
@@ -513,7 +393,9 @@
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
                     <env key="CFLAGS" value="-target arm64-apple-macos11 -Rpass-analysis=loop-vectorize -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common" />
+                    <env key="CFLAGS2" value="-target arm64-apple-macos11 -Rpass-analysis=loop-vectorize -Rpass=loop-vectorize -Rpass-missed=loop-vectorize -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch arm64" />
+                    <env key="LDFLAGS2" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch arm64 -L${dawnWorkDir}/lib -lwebgpu_dawn" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env key="LIB_EXT" value="dylib" />
                     <env key="MACOSX_DEPLOYMENT_TARGET" value="11.0" />
@@ -556,6 +438,9 @@
                   <copy todir="${nativeJarWorkdir}">
                     <zipfileset src="${defaultJarFile}" />
                   </copy>
+                  <copy todir="${nativeLibOnlyDir}" includeEmptyDirs="false">
+                    <zipfileset dir="${dawnWorkDir}/lib/" excludes="*.a"/>
+                  </copy>
                   <copy todir="${nativeJarWorkdir}" includeEmptyDirs="false">
                     <zipfileset dir="${nativeLibOnlyDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+)$" to="META-INF/native/lib/\1" />
@@ -564,7 +449,7 @@
                     <zipfileset dir="${nativeIncludeDir}" />
                     <regexpmapper handledirsep="yes" from="^(?:[^/]+/)*([^/]+).h$" to="META-INF/native/include/\1.h" />
                   </copy>
-                  <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" />
+                  <jar destfile="${nativeJarFile}" manifest="${nativeJarWorkdir}/META-INF/MANIFEST.MF" basedir="${nativeJarWorkdir}" index="true" excludes="META-INF/MANIFEST.MF,META-INF/INDEX.LIST" modificationTime="${git.commit.time}" />
                   <attachartifact file="${nativeJarFile}" classifier="${jni.classifier}" type="jar" />
                 </target>
               </configuration>
@@ -578,6 +463,12 @@
               </goals>
               <configuration>
                 <target>
+                  <exec executable="./download_dawn.sh" failonerror="true" resolveexecutable="true">
+                    <arg value="${dawnTag}" />
+                    <arg value="mac" />
+                    <arg value="x86_64" />
+                    <arg value="${dawnWorkDir}" />
+                  </exec>
                   <exec executable="${exe.make}" failonerror="true" resolveexecutable="true">
                     <env key="CC" value="${exe.compiler}" />
                     <env key="AR" value="${exe.archiver}" />
@@ -585,12 +476,133 @@
                     <env key="OBJ_DIR" value="${nativeObjsOnlyDir}" />
                     <env key="JNI_PLATFORM" value="${jni.platform}" />
                     <env key="CFLAGS" value="-target x86_64-apple-macos10.12 -mavx2 -mfma -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common" />
+                    <env key="CFLAGS2" value="-target x86_64-apple-macos10.12 -mavx2 -mfma -O3 -Werror -Wno-attributes -fPIC -fno-omit-frame-pointer -Wunused-variable -fno-common -I${dawnWorkDir}/include" />
                     <env key="LDFLAGS" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch x86_64" />
+                    <env key="LDFLAGS2" value="-syslibroot `xcrun -sdk macosx --show-sdk-path` -lSystem -dylib -arch x86_64 -L${dawnWorkDir}/lib -lwebgpu_dawn" />
                     <env key="LIB_NAME" value="${nativeLibName}" />
                     <env key="LIB_EXT" value="dylib" />
                     <env key="MACOSX_DEPLOYMENT_TARGET" value="10.12" />
                   </exec>
                 </target>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </build>
+  </profile>
+  <profile>
+      <id>jdk21-native</id>
+      <activation>
+          <property>
+              <name>!multi-jdk</name>
+          </property>
+      </activation>
+      <build>
+          <plugins>
+              <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.0</version>
+                  <executions>
+                      <execution>
+                            <id>compile-jdk21</id>
+                            <phase >compile</phase>
+                            <goals>
+                                <goal>compile</goal>
+                            </goals>
+                            <configuration>
+                                <release>21</release>
+                                <source>21</source>
+                                <compilerArgs>
+                                    <arg>--add-modules=jdk.incubator.vector</arg>
+                                    <arg>--enable-preview</arg>
+                                </compilerArgs>
+                                <compileSourceRoots>
+                                  <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
+                                </compileSourceRoots>
+                                <multiReleaseOutput>true</multiReleaseOutput>
+                            </configuration>
+                      </execution>
+                  </executions>
+              </plugin>
+          </plugins>
+      </build>
+  </profile>
+  <profile>
+    <id>multi-jdk-native</id>
+    <activation>
+      <property>
+        <name>multi-jdk</name>
+      </property>
+    </activation>
+    <build>
+      <plugins>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.8.0</version>
+          <!-- Multi-JDK compilation for multi-release JAR -->
+          <executions>
+            <execution>
+              <id>compile-jdk20</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <release>20</release>
+                <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.vector</arg>
+                  <arg>--enable-preview</arg>
+                </compilerArgs>
+                <jdkToolchain>
+                  <version>20</version>
+                </jdkToolchain>
+                <compileSourceRoots>
+                  <compileSourceRoot>${project.basedir}/src/main/java20</compileSourceRoot>
+                </compileSourceRoots>
+                <multiReleaseOutput>true</multiReleaseOutput>
+              </configuration>
+            </execution>
+            <execution>
+              <id>compile-jdk21</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <release>21</release>
+                <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.vector</arg>
+                  <arg>--enable-preview</arg>
+                </compilerArgs>
+                <jdkToolchain>
+                  <version>21</version>
+                </jdkToolchain>
+                <compileSourceRoots>
+                  <compileSourceRoot>${project.basedir}/src/main/java21</compileSourceRoot>
+                </compileSourceRoots>
+                <multiReleaseOutput>true</multiReleaseOutput>
+              </configuration>
+            </execution>
+            <execution>
+              <id>compile-jdk22</id>
+              <phase>compile</phase>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <release>22</release>
+                <compilerArgs>
+                  <arg>--add-modules=jdk.incubator.vector</arg>
+                  <arg>--enable-preview</arg>
+                </compilerArgs>
+                <jdkToolchain>
+                  <version>22</version>
+                </jdkToolchain>
+                <compileSourceRoots>
+                  <compileSourceRoot>${project.basedir}/src/main/java22</compileSourceRoot>
+                </compileSourceRoots>
+                <multiReleaseOutput>true</multiReleaseOutput>
               </configuration>
             </execution>
           </executions>

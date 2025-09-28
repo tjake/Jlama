@@ -26,10 +26,11 @@ import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
-import java.util.Optional;
-import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class GemmaModel extends LlamaModel {
     private static final Logger logger = LoggerFactory.getLogger(GemmaModel.class);
@@ -67,7 +68,7 @@ public class GemmaModel extends LlamaModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.GEMMA;
+        return ModelSupport.getModelType("GEMMA");
     }
 
     @Override

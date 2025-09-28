@@ -42,10 +42,11 @@
   <!-- Build property abstractions: versions, etc -->
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <revision>0.8.4</revision>
+    <project.build.outputTimestamp>${git.commit.time}</project.build.outputTimestamp>
+    <revision>0.9.0-beta</revision>
 
     <slf4j-api.version>2.0.7</slf4j-api.version>
-    <logback.version>1.5.6</logback.version>
+    <logback.version>1.5.17</logback.version>
     <osmaven.version>1.7.1</osmaven.version>
     <jni.classifier>${os.detected.name}-${os.detected.arch}</jni.classifier>
     <resteasy.version>6.2.7.Final</resteasy.version>
@@ -116,95 +117,16 @@
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.8.0</version>
-
-                <!-- We compile with highest jdk to lowest supported target, this is the best compatibility -->
-                <configuration>
-
-                  <source>20</source>
-                  <target>20</target>
-                  <compilerArgs>
-                    <arg>--add-modules=jdk.incubator.vector</arg>
-                  </compilerArgs>
-                  <jdkToolchain>
-                    <version>22</version>
-                  </jdkToolchain>
-                </configuration>
-
+            <version>3.8.0</version>
         </plugin>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.3.1</version>
-          <configuration>
-            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-          </configuration>
-          <executions>
-            <execution>
-              <id>default-test</id>
-              <phase>test</phase>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <jdkToolchain>
-                    <version>20</version>
-                </jdkToolchain>
-                <forkCount>1</forkCount>
-                <argLine>
-                --add-modules=jdk.incubator.vector
-                --add-exports java.base/sun.nio.ch=ALL-UNNAMED
-                --enable-preview
-                --enable-native-access=ALL-UNNAMED
-                --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                -Djava.library.path=../jlama-native/target/native-lib-only
-                </argLine>
-              </configuration>
-            </execution>
-            <execution>
-              <id>jdk21-test</id>
-              <phase>test</phase>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <jdkToolchain>
-                  <version>21</version>
-                </jdkToolchain>
-                <forkCount>1</forkCount>
-                <argLine>
-                  --add-modules=jdk.incubator.vector
-                  --add-exports java.base/sun.nio.ch=ALL-UNNAMED
-                  --enable-preview
-                  --enable-native-access=ALL-UNNAMED
-                  --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                  -Djava.library.path=../jlama-native/target/native-lib-only
-                </argLine>
-              </configuration>
-            </execution>
-            <execution>
-              <id>jdk22-test</id>
-              <phase>test</phase>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <jdkToolchain>
-                  <version>22</version>
-                </jdkToolchain>
-                <forkCount>1</forkCount>
-                <argLine>
-                  --add-modules=jdk.incubator.vector
-                  --add-exports java.base/sun.nio.ch=ALL-UNNAMED
-                  --enable-preview
-                  --enable-native-access=ALL-UNNAMED
-                  --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                  -Djava.library.path=../jlama-native/target/native-lib-only
-                </argLine>
-              </configuration>
-            </execution>
-          </executions>
         </plugin>
-
+        <plugin>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>3.4.2</version>
+        </plugin>
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
           <version>2.5.2</version>
@@ -301,13 +223,39 @@
             </execution>
           </executions>
         </plugin>
+        <plugin>
+          <groupId>io.github.git-commit-id</groupId>
+          <artifactId>git-commit-id-maven-plugin</artifactId>
+          <version>9.0.1</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>revision</goal>
+              </goals>
+            </execution>
+          </executions>
+          <configuration>
+            <dateFormatTimeZone>Etc/UTC</dateFormatTimeZone>
+            <skipPoms>false</skipPoms>
+            <generateGitPropertiesFile>true</generateGitPropertiesFile>
+            <generateGitPropertiesFilename>${project.build.outputDirectory}/META-INF/git.properties</generateGitPropertiesFilename>
+            <includeOnlyProperties>
+              <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+              <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+              <includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+              <includeOnlyProperty>^git.dirty$</includeOnlyProperty>
+            </includeOnlyProperties>
+          </configuration>
+        </plugin>
       </plugins>
   </build>
   <profiles>
     <profile>
-      <id>allmodules</id>
+      <id>jdk21</id>
       <activation>
-        <activeByDefault>true</activeByDefault>
+        <property>
+            <name>!multi-jdk</name>
+        </property>
       </activation>
       <modules>
           <module>jlama-core</module>
@@ -316,6 +264,40 @@
           <module>jlama-cli</module>
           <module>jlama-tests</module>
       </modules>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.8.0</version>
+                        <configuration>
+                            <!-- Simple Java 21 default - no toolchain needed -->
+                            <source>21</source>
+                            <target>21</target>
+                            <compilerArgs>
+                                <arg>--add-modules=jdk.incubator.vector</arg>
+                                <arg>--enable-preview</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <configuration>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                            <!-- Simple Java 21 default - no toolchain needed -->
+                            <forkCount>1</forkCount>
+                            <argLine>
+                                --add-modules=jdk.incubator.vector
+                                --enable-preview
+                                --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+                                --enable-native-access=ALL-UNNAMED
+                                --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
+                                -Djava.library.path=../jlama-native/target/native-lib-only
+                            </argLine>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
     </profile>
     <profile>
       <id>release</id>
@@ -343,7 +325,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
-            <version>2.2.1</version>
+            <version>3.3.1</version>
             <executions>
               <execution>
                 <id>attach-sources</id>
@@ -356,7 +338,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>3.6.3</version>
+            <version>3.11.2</version>
             <configuration>
               <jdkToolchain>
                 <version>22</version>
@@ -407,6 +389,112 @@
               <skipStagingRepositoryClose>true</skipStagingRepositoryClose>
               <autoReleaseAfterClose>false</autoReleaseAfterClose>
             </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>multi-jdk</id>
+      <activation>
+        <property>
+            <name>multi-jdk</name>
+        </property>
+      </activation>
+      <modules>
+          <module>jlama-core</module>
+          <module>jlama-native</module>
+          <module>jlama-net</module>
+          <module>jlama-cli</module>
+          <module>jlama-tests</module>
+      </modules>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.8.0</version>
+            <configuration>
+              <!-- Multi-JDK: compile with highest jdk to lowest supported target -->
+              <source>20</source>
+              <target>20</target>
+              <compilerArgs>
+                <arg>--add-modules=jdk.incubator.vector</arg>
+              </compilerArgs>
+              <jdkToolchain>
+                <version>22</version>
+              </jdkToolchain>
+            </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.3.1</version>
+            <configuration>
+              <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+            </configuration>
+            <executions>
+              <execution>
+                <id>default-test</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <jdkToolchain>
+                    <version>20</version>
+                  </jdkToolchain>
+                  <forkCount>1</forkCount>
+                  <argLine>
+                  --add-modules=jdk.incubator.vector
+                  --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+                  --enable-preview
+                  --enable-native-access=ALL-UNNAMED
+                  --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
+                  -Djava.library.path=../jlama-native/target/native-lib-only
+                  </argLine>
+                </configuration>
+              </execution>
+              <execution>
+                <id>jdk21-test</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <jdkToolchain>
+                    <version>21</version>
+                  </jdkToolchain>
+                  <forkCount>1</forkCount>
+                  <argLine>
+                    --add-modules=jdk.incubator.vector
+                    --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+                    --enable-preview
+                    --enable-native-access=ALL-UNNAMED
+                    --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
+                    -Djava.library.path=../jlama-native/target/native-lib-only
+                  </argLine>
+                </configuration>
+              </execution>
+              <execution>
+                <id>jdk22-test</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <jdkToolchain>
+                    <version>22</version>
+                  </jdkToolchain>
+                  <forkCount>1</forkCount>
+                  <argLine>
+                    --add-modules=jdk.incubator.vector
+                    --add-exports java.base/sun.nio.ch=ALL-UNNAMED
+                    --enable-preview
+                    --enable-native-access=ALL-UNNAMED
+                    --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
+                    -Djava.library.path=../jlama-native/target/native-lib-only
+                  </argLine>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

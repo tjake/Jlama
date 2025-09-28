@@ -197,7 +197,7 @@ public class JlamaServiceTest {
 
         @Override
         public ModelSupport.ModelType getModelType() {
-            return ModelSupport.ModelType.LLAMA;
+            return ModelSupport.getModelType("LLAMA");
         }
 
         @Override

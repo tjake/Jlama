@@ -22,10 +22,11 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
-import java.util.Optional;
-import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class MixtralModel extends MistralModel {
     private static final Logger logger = LoggerFactory.getLogger(MixtralModel.class);
@@ -55,7 +56,7 @@ public class MixtralModel extends MistralModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.MIXTRAL;
+        return ModelSupport.getModelType("MIXTRAL");
     }
 
     @Override

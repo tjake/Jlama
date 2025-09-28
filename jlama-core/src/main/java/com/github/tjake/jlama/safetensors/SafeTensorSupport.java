@@ -15,12 +15,10 @@
  */
 package com.github.tjake.jlama.safetensors;
 
-import static com.github.tjake.jlama.util.JsonSupport.om;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.MapType;
-import com.github.tjake.jlama.model.ModelSupport.ModelType;
+import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.safetensors.tokenizer.TokenizerModel;
 import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.Q4ByteBufferTensor;
@@ -30,6 +28,9 @@ import com.github.tjake.jlama.util.HttpSupport;
 import com.github.tjake.jlama.util.ProgressReporter;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -39,8 +40,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.github.tjake.jlama.util.JsonSupport.om;
 
 public class SafeTensorSupport {
     private static final Logger logger = LoggerFactory.getLogger(SafeTensorSupport.class);
@@ -57,7 +57,9 @@ public class SafeTensorSupport {
         }
         // headerLength exceeds the maximum allowed length MAX_HEADER_LENGTH
         if (headerLength > MAX_HEADER_LENGTH) {
-            throw new IllegalArgumentException(String.format("Header length %d exceeds the maximum allowed length %d.", headerLength, MAX_HEADER_LENGTH));
+            throw new IllegalArgumentException(
+                String.format("Header length %d exceeds the maximum allowed length %d.", headerLength, MAX_HEADER_LENGTH)
+            );
         }
 
         byte[] header = new byte[Ints.checkedCast(headerLength)];
@@ -102,11 +104,11 @@ public class SafeTensorSupport {
         return new Weights(metadata, tensorInfoMap, safeBuf.slice(), Optional.empty());
     }
 
-    public static ModelType detectModel(File configFile) throws IOException {
+    public static ModelSupport.ModelType detectModel(File configFile) throws IOException {
         JsonNode rootNode = om.readTree(configFile);
         if (!rootNode.has("model_type")) throw new IllegalArgumentException("Config missing model_type field.");
 
-        return ModelType.valueOf(rootNode.get("model_type").textValue().toUpperCase());
+        return ModelSupport.getModelType(rootNode.get("model_type").textValue().toUpperCase());
     }
 
     public static WeightLoader loadWeights(File baseDir) {

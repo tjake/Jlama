@@ -68,7 +68,7 @@ public class Gemma2Model extends LlamaModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.GEMMA2;
+        return ModelSupport.getModelType("GEMMA2");
     }
 
     @Override

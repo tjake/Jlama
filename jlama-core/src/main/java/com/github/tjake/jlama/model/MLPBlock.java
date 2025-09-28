@@ -93,6 +93,12 @@ public class MLPBlock implements FeedForward {
         this.upProjectionWeights = upProjectionWeights;
         this.batchResults = new AbstractTensor[2];
         this.batchWeights = new AbstractTensor[] { fullyConnectedWeights, upProjectionWeights };
+
+        TensorOperationsProvider.get().registerModelTensor(fullyConnectedWeights);
+        if (upProjectionWeights != null) {
+            TensorOperationsProvider.get().registerModelTensor(upProjectionWeights);
+        }
+        TensorOperationsProvider.get().registerModelTensor(projectionWeights);
     }
 
     // For FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))

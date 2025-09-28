@@ -31,9 +31,8 @@ public class BaseCommand extends SimpleBaseCommand {
             "--working-dtype" }, paramLabel = "ARG", description = "Working memory data type (default: ${DEFAULT-VALUE})", defaultValue = "F32")
         protected DType workingMemoryType = DType.F32;
 
-        @CommandLine.Option(names = {
-            "--working-qtype" }, paramLabel = "ARG", description = "Working memory quantization data type (default: ${DEFAULT-VALUE})", defaultValue = "I8")
-        protected DType workingQuantizationType = DType.I8;
+        @CommandLine.Option(names = { "--working-qtype" }, paramLabel = "ARG", description = "Working memory quantization data type")
+        protected DType workingQuantizationType;
 
         @CommandLine.Option(names = {
             "--threads" }, paramLabel = "ARG", description = "Number of threads to use (default: number of physical cores)")

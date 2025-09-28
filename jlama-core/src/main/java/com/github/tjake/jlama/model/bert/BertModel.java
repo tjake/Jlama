@@ -25,6 +25,7 @@ import com.github.tjake.jlama.safetensors.DType;
 import com.github.tjake.jlama.safetensors.WeightLoader;
 import com.github.tjake.jlama.safetensors.tokenizer.Tokenizer;
 import com.github.tjake.jlama.tensor.AbstractTensor;
+
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -63,7 +64,7 @@ public class BertModel extends AbstractModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.BERT;
+        return ModelSupport.getModelType("BERT");
     }
 
     @Override

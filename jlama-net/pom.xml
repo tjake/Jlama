@@ -13,11 +13,14 @@
     <name>Jlama Net</name>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <springdoc.version>1.6.14</springdoc.version>
         <swagger-ui.version>5.3.1</swagger-ui.version>
         <spring-boot.version>3.3.2</spring-boot.version>
         <jersey-version>3.0.4</jersey-version>
+        <grpc.version>1.75.0</grpc.version>
+        <genrpc.version>1.53.0</genrpc.version>
+        <annotation.version>6.0.53</annotation.version>
+        <protoc.version>3.17.3</protoc.version>
     </properties>
 
     <dependencyManagement>
@@ -41,23 +44,23 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.59.0</version>
+            <version>${grpc.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
-            <version>1.59.0</version>
+            <version>${grpc.version}</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-stub</artifactId>
-            <version>1.59.0</version>
+            <version>${grpc.version}</version>
         </dependency>
         <dependency> <!-- necessary for Java 9+ -->
             <groupId>org.apache.tomcat</groupId>
             <artifactId>annotations-api</artifactId>
-            <version>6.0.53</version>
+            <version>${annotation.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -193,15 +196,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
-
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-testing</artifactId>
-            <version>1.59.0</version>
+            <version>${grpc.version}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>io.github.stefanbratanov</groupId>
             <artifactId>jvm-openai</artifactId>
@@ -238,24 +238,23 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
+             <plugin>
+                <groupId>io.github.ascopes</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>0.6.1</version>
                 <configuration>
-                    <protocArtifact>
-                        com.google.protobuf:protoc:3.17.3:exe:${os.detected.classifier}
-                    </protocArtifact>
-                    <pluginId>grpc-java</pluginId>
-                    <pluginArtifact>
-                        io.grpc:protoc-gen-grpc-java:1.53.0:exe:${os.detected.classifier}
-                    </pluginArtifact>
+                    <protocVersion>${protoc.version}</protocVersion>
+                    <binaryMavenPlugins>
+                        <binaryMavenPlugin>
+                            <groupId>io.grpc</groupId>
+                            <artifactId>protoc-gen-grpc-java</artifactId>
+                            <version>${genrpc.version}</version>
+                        </binaryMavenPlugin>
+                    </binaryMavenPlugins>
                 </configuration>
                 <executions>
                     <execution>
                         <goals>
-                            <goal>compile</goal>
-                            <goal>compile-custom</goal>
+                            <goal>generate</goal>
                         </goals>
                     </execution>
                 </executions>

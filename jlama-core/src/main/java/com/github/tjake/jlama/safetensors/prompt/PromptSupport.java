@@ -265,22 +265,14 @@ public class PromptSupport {
                 "This model does not support tools, but tools are specified"
             );
 
-
             String preamble = "";
             if (stripPreamble) {
                 Map<String, Object> args = new HashMap<>();
-                args.putAll(
-                    Map.of(
-                        "messages",
-                        Map.of(),
-                        "add_generation_prompt",
-                        false,
-                        "eos_token",
-                        m.eosToken(),
-                        "bos_token",
-                        ""
-                    )
-                ); // We add the BOS ourselves
+                args.putAll(Map.of("messages", Map.of(), "add_generation_prompt", false, "eos_token", m.eosToken(), "bos_token", "")); // We
+                                                                                                                                       // add
+                                                                                                                                       // the
+                                                                                                                                       // BOS
+                                                                                                                                       // ourselves
                 optionalTools.ifPresent(tools -> args.put("tools", tools));
 
                 RenderResult r = jinjava.renderForResult(template, args);

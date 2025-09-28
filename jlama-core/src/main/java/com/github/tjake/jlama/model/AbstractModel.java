@@ -116,13 +116,17 @@ public abstract class AbstractModel implements Generator {
         this.modelQType = modelQType;
         this.kvBufferCache = new KvBufferCache(this);
 
+        if (workingMemoryQType == null) {
+            workingMemoryQType = TensorOperationsProvider.get().preferredWorkingQuantizedType();
+        }
+
         // FIXME: This is a hack to support Avoid Q8F32 evals
         if (modelDType == DType.F32 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.F32;
         }
 
         // FIXME: This is a hack to support Avoid Q8BF16 evals
-        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && modelQType.isEmpty()) {
+        if (modelDType == DType.BF16 && workingMemoryQType != DType.BF16 && workingMemoryQType != DType.F32 && modelQType.isEmpty()) {
             workingMemoryQType = DType.BF16;
         }
 
@@ -141,6 +145,11 @@ public abstract class AbstractModel implements Generator {
             && workingMemoryQType == DType.I8
             && (c.embeddingLength / Q8ByteBufferTensor.BLOCK_SIZE) % (FloatVector.SPECIES_PREFERRED.vectorBitSize() / Float.SIZE) != 0) {
             workingMemoryQType = DType.F32;
+        }
+
+        // Some operation providers don't support Q4I8
+        if (modelDType == DType.Q4 && workingMemoryQType.size() < TensorOperationsProvider.get().preferredWorkingQuantizedType().size()) {
+            workingMemoryQType = TensorOperationsProvider.get().preferredWorkingQuantizedType();
         }
 
         if (workingMemoryQType != workingMemoryDType) {
@@ -291,7 +300,7 @@ public abstract class AbstractModel implements Generator {
     ) {
         AbstractTensor embedding = null;
 
-        //Batch prompt into groups of MAX_BATCH_SIZE
+        // Batch prompt into groups of MAX_BATCH_SIZE
         for (int i = 0; i < token_ids.length; i += MAX_BATCH_SIZE) {
             int[] batch = Arrays.copyOfRange(token_ids, i, Math.min(token_ids.length, i + MAX_BATCH_SIZE));
             embedding = embedInput.batchInputsToEmbeddings(batch, startPos + i);
@@ -672,7 +681,8 @@ public abstract class AbstractModel implements Generator {
             List<ToolCall> toolCalls = new ArrayList<>(jsonCalls.size());
             for (String jsonCall : jsonCalls) {
                 if (jsonCall.startsWith("[")) {
-                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, new TypeReference<>() {});
+                    List<ToolCall> toolCallList = JsonSupport.om.readValue(jsonCall, new TypeReference<>() {
+                    });
                     toolCalls.addAll(toolCallList);
                 } else {
                     ToolCall toolCall = JsonSupport.om.readValue(jsonCall, ToolCall.class);

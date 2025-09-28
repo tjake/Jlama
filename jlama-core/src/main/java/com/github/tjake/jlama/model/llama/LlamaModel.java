@@ -26,10 +26,11 @@ import com.github.tjake.jlama.tensor.AbstractTensor;
 import com.github.tjake.jlama.tensor.operations.TensorOperationsProvider;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import java.util.Optional;
-import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.stream.IntStream;
 
 public class LlamaModel extends AbstractModel {
     private static final Logger logger = LoggerFactory.getLogger(LlamaModel.class);
@@ -60,14 +61,17 @@ public class LlamaModel extends AbstractModel {
 
     @Override
     public ModelSupport.ModelType getModelType() {
-        return ModelSupport.ModelType.LLAMA;
+        return ModelSupport.getModelType("LLAMA");
     }
 
     @Override
     protected EmbedInput loadInputWeights() {
 
         // Don't quantize this, it's used for the embedding layer
-        if (wte == null) wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
+        if (wte == null) {
+            wte = weights.load("model.embed_tokens.weight").quantize(workingDType);
+            TensorOperationsProvider.get().registerModelTensor(wte);
+        }
 
         return (inputToken, position) -> {
             if (wte.dType() == DType.BF16) {
@@ -152,6 +156,8 @@ public class LlamaModel extends AbstractModel {
             ? weights.load("lm_head.weight").quantize(workingDType)
             : wte == null ? wte = weights.load("model.embed_tokens.weight")
             : wte;
+
+        TensorOperationsProvider.get().registerModelTensor(classificationWeights);
 
         return new SampleOutput() {
             @Override
