@@ -55,8 +55,7 @@
     <assertj.version>3.21.0</assertj.version>
     <junit-platform.version>1.9.2</junit-platform.version>
     <junit-jupiter.version>5.9.2</junit-jupiter.version>
-    <!-- Absolute path to the native libraries directory (works on Linux, macOS and Windows) -->
-    <native.lib.dir>${project.basedir}${file.separator}jlama-native${file.separator}target${file.separator}native-lib-only</native.lib.dir>
+    <native.lib.dir>..${file.separator}jlama-native${file.separator}target${file.separator}native-lib-only</native.lib.dir>
   </properties>
 
   <dependencies>
