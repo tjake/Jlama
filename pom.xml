@@ -55,6 +55,8 @@
     <assertj.version>3.21.0</assertj.version>
     <junit-platform.version>1.9.2</junit-platform.version>
     <junit-jupiter.version>5.9.2</junit-jupiter.version>
+    <!-- Absolute path to the native libraries directory (works on Linux, macOS and Windows) -->
+    <native.lib.dir>${project.basedir}/jlama-native/target/native-lib-only</native.lib.dir>
   </properties>
 
   <dependencies>
@@ -292,7 +294,7 @@
                                 --add-exports java.base/sun.nio.ch=ALL-UNNAMED
                                 --enable-native-access=ALL-UNNAMED
                                 --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                                -Djava.library.path=../jlama-native/target/native-lib-only
+                                -Djava.library.path=${native.lib.dir}
                             </argLine>
                         </configuration>
                     </plugin>
@@ -448,7 +450,7 @@
                   --enable-preview
                   --enable-native-access=ALL-UNNAMED
                   --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                  -Djava.library.path=../jlama-native/target/native-lib-only
+                  -Djava.library.path=${native.lib.dir}
                   </argLine>
                 </configuration>
               </execution>
@@ -469,7 +471,7 @@
                     --enable-preview
                     --enable-native-access=ALL-UNNAMED
                     --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                    -Djava.library.path=../jlama-native/target/native-lib-only
+                    -Djava.library.path=${native.lib.dir}
                   </argLine>
                 </configuration>
               </execution>
@@ -490,7 +492,7 @@
                     --enable-preview
                     --enable-native-access=ALL-UNNAMED
                     --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
-                    -Djava.library.path=../jlama-native/target/native-lib-only
+                    -Djava.library.path=${native.lib.dir}
                   </argLine>
                 </configuration>
               </execution>

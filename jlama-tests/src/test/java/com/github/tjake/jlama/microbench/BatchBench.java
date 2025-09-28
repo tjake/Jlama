@@ -33,7 +33,7 @@ import org.openjdk.jmh.runner.options.TimeValue;
 @Warmup(iterations = 1, time = 5)
 @Measurement(iterations = 3, time = 5)
 @Fork(warmups = 1, value = 1, jvmArgsPrepend = { "--add-modules=jdk.incubator.vector", "--enable-preview",
-    "-Djlama.force_panama_tensor_operations=true" })
+        "-Djlama.force_panama_tensor_operations=true" })
 public class BatchBench {
     private static final TensorOperations ops = new NaiveTensorOperations(); // TensorOperationsProvider.get();
 
@@ -76,7 +76,9 @@ public class BatchBench {
     @OutputTimeUnit(TimeUnit.SECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void dotBatchF32(Parameters p, Blackhole bh) {
-        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> { ops.dotProductChunk(p.r, p.fb1, p.fb2, 0, SIZE, start, len); });
+        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> {
+            ops.dotProductChunk(p.r, p.fb1, p.fb2, 0, SIZE, start, len);
+        });
         bh.consume(p.r);
     }
 
@@ -84,7 +86,9 @@ public class BatchBench {
     @OutputTimeUnit(TimeUnit.SECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void dotBatchBF16(Parameters p, Blackhole bh) {
-        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> { ops.dotProductChunk(p.rbf16, p.qa16, p.qb16, 0, SIZE, start, len); });
+        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> {
+            ops.dotProductChunk(p.rbf16, p.qa16, p.qb16, 0, SIZE, start, len);
+        });
         bh.consume(p.r);
     }
 
@@ -108,7 +112,9 @@ public class BatchBench {
     @OutputTimeUnit(TimeUnit.SECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void dotBatchI8Q4(Parameters p, Blackhole bh) {
-        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> { ops.dotProductChunk(p.r, p.qa8, p.qb4, 0, SIZE, start, len); });
+        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> {
+            ops.dotProductChunk(p.r, p.qa8, p.qb4, 0, SIZE, start, len);
+        });
         bh.consume(p.r);
     }
 
@@ -132,7 +138,9 @@ public class BatchBench {
     @OutputTimeUnit(TimeUnit.SECONDS)
     @BenchmarkMode(Mode.Throughput)
     public void dotBatchF32Q4(Parameters p, Blackhole bh) {
-        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> { ops.dotProductChunk(p.r, p.fb1, p.qb4, 0, SIZE, start, len); });
+        VectorMath.pchunk(0, BATCH_SIZE, (start, len) -> {
+            ops.dotProductChunk(p.r, p.fb1, p.qb4, 0, SIZE, start, len);
+        });
         bh.consume(p.r);
     }
 
@@ -154,17 +162,23 @@ public class BatchBench {
 
     public static void main(String[] args) throws Exception {
 
+        // Determine native lib directory: prefer system property set by Maven
+        // (-Djlama.native.lib.dir),
+        // else fall back to project-relative path used during development.
+        String nativeLibDir = System.getProperty("jlama.native.lib.dir", "jlama-native/target/native-lib-only");
+
         Options opt = new OptionsBuilder().include(BatchBench.class.getSimpleName() + ".dotBatchBF")
-            .forks(1)
-            .warmupBatchSize(1)
-            .measurementBatchSize(1)
-            .warmupIterations(1)
-            .measurementIterations(3)
-            .warmupTime(TimeValue.seconds(5))
-            .measurementTime(TimeValue.seconds(5))
-            .threads(1)
-            .jvmArgs("--add-modules=jdk.incubator.vector", "--enable-preview", "-Djava.library.path=jlama-native/target/native-lib-only")
-            .build();
+                .forks(1)
+                .warmupBatchSize(1)
+                .measurementBatchSize(1)
+                .warmupIterations(1)
+                .measurementIterations(3)
+                .warmupTime(TimeValue.seconds(5))
+                .measurementTime(TimeValue.seconds(5))
+                .threads(1)
+                .jvmArgs("--add-modules=jdk.incubator.vector", "--enable-preview",
+                        "-Djava.library.path=" + nativeLibDir)
+                .build();
 
         Collection<RunResult> results = new Runner(opt).run();
 
@@ -172,7 +186,8 @@ public class BatchBench {
 
         for (RunResult r : results) {
             for (var b : r.getBenchmarkResults()) {
-                double elapsedTime = TimeUnit.MILLISECONDS.toSeconds(b.getMetadata().getStopTime() - b.getMetadata().getMeasurementTime());
+                double elapsedTime = TimeUnit.MILLISECONDS
+                        .toSeconds(b.getMetadata().getStopTime() - b.getMetadata().getMeasurementTime());
 
                 // Calculate total number of floating-point operations
                 double totalFlops = flopsPerIteration * b.getMetadata().getMeasurementOps();
