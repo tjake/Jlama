@@ -162,6 +162,11 @@ public class BatchBench {
 
     public static void main(String[] args) throws Exception {
 
+        // Determine native lib directory: prefer system property set by Maven
+        // (-Djlama.native.lib.dir),
+        // else fall back to project-relative path used during development.
+        String nativeLibDir = System.getProperty("jlama.native.lib.dir", "jlama-native/target/native-lib-only");
+
         Options opt = new OptionsBuilder().include(BatchBench.class.getSimpleName() + ".dotBatchBF")
                 .forks(1)
                 .warmupBatchSize(1)
@@ -172,7 +177,7 @@ public class BatchBench {
                 .measurementTime(TimeValue.seconds(5))
                 .threads(1)
                 .jvmArgs("--add-modules=jdk.incubator.vector", "--enable-preview",
-                        "-Djava.library.path=jlama-native/target/native-lib-only")
+                        "-Djava.library.path=" + nativeLibDir)
                 .build();
 
         Collection<RunResult> results = new Runner(opt).run();
