@@ -449,6 +449,7 @@
                   --enable-native-access=ALL-UNNAMED
                   --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
                   -Djava.library.path=../jlama-native/target/native-lib-only
+                  -Xmx5120m
                   </argLine>
                 </configuration>
               </execution>
@@ -470,6 +471,7 @@
                     --enable-native-access=ALL-UNNAMED
                     --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
                     -Djava.library.path=../jlama-native/target/native-lib-only
+                    -Xmx5120m
                   </argLine>
                 </configuration>
               </execution>
@@ -491,6 +493,7 @@
                     --enable-native-access=ALL-UNNAMED
                     --add-exports java.base/jdk.internal.vm.vector=ALL-UNNAMED
                     -Djava.library.path=../jlama-native/target/native-lib-only
+                    -Xmx5120m
                   </argLine>
                 </configuration>
               </execution>
