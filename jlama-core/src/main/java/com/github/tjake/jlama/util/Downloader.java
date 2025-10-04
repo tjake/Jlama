@@ -85,7 +85,8 @@ public class Downloader {
             this.downloadWeights,
             Optional.ofNullable(this.branch),
             Optional.ofNullable(getAuthToken()),
-            Optional.ofNullable(this.progressReporter)
+            Optional.ofNullable(this.progressReporter),
+            false
         );
     }
 

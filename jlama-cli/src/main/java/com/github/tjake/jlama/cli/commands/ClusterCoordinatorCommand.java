@@ -89,7 +89,8 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
                 true,
                 downloadSection.branch,
                 downloadSection.authToken,
-                false
+                false,
+                downloadSection.useSequential
             );
 
             Coordinator c = new Coordinator(
