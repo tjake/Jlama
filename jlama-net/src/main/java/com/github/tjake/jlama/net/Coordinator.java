@@ -54,8 +54,6 @@ public class Coordinator implements Generator {
     private static final ConcurrentMap<UUID, Integer> sessionPositions = new ConcurrentHashMap<>();
     private final int port;
     private final int workerCount;
-    private final boolean splitHeads;
-    private final boolean splitLayers;
     private final Server server;
     private final AbstractModel model;
     private final JlamaService service;
@@ -95,8 +93,6 @@ public class Coordinator implements Generator {
         );
         this.port = port;
         this.workerCount = workerCount;
-        this.splitHeads = splitHeads;
-        this.splitLayers = splitLayers;
         if (!splitHeads && !splitLayers) {
             throw new IllegalArgumentException("Must split by heads and/or layers");
         }
@@ -122,7 +118,7 @@ public class Coordinator implements Generator {
 
     public void start() throws IOException {
         server.start();
-        logger.info("Server started, listening on " + port);
+        logger.info("Server started, listening on port {}", port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 this.stop();
@@ -203,7 +199,7 @@ public class Coordinator implements Generator {
                         responseBuilder.append(c);
                         responseWithSpecialTokens.append(c);
                     }
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     logger.error("Failed to decode token {}", next, e);
                 }
 

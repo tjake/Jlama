@@ -50,7 +50,7 @@ public class TopologyService {
             return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
         }
 
-        Config config = ((Coordinator) model).getConfig();
+        Config config = model.getConfig();
         Map<UUID, RegisterResponse> workers = ((Coordinator) model).getWorkers();
 
         List<Map<String, String>> workerList = new ArrayList<>();
