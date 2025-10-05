@@ -2,33 +2,26 @@ name: Unit Test CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
   workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - .github/workflows/unit-tests.yaml
-      - "**.java"
-      - "**/pom.xml"
+      - '**.java'
+      - '**/pom.xml'
 
 jobs:
   build:
     strategy:
       matrix:
-        os:
-          [
-            ubuntu-latest,
-            windows-latest,
-            macos-latest,
-            macos-13,
-            ubuntu-24.04-arm,
-          ]
+        os: [ ubuntu-latest, windows-latest, macos-latest, macos-13, ubuntu-24.04-arm ]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3
         with:
           java-version: |
             20

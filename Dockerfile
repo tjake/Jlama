@@ -3,9 +3,7 @@ RUN apt-get update
 RUN apt-get install -y build-essential git zip curl zlib1g-dev jq
 
 ENV SDKMAN_DIR=/root/.sdkman
-ENV JAVA_VERSION_20=20.0.2-graalce
 ENV JAVA_VERSION_21=21.0.2-graalce
-ENV JAVA_VERSION_22=22.0.2-graalce
 
 RUN ["mkdir", "-p", "/build"]
 
@@ -22,9 +20,7 @@ WORKDIR $SDKMAN_DIR
 RUN [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh" && exec "$@"
 
 RUN source /root/.bashrc
-RUN source "$SDKMAN_DIR/bin/sdkman-init.sh" && sdk install java $JAVA_VERSION_20
 RUN source "$SDKMAN_DIR/bin/sdkman-init.sh" && sdk install java $JAVA_VERSION_21
-RUN source "$SDKMAN_DIR/bin/sdkman-init.sh" && sdk install java $JAVA_VERSION_22
 
 WORKDIR /build
 RUN git clone https://github.com/tjake/sdkman-for-toolchains.git
