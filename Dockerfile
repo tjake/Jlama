@@ -1,4 +1,3 @@
-#FROM ubuntu:22.04 AS builder
 FROM eclipse-temurin:21-jdk-jammy AS builder
 
 RUN cat /etc/os-release
