@@ -199,8 +199,6 @@ public class Worker implements Closeable {
         ByteBuffer bb = sessionBytes.asReadOnlyByteBuffer();
         UUID session = new UUID(bb.getLong(), bb.getLong());
 
-        // logger.info("From Peer: {} token(s) from position {} for session {}", tensor.shape().first(), startPosition, session);
-
         Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1 ? t -> {} : t -> {
             CombineRequest.Builder nrb = CombineRequest.newBuilder()
                 .setUuid(sessionBytes)
@@ -322,10 +320,6 @@ public class Worker implements Closeable {
             int startPosition = generateResponse.getStartPosition();
             ByteBuffer bb = generateResponse.getSession().asReadOnlyByteBuffer();
             UUID session = new UUID(bb.getLong(), bb.getLong());
-
-            // logger.info("From Coordinator: {} token(s) from position {} for session {}", tokens.length,
-            // startPosition, session);
-
             Consumer<List<AbstractTensor>> combineCallback = registerResponse.getNumModelShards() == 1 ? t -> {} : t -> {
                 CombineRequest.Builder nrb = CombineRequest.newBuilder()
                     .setUuid(generateResponse.getSession())
@@ -334,8 +328,6 @@ public class Worker implements Closeable {
                     .setModelShard(registerResponse.getModelShard());
                 for (int i = 0; i < t.size(); i++)
                     nrb = nrb.addTensor(getTensorBytes(t.get(i)));
-
-                // logger.info("2){} Sending combine request for session {}", registerResponse.getWorkerOrd(), session);
 
                 CombineResponse combineResponse = getCombineResponseStream(session).request(nrb.build()).join();
 

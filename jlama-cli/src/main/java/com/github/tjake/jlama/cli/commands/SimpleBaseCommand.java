@@ -56,6 +56,10 @@ public class SimpleBaseCommand extends JlamaCli {
 
         @CommandLine.Option(names = { "--auth-token" }, paramLabel = "ARG", description = "HuggingFace auth token (for restricted models)")
         String authToken = null;
+
+        @CommandLine.Option(names = {
+            "--sequential-download" }, description = "Use sequential download instead of parallel when auto-downloading (default: parallel)")
+        Boolean useSequential = false;
     }
 
     static String getOwner(String modelName) {
@@ -101,7 +105,15 @@ public class SimpleBaseCommand extends JlamaCli {
         });
     }
 
-    static void downloadModel(String owner, String name, File modelDirectory, String branch, String authToken, boolean downloadWeights) {
+    static void downloadModel(
+        String owner,
+        String name,
+        File modelDirectory,
+        String branch,
+        String authToken,
+        boolean downloadWeights,
+        boolean useSequential
+    ) {
         try {
             SafeTensorSupport.maybeDownloadModel(
                 modelDirectory.getAbsolutePath(),
@@ -110,7 +122,8 @@ public class SimpleBaseCommand extends JlamaCli {
                 downloadWeights,
                 Optional.ofNullable(URLEncoder.encode(branch, "UTF-8")),
                 Optional.ofNullable(authToken),
-                getProgressConsumer()
+                getProgressConsumer(),
+                useSequential
             );
         } catch (IOException e) {
             e.printStackTrace();
@@ -119,7 +132,7 @@ public class SimpleBaseCommand extends JlamaCli {
     }
 
     static Path getModel(String modelName, File modelDirectory, boolean autoDownload, String branch, String authToken) {
-        return getModel(modelName, modelDirectory, autoDownload, branch, authToken, true);
+        return getModel(modelName, modelDirectory, autoDownload, branch, authToken, true, false);
     }
 
     static Path getModel(
@@ -128,7 +141,8 @@ public class SimpleBaseCommand extends JlamaCli {
         boolean autoDownload,
         String branch,
         String authToken,
-        boolean downloadWeights
+        boolean downloadWeights,
+        boolean useSequential
     ) {
         String owner = getOwner(modelName);
         String name = getName(modelName);
@@ -136,7 +150,7 @@ public class SimpleBaseCommand extends JlamaCli {
         Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(), owner, name);
 
         if (autoDownload) {
-            downloadModel(owner, name, modelDirectory, branch, authToken, downloadWeights);
+            downloadModel(owner, name, modelDirectory, branch, authToken, downloadWeights, useSequential);
         } else if (!modelPath.toFile().exists()) {
             System.err.println("Model not found: " + modelPath);
             System.err.println("Use --auto-download to download the model");
