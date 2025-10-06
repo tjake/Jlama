@@ -19,7 +19,7 @@ import picocli.CommandLine;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-@CommandLine.Command(name = "ls", description = "Lists local models", abbreviateSynopsis = true)
+@CommandLine.Command(name = "ls", aliases = {"list"}, description = "Lists local models", abbreviateSynopsis = true)
 public class ListCommand extends SimpleBaseCommand {
 
     @Override
