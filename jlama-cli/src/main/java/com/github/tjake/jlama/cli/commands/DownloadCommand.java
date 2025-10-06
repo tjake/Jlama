@@ -20,9 +20,12 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "download", description = "Downloads a HuggingFace model - use owner/name format", abbreviateSynopsis = true)
 public class DownloadCommand extends SimpleBaseCommand {
 
+    @CommandLine.Option(names = { "--sequential" }, description = "Use sequential download instead of parallel (default: parallel)")
+    protected boolean useSequential;
+
     @Override
     public void run() {
         ModelId modelId = requireModelId();
-        downloadModel(modelId.owner(), modelId.name(), modelDirectory, downloadSection.branch, downloadSection.authToken, true);
+        downloadModel(modelId.owner(), modelId.name(), modelDirectory, downloadSection.branch, downloadSection.authToken, true, useSequential);
     }
 }

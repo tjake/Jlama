@@ -56,7 +56,8 @@ public class ClusterWorkerCommand extends ModelBaseCommand {
                 true,
                 downloadSection.branch,
                 downloadSection.authToken,
-                false
+                false,
+                downloadSection.useSequential
             );
 
             if (this.advancedSection.threadCount != null) {

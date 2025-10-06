@@ -539,7 +539,7 @@
       <plugins>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.8.0</version>
+          <version>${compiler-plugin.version}</version>
           <!-- Multi-JDK compilation for multi-release JAR -->
           <executions>
             <execution>

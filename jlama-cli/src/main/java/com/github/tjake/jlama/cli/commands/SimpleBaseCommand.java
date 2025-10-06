@@ -45,7 +45,7 @@ public class SimpleBaseCommand extends JlamaCli {
     protected DownloadSection downloadSection = new DownloadSection();
 
     @CommandLine.Option(names = {
-        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})")
+        "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})")
     protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
 
     @CommandLine.Parameters(index = "0", arity = "0", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
@@ -62,6 +62,10 @@ public class SimpleBaseCommand extends JlamaCli {
 
         @CommandLine.Option(names = { "--auth-token" }, paramLabel = "ARG", description = "HuggingFace auth token (for restricted models)")
         String authToken = null;
+
+        @CommandLine.Option(names = {
+            "--sequential-download" }, description = "Use sequential download instead of parallel when auto-downloading (default: parallel)")
+        Boolean useSequential = false;
     }
 
     protected record ModelId(String owner, String name) {
@@ -136,7 +140,15 @@ public class SimpleBaseCommand extends JlamaCli {
         });
     }
 
-    static void downloadModel(String owner, String name, File modelDirectory, String branch, String authToken, boolean downloadWeights) {
+    static void downloadModel(
+        String owner,
+        String name,
+        File modelDirectory,
+        String branch,
+        String authToken,
+        boolean downloadWeights,
+        boolean useSequential
+    ) {
         try {
             SafeTensorSupport.maybeDownloadModel(
                 modelDirectory.getAbsolutePath(),
@@ -145,7 +157,8 @@ public class SimpleBaseCommand extends JlamaCli {
                 downloadWeights,
                 Optional.ofNullable(URLEncoder.encode(branch, "UTF-8")),
                 Optional.ofNullable(authToken),
-                getProgressConsumer()
+                getProgressConsumer(),
+                useSequential
             );
         } catch (IOException e) {
             e.printStackTrace();
@@ -154,7 +167,7 @@ public class SimpleBaseCommand extends JlamaCli {
     }
 
     protected Path getModel(ModelId modelId, File modelDirectory, boolean autoDownload, String branch, String authToken) {
-        return getModel(modelId, modelDirectory, autoDownload, branch, authToken, true);
+        return getModel(modelId, modelDirectory, autoDownload, branch, authToken, true, false);
     }
 
     protected Path getModel(
@@ -163,14 +176,15 @@ public class SimpleBaseCommand extends JlamaCli {
         boolean autoDownload,
         String branch,
         String authToken,
-        boolean downloadWeights
+        boolean downloadWeights,
+        boolean useSequential
     ) {
 
         Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(), modelId.owner,
             modelId.name);
 
         if (autoDownload) {
-            downloadModel(modelId.owner, modelId.name, modelDirectory, branch, authToken, downloadWeights);
+            downloadModel(modelId.owner, modelId.name, modelDirectory, branch, authToken, downloadWeights, useSequential);
         } else if (!modelPath.toFile().exists()) {
             System.err.println("Model not found: " + modelPath);
             System.err.println("Use --auto-download to download the model");
