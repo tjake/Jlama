@@ -20,10 +20,16 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
+import com.github.tjake.jlama.model.ModelSupport;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import com.github.tjake.jlama.util.ProgressReporter;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -42,7 +48,7 @@ public class SimpleBaseCommand extends JlamaCli {
         "--model-cache" }, paramLabel = "ARG", description = "The local directory for downloaded models (default: ${DEFAULT-VALUE})")
     protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
 
-    @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
+    @CommandLine.Parameters(index = "0", arity = "0", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
     protected String modelName;
 
     static class DownloadSection {
@@ -62,22 +68,51 @@ public class SimpleBaseCommand extends JlamaCli {
         Boolean useSequential = false;
     }
 
-    static String getOwner(String modelName) {
-        String[] parts = modelName.split("/");
-        if (parts.length == 0 || parts.length > 2) {
-            System.err.println("Model name must be in the form owner/name");
-            System.exit(1);
+    protected record ModelId(String owner, String name) {
+        protected ModelId {
+            if (owner == null || owner.isEmpty() || name == null || name.isEmpty()) {
+                throw new IllegalArgumentException("ModelId owner and name cannot be null or empty");
+            }
         }
-        return parts[0];
+
+        protected String fullName() {
+            return owner + "/" + name;
+        }
     }
 
-    static String getName(String modelName) {
-        String[] parts = modelName.split("/");
-        if (parts.length != 2) {
-            System.err.println("Model name must be in the form owner/name");
+    ModelId requireModelId() throws IllegalArgumentException {
+        return tryResolveModelId().orElseGet(() -> {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Invalid model name: ").append(modelName).append("\n");
+            sb.append("Must be in the format owner/name or the index of a listed model\n");
+            sb.append("Available models:\n");
+            AtomicReference<Integer> idx = new AtomicReference<>(1);
+            getExistingModels()
+                .map(m -> idx.getAndSet(idx.get() + 1) + ": " + m.owner() + "/" + m.name())
+                .forEach(line -> sb.append("  ").append(line).append("\n"));
+            System.out.println(sb);
             System.exit(1);
+            throw new IllegalArgumentException(sb.toString());
+        });
+    }
+
+    Optional<ModelId> tryResolveModelId() {
+        try {
+            int modelIndex = Integer.parseInt(modelName);
+            List<ModelId> models = getExistingModels().toList();
+            if (modelIndex >= 1 && modelIndex <= models.size()) {
+                return Optional.of(models.get(modelIndex - 1));
+            } else {
+                return Optional.empty();
+            }
+        } catch (IllegalArgumentException e) {
+            // Not an integer, continue
         }
-        return parts[1];
+        String[] parts = modelName.split("/");
+        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new ModelId(parts[0], parts[1]));
     }
 
     static Optional<ProgressReporter> getProgressConsumer() {
@@ -131,12 +166,12 @@ public class SimpleBaseCommand extends JlamaCli {
         }
     }
 
-    static Path getModel(String modelName, File modelDirectory, boolean autoDownload, String branch, String authToken) {
-        return getModel(modelName, modelDirectory, autoDownload, branch, authToken, true, false);
+    protected Path getModel(ModelId modelId, File modelDirectory, boolean autoDownload, String branch, String authToken) {
+        return getModel(modelId, modelDirectory, autoDownload, branch, authToken, true, false);
     }
 
-    static Path getModel(
-        String modelName,
+    protected Path getModel(
+        ModelId modelId,
         File modelDirectory,
         boolean autoDownload,
         String branch,
@@ -144,13 +179,12 @@ public class SimpleBaseCommand extends JlamaCli {
         boolean downloadWeights,
         boolean useSequential
     ) {
-        String owner = getOwner(modelName);
-        String name = getName(modelName);
 
-        Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(), owner, name);
+        Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(), modelId.owner,
+            modelId.name);
 
         if (autoDownload) {
-            downloadModel(owner, name, modelDirectory, branch, authToken, downloadWeights, useSequential);
+            downloadModel(modelId.owner, modelId.name, modelDirectory, branch, authToken, downloadWeights, useSequential);
         } else if (!modelPath.toFile().exists()) {
             System.err.println("Model not found: " + modelPath);
             System.err.println("Use --auto-download to download the model");
@@ -158,5 +192,45 @@ public class SimpleBaseCommand extends JlamaCli {
         }
 
         return modelPath;
+    }
+
+    protected Stream<ModelId> getExistingModels() {
+        if (!modelDirectory.exists()) {
+            System.out.println("No models found in " + modelDirectory.getAbsolutePath());
+            System.exit(0);
+        }
+        File[] files = modelDirectory.listFiles();
+        if (files == null || files.length == 0) {
+            return Stream.empty();
+        }
+        return Arrays.stream(files)
+            .filter(File::isDirectory)
+            .map(file -> file.getName().split("_"))
+            .filter(parts -> parts.length == 2)
+            .map(parts -> {
+                File baseDir = new File(modelDirectory, parts[0] + "_" + parts[1]);
+                File configFile = null;
+                for (File f : Objects.requireNonNull(baseDir.listFiles())) {
+                    if (f.getName().equals("config.json")) {
+                        configFile = f;
+                        break;
+                    }
+                }
+                if (configFile != null) {
+                    try {
+                        ModelSupport.ModelType modelType = SafeTensorSupport.detectModel(configFile);
+                        if (modelType != null) {
+                            return new ModelId(parts[0], parts[1]);
+                        }
+                    } catch (IOException | IllegalArgumentException e) {
+                        // ignore Unknown model type
+                    }
+                }
+                return null;
+            })
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted(Comparator.comparing(ModelId::fullName));
+
     }
 }

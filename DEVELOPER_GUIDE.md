@@ -43,7 +43,7 @@ Run `mvnw` on Unix systems.
 
 Build Jlama using `./mvnw clean package`
 
-```
+```bash
 ./mvnw clean package
 ```
 

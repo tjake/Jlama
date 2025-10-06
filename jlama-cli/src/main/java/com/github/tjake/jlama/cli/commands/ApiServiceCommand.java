@@ -23,8 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.github.tjake.jlama.model.functions.Generator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -40,8 +38,7 @@ import picocli.CommandLine;
 @SpringBootApplication(scanBasePackages = { "com.github.tjake.jlama.net.openai", "com.github.tjake.jlama.cli.commands" })
 @SpringBootConfiguration
 @Configuration
-public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
-    private static final Logger logger = LoggerFactory.getLogger(ApiServiceCommand.class);
+public class ApiServiceCommand extends ModelBaseCommand implements WebMvcConfigurer {
 
     @CommandLine.Option(names = {
         "--port" }, paramLabel = "ARG", description = "http port (default: ${DEFAULT-VALUE})", defaultValue = "8080")
@@ -62,8 +59,8 @@ public class ApiServiceCommand extends BaseCommand implements WebMvcConfigurer {
     @Override
     public void run() {
         try {
-            Path modelPath = SimpleBaseCommand.getModel(
-                modelName,
+            Path modelPath = getModel(
+                requireModelId(),
                 modelDirectory,
                 downloadSection.autoDownload,
                 downloadSection.branch,
