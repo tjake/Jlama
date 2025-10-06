@@ -15,7 +15,6 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-import ch.qos.logback.core.joran.action.BaseModelAction;
 import com.github.tjake.jlama.net.Worker;
 
 import java.nio.file.Path;
