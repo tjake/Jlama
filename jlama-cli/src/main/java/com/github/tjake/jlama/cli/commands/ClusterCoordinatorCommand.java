@@ -83,8 +83,9 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
             }
 
             // Download the model metadata
-            Path model = SimpleBaseCommand.getModel(
-                modelName,
+            ModelId modelId = requireModelId();
+            Path model = getModel(
+                modelId,
                 modelDirectory,
                 true,
                 downloadSection.branch,
@@ -95,8 +96,8 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
 
             Coordinator c = new Coordinator(
                 model.toFile(),
-                SimpleBaseCommand.getOwner(modelName),
-                SimpleBaseCommand.getName(modelName),
+                modelId.owner(),
+                modelId.name(),
                 modelType,
                 workingDirectory,
                 grpcPort,
@@ -121,8 +122,8 @@ public class ClusterCoordinatorCommand extends ModelBaseCommand implements WebMv
             if (includeWorker) {
                 Worker w = new Worker(
                     model.toFile(),
-                    SimpleBaseCommand.getOwner(modelName),
-                    SimpleBaseCommand.getName(modelName),
+                    modelId.owner(),
+                    modelId.name(),
                     modelType,
                     "localhost",
                     grpcPort,

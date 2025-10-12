@@ -43,8 +43,8 @@ public class ChatCommand extends ModelBaseCommand {
 
     @Override
     public void run() {
-        Path modelPath = SimpleBaseCommand.getModel(
-            modelName,
+        Path modelPath = getModel(
+            requireModelId(),
             modelDirectory,
             downloadSection.autoDownload,
             downloadSection.branch,

@@ -15,11 +15,9 @@
  */
 package com.github.tjake.jlama.cli.commands;
 
-import com.github.tjake.jlama.cli.JlamaCli;
 import com.github.tjake.jlama.safetensors.SafeTensorSupport;
 import picocli.CommandLine;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -28,20 +26,14 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.attribute.BasicFileAttributes;
 
 @CommandLine.Command(name = "rm", description = "Removes local model", abbreviateSynopsis = true)
-public class RemoveCommand extends JlamaCli {
-    @CommandLine.Option(names = {
-        "--model-cache" }, paramLabel = "ARG", description = "The local directory for all downloaded models (default: ${DEFAULT-VALUE})")
-    protected File modelDirectory = new File(JlamaCli.DEFAULT_MODEL_DIRECTORY);
-
-    @CommandLine.Parameters(index = "0", arity = "1", paramLabel = "<model name>", description = "The huggingface model owner/name pair")
-    protected String modelName;
+public class RemoveCommand extends SimpleBaseCommand {
 
     @Override
     public void run() {
-        String owner = SimpleBaseCommand.getOwner(modelName);
-        String name = SimpleBaseCommand.getName(modelName);
+        ModelId modelId = requireModelId();
 
-        Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(), owner, name);
+        Path modelPath = SafeTensorSupport.constructLocalModelPath(modelDirectory.getAbsolutePath(),
+            modelId.owner(), modelId.name());
 
         if (!modelPath.toFile().exists()) {
             System.err.println("Model not found: " + modelPath);

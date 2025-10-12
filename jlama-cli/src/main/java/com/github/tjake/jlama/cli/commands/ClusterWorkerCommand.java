@@ -25,7 +25,7 @@ import com.github.tjake.jlama.util.PhysicalCoreExecutor;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "cluster-worker", description = "Connects to a cluster coordinator to perform distributed inference", abbreviateSynopsis = true)
-public class ClusterWorkerCommand extends BaseCommand {
+public class ClusterWorkerCommand extends ModelBaseCommand {
 
     private static final Boolean useHostnameAsWorkerId = Boolean.getBoolean("jlama.use_hostname_as_workerid");
     private static final String HOSTNAME = System.getenv("HOSTNAME");
@@ -49,9 +49,9 @@ public class ClusterWorkerCommand extends BaseCommand {
     public void run() {
         try {
             if (workerId != null) System.out.println("Using " + workerId + " as worker id");
-
-            Path model = SimpleBaseCommand.getModel(
-                modelName,
+            ModelId modelId = requireModelId();
+            Path model = getModel(
+                modelId,
                 modelDirectory,
                 true,
                 downloadSection.branch,
@@ -66,8 +66,8 @@ public class ClusterWorkerCommand extends BaseCommand {
 
             Worker w = new Worker(
                 model.toFile(),
-                SimpleBaseCommand.getOwner(modelName),
-                SimpleBaseCommand.getName(modelName),
+                modelId.owner(),
+                modelId.name(),
                 modelType,
                 host,
                 grpcPort,
