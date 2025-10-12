@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Function to get Java executable path
 get_java_exec() {
